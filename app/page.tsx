@@ -295,7 +295,7 @@ export default function Home() {
             <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] transition hover:-translate-y-1">
               <div className="relative h-[340px] overflow-hidden bg-slate-100 sm:h-[430px]">
                 <img
-                  src={es ? "/ads/ads-2.jpeg" : "/ads/ads-17.png"}
+                  src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
                   alt="RELYDO customers"
                   className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.02]"
                   loading="lazy"
@@ -319,7 +319,7 @@ export default function Home() {
             <article className="group overflow-hidden rounded-[2rem] border border-slate-800 bg-[#07152f] text-white shadow-[0_20px_70px_rgba(2,8,23,0.25)] transition hover:-translate-y-1">
               <div className="relative h-[340px] overflow-hidden bg-slate-900 sm:h-[430px]">
                 <img
-                  src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
+                  src={es ? "/ads/ads-2.jpeg" : "/ads/ads-17.png"}
                   alt="RELYDO professionals"
                   className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                   loading="lazy"
