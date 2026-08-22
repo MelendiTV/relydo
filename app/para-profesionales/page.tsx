@@ -3,29 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/relydo-logo.png";
+const LOGO_SRC = "/icon/relydo-logo.png";
 
 function BrandLogo() {
   return (
-    <span className="inline-flex items-center">
-      <img
-        src={LOGO_SRC}
-        alt="RELYDO"
-        className="h-12 w-auto object-contain sm:h-14"
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
-          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-          if (fallback) fallback.style.display = "inline-flex";
-        }}
-      />
-
-      <span
-        className="hidden text-xl font-black tracking-[0.14em] text-white sm:text-2xl"
-        aria-label="RELYDO"
-      >
-        RELYDO
-      </span>
-    </span>
+    <img
+      src={LOGO_SRC}
+      alt="RELYDO"
+      className="h-12 w-auto object-contain sm:h-14"
+    />
   );
 }
 
@@ -245,7 +231,7 @@ export default function ProfesionalesHome() {
 
   const ads = es
     ? [
-        "/ads/274974a4-c1f1-49e8-9ff6-cbd13ad4b9f7.png",
+        "/ads/pro-home-es.png",
         "/ads/imagen20.png",
       ]
     : [
