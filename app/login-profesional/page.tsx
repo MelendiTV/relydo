@@ -700,22 +700,6 @@ export default function LoginProfesional() {
               : text.iniciarSesion}
           </button>
 
-          <div className="border-t border-slate-200 pt-6">
-
-            <p className="text-center text-slate-600">
-              {text.noCuenta}{" "}
-
-              <a
-                href="/registro-profesional"
-                className="font-bold text-blue-700 hover:underline"
-              >
-                {text.registrate}
-              </a>
-
-            </p>
-
-          </div>
-
         </form>
 
       </div>
