@@ -298,7 +298,7 @@ function RecuperarContrasenaContenido() {
           window.history.replaceState(
             {},
             document.title,
-            `/recuperar-contrasena?tipo=${tipoCuenta}`
+            `/recuperar-contrasena?tipo=${tipoInicial}`
           );
         }
 
@@ -327,7 +327,7 @@ function RecuperarContrasenaContenido() {
           window.history.replaceState(
             {},
             document.title,
-            `/recuperar-contrasena?tipo=${tipoCuenta}`
+            `/recuperar-contrasena?tipo=${tipoInicial}`
           );
         }
 
@@ -382,7 +382,7 @@ function RecuperarContrasenaContenido() {
             window.history.replaceState(
               {},
               document.title,
-              `/recuperar-contrasena?tipo=${tipoCuenta}`
+              `/recuperar-contrasena?tipo=${tipoInicial}`
             );
           }
         }
@@ -493,7 +493,7 @@ function RecuperarContrasenaContenido() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [tipoCuenta, language]);
+  }, [tipoInicial, language]);
 
   async function solicitarRecuperacion(
     e: React.FormEvent<HTMLFormElement>
@@ -522,7 +522,7 @@ function RecuperarContrasenaContenido() {
 
     try {
       const redirectTo =
-        `https://relydo.co/recuperar-contrasena?tipo=${tipoCuenta}`;
+        `https://relydo.co/recuperar-contrasena?tipo=${tipoInicial}`;
 
       const {
         error:
