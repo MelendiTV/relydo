@@ -46,6 +46,8 @@ export default function Home() {
         title2: "con RELYDO.",
         subtitle:
           "Una plataforma para conectar clientes y profesionales con un flujo claro, pagos protegidos y herramientas para llevar cada trabajo de principio a fin.",
+        statement: "Contrata con confianza. Trabaja con respaldo. Todo en RELYDO.",
+        pillars: ["Profesionales verificados", "Pagos protegidos", "Control de principio a fin"],
         choose: "Elige cómo quieres usar RELYDO",
         chooseSub:
           "Cada lado tiene una experiencia diseñada para sus propias necesidades.",
@@ -112,6 +114,8 @@ export default function Home() {
         title2: "with RELYDO.",
         subtitle:
           "A platform that connects customers and professionals through a clear workflow, protected payments and tools that keep every job organized from start to finish.",
+        statement: "Hire with confidence. Work with confidence. All in RELYDO.",
+        pillars: ["Verified professionals", "Protected payments", "Control from start to finish"],
         choose: "Choose how you want to use RELYDO",
         chooseSub:
           "Each side has an experience designed around its own needs.",
@@ -271,19 +275,21 @@ export default function Home() {
               {T.subtitle}
             </p>
 
-            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-              <button
-                onClick={() => router.push("/clientes")}
-                className="rounded-2xl bg-white px-7 py-4 font-black text-blue-700 shadow-2xl transition hover:-translate-y-0.5 hover:bg-blue-50"
-              >
-                {T.customers}
-              </button>
-              <button
-                onClick={() => router.push("/para-profesionales")}
-                className="rounded-2xl border border-white/20 bg-white/10 px-7 py-4 font-black text-white backdrop-blur transition hover:bg-white/15"
-              >
-                {T.pros}
-              </button>
+            <div className="mx-auto mt-10 max-w-5xl">
+              <p className="text-xl font-black leading-8 text-white sm:text-2xl">
+                {T.statement}
+              </p>
+              <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                {T.pillars.map((pillar) => (
+                  <div
+                    key={pillar}
+                    className="flex items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 text-sm font-bold text-slate-200 backdrop-blur-sm"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-300">✓</span>
+                    <span>{pillar}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
