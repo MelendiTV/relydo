@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/relydo-logo.png";
+const LOGO_SRC = "/icon/relydo-logo.png";
 
 function BrandLogo() {
   return (
@@ -49,6 +49,7 @@ export default function ClientesHome() {
         signIn: "Iniciar sesión",
         signUp: "Crear cuenta",
 
+        homeNav: "Inicio",
         servicesNav: "Servicios",
         howNav: "Cómo funciona",
         trustNav: "Confianza",
@@ -179,6 +180,7 @@ export default function ClientesHome() {
         signIn: "Sign in",
         signUp: "Create account",
 
+        homeNav: "Home",
         servicesNav: "Services",
         howNav: "How it works",
         trustNav: "Trust",
@@ -457,7 +459,7 @@ export default function ClientesHome() {
 
       {/* HEADER */}
 
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07152F]/95 shadow-lg backdrop-blur-xl">
 
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
 
@@ -476,6 +478,14 @@ export default function ClientesHome() {
 
             <button
               type="button"
+              onClick={() => router.push("/")}
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
+            >
+              {text.homeNav}
+            </button>
+
+            <button
+              type="button"
               onClick={() =>
                 document
                   .getElementById(
@@ -486,7 +496,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-700 transition hover:text-blue-600"
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
             >
               {
                 text.servicesNav
@@ -505,7 +515,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-700 transition hover:text-blue-600"
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
             >
               {text.howNav}
             </button>
@@ -522,7 +532,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-700 transition hover:text-blue-600"
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
             >
               {text.trustNav}
             </button>
@@ -538,7 +548,7 @@ export default function ClientesHome() {
                   "/para-profesionales"
                 )
               }
-              className="hidden rounded-xl px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100 sm:block"
+              className="hidden rounded-xl px-4 py-2 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white sm:block"
             >
               {text.pros}
             </button>
@@ -550,7 +560,7 @@ export default function ClientesHome() {
                   "/login-cliente"
                 )
               }
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-blue-300 hover:text-blue-700 sm:px-5 sm:text-sm"
+              className="rounded-xl border border-white/25 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-blue-50 sm:px-5 sm:text-sm"
             >
               {text.signIn}
             </button>
@@ -1109,7 +1119,7 @@ export default function ClientesHome() {
 
       {/* FOOTER */}
 
-      <footer className="border-t border-slate-200 bg-white px-5 py-12 lg:px-8">
+      <footer className="border-t border-white/10 bg-[#07152F] px-5 py-12 text-white lg:px-8">
 
         <div className="mx-auto grid max-w-[1440px] gap-10 md:grid-cols-2 lg:grid-cols-5">
 
@@ -1125,7 +1135,7 @@ export default function ClientesHome() {
               <BrandLogo />
             </button>
 
-            <p className="mt-5 max-w-xs leading-7 text-slate-600">
+            <p className="mt-5 max-w-xs leading-7 text-slate-300">
               {
                 text.footerDescription
               }
@@ -1135,13 +1145,13 @@ export default function ClientesHome() {
 
           <div>
 
-            <h3 className="font-black text-slate-950">
+            <h3 className="font-black text-white">
               {
                 text.footerCustomers
               }
             </h3>
 
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300">
 
               <button
                 type="button"
@@ -1150,7 +1160,7 @@ export default function ClientesHome() {
                     "/clientes"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.customerHome
@@ -1164,7 +1174,7 @@ export default function ClientesHome() {
                     "/login-cliente"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.customerLogin
@@ -1178,7 +1188,7 @@ export default function ClientesHome() {
                     "/registro-cliente"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.customerSignup
@@ -1191,13 +1201,13 @@ export default function ClientesHome() {
 
           <div>
 
-            <h3 className="font-black text-slate-950">
+            <h3 className="font-black text-white">
               {
                 text.footerProfessionals
               }
             </h3>
 
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300">
 
               <button
                 type="button"
@@ -1206,7 +1216,7 @@ export default function ClientesHome() {
                     "/para-profesionales"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.professionalHome
@@ -1220,7 +1230,7 @@ export default function ClientesHome() {
                     "/login-profesional"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.professionalLogin
@@ -1234,7 +1244,7 @@ export default function ClientesHome() {
                     "/registro-profesional"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.professionalSignup
@@ -1247,13 +1257,13 @@ export default function ClientesHome() {
 
           <div>
 
-            <h3 className="font-black text-slate-950">
+            <h3 className="font-black text-white">
               {
                 text.footerPlatform
               }
             </h3>
 
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300">
 
               <button
                 type="button"
@@ -1262,7 +1272,7 @@ export default function ClientesHome() {
                     "/servicios"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {text.services}
               </button>
@@ -1274,7 +1284,7 @@ export default function ClientesHome() {
                     "/profesionales"
                   )
                 }
-                className="transition hover:text-blue-600"
+                className="transition hover:text-white"
               >
                 {
                   text.professionals
@@ -1287,13 +1297,13 @@ export default function ClientesHome() {
 
           <div>
 
-            <h3 className="font-black text-slate-950">
+            <h3 className="font-black text-white">
               {
                 text.footerLegal
               }
             </h3>
 
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300">
 
               <span>
                 {text.terms}
@@ -1309,7 +1319,7 @@ export default function ClientesHome() {
 
         </div>
 
-        <div className="mx-auto mt-10 max-w-[1440px] border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
+        <div className="mx-auto mt-10 max-w-[1440px] border-t border-white/10 pt-6 text-center text-sm text-slate-400">
           ©{" "}
           {new Date().getFullYear()}{" "}
           RELYDO. {text.rights}
