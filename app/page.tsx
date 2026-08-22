@@ -210,25 +210,25 @@ export default function Home() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#EEF3FA] text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-slate-300/70 bg-[#EEF3FA]/95 shadow-sm backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07152F]/95 shadow-lg backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <button onClick={() => router.push("/")} aria-label="RELYDO Home">
             <BrandLogo />
           </button>
 
           <nav className="hidden items-center gap-8 lg:flex">
-            <button onClick={() => router.push("/")} className="text-sm font-bold text-slate-700 hover:text-blue-600">
+            <button onClick={() => router.push("/")} className="text-sm font-bold text-slate-200 transition hover:text-white">
               {T.home}
             </button>
             <button
               onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-sm font-bold text-slate-700 hover:text-blue-600"
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
             >
               {T.how}
             </button>
             <button
               onClick={() => document.getElementById("confianza")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-sm font-bold text-slate-700 hover:text-blue-600"
+              className="text-sm font-bold text-slate-200 transition hover:text-white"
             >
               {T.trust}
             </button>
@@ -237,7 +237,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/clientes")}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-blue-300 hover:text-blue-700 sm:px-5 sm:text-sm"
+              className="rounded-xl border border-white/25 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-blue-50 sm:px-5 sm:text-sm"
             >
               {T.customers}
             </button>
