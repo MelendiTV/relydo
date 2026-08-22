@@ -400,7 +400,12 @@ export default function Home() {
             </div>
           </div>
           <div className="min-h-[360px] bg-[#07152f] p-3">
-            <img src={ads[8]} alt="RELYDO" className="h-full w-full rounded-[1.8rem] object-cover object-center" loading="lazy" />
+            <img
+              src={es ? "/ads/24409dde-116e-49cc-a962-70f4ca6595df.png" : "/ads/ads-16.png"}
+              alt="RELYDO"
+              className="h-full w-full rounded-[1.8rem] object-cover object-center"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
