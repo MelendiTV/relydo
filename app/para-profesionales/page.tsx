@@ -231,7 +231,7 @@ export default function ProfesionalesHome() {
 
   const ads = es
     ? [
-        "/ads/pro-home-es.png",
+        "/ads/ads-2.jpeg",
         "/ads/imagen20.png",
       ]
     : [
