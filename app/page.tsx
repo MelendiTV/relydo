@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/relydo-logo.png";
+const LOGO_SRC = "/icon/relydo-logo.png";
 
 function BrandLogo() {
   return (
@@ -253,8 +253,8 @@ export default function Home() {
 
       <section className="relative isolate overflow-hidden bg-[#020817]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(37,99,235,0.35),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(56,189,248,0.16),transparent_25%),linear-gradient(135deg,#020817_0%,#061a42_55%,#020817_100%)]" />
-        <div className="relative mx-auto grid max-w-[1440px] gap-10 px-5 py-16 sm:py-20 lg:grid-cols-[0.86fr_1.14fr] lg:items-center lg:px-8 lg:py-28">
-          <div>
+        <div className="relative mx-auto max-w-[1440px] px-5 py-16 text-center sm:py-20 lg:px-8 lg:pb-16 lg:pt-24">
+          <div className="mx-auto max-w-4xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-xs font-black tracking-[0.16em] text-blue-200">
               <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_18px_rgba(96,165,250,0.9)]" />
               {T.badge}
@@ -267,11 +267,11 @@ export default function Home() {
               </span>
             </h1>
 
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
+            <p className="mx-auto mt-7 max-w-3xl text-lg leading-8 text-slate-300 sm:text-xl">
               {T.subtitle}
             </p>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
               <button
                 onClick={() => router.push("/clientes")}
                 className="rounded-2xl bg-white px-7 py-4 font-black text-blue-700 shadow-2xl transition hover:-translate-y-0.5 hover:bg-blue-50"
@@ -286,28 +286,20 @@ export default function Home() {
               </button>
             </div>
           </div>
-
-          <div className="relative">
-            <div className="absolute -inset-8 rounded-[3rem] bg-blue-500/15 blur-3xl" />
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/5 p-2 shadow-[0_30px_100px_rgba(0,0,0,0.45)]">
-              <img src={ads[1]} alt="RELYDO" className="block h-auto w-full rounded-[1.55rem] object-cover" />
-            </div>
-          </div>
         </div>
       </section>
 
       <section className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-[1440px]">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-black tracking-[0.22em] text-blue-600">RELYDO</p>
-            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">{T.choose}</h2>
-            <p className="mt-5 text-lg leading-8 text-slate-600">{T.chooseSub}</p>
-          </div>
-
-          <div className="mt-12 grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-2">
             <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] transition hover:-translate-y-1">
               <div className="relative h-[340px] overflow-hidden bg-slate-100 sm:h-[430px]">
-                <img src={ads[4]} alt="RELYDO customers" className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.02]" loading="lazy" />
+                <img
+                  src={es ? "/ads/ads-2.jpeg" : "/ads/ads-17.png"}
+                  alt="RELYDO customers"
+                  className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-6 pt-24 text-white sm:p-8">
                   <p className="text-xs font-black tracking-[0.2em] text-blue-200">{T.customerEyebrow}</p>
                   <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] sm:text-4xl">{T.customerTitle}</h3>
@@ -326,7 +318,12 @@ export default function Home() {
 
             <article className="group overflow-hidden rounded-[2rem] border border-slate-800 bg-[#07152f] text-white shadow-[0_20px_70px_rgba(2,8,23,0.25)] transition hover:-translate-y-1">
               <div className="relative h-[340px] overflow-hidden bg-slate-900 sm:h-[430px]">
-                <img src={ads[7]} alt="RELYDO professionals" className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" loading="lazy" />
+                <img
+                  src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
+                  alt="RELYDO professionals"
+                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-6 pt-24 sm:p-8">
                   <p className="text-xs font-black tracking-[0.2em] text-blue-300">{T.proEyebrow}</p>
                   <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] sm:text-4xl">{T.proTitle}</h3>
