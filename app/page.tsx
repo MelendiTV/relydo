@@ -11,7 +11,7 @@ function BrandLogo() {
       <img
         src={LOGO_SRC}
         alt="RELYDO"
-        className="h-10 w-auto object-contain sm:h-11"
+        className="h-12 w-auto object-contain sm:h-14"
         onError={(event) => {
           event.currentTarget.style.display = "none";
           const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
@@ -209,8 +209,8 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-xl">
+    <main className="min-h-screen overflow-x-hidden bg-[#EEF3FA] text-slate-950">
+      <header className="sticky top-0 z-50 border-b border-slate-300/70 bg-[#EEF3FA]/95 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <button onClick={() => router.push("/")} aria-label="RELYDO Home">
             <BrandLogo />
@@ -289,10 +289,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24">
+      <section className="bg-[#EEF3FA] px-5 py-16 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-[1440px]">
           <div className="grid gap-6 xl:grid-cols-2">
-            <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] transition hover:-translate-y-1">
+            <article className="group overflow-hidden rounded-[2rem] border border-slate-300/80 bg-white shadow-[0_22px_75px_rgba(15,23,42,0.16)] transition hover:-translate-y-1">
               <div className="relative overflow-hidden bg-slate-100">
                 <img
                   src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
@@ -399,7 +399,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 bg-white px-5 py-12 lg:px-8">
+      <footer className="border-t border-slate-300/70 bg-[#EEF3FA] px-5 py-12 lg:px-8">
         <div className="mx-auto grid max-w-[1440px] gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <button onClick={() => router.push("/")} aria-label="RELYDO Home">
