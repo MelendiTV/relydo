@@ -293,17 +293,13 @@ export default function Home() {
         <div className="mx-auto max-w-[1440px]">
           <div className="grid gap-6 xl:grid-cols-2">
             <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] transition hover:-translate-y-1">
-              <div className="relative h-[340px] overflow-hidden bg-slate-100 sm:h-[430px]">
+              <div className="relative overflow-hidden bg-slate-100">
                 <img
                   src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
                   alt="RELYDO customers"
-                  className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.02]"
+                  className="block h-auto w-full object-contain transition duration-500 group-hover:scale-[1.01]"
                   loading="lazy"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-6 pt-24 text-white sm:p-8">
-                  <p className="text-xs font-black tracking-[0.2em] text-blue-200">{T.customerEyebrow}</p>
-                  <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] sm:text-4xl">{T.customerTitle}</h3>
-                </div>
               </div>
               <div className="p-6 sm:p-8">
                 <p className="text-lg leading-8 text-slate-600">{T.customerDesc}</p>
@@ -317,17 +313,13 @@ export default function Home() {
             </article>
 
             <article className="group overflow-hidden rounded-[2rem] border border-slate-800 bg-[#07152f] text-white shadow-[0_20px_70px_rgba(2,8,23,0.25)] transition hover:-translate-y-1">
-              <div className="relative h-[340px] overflow-hidden bg-slate-900 sm:h-[430px]">
+              <div className="relative overflow-hidden bg-slate-900">
                 <img
                   src={es ? "/ads/ads-2.jpeg" : "/ads/ads-17.png"}
                   alt="RELYDO professionals"
-                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                  className="block h-auto w-full object-contain transition duration-500 group-hover:scale-[1.01]"
                   loading="lazy"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-6 pt-24 sm:p-8">
-                  <p className="text-xs font-black tracking-[0.2em] text-blue-300">{T.proEyebrow}</p>
-                  <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] sm:text-4xl">{T.proTitle}</h3>
-                </div>
               </div>
               <div className="p-6 sm:p-8">
                 <p className="text-lg leading-8 text-slate-300">{T.proDesc}</p>
