@@ -399,7 +399,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-300/70 bg-[#EEF3FA] px-5 py-12 lg:px-8">
+      <footer className="border-t border-white/10 bg-[#07152F] px-5 py-12 text-white lg:px-8">
         <div className="mx-auto grid max-w-[1440px] gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <button onClick={() => router.push("/")} aria-label="RELYDO Home">
