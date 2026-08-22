@@ -3,39 +3,22 @@
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SOURCES = [
-  "/relydo-logo.png",
-  "/logo.png",
-  "/images/relydo-logo.png",
-  "/images/logo.png",
-];
+const LOGO_SRC = "/relydo-logo.png";
 
 function BrandLogo() {
-  const handleLogoError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event.currentTarget;
-    const currentIndex = Number(img.dataset.logoIndex ?? "0");
-    const nextIndex = currentIndex + 1;
-
-    if (nextIndex < LOGO_SOURCES.length) {
-      img.dataset.logoIndex = String(nextIndex);
-      img.src = LOGO_SOURCES[nextIndex];
-      return;
-    }
-
-    img.style.display = "none";
-    const fallback = img.nextElementSibling as HTMLElement | null;
-    if (fallback) fallback.style.display = "inline-flex";
-  };
-
   return (
     <span className="inline-flex items-center">
       <img
-        src={LOGO_SOURCES[0]}
-        data-logo-index="0"
-        onError={handleLogoError}
+        src={LOGO_SRC}
         alt="RELYDO"
         className="h-12 w-auto object-contain sm:h-14"
+        onError={(event) => {
+          event.currentTarget.style.display = "none";
+          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+          if (fallback) fallback.style.display = "inline-flex";
+        }}
       />
+
       <span
         className="hidden text-xl font-black tracking-[0.14em] text-white sm:text-2xl"
         aria-label="RELYDO"
@@ -260,9 +243,15 @@ export default function ProfesionalesHome() {
         rights: "All rights reserved.",
       };
 
-  const professionalImage = es
-    ? "/ads/imagen.png"
-    : "/ads/imagen20.png";
+  const ads = es
+    ? [
+        "/ads/274974a4-c1f1-49e8-9ff6-cbd13ad4b9f7.png",
+        "/ads/imagen20.png",
+      ]
+    : [
+        "/ads/ads-17.png",
+        "/ads/imagen.png",
+      ];
 
   const items = [
     {
@@ -453,8 +442,8 @@ export default function ProfesionalesHome() {
 
             <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/5 p-2 shadow-[0_30px_100px_rgba(0,0,0,0.45)]">
               <img
-                src={professionalImage}
-                alt={es ? "RELYDO para profesionales" : "RELYDO for professionals"}
+                src={ads[0]}
+                alt="RELYDO professional platform"
                 className="block h-auto w-full rounded-[1.55rem] object-cover"
               />
             </div>
@@ -590,8 +579,8 @@ export default function ProfesionalesHome() {
 
           <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-[#07152f] p-2 shadow-[0_25px_70px_rgba(15,23,42,0.15)]">
             <img
-              src={professionalImage}
-              alt={es ? "RELYDO para profesionales" : "RELYDO for professionals"}
+              src={ads[1]}
+              alt="RELYDO professional workflow"
               className="block h-auto w-full rounded-[1.55rem] object-cover"
               loading="lazy"
             />
