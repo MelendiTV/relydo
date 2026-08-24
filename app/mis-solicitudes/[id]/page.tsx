@@ -871,14 +871,9 @@ export default function MisSolicitudesPage() {
       solicitud.status === "in_progress"
     ) {
       return (
-        <button
+        <a
           key={solicitud.id}
-          type="button"
-          onClick={() => {
-            window.location.assign(
-              `/mis-solicitudes/${solicitud.id}`
-            );
-          }}
+          href={`/mis-solicitudes/${solicitud.id}`}
           className="relative z-20 flex w-full cursor-pointer flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
@@ -907,7 +902,7 @@ export default function MisSolicitudesPage() {
           >
             {nombre}
           </span>
-        </button>
+        </a>
       );
     }
 
