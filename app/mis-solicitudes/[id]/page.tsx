@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NotificationsBell from "@/app/components/NotificationsBell";
 import { AccountModeSwitcher } from "@/app/components/AccountModeSwitcher";
@@ -870,15 +871,10 @@ export default function MisSolicitudesPage() {
       solicitud.status === "in_progress"
     ) {
       return (
-        <button
+        <Link
           key={solicitud.id}
-          type="button"
-          onClick={() =>
-            router.push(
-              `/mis-solicitudes/${solicitud.id}`
-            )
-          }
-          className="flex w-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+          href={`/mis-solicitudes/${solicitud.id}`}
+          className="flex w-full cursor-pointer flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
             <h3 className="truncate text-xl font-black text-slate-950">
@@ -906,7 +902,7 @@ export default function MisSolicitudesPage() {
           >
             {nombre}
           </span>
-        </button>
+        </Link>
       );
     }
 
@@ -1248,13 +1244,10 @@ export default function MisSolicitudesPage() {
               ) : (
                 <div className="mt-4 space-y-2">
                   {solicitudes.map((solicitud) => (
-                    <button
+                    <Link
                       key={solicitud.id}
-                      type="button"
-                      onClick={() =>
-                        router.push(`/mis-solicitudes/${solicitud.id}`)
-                      }
-                      className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
+                      href={`/mis-solicitudes/${solicitud.id}`}
+                      className="flex w-full cursor-pointer flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <p className="truncate font-black text-slate-900">
@@ -1277,7 +1270,7 @@ export default function MisSolicitudesPage() {
                           language
                         )}
                       </span>
-                    </button>
+                    </Link>
                   ))}
                 </div>
               )}
