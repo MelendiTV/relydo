@@ -14,6 +14,10 @@ import {
   useRouter,
 } from "next/navigation";
 
+import {
+  useLanguage,
+} from "@/app/components/LanguageProvider";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -157,6 +161,17 @@ export default function AdminHomePage() {
   const router =
     useRouter();
 
+  const { language } =
+    useLanguage();
+
+  const T = (
+    es: string,
+    en: string
+  ) =>
+    language === "es"
+      ? es
+      : en;
+
   const [
     verificandoAdmin,
     setVerificandoAdmin,
@@ -260,7 +275,7 @@ export default function AdminHomePage() {
       setAdminEmail(
         user.email ||
           adminProfile.email ||
-          "Administrador"
+          T("Administrador", "Administrator")
       );
 
       setVerificandoAdmin(false);
@@ -275,7 +290,7 @@ export default function AdminHomePage() {
       setError(
         err instanceof Error
           ? err.message
-          : "No pudimos verificar la sesión administrativa."
+          : T("No pudimos verificar la sesión administrativa.", "We could not verify the administrative session.")
       );
 
       setVerificandoAdmin(false);
@@ -337,7 +352,7 @@ export default function AdminHomePage() {
         usuariosResult.error
       ) {
         throw new Error(
-          `Usuarios: ${usuariosResult.error.message}`
+          `${T("Usuarios", "Users")}: ${usuariosResult.error.message}`
         );
       }
 
@@ -345,7 +360,7 @@ export default function AdminHomePage() {
         profesionalesResult.error
       ) {
         throw new Error(
-          `Profesionales: ${profesionalesResult.error.message}`
+          `${T("Profesionales", "Professionals")}: ${profesionalesResult.error.message}`
         );
       }
 
@@ -353,7 +368,7 @@ export default function AdminHomePage() {
         ordenesResult.error
       ) {
         throw new Error(
-          `Órdenes: ${ordenesResult.error.message}`
+          `${T("Órdenes", "Orders")}: ${ordenesResult.error.message}`
         );
       }
 
@@ -361,7 +376,7 @@ export default function AdminHomePage() {
         reclamosResult.error
       ) {
         throw new Error(
-          `Reclamos: ${reclamosResult.error.message}`
+          `${T("Reclamos", "Claims")}: ${reclamosResult.error.message}`
         );
       }
 
@@ -479,7 +494,7 @@ export default function AdminHomePage() {
       setError(
         err instanceof Error
           ? err.message
-          : "No pudimos cargar el resumen administrativo."
+          : T("No pudimos cargar el resumen administrativo.", "We could not load the administrative summary.")
       );
     } finally {
       setLoading(false);
@@ -516,7 +531,7 @@ export default function AdminHomePage() {
           </div>
 
           <p className="font-bold text-slate-900">
-            Verificando sesión administrativa...
+            {T("Verificando sesión administrativa...", "Verifying administrative session...")}
           </p>
         </div>
       </main>
@@ -538,19 +553,20 @@ export default function AdminHomePage() {
                 </div>
 
                 <h1 className="mt-5 text-3xl font-black tracking-tight md:text-5xl">
-                  Centro de administración
+                  {T("Centro de administración", "Administration center")}
                 </h1>
 
                 <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300 md:text-lg">
-                  Controla la operación de RELYDO desde un solo lugar:
-                  usuarios, profesionales, órdenes, reclamos, pagos,
-                  alertas y actividad.
+                  {T(
+                    "Controla la operación de RELYDO desde un solo lugar: usuarios, profesionales, órdenes, reclamos, pagos, alertas y actividad.",
+                    "Control RELYDO operations from one place: users, professionals, orders, claims, payments, alerts, and activity."
+                  )}
                 </p>
               </div>
 
               <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm lg:w-[330px]">
                 <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                  Sesión administrativa
+                  {T("Sesión administrativa", "Administrative session")}
                 </p>
 
                 <p className="mt-2 break-all font-bold text-white">
@@ -565,8 +581,8 @@ export default function AdminHomePage() {
                     className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15 disabled:opacity-50"
                   >
                     {loading
-                      ? "Actualizando..."
-                      : "↻ Actualizar"}
+                      ? T("Actualizando...", "Updating...")
+                      : T("↻ Actualizar", "↻ Refresh")}
                   </button>
 
                   <button
@@ -574,7 +590,7 @@ export default function AdminHomePage() {
                     onClick={cerrarSesion}
                     className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100"
                   >
-                    Cerrar sesión
+                    {T("Cerrar sesión", "Sign out")}
                   </button>
                 </div>
               </div>
@@ -593,73 +609,51 @@ export default function AdminHomePage() {
         <section className="mt-7">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
-              Resumen
+              {T("Resumen", "Summary")}
             </p>
 
             <h2 className="mt-2 text-3xl font-black text-slate-950">
-              Estado de RELYDO
+              {T("Estado de RELYDO", "RELYDO status")}
             </h2>
 
             <p className="mt-2 text-slate-600">
-              Una vista rápida de lo que necesita atención y de la
-              actividad general de la plataforma.
+              {T(
+                "Una vista rápida de lo que necesita atención y de la actividad general de la plataforma.",
+                "A quick view of what needs attention and the platform's overall activity."
+              )}
             </p>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                Usuarios
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">
-                {loading ? "—" : metrics.totalUsuarios}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/usuarios")} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Usuarios", "Users")}</p>
+              <p className="mt-2 text-3xl font-black text-slate-950">{loading ? "—" : metrics.totalUsuarios}</p>
+            </button>
 
-            <div className="rounded-2xl border border-purple-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                Profesionales
-              </p>
-              <p className="mt-2 text-3xl font-black text-purple-700">
-                {loading ? "—" : metrics.totalProfesionales}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/operaciones")} className="rounded-2xl border border-purple-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Profesionales", "Professionals")}</p>
+              <p className="mt-2 text-3xl font-black text-purple-700">{loading ? "—" : metrics.totalProfesionales}</p>
+            </button>
 
-            <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                Órdenes
-              </p>
-              <p className="mt-2 text-3xl font-black text-blue-700">
-                {loading ? "—" : metrics.totalOrdenes}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/ordenes")} className="rounded-2xl border border-blue-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Órdenes", "Orders")}</p>
+              <p className="mt-2 text-3xl font-black text-blue-700">{loading ? "—" : metrics.totalOrdenes}</p>
+            </button>
 
-            <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                En curso
-              </p>
-              <p className="mt-2 text-3xl font-black text-emerald-700">
-                {loading ? "—" : metrics.ordenesActivas}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/ordenes?status=in_progress")} className="rounded-2xl border border-emerald-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("En curso", "In progress")}</p>
+              <p className="mt-2 text-3xl font-black text-emerald-700">{loading ? "—" : metrics.ordenesActivas}</p>
+            </button>
 
-            <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                Reclamos activos
-              </p>
-              <p className="mt-2 text-3xl font-black text-red-700">
-                {loading ? "—" : metrics.totalReclamosActivos}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/reclamos")} className="rounded-2xl border border-red-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Reclamos activos", "Active claims")}</p>
+              <p className="mt-2 text-3xl font-black text-red-700">{loading ? "—" : metrics.totalReclamosActivos}</p>
+            </button>
 
-            <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-500">
-                Alertas
-              </p>
-              <p className="mt-2 text-3xl font-black text-amber-700">
-                {loading ? "—" : alertasPendientes}
-              </p>
-            </div>
+            <button type="button" onClick={() => router.push("/admin/alertas")} className="rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Alertas", "Alerts")}</p>
+              <p className="mt-2 text-3xl font-black text-amber-700">{loading ? "—" : alertasPendientes}</p>
+            </button>
           </div>
         </section>
 
@@ -668,24 +662,23 @@ export default function AdminHomePage() {
         <section className="mt-8">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
-              Administración
+              {T("Administración", "Administration")}
             </p>
 
             <h2 className="mt-2 text-3xl font-black text-slate-950">
-              Herramientas de control
+              {T("Herramientas de control", "Control tools")}
             </h2>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <AdminCard
-              titulo="Reclamos de trabajos"
-              descripcion="Revisa disputas abiertas, casos en revisión, evidencias y decisiones económicas."
+              titulo={T("Reclamos de trabajos", "Job claims")}
+              descripcion={T("Revisa disputas abiertas, casos en revisión, evidencias y decisiones económicas.", "Review open disputes, cases under review, evidence, and financial decisions.")}
               icono="⚠️"
-              valor={`${metrics.totalReclamosActivos} activo${
-                metrics.totalReclamosActivos === 1
-                  ? ""
-                  : "s"
-              }`}
+              valor={`${metrics.totalReclamosActivos} ${T(
+                metrics.totalReclamosActivos === 1 ? "activo" : "activos",
+                "active"
+              )}`}
               color="red"
               onClick={() =>
                 router.push(
@@ -695,10 +688,10 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Control de órdenes"
-              descripcion="Consulta todas las solicitudes y trabajos de la plataforma y abre el expediente de cada orden."
+              titulo={T("Control de órdenes", "Order control")}
+              descripcion={T("Consulta todas las solicitudes y trabajos de la plataforma y abre el expediente de cada orden.", "Review all platform requests and jobs and open each order record.")}
               icono="📋"
-              valor={`${metrics.totalOrdenes} registradas`}
+              valor={`${metrics.totalOrdenes} ${T("registradas", "registered")}`}
               color="blue"
               onClick={() =>
                 router.push(
@@ -708,10 +701,10 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Finanzas y ganancias"
-              descripcion="Controla ingresos de RELYDO, pagos a profesionales, retenciones, reembolsos y volumen procesado."
+              titulo={T("Finanzas y ganancias", "Finances and earnings")}
+              descripcion={T("Controla ingresos de RELYDO, pagos a profesionales, retenciones, reembolsos y volumen procesado.", "Control RELYDO revenue, professional payouts, holds, refunds, and processed volume.")}
               icono="📊"
-              etiqueta="Abrir panel financiero"
+              etiqueta={T("Abrir panel financiero", "Open financial panel")}
               color="violet"
               onClick={() =>
                 router.push(
@@ -721,10 +714,10 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Configuración financiera"
-              descripcion="Administra comisiones, tarifa al cliente, cancelaciones y porcentajes del profesional."
+              titulo={T("Configuración financiera", "Financial settings")}
+              descripcion={T("Administra comisiones, tarifa al cliente, cancelaciones y porcentajes del profesional.", "Manage commissions, customer fees, cancellations, and professional percentages.")}
               icono="💰"
-              etiqueta="Administrar configuración"
+              etiqueta={T("Administrar configuración", "Manage settings")}
               color="emerald"
               onClick={() =>
                 router.push(
@@ -734,8 +727,8 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Gestión de usuarios"
-              descripcion="Consulta clientes y profesionales, información de contacto, roles y actividad dentro de RELYDO."
+              titulo={T("Gestión de usuarios", "User management")}
+              descripcion={T("Consulta clientes y profesionales, información de contacto, roles y actividad dentro de RELYDO.", "Review customers and professionals, contact information, roles, and activity within RELYDO.")}
               icono="👥"
               valor={metrics.totalUsuarios}
               color="cyan"
@@ -747,10 +740,10 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Gestión de profesionales"
-              descripcion="Administra la red profesional, verificaciones, documentos, suspensiones y expedientes."
+              titulo={T("Gestión de profesionales", "Professional management")}
+              descripcion={T("Administra la red profesional, verificaciones, documentos, suspensiones y expedientes.", "Manage the professional network, verifications, documents, suspensions, and records.")}
               icono="🧰"
-              valor={`${metrics.totalProfesionales} total`}
+              valor={`${metrics.totalProfesionales} ${T("total", "total")}`}
               color="purple"
               onClick={() =>
                 router.push(
@@ -760,14 +753,13 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Centro de alertas"
-              descripcion="Revisa reclamos activos, profesionales pendientes y situaciones que requieren atención."
+              titulo={T("Centro de alertas", "Alert center")}
+              descripcion={T("Revisa reclamos activos, profesionales pendientes y situaciones que requieren atención.", "Review active claims, pending professionals, and situations requiring attention.")}
               icono="🔔"
-              valor={`${alertasPendientes} pendiente${
-                alertasPendientes === 1
-                  ? ""
-                  : "s"
-              }`}
+              valor={`${alertasPendientes} ${T(
+                alertasPendientes === 1 ? "pendiente" : "pendientes",
+                "pending"
+              )}`}
               color="amber"
               onClick={() =>
                 router.push(
@@ -777,10 +769,10 @@ export default function AdminHomePage() {
             />
 
             <AdminCard
-              titulo="Actividad de la plataforma"
-              descripcion="Mide trabajos, profesionales, clientes y señales operativas relevantes de RELYDO."
+              titulo={T("Actividad de la plataforma", "Platform activity")}
+              descripcion={T("Mide trabajos, profesionales, clientes y señales operativas relevantes de RELYDO.", "Track jobs, professionals, customers, and relevant RELYDO operational signals.")}
               icono="📈"
-              etiqueta="Ver actividad"
+              etiqueta={T("Ver actividad", "View activity")}
               color="indigo"
               onClick={() =>
                 router.push(
@@ -796,40 +788,33 @@ export default function AdminHomePage() {
         <section className="mt-8 grid gap-5 lg:grid-cols-2">
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
-              Requiere atención
+              {T("Requiere atención", "Requires attention")}
             </p>
 
             <h3 className="mt-2 text-2xl font-black text-slate-950">
-              Profesionales pendientes
+              {T("Profesionales pendientes", "Pending professionals")}
             </h3>
 
             <p className="mt-2 text-slate-700">
-              Tienes{" "}
-              <strong>
-                {metrics.profesionalesPendientes}
-              </strong>{" "}
-              profesional
-              {metrics.profesionalesPendientes === 1
-                ? ""
-                : "es"}{" "}
-              pendiente
-              {metrics.profesionalesPendientes === 1
-                ? ""
-                : "s"}{" "}
-              de revisión.
+              {T("Tienes", "You have")}{" "}
+              <strong>{metrics.profesionalesPendientes}</strong>{" "}
+              {T(
+                metrics.profesionalesPendientes === 1 ? "profesional pendiente de revisión." : "profesionales pendientes de revisión.",
+                metrics.profesionalesPendientes === 1 ? "professional pending review." : "professionals pending review."
+              )}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3 text-sm font-bold">
               <span className="rounded-xl bg-white px-3 py-2 text-emerald-700">
-                Aprobados: {metrics.profesionalesAprobados}
+                {T("Aprobados", "Approved")}: {metrics.profesionalesAprobados}
               </span>
 
               <span className="rounded-xl bg-white px-3 py-2 text-amber-700">
-                Pendientes: {metrics.profesionalesPendientes}
+                {T("Pendientes", "Pending")}: {metrics.profesionalesPendientes}
               </span>
 
               <span className="rounded-xl bg-white px-3 py-2 text-red-700">
-                Suspendidos: {metrics.profesionalesSuspendidos}
+                {T("Suspendidos", "Suspended")}: {metrics.profesionalesSuspendidos}
               </span>
             </div>
 
@@ -842,33 +827,29 @@ export default function AdminHomePage() {
               }
               className="mt-6 rounded-xl bg-amber-600 px-5 py-3 font-black text-white transition hover:bg-amber-700"
             >
-              Revisar profesionales →
+              {T("Revisar profesionales →", "Review professionals →")}
             </button>
           </div>
 
           <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
-              Protección
+              {T("Protección", "Protection")}
             </p>
 
             <h3 className="mt-2 text-2xl font-black text-slate-950">
-              Reclamos que requieren decisión
+              {T("Reclamos que requieren decisión", "Claims requiring a decision")}
             </h3>
 
             <p className="mt-2 text-slate-700">
-              Hay{" "}
-              <strong>
-                {metrics.reclamosAbiertos}
-              </strong>{" "}
-              abierto
-              {metrics.reclamosAbiertos === 1
-                ? ""
-                : "s"}{" "}
-              y{" "}
-              <strong>
-                {metrics.reclamosRevision}
-              </strong>{" "}
-              en revisión.
+              {T("Hay", "There are")}{" "}
+              <strong>{metrics.reclamosAbiertos}</strong>{" "}
+              {T(
+                metrics.reclamosAbiertos === 1 ? "abierto" : "abiertos",
+                "open"
+              )}{" "}
+              {T("y", "and")}{" "}
+              <strong>{metrics.reclamosRevision}</strong>{" "}
+              {T("en revisión.", "under review.")}
             </p>
 
             <button
@@ -880,7 +861,7 @@ export default function AdminHomePage() {
               }
               className="mt-6 rounded-xl bg-red-600 px-5 py-3 font-black text-white transition hover:bg-red-700"
             >
-              Abrir reclamos →
+              {T("Abrir reclamos →", "Open claims →")}
             </button>
           </div>
         </section>
@@ -891,22 +872,22 @@ export default function AdminHomePage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Operación
+                {T("Operación", "Operations")}
               </p>
 
               <h3 className="mt-2 text-2xl font-black text-slate-950">
-                Estado de las órdenes
+                {T("Estado de las órdenes", "Order status")}
               </h3>
 
               <p className="mt-2 text-slate-600">
-                Resumen de solicitudes abiertas, trabajos activos y trabajos completados.
+                {T("Resumen", "Summary")} de solicitudes abiertas, trabajos activos y trabajos completados.
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-2xl bg-blue-50 px-4 py-3 text-center">
                 <p className="text-xs font-bold text-slate-500">
-                  Abiertas
+                  {T("Abiertas", "Open")}
                 </p>
                 <p className="mt-1 text-2xl font-black text-blue-700">
                   {metrics.ordenesAbiertas}
@@ -915,7 +896,7 @@ export default function AdminHomePage() {
 
               <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center">
                 <p className="text-xs font-bold text-slate-500">
-                  Activas
+                  {T("Activas", "Active")}
                 </p>
                 <p className="mt-1 text-2xl font-black text-emerald-700">
                   {metrics.ordenesActivas}
@@ -924,7 +905,7 @@ export default function AdminHomePage() {
 
               <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center">
                 <p className="text-xs font-bold text-slate-500">
-                  Completadas
+                  {T("Completadas", "Completed")}
                 </p>
                 <p className="mt-1 text-2xl font-black text-slate-900">
                   {metrics.ordenesCompletadas}
@@ -935,7 +916,7 @@ export default function AdminHomePage() {
         </section>
 
         <footer className="py-8 text-center text-xs font-semibold text-slate-400">
-          RELYDO Admin · Acceso restringido
+          {T("RELYDO Admin · Acceso restringido", "RELYDO Admin · Restricted access")}
         </footer>
       </div>
     </main>
