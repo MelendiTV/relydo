@@ -1684,51 +1684,28 @@ export default function PanelProfesional() {
           </div>
         </section>
 
-        {/* PAGOS STRIPE CONNECT */}
+        {/* PAGOS STRIPE CONNECT
+            El bloque grande solo aparece cuando el profesional necesita
+            configurar o completar Stripe. Cuando ya está listo, desaparece. */}
 
-        {estaVerificado && (
+        {estaVerificado && !pagosConfigurados && (
           <section className="relative z-20 mt-6">
-            <div
-              className={`rounded-3xl border p-5 shadow-sm md:p-6 ${
-                pagosConfigurados
-                  ? "border-emerald-300 bg-emerald-50"
-                  : "border-amber-300 bg-amber-50"
-              }`}
-            >
+            <div className="rounded-3xl border border-amber-300 bg-amber-50 p-5 shadow-sm md:p-6">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div className="max-w-3xl">
-                  <p
-                    className={`text-xs font-black uppercase tracking-[0.16em] ${
-                      pagosConfigurados
-                        ? "text-emerald-700"
-                        : "text-amber-700"
-                    }`}
-                  >
-                    {T(
-                      "Pagos profesionales",
-                      "Professional payments"
-                    )}
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+                    {T("Pagos profesionales", "Professional payments")}
                   </p>
 
                   <h2 className="mt-2 text-xl font-black text-slate-950 md:text-2xl">
-                    {pagosConfigurados
-                      ? T(
-                          "Pagos configurados ✓",
-                          "Payments configured ✓"
-                        )
-                      : T(
-                          "Configura tus pagos para trabajar con RELYDO",
-                          "Set up payments to work with RELYDO"
-                        )}
+                    {T(
+                      "Configura tus pagos para trabajar con RELYDO",
+                      "Set up payments to work with RELYDO"
+                    )}
                   </h2>
 
                   <p className="mt-2 leading-7 text-slate-700">
-                    {pagosConfigurados
-                      ? T(
-                          "Tu cuenta Stripe Connect está lista para recibir transferencias de RELYDO y enviarlas a tu cuenta bancaria.",
-                          "Your Stripe Connect account is ready to receive RELYDO transfers and send them to your bank account."
-                        )
-                      : stripeStatus?.connected
+                    {stripeStatus?.connected
                       ? T(
                           "Tu cuenta Stripe ya fue creada, pero todavía falta completar o aprobar información antes de poder recibir pagos.",
                           "Your Stripe account has been created, but setup or approval is still incomplete before you can receive payments."
@@ -1739,24 +1716,20 @@ export default function PanelProfesional() {
                         )}
                   </p>
 
-                  {!pagosConfigurados &&
-                    stripeStatus?.disabledReason && (
-                      <p className="mt-3 rounded-xl bg-white/80 px-4 py-3 text-sm font-bold text-amber-900">
-                        Stripe: {stripeStatus.disabledReason}
-                      </p>
-                    )}
+                  {stripeStatus?.disabledReason && (
+                    <p className="mt-3 rounded-xl bg-white/80 px-4 py-3 text-sm font-bold text-amber-900">
+                      Stripe: {stripeStatus.disabledReason}
+                    </p>
+                  )}
 
-                  {!pagosConfigurados &&
-                    stripeStatus &&
-                    stripeStatus.currentlyDue.length >
-                      0 && (
-                      <p className="mt-3 text-sm font-semibold text-slate-700">
-                        {T(
-                          "Stripe todavía solicita información adicional para activar los pagos.",
-                          "Stripe still requires additional information to activate payments."
-                        )}
-                      </p>
-                    )}
+                  {stripeStatus && stripeStatus.currentlyDue.length > 0 && (
+                    <p className="mt-3 text-sm font-semibold text-slate-700">
+                      {T(
+                        "Stripe todavía solicita información adicional para activar los pagos.",
+                        "Stripe still requires additional information to activate payments."
+                      )}
+                    </p>
+                  )}
 
                   {errorPagos && (
                     <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 font-bold text-red-700">
@@ -1772,74 +1745,40 @@ export default function PanelProfesional() {
                 </div>
 
                 <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[230px]">
-                  {!pagosConfigurados && (
-                    <button
-                      type="button"
-                      disabled={
-                        configurandoStripe ||
-                        cargandoStripe
-                      }
-                      onClick={
-                        configurarPagosStripe
-                      }
-                      className="rounded-xl bg-blue-700 px-5 py-3.5 font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {configurandoStripe
-                        ? T(
-                            "Abriendo Stripe...",
-                            "Opening Stripe..."
-                          )
-                        : stripeStatus?.connected
-                        ? T(
-                            "Continuar configuración",
-                            "Continue setup"
-                          )
-                        : T(
-                            "Configurar pagos",
-                            "Set up payments"
-                          )}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={configurandoStripe || cargandoStripe}
+                    onClick={configurarPagosStripe}
+                    className="rounded-xl bg-blue-700 px-5 py-3.5 font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {configurandoStripe
+                      ? T("Abriendo Stripe...", "Opening Stripe...")
+                      : stripeStatus?.connected
+                      ? T("Continuar configuración", "Continue setup")
+                      : T("Configurar pagos", "Set up payments")}
+                  </button>
 
                   <button
                     type="button"
-                    disabled={
-                      cargandoStripe ||
-                      configurandoStripe
-                    }
+                    disabled={cargandoStripe || configurandoStripe}
                     onClick={async () => {
-                      const estadoActual =
-                        await consultarEstadoPagos(
-                          true
-                        );
+                      const estadoActual = await consultarEstadoPagos(true);
 
                       if (
                         estadoActual &&
                         estadoActual.connected &&
                         estadoActual.onboardingComplete &&
                         estadoActual.payoutsEnabled &&
-                        estadoActual.transfersCapability ===
-                          "active"
+                        estadoActual.transfersCapability === "active"
                       ) {
-                        setMensajePagos(
-                          T(
-                            "Stripe Connect está listo para recibir pagos.",
-                            "Stripe Connect is ready to receive payments."
-                          )
-                        );
+                        setMensajePagos("");
                       }
                     }}
                     className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {cargandoStripe
-                      ? T(
-                          "Comprobando...",
-                          "Checking..."
-                        )
-                      : T(
-                          "Comprobar estado",
-                          "Check status"
-                        )}
+                      ? T("Comprobando...", "Checking...")
+                      : T("Comprobar estado", "Check status")}
                   </button>
                 </div>
               </div>
