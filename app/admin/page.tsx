@@ -9,8 +9,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
-
 type Provider = {
   user_id: string;
   business_name: string | null;
@@ -612,6 +610,12 @@ export default function AdminPage() {
     useState("");
 
   const [
+    adminEmail,
+    setAdminEmail,
+  ] =
+    useState("");
+
+  const [
     mensaje,
     setMensaje,
   ] =
@@ -781,23 +785,44 @@ export default function AdminPage() {
       !user
     ) {
       router.replace(
-        "/login-profesional"
+        "/login-admin"
       );
 
       return;
     }
+
+    const {
+      data: adminProfile,
+      error: adminProfileError,
+    } = await supabase
+      .from("profiles")
+      .select(`
+        id,
+        role,
+        email
+      `)
+      .eq("id", user.id)
+      .maybeSingle();
 
     if (
-      !user.email ||
-      user.email.toLowerCase() !==
-        ADMIN_EMAIL.toLowerCase()
+      adminProfileError ||
+      !adminProfile ||
+      adminProfile.role !== "admin"
     ) {
+      await supabase.auth.signOut();
+
       router.replace(
-        "/"
+        "/login-admin"
       );
 
       return;
     }
+
+    setAdminEmail(
+      user.email ||
+      adminProfile.email ||
+      "Administrador"
+    );
 
     setVerificandoAdmin(
       false
@@ -2621,7 +2646,7 @@ export default function AdminPage() {
     await supabase.auth.signOut();
 
     router.replace(
-      "/login-profesional"
+      "/login-admin"
     );
   }
 
@@ -3045,7 +3070,7 @@ export default function AdminPage() {
               </div>
 
               <div className="text-sm text-blue-100">
-                {ADMIN_EMAIL}
+                {adminEmail || "Administrador"}
               </div>
 
               <button
