@@ -1660,6 +1660,15 @@ export default function PanelProfesional() {
                 )}
 
                 <div className="w-full rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm md:w-auto md:p-4">
+                  {estaVerificado && (
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-100">
+                        <span className="text-emerald-300">✓</span>
+                        {T("Verificado", "Verified")}
+                      </span>
+                    </div>
+                  )}
+
                   <p className="text-xs font-black uppercase tracking-wide text-blue-200">
                     {T("Cuenta", "Account")}
                   </p>
@@ -2055,24 +2064,29 @@ export default function PanelProfesional() {
           </section>
         )}
 
-        {/* ESTADO */}
+        {/* ESTADO
+            Si la cuenta ya está verificada, el estado se muestra de forma
+            compacta en el recuadro de CUENTA del header.
+            Este bloque queda reservado para estados que requieren atención. */}
 
-        <section className={`mt-6 rounded-3xl border p-7 shadow-sm ${estado.estilo}`}>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-wide">
-                {T("Estado de la cuenta", "Account status")}
-              </p>
+        {!estaVerificado && (
+          <section className={`mt-6 rounded-3xl border p-7 shadow-sm ${estado.estilo}`}>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide">
+                  {T("Estado de la cuenta", "Account status")}
+                </p>
 
-              <h2 className="mt-2 text-2xl font-extrabold">{estado.titulo}</h2>
-              <p className="mt-2">{estado.descripcion}</p>
+                <h2 className="mt-2 text-2xl font-extrabold">{estado.titulo}</h2>
+                <p className="mt-2">{estado.descripcion}</p>
+              </div>
+
+              <span className={`w-fit rounded-full px-5 py-2 font-bold ${estado.badge}`}>
+                {estado.textoBadge}
+              </span>
             </div>
-
-            <span className={`w-fit rounded-full px-5 py-2 font-bold ${estado.badge}`}>
-              {estado.textoBadge}
-            </span>
-          </div>
-        </section>
+          </section>
+        )}
 
         {panelActivo === "documents" && (
           <>
