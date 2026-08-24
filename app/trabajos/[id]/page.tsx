@@ -5949,7 +5949,9 @@ export default function TrabajoDetallePage() {
         {/* ENVIAR PRESUPUESTO */}
 
         {trabajo.status ===
-          "open" && (
+          "open" &&
+          oferta?.status !==
+            "rejected" && (
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7">
 
             <h2 className="flex items-center gap-3 text-2xl font-black text-slate-950">
