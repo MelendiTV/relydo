@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NotificationsBell from "@/app/components/NotificationsBell";
 import { AccountModeSwitcher } from "@/app/components/AccountModeSwitcher";
@@ -442,6 +443,8 @@ export default function MisSolicitudesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [realtimeConectado, setRealtimeConectado] = useState(false);
   const [reclamos, setReclamos] = useState<ReclamoCliente[]>([]);
+  const [mostrarReclamos, setMostrarReclamos] = useState(false);
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
 
   useEffect(() => {
     cargarPanelCliente();
@@ -869,15 +872,10 @@ export default function MisSolicitudesPage() {
       solicitud.status === "in_progress"
     ) {
       return (
-        <button
+        <a
           key={solicitud.id}
-          type="button"
-          onClick={() =>
-            router.push(
-              `/mis-solicitudes/${solicitud.id}`
-            )
-          }
-          className="flex w-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+          href={`/mis-solicitudes/${solicitud.id}`}
+          className="relative z-20 flex w-full cursor-pointer flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
             <h3 className="truncate text-xl font-black text-slate-950">
@@ -905,7 +903,7 @@ export default function MisSolicitudesPage() {
           >
             {nombre}
           </span>
-        </button>
+        </a>
       );
     }
 
@@ -1204,7 +1202,7 @@ export default function MisSolicitudesPage() {
               clase="text-rose-700"
               icono="⚠"
               fondo="bg-rose-50"
-              onClick={() => irASeccion("mis-reclamos")}
+              onClick={() => setMostrarReclamos((actual) => !actual)}
             />
 
             <ResumenCard
@@ -1213,9 +1211,151 @@ export default function MisSolicitudesPage() {
               clase="text-violet-700"
               icono="↺"
               fondo="bg-violet-50"
-              onClick={() => irASeccion("historial-completo")}
+              onClick={() => setMostrarHistorial((actual) => !actual)}
             />
           </div>
+
+          {mostrarReclamos && (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-wide text-rose-700">
+                    {t.proteccion}
+                  </p>
+                  <h3 className="mt-1 text-xl font-extrabold text-slate-900">
+                    {t.misReclamos}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {t.revisarReclamos}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarReclamos(false)}
+                  className="w-fit rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-800 hover:bg-rose-100"
+                >
+                  {language === "es" ? "Ocultar" : "Hide"}
+                </button>
+              </div>
+
+              {reclamos.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
+                  <p className="font-bold text-slate-700">
+                    {t.sinReclamos}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {reclamos.map((reclamo) => {
+                    const solicitudRelacionada = solicitudes.find(
+                      (item) => item.id === reclamo.request_id
+                    );
+
+                    const activo =
+                      reclamo.status === "open" ||
+                      reclamo.status === "reviewing" ||
+                      reclamo.status === "in_review";
+
+                    return (
+                      <Link
+                        key={reclamo.id}
+                        href={`/mis-solicitudes/${reclamo.request_id}`}
+                        className="flex w-full cursor-pointer flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-rose-300 hover:bg-rose-50 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-black text-slate-900">
+                            {reclamo.reason || t.reclamoTrabajo}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {solicitudRelacionada?.title || t.verTrabajoRelacionado}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-extrabold ${
+                            activo
+                              ? "bg-rose-100 text-rose-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {reclamo.status === "open"
+                            ? t.abierto
+                            : reclamo.status === "reviewing" ||
+                              reclamo.status === "in_review"
+                            ? t.enRevision
+                            : t.resuelto}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {mostrarHistorial && (
+            <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-wide text-violet-700">
+                    {t.historialCompleto}
+                  </p>
+                  <h3 className="mt-1 text-xl font-extrabold text-slate-900">
+                    {t.todasSolicitudes}
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarHistorial(false)}
+                  className="w-fit rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-extrabold text-violet-800 hover:bg-violet-100"
+                >
+                  {language === "es" ? "Ocultar" : "Hide"}
+                </button>
+              </div>
+
+              {solicitudes.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
+                  <p className="font-bold text-slate-700">
+                    {t.sinHistorial}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {solicitudes.map((solicitud) => (
+                    <Link
+                      key={solicitud.id}
+                      href={`/mis-solicitudes/${solicitud.id}`}
+                      className="flex w-full cursor-pointer flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-black text-slate-900">
+                          {solicitud.title}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {solicitud.city}, {solicitud.state} {solicitud.zip_code}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-extrabold ${estiloEstado(
+                          solicitud.status,
+                          solicitud.job_stage
+                        )}`}
+                      >
+                        {nombreEstado(
+                          solicitud.status,
+                          solicitud.job_stage,
+                          language
+                        )}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {error && (
@@ -1310,153 +1450,6 @@ export default function MisSolicitudesPage() {
           </section>
         )}
 
-        {!error && (
-          <section
-            id="mis-reclamos"
-            className="mt-10 scroll-mt-6 rounded-3xl border border-rose-200 bg-white p-7 shadow-sm"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-rose-700">
-                  {t.proteccion}
-                </p>
-                <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                  {t.misReclamos}
-                </h2>
-                <p className="mt-2 text-slate-600">
-                  {t.revisarReclamos}
-                </p>
-              </div>
-
-              <span className="w-fit rounded-full bg-rose-100 px-4 py-2 font-extrabold text-rose-800">
-                {reclamosActivos.length} {t.activos}
-              </span>
-            </div>
-
-            {reclamos.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
-                <p className="font-bold text-slate-700">
-                  {t.sinReclamos}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-3">
-                {reclamos.map((reclamo) => {
-                  const solicitud = solicitudes.find(
-                    (item) => item.id === reclamo.request_id
-                  );
-
-                  const activo =
-                    reclamo.status === "open" ||
-                    reclamo.status === "reviewing" ||
-                    reclamo.status === "in_review";
-
-                  return (
-                    <button
-                      key={reclamo.id}
-                      type="button"
-                      onClick={() =>
-                        router.push(`/mis-solicitudes/${reclamo.request_id}`)
-                      }
-                      className="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-rose-300 hover:bg-rose-50 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <p className="font-black text-slate-900">
-                          {reclamo.reason || t.reclamoTrabajo}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {solicitud?.title || t.verTrabajoRelacionado}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`w-fit rounded-full px-3 py-1 text-sm font-extrabold ${
-                          activo
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-emerald-100 text-emerald-800"
-                        }`}
-                      >
-                        {reclamo.status === "open"
-                          ? t.abierto
-                          : reclamo.status === "reviewing" ||
-                            reclamo.status === "in_review"
-                          ? t.enRevision
-                          : t.resuelto}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {!error && (
-          <section
-            id="historial-completo"
-            className="mt-10 scroll-mt-6 rounded-3xl border border-violet-200 bg-white p-7 shadow-sm"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-violet-700">
-                  {t.historialCompleto}
-                </p>
-
-                <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                  {t.todasSolicitudes}
-                </h2>
-
-                <p className="mt-2 text-slate-600">
-                  {t.todasVista}
-                </p>
-              </div>
-
-              <span className="w-fit rounded-full bg-violet-100 px-4 py-2 font-extrabold text-violet-800">
-                {totalHistorial}
-              </span>
-            </div>
-
-            {solicitudes.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
-                <p className="font-bold text-slate-700">
-                  {t.sinHistorial}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-3">
-                {solicitudes.map((solicitud) => (
-                  <button
-                    key={solicitud.id}
-                    type="button"
-                    onClick={() =>
-                      router.push(`/mis-solicitudes/${solicitud.id}`)
-                    }
-                    className="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-black text-slate-900">
-                        {solicitud.title}
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        {solicitud.city}, {solicitud.state} {solicitud.zip_code}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`w-fit rounded-full px-3 py-1 text-sm font-extrabold ${estiloEstado(
-                        solicitud.status,
-                        solicitud.job_stage
-                      )}`}
-                    >
-                      {nombreEstado(solicitud.status, solicitud.job_stage, language)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
 
       </div>
     </main>
