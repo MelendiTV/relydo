@@ -5203,7 +5203,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
           solicitud.status === "cancelled" ||
           (
             solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working"
+            solicitud.job_stage === "working" &&
+            (Boolean(claim) || mostrarReclamo)
           )
         ) &&
           ofertaSeleccionada && (
