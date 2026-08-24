@@ -683,13 +683,6 @@ function RegistroClienteContenido() {
                   {email.trim().toLowerCase()}
                 </p>
 
-                <button
-                  type="button"
-                  onClick={irALogin}
-                  className="mt-6 w-full rounded-xl bg-blue-700 py-4 text-lg font-extrabold text-white transition hover:bg-blue-800"
-                >
-                  {text.irALogin}
-                </button>
               </div>
             ) : (
             <form
