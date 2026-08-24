@@ -34,6 +34,26 @@ type ProviderProfile = {
   active: boolean | null;
   average_rating: number | null;
   completed_jobs: number | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean | null;
+  stripe_charges_enabled: boolean | null;
+  stripe_payouts_enabled: boolean | null;
+};
+
+type StripeConnectStatus = {
+  success: boolean;
+  connected: boolean;
+  stripeAccountId?: string | null;
+  onboardingComplete: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  transfersCapability: string | null;
+  disabledReason: string | null;
+  currentlyDue: string[];
+  eventuallyDue: string[];
+  pastDue: string[];
+  pendingVerification: string[];
 };
 
 type TrabajoContratado = {
@@ -305,6 +325,17 @@ export default function PanelProfesional() {
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const [esMovil, setEsMovil] = useState(false);
 
+  const [stripeStatus, setStripeStatus] =
+    useState<StripeConnectStatus | null>(null);
+  const [cargandoStripe, setCargandoStripe] =
+    useState(false);
+  const [configurandoStripe, setConfigurandoStripe] =
+    useState(false);
+  const [mensajePagos, setMensajePagos] =
+    useState("");
+  const [errorPagos, setErrorPagos] =
+    useState("");
+
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
 
@@ -430,6 +461,163 @@ export default function PanelProfesional() {
     };
   }, []);
 
+  async function consultarEstadoPagos(
+    mostrarCargaStripe = true
+  ) {
+    if (mostrarCargaStripe) {
+      setCargandoStripe(true);
+    }
+
+    setErrorPagos("");
+
+    try {
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        throw new Error(
+          T(
+            "No pudimos verificar tu sesión para consultar Stripe.",
+            "We could not verify your session to check Stripe."
+          )
+        );
+      }
+
+      const response = await fetch(
+        "/api/stripe/connect/status",
+        {
+          method: "GET",
+          headers: {
+            Authorization:
+              `Bearer ${sessionData.session.access_token}`,
+          },
+          cache: "no-store",
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            T(
+              "No pudimos consultar el estado de tus pagos.",
+              "We could not check your payment status."
+            )
+        );
+      }
+
+      setStripeStatus(
+        data as StripeConnectStatus
+      );
+
+      return data as StripeConnectStatus;
+    } catch (err) {
+      console.error(
+        "Error consultando Stripe Connect:",
+        err
+      );
+
+      setErrorPagos(
+        err instanceof Error
+          ? err.message
+          : T(
+              "No pudimos consultar Stripe.",
+              "We could not check Stripe."
+            )
+      );
+
+      return null;
+    } finally {
+      if (mostrarCargaStripe) {
+        setCargandoStripe(false);
+      }
+    }
+  }
+
+  async function configurarPagosStripe() {
+    setErrorPagos("");
+    setMensajePagos("");
+    setConfigurandoStripe(true);
+
+    try {
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        throw new Error(
+          T(
+            "No pudimos verificar tu sesión.",
+            "We could not verify your session."
+          )
+        );
+      }
+
+      const response = await fetch(
+        "/api/stripe/connect",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${sessionData.session.access_token}`,
+          },
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            T(
+              "No se pudo iniciar la configuración de pagos.",
+              "Could not start payment setup."
+            )
+        );
+      }
+
+      if (!data?.url) {
+        throw new Error(
+          T(
+            "Stripe no devolvió un enlace de configuración.",
+            "Stripe did not return a setup link."
+          )
+        );
+      }
+
+      window.location.href =
+        data.url;
+    } catch (err) {
+      console.error(
+        "Error iniciando Stripe Connect:",
+        err
+      );
+
+      setErrorPagos(
+        err instanceof Error
+          ? err.message
+          : T(
+              "No se pudo iniciar Stripe Connect.",
+              "Could not start Stripe Connect."
+            )
+      );
+
+      setConfigurandoStripe(false);
+    }
+  }
+
   async function cargarPanel(mostrarCarga = true) {
     if (mostrarCarga) {
       setLoading(true);
@@ -493,6 +681,8 @@ export default function PanelProfesional() {
       }
 
       setProfile(providerProfile as ProviderProfile);
+
+      await consultarEstadoPagos(false);
 
       const { data: documentosData, error: documentosError } = await supabase
         .from("provider_documents")
@@ -1163,6 +1353,12 @@ export default function PanelProfesional() {
     profile.verified === true &&
     profile.active === true;
 
+  const pagosConfigurados =
+    stripeStatus?.connected === true &&
+    stripeStatus.onboardingComplete === true &&
+    stripeStatus.payoutsEnabled === true &&
+    stripeStatus.transfersCapability === "active";
+
   function obtenerEstado() {
     if (estaRechazado) {
       return {
@@ -1487,6 +1683,169 @@ export default function PanelProfesional() {
             </div>
           </div>
         </section>
+
+        {/* PAGOS STRIPE CONNECT */}
+
+        {estaVerificado && (
+          <section className="relative z-20 mt-6">
+            <div
+              className={`rounded-3xl border p-5 shadow-sm md:p-6 ${
+                pagosConfigurados
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-amber-300 bg-amber-50"
+              }`}
+            >
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-3xl">
+                  <p
+                    className={`text-xs font-black uppercase tracking-[0.16em] ${
+                      pagosConfigurados
+                        ? "text-emerald-700"
+                        : "text-amber-700"
+                    }`}
+                  >
+                    {T(
+                      "Pagos profesionales",
+                      "Professional payments"
+                    )}
+                  </p>
+
+                  <h2 className="mt-2 text-xl font-black text-slate-950 md:text-2xl">
+                    {pagosConfigurados
+                      ? T(
+                          "Pagos configurados ✓",
+                          "Payments configured ✓"
+                        )
+                      : T(
+                          "Configura tus pagos para trabajar con RELYDO",
+                          "Set up payments to work with RELYDO"
+                        )}
+                  </h2>
+
+                  <p className="mt-2 leading-7 text-slate-700">
+                    {pagosConfigurados
+                      ? T(
+                          "Tu cuenta Stripe Connect está lista para recibir transferencias de RELYDO y enviarlas a tu cuenta bancaria.",
+                          "Your Stripe Connect account is ready to receive RELYDO transfers and send them to your bank account."
+                        )
+                      : stripeStatus?.connected
+                      ? T(
+                          "Tu cuenta Stripe ya fue creada, pero todavía falta completar o aprobar información antes de poder recibir pagos.",
+                          "Your Stripe account has been created, but setup or approval is still incomplete before you can receive payments."
+                        )
+                      : T(
+                          "Antes de poder aceptar trabajos y recibir dinero, debes completar una configuración segura de pagos con Stripe Connect.",
+                          "Before you can accept jobs and receive money, you must complete secure payment setup with Stripe Connect."
+                        )}
+                  </p>
+
+                  {!pagosConfigurados &&
+                    stripeStatus?.disabledReason && (
+                      <p className="mt-3 rounded-xl bg-white/80 px-4 py-3 text-sm font-bold text-amber-900">
+                        Stripe: {stripeStatus.disabledReason}
+                      </p>
+                    )}
+
+                  {!pagosConfigurados &&
+                    stripeStatus &&
+                    stripeStatus.currentlyDue.length >
+                      0 && (
+                      <p className="mt-3 text-sm font-semibold text-slate-700">
+                        {T(
+                          "Stripe todavía solicita información adicional para activar los pagos.",
+                          "Stripe still requires additional information to activate payments."
+                        )}
+                      </p>
+                    )}
+
+                  {errorPagos && (
+                    <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 font-bold text-red-700">
+                      {errorPagos}
+                    </div>
+                  )}
+
+                  {mensajePagos && (
+                    <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 font-bold text-emerald-800">
+                      {mensajePagos}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[230px]">
+                  {!pagosConfigurados && (
+                    <button
+                      type="button"
+                      disabled={
+                        configurandoStripe ||
+                        cargandoStripe
+                      }
+                      onClick={
+                        configurarPagosStripe
+                      }
+                      className="rounded-xl bg-blue-700 px-5 py-3.5 font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {configurandoStripe
+                        ? T(
+                            "Abriendo Stripe...",
+                            "Opening Stripe..."
+                          )
+                        : stripeStatus?.connected
+                        ? T(
+                            "Continuar configuración",
+                            "Continue setup"
+                          )
+                        : T(
+                            "Configurar pagos",
+                            "Set up payments"
+                          )}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={
+                      cargandoStripe ||
+                      configurandoStripe
+                    }
+                    onClick={async () => {
+                      const estadoActual =
+                        await consultarEstadoPagos(
+                          true
+                        );
+
+                      if (
+                        estadoActual &&
+                        estadoActual.connected &&
+                        estadoActual.onboardingComplete &&
+                        estadoActual.payoutsEnabled &&
+                        estadoActual.transfersCapability ===
+                          "active"
+                      ) {
+                        setMensajePagos(
+                          T(
+                            "Stripe Connect está listo para recibir pagos.",
+                            "Stripe Connect is ready to receive payments."
+                          )
+                        );
+                      }
+                    }}
+                    className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {cargandoStripe
+                      ? T(
+                          "Comprobando...",
+                          "Checking..."
+                        )
+                      : T(
+                          "Comprobar estado",
+                          "Check status"
+                        )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* RESUMEN */}
 

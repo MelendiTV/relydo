@@ -21,10 +21,6 @@ export async function POST(
   request: NextRequest
 ) {
   try {
-    // ======================================================
-    // 1. OBTENER TOKEN DEL PROFESIONAL
-    // ======================================================
-
     const authorization =
       request.headers.get(
         "authorization"
@@ -48,14 +44,12 @@ export async function POST(
     }
 
     const accessToken =
-      authorization.replace(
-        "Bearer ",
-        ""
-      );
-
-    // ======================================================
-    // 2. VERIFICAR USUARIO CON SUPABASE
-    // ======================================================
+      authorization
+        .replace(
+          "Bearer ",
+          ""
+        )
+        .trim();
 
     const {
       data: {
@@ -82,10 +76,6 @@ export async function POST(
         }
       );
     }
-
-    // ======================================================
-    // 3. CONFIRMAR QUE ES PROFESIONAL
-    // ======================================================
 
     const {
       data:
@@ -135,10 +125,6 @@ export async function POST(
         }
       );
     }
-
-    // ======================================================
-    // 4. CARGAR PERFIL PROFESIONAL
-    // ======================================================
 
     const {
       data:
@@ -194,10 +180,6 @@ export async function POST(
       );
     }
 
-    // ======================================================
-    // 5. SOLO PROFESIONALES VERIFICADOS
-    // ======================================================
-
     const estaVerificado =
       providerProfile.verification_status ===
         "verified" &&
@@ -220,12 +202,33 @@ export async function POST(
       );
     }
 
-    // ======================================================
-    // 6. CREAR O REUTILIZAR CUENTA STRIPE CONNECT
-    // ======================================================
-
     let stripeAccountId =
       providerProfile.stripe_account_id;
+
+    if (
+      stripeAccountId
+    ) {
+      try {
+        await stripe.accounts.retrieve(
+          stripeAccountId
+        );
+      } catch (error) {
+        console.error(
+          "La cuenta Stripe guardada no pudo consultarse:",
+          error
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "La cuenta Stripe Connect guardada no está disponible. Contacta a soporte de RELYDO antes de crear otra cuenta.",
+          },
+          {
+            status: 409,
+          }
+        );
+      }
+    }
 
     if (
       !stripeAccountId
@@ -261,15 +264,15 @@ export async function POST(
                 providerProfile.business_name ||
                 "",
             },
+          },
+          {
+            idempotencyKey:
+              `relydo_connect_account_${user.id}`,
           }
         );
 
       stripeAccountId =
         account.id;
-
-      // ====================================================
-      // 7. GUARDAR ACCOUNT ID EN SUPABASE
-      // ====================================================
 
       const {
         error:
@@ -316,16 +319,8 @@ export async function POST(
       }
     }
 
-    // ======================================================
-    // 8. URL BASE DE RELYDO
-    // ======================================================
-
     const origin =
       request.nextUrl.origin;
-
-    // ======================================================
-    // 9. CREAR ACCOUNT LINK DE ONBOARDING
-    // ======================================================
 
     const accountLink =
       await stripe.accountLinks.create(
@@ -343,10 +338,6 @@ export async function POST(
             "account_onboarding",
         }
       );
-
-    // ======================================================
-    // 10. DEVOLVER URL DE STRIPE
-    // ======================================================
 
     return NextResponse.json(
       {

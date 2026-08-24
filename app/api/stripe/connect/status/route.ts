@@ -21,16 +21,16 @@ export async function GET(
   request: NextRequest
 ) {
   try {
-    // ======================================================
-    // 1. OBTENER SESIÓN DEL PROFESIONAL
-    // ======================================================
-
     const authorization =
-      request.headers.get("authorization");
+      request.headers.get(
+        "authorization"
+      );
 
     if (
       !authorization ||
-      !authorization.startsWith("Bearer ")
+      !authorization.startsWith(
+        "Bearer "
+      )
     ) {
       return NextResponse.json(
         {
@@ -44,14 +44,19 @@ export async function GET(
     }
 
     const accessToken =
-      authorization.replace(
-        "Bearer ",
-        ""
-      );
+      authorization
+        .replace(
+          "Bearer ",
+          ""
+        )
+        .trim();
 
     const {
-      data: { user },
-      error: userError,
+      data: {
+        user,
+      },
+      error:
+        userError,
     } =
       await supabaseAdmin.auth.getUser(
         accessToken
@@ -72,15 +77,62 @@ export async function GET(
       );
     }
 
-    // ======================================================
-    // 2. BUSCAR PERFIL PROFESIONAL
-    // ======================================================
+    const {
+      data:
+        baseProfile,
+      error:
+        baseProfileError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select(`
+        id,
+        role
+      `)
+      .eq(
+        "id",
+        user.id
+      )
+      .maybeSingle();
+
+    if (
+      baseProfileError
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            baseProfileError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      !baseProfile ||
+      baseProfile.role !==
+        "provider"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta cuenta no pertenece a un profesional.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
 
     const {
-      data: providerProfile,
-      error: providerError,
+      data:
+        providerProfile,
+      error:
+        providerError,
     } = await supabaseAdmin
-      .from("provider_profiles")
+      .from(
+        "provider_profiles"
+      )
       .select(`
         user_id,
         stripe_account_id
@@ -127,6 +179,9 @@ export async function GET(
 
         connected: false,
 
+        readyForPayments:
+          false,
+
         onboardingComplete:
           false,
 
@@ -165,31 +220,26 @@ export async function GET(
       });
     }
 
-    // ======================================================
-    // 3. CONSULTAR DIRECTAMENTE A STRIPE
-    // ======================================================
-
     const account =
       await stripe.accounts.retrieve(
         providerProfile.stripe_account_id
       );
 
     const chargesEnabled =
-      account.charges_enabled === true;
+      account.charges_enabled ===
+      true;
 
     const payoutsEnabled =
-      account.payouts_enabled === true;
+      account.payouts_enabled ===
+      true;
 
     const detailsSubmitted =
-      account.details_submitted === true;
+      account.details_submitted ===
+      true;
 
     const transfersCapability =
       account.capabilities?.transfers ||
       null;
-
-    // ======================================================
-    // 4. REQUISITOS ACTUALES
-    // ======================================================
 
     const currentlyDue =
       account.requirements?.currently_due ||
@@ -215,10 +265,6 @@ export async function GET(
       account.requirements?.errors ||
       [];
 
-    // ======================================================
-    // 5. REQUISITOS FUTUROS
-    // ======================================================
-
     const futureCurrentlyDue =
       account.future_requirements?.currently_due ||
       [];
@@ -235,24 +281,31 @@ export async function GET(
       account.future_requirements?.pending_verification ||
       [];
 
-    // ======================================================
-    // 6. DEFINIR SI ONBOARDING ESTÁ COMPLETO
-    // ======================================================
-
     const onboardingComplete =
-      detailsSubmitted === true &&
-      currentlyDue.length === 0 &&
-      pastDue.length === 0 &&
-      pendingVerification.length === 0;
+      detailsSubmitted ===
+        true &&
+      currentlyDue.length ===
+        0 &&
+      pastDue.length ===
+        0 &&
+      pendingVerification.length ===
+        0;
 
-    // ======================================================
-    // 7. ACTUALIZAR SUPABASE
-    // ======================================================
+    const readyForPayments =
+      onboardingComplete ===
+        true &&
+      payoutsEnabled ===
+        true &&
+      transfersCapability ===
+        "active";
 
     const {
-      error: updateError,
+      error:
+        updateError,
     } = await supabaseAdmin
-      .from("provider_profiles")
+      .from(
+        "provider_profiles"
+      )
       .update({
         stripe_onboarding_complete:
           onboardingComplete,
@@ -282,105 +335,12 @@ export async function GET(
       );
     }
 
-    // ======================================================
-    // 8. MOSTRAR TODO EL DIAGNÓSTICO
-    // ======================================================
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      "DIAGNÓSTICO STRIPE CONNECT"
-    );
-
-    console.log(
-      "Cuenta:",
-      account.id
-    );
-
-    console.log(
-      "details_submitted:",
-      detailsSubmitted
-    );
-
-    console.log(
-      "charges_enabled:",
-      chargesEnabled
-    );
-
-    console.log(
-      "payouts_enabled:",
-      payoutsEnabled
-    );
-
-    console.log(
-      "transfers capability:",
-      transfersCapability
-    );
-
-    console.log(
-      "disabled_reason:",
-      disabledReason
-    );
-
-    console.log(
-      "currently_due:",
-      currentlyDue
-    );
-
-    console.log(
-      "eventually_due:",
-      eventuallyDue
-    );
-
-    console.log(
-      "past_due:",
-      pastDue
-    );
-
-    console.log(
-      "pending_verification:",
-      pendingVerification
-    );
-
-    console.log(
-      "requirements.errors:",
-      requirementErrors
-    );
-
-    console.log(
-      "future currently_due:",
-      futureCurrentlyDue
-    );
-
-    console.log(
-      "future eventually_due:",
-      futureEventuallyDue
-    );
-
-    console.log(
-      "future past_due:",
-      futurePastDue
-    );
-
-    console.log(
-      "future pending_verification:",
-      futurePendingVerification
-    );
-
-    console.log(
-      "=========================================="
-    );
-
-    // ======================================================
-    // 9. DEVOLVER DIAGNÓSTICO A RELYDO
-    // ======================================================
-
     return NextResponse.json({
       success: true,
 
       connected: true,
+
+      readyForPayments,
 
       stripeAccountId:
         account.id,
