@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
@@ -33,6 +34,53 @@ export default function Home() {
   const router = useRouter();
   const { language } = useLanguage();
   const es = language === "es";
+
+  /*
+    Si Supabase confirma el correo y, por cualquier motivo,
+    devuelve al usuario al Home principal con los tokens en
+    el hash (#access_token=...), enviamos inmediatamente ese
+    mismo hash a /verificar-email para completar el flujo.
+  */
+  useEffect(() => {
+    const hash = window.location.hash;
+
+    if (!hash) {
+      return;
+    }
+
+    const params = new URLSearchParams(
+      hash.startsWith("#")
+        ? hash.substring(1)
+        : hash
+    );
+
+    const accessToken =
+      params.get("access_token");
+
+    const refreshToken =
+      params.get("refresh_token");
+
+    const type =
+      params.get("type");
+
+    const esConfirmacionEmail =
+      Boolean(accessToken) &&
+      Boolean(refreshToken) &&
+      (
+        type === "signup" ||
+        type === "email" ||
+        type === "email_change" ||
+        type === null
+      );
+
+    if (!esConfirmacionEmail) {
+      return;
+    }
+
+    window.location.replace(
+      `/verificar-email${hash}`
+    );
+  }, []);
 
   const T = es
     ? {
