@@ -168,12 +168,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      claim.status !== "open" &&
-      claim.status !== "reviewing"
-    ) {
+    if (claim.status !== "reviewing") {
       return NextResponse.json(
-        { error: "Este reclamo ya fue cerrado." },
+        {
+          error:
+            claim.status === "open"
+              ? "Primero debes pasar el reclamo a En revisión antes de tomar una decisión económica."
+              : "Este reclamo ya fue cerrado.",
+        },
         { status: 409 }
       );
     }
@@ -952,18 +954,20 @@ export async function POST(request: NextRequest) {
     // 7C. RESOLUCIÓN PARCIAL
     // ======================================================
     //
-    // Esta resolución puede usarse cuando el trabajo:
-    // - ya fue completado, o
-    // - está iniciado (in_progress + working).
+    // REGLA:
+    // - Una decisión económica del Admin se ejecuta de inmediato.
+    // - No usa la espera normal de liberación del trabajo.
+    // - El proceso es reanudable/idempotente:
+    //   si Stripe ya procesó una parte, RELYDO no la repite.
     //
-    // Si el trabajo todavía está iniciado, una resolución
-    // parcial significa que RELYDO termina la relación de
-    // trabajo por decisión del Admin:
+    // ORDEN PARA CASOS NUEVOS:
+    // 1. Compensar al profesional.
+    // 2. Reembolsar al cliente.
+    // 3. Consolidar payments.
+    // 4. Cerrar el reclamo.
     //
-    // 1. Reembolsa al cliente el importe definido.
-    // 2. Compensa al profesional con el importe definido.
-    // 3. Cierra el reclamo.
-    // 4. Cancela el trabajo para impedir que continúe.
+    // Para casos que quedaron a medias anteriormente,
+    // se detecta lo ya realizado y solo se procesa lo pendiente.
     // ======================================================
 
     if (
@@ -1021,7 +1025,7 @@ export async function POST(request: NextRequest) {
     if (
       dinero(
         providerAwardAmount +
-        customerRefundAmount
+          customerRefundAmount
       ) > customerTotal
     ) {
       return NextResponse.json(
@@ -1034,6 +1038,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const expectedProviderCents =
+      Math.round(providerAwardAmount * 100);
+
+    const expectedRefundCents =
+      Math.round(customerRefundAmount * 100);
 
     const previousRefunded =
       dinero(payment.refunded_amount || 0);
@@ -1051,22 +1061,93 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ======================================================
+    // 7C-1. RECONCILIAR REEMBOLSOS REALES DE STRIPE
+    // ======================================================
+
+    const stripeRefunds =
+      await stripe.refunds.list({
+        payment_intent:
+          payment.provider_payment_id,
+        limit: 100,
+      });
+
+    const partialRefundsForThisClaim =
+      stripeRefunds.data.filter(
+        (refund) =>
+          refund.metadata?.claim_id ===
+            String(claim.id) &&
+          refund.metadata?.resolution ===
+            "partial" &&
+          refund.status !== "failed" &&
+          refund.status !== "canceled"
+      );
+
+    const stripeRefundedForClaimCents =
+      partialRefundsForThisClaim.reduce(
+        (total, refund) =>
+          total + refund.amount,
+        0
+      );
+
+    const dbRefundedCents =
+      Math.round(previousRefunded * 100);
+
     if (
-      previousRefunded > 0 &&
-      dinero(previousRefunded) !==
-        dinero(customerRefundAmount)
+      stripeRefundedForClaimCents > 0 &&
+      stripeRefundedForClaimCents !==
+        expectedRefundCents
     ) {
       return NextResponse.json(
         {
           error:
-            "Este pago ya tiene un reembolso previo diferente. Revisa el historial antes de continuar.",
+            `Stripe ya registra un reembolso parcial de $${(
+              stripeRefundedForClaimCents / 100
+            ).toFixed(
+              2
+            )} para este reclamo, diferente a los $${customerRefundAmount.toFixed(
+              2
+            )} definidos ahora. No se hará otro movimiento automáticamente.`,
         },
         { status: 409 }
       );
     }
 
-    const expectedProviderCents =
-      Math.round(providerAwardAmount * 100);
+    if (
+      dbRefundedCents > 0 &&
+      dbRefundedCents !== expectedRefundCents
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `RELYDO ya registra un reembolso de $${previousRefunded.toFixed(
+              2
+            )}, diferente a los $${customerRefundAmount.toFixed(
+              2
+            )} definidos ahora. Revisa el historial antes de continuar.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    const refundAlreadyProcessed =
+      customerRefundAmount === 0 ||
+      stripeRefundedForClaimCents ===
+        expectedRefundCents ||
+      dbRefundedCents ===
+        expectedRefundCents;
+
+    let stripeRefundId: string | null =
+      partialRefundsForThisClaim[0]?.id ||
+      null;
+
+    let refundStatus: string | null =
+      partialRefundsForThisClaim[0]?.status ||
+      null;
+
+    // ======================================================
+    // 7C-2. RECONCILIAR TRANSFERENCIAS AL PROFESIONAL
+    // ======================================================
 
     if (
       activeTransferredCents > 0 &&
@@ -1076,111 +1157,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Ya existe una transferencia diferente para este trabajo. No se hará una segunda distribución automáticamente.",
+            `Ya existe una transferencia activa de $${(
+              activeTransferredCents / 100
+            ).toFixed(
+              2
+            )} para este trabajo, diferente a los $${providerAwardAmount.toFixed(
+              2
+            )} definidos en esta resolución. No se hará una segunda distribución automáticamente.`,
         },
         { status: 409 }
       );
     }
 
-    let stripeRefundId: string | null =
-      null;
-
-    let refundStatus: string | null =
-      null;
-
-    // ======================================================
-    // 7C-1. REEMBOLSO PARCIAL AL CLIENTE
-    // ======================================================
-
-    if (
-      customerRefundAmount > 0 &&
-      previousRefunded === 0
-    ) {
-      const refund =
-        await stripe.refunds.create(
-          {
-            payment_intent:
-              payment.provider_payment_id,
-
-            amount:
-              Math.round(
-                customerRefundAmount * 100
-              ),
-
-            reason:
-              "requested_by_customer",
-
-            metadata: {
-              request_id:
-                String(claim.request_id),
-
-              payment_id:
-                String(payment.id),
-
-              claim_id:
-                String(claim.id),
-
-              resolution:
-                "partial",
-
-              customer_refund_amount:
-                customerRefundAmount.toFixed(2),
-
-              provider_award_amount:
-                providerAwardAmount.toFixed(2),
-            },
-          },
-          {
-            idempotencyKey:
-              `relydo_claim_partial_refund_${payment.id}_${Math.round(
-                customerRefundAmount * 100
-              )}`,
-          }
-        );
-
-      stripeRefundId =
-        refund.id;
-
-      refundStatus =
-        refund.status;
-
-      const {
-        error: updatePaymentError,
-      } = await supabaseAdmin
-        .from("payments")
-        .update({
-          refunded_amount:
-            customerRefundAmount,
-          refunded_at:
-            new Date().toISOString(),
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", payment.id);
-
-      if (updatePaymentError) {
-        return NextResponse.json(
-          {
-            error:
-              "Stripe hizo el reembolso parcial, pero RELYDO no pudo actualizar payments. No repitas el reembolso.",
-            stripeRefundId:
-              refund.id,
-          },
-          { status: 500 }
-        );
-      }
-    }
-
-    // ======================================================
-    // 7C-2. COMPENSACIÓN AL PROFESIONAL
-    // ======================================================
-
     let stripeTransferId: string | null =
       activeTransfers[0]?.id || null;
 
+    const transferAlreadyProcessed =
+      providerAwardAmount === 0 ||
+      activeTransferredCents ===
+        expectedProviderCents;
+
+    // ======================================================
+    // 7C-3. COMPENSAR AL PROFESIONAL INMEDIATAMENTE
+    // ======================================================
+
     if (
       providerAwardAmount > 0 &&
-      !stripeTransferId
+      !transferAlreadyProcessed
     ) {
       const {
         data: providerProfile,
@@ -1207,7 +1210,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!providerProfile?.stripe_account_id) {
+      if (
+        !providerProfile?.stripe_account_id
+      ) {
         return NextResponse.json(
           {
             error:
@@ -1235,31 +1240,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const paymentIntent =
-        await stripe.paymentIntents.retrieve(
-          payment.provider_payment_id,
-          {
-            expand: ["latest_charge"],
-          }
-        );
-
-      const latestCharge =
-        paymentIntent.latest_charge;
-
-      const chargeId =
-        typeof latestCharge === "string"
-          ? latestCharge
-          : latestCharge?.id;
-
-      if (!chargeId) {
-        return NextResponse.json(
-          {
-            error:
-              "No encontramos el cargo original de Stripe.",
-          },
-          { status: 500 }
-        );
-      }
+      /*
+        IMPORTANTE:
+        En una resolución de Admin RELYDO asume sus costos
+        de procesamiento. Por eso la compensación se envía
+        desde el balance de la plataforma y no se limita al
+        neto restante del cargo después de un reembolso.
+      */
 
       const transfer =
         await stripe.transfers.create(
@@ -1273,9 +1260,6 @@ export async function POST(request: NextRequest) {
 
             destination:
               providerProfile.stripe_account_id,
-
-            source_transaction:
-              chargeId,
 
             transfer_group:
               transferGroup,
@@ -1305,16 +1289,177 @@ export async function POST(request: NextRequest) {
           },
           {
             idempotencyKey:
-              `relydo_claim_partial_transfer_${payment.id}_${expectedProviderCents}`,
+              `relydo_claim_partial_transfer_${payment.id}_${claim.id}_${expectedProviderCents}`,
           }
         );
 
       stripeTransferId =
         transfer.id;
+
+      const transferRecordedAt =
+        new Date().toISOString();
+
+      const {
+        error:
+          updateTransferPaymentError,
+      } = await supabaseAdmin
+        .from("payments")
+        .update({
+          stripe_transfer_id:
+            transfer.id,
+          released_at:
+            transferRecordedAt,
+          last_release_error:
+            null,
+          updated_at:
+            transferRecordedAt,
+        })
+        .eq("id", payment.id);
+
+      if (updateTransferPaymentError) {
+        return NextResponse.json(
+          {
+            error:
+              "Stripe transfirió la compensación al profesional, pero RELYDO no pudo registrar la transferencia. No repitas la operación; usa el ID de Stripe para reconciliar.",
+            stripeTransferId:
+              transfer.id,
+            partialProcessing:
+              true,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // ======================================================
-    // 7C-3. ACTUALIZAR ESTADO FINANCIERO DEL PAGO
+    // 7C-4. REEMBOLSAR AL CLIENTE SOLO SI FALTA
+    // ======================================================
+
+    if (
+      customerRefundAmount > 0 &&
+      !refundAlreadyProcessed
+    ) {
+      const refund =
+        await stripe.refunds.create(
+          {
+            payment_intent:
+              payment.provider_payment_id,
+
+            amount:
+              expectedRefundCents,
+
+            reason:
+              "requested_by_customer",
+
+            metadata: {
+              request_id:
+                String(claim.request_id),
+
+              payment_id:
+                String(payment.id),
+
+              claim_id:
+                String(claim.id),
+
+              resolution:
+                "partial",
+
+              customer_refund_amount:
+                customerRefundAmount.toFixed(2),
+
+              provider_award_amount:
+                providerAwardAmount.toFixed(2),
+            },
+          },
+          {
+            idempotencyKey:
+              `relydo_claim_partial_refund_${payment.id}_${claim.id}_${expectedRefundCents}`,
+          }
+        );
+
+      stripeRefundId =
+        refund.id;
+
+      refundStatus =
+        refund.status;
+
+      const refundRecordedAt =
+        new Date().toISOString();
+
+      const {
+        error:
+          updateRefundPaymentError,
+      } = await supabaseAdmin
+        .from("payments")
+        .update({
+          refunded_amount:
+            customerRefundAmount,
+          refunded_at:
+            refundRecordedAt,
+          updated_at:
+            refundRecordedAt,
+        })
+        .eq("id", payment.id);
+
+      if (updateRefundPaymentError) {
+        return NextResponse.json(
+          {
+            error:
+              "Stripe procesó el reembolso al cliente, pero RELYDO no pudo registrarlo en payments. No repitas la operación; usa el ID de Stripe para reconciliar.",
+            stripeRefundId:
+              refund.id,
+            stripeTransferId,
+            partialProcessing:
+              true,
+          },
+          { status: 500 }
+        );
+      }
+    } else if (
+      customerRefundAmount > 0 &&
+      dbRefundedCents !==
+        expectedRefundCents
+    ) {
+      /*
+        Stripe confirma que este reembolso ya existe,
+        pero la fila payments quedó desactualizada.
+        La reconciliamos sin crear otro reembolso.
+      */
+      const reconciledAt =
+        new Date().toISOString();
+
+      const {
+        error:
+          reconcileRefundError,
+      } = await supabaseAdmin
+        .from("payments")
+        .update({
+          refunded_amount:
+            customerRefundAmount,
+          refunded_at:
+            reconciledAt,
+          updated_at:
+            reconciledAt,
+        })
+        .eq("id", payment.id);
+
+      if (reconcileRefundError) {
+        return NextResponse.json(
+          {
+            error:
+              "Stripe confirma el reembolso existente, pero RELYDO no pudo reconciliar payments. No repitas el reembolso.",
+            stripeRefundId,
+            stripeTransferId,
+            partialProcessing:
+              true,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // ======================================================
+    // 7C-5. CONSOLIDAR ESTADO FINANCIERO
     // ======================================================
 
     const partialUpdatedAt =
@@ -1325,13 +1470,17 @@ export async function POST(request: NextRequest) {
         ? "partially_refunded"
         : providerAwardAmount >= providerNet
         ? "paid_out"
-        : "partially_refunded";
+        : "paid_out";
 
-    const partialPaymentUpdate: Record<string, unknown> = {
-      status: partialStatus,
-      refunded_amount: customerRefundAmount,
-      updated_at: partialUpdatedAt,
-    };
+    const partialPaymentUpdate:
+      Record<string, unknown> = {
+        status:
+          partialStatus,
+        refunded_amount:
+          customerRefundAmount,
+        updated_at:
+          partialUpdatedAt,
+      };
 
     if (customerRefundAmount > 0) {
       partialPaymentUpdate.refunded_at =
@@ -1348,26 +1497,31 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      error: updatePartialPaymentError,
+      error:
+        updatePartialPaymentError,
     } = await supabaseAdmin
       .from("payments")
-      .update(partialPaymentUpdate)
+      .update(
+        partialPaymentUpdate
+      )
       .eq("id", payment.id);
 
     if (updatePartialPaymentError) {
       return NextResponse.json(
         {
           error:
-            "La resolución económica fue procesada, pero RELYDO no pudo actualizar el estado del pago. No repitas los movimientos.",
+            "La distribución económica fue procesada, pero RELYDO no pudo consolidar el estado de payments. No repitas movimientos de dinero.",
           stripeTransferId,
           stripeRefundId,
+          partialProcessing:
+            true,
         },
         { status: 500 }
       );
     }
 
     // ======================================================
-    // 7C-4. CERRAR EL RECLAMO
+    // 7C-6. CERRAR EL RECLAMO
     // ======================================================
 
     const {
@@ -1412,16 +1566,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "La distribución económica fue procesada, pero no pudimos cerrar el reclamo. No repitas manualmente los movimientos.",
+            "La distribución económica fue procesada, pero no pudimos cerrar el reclamo. No repitas movimientos de dinero; vuelve a intentar para que RELYDO reconcilie y cierre el caso.",
           stripeTransferId,
           stripeRefundId,
+          partialProcessing:
+            true,
         },
         { status: 500 }
       );
     }
 
     // ======================================================
-    // 7C-5. SI EL TRABAJO ESTABA INICIADO, CANCELARLO
+    // 7C-7. SI EL TRABAJO ESTABA INICIADO, CANCELARLO
     // ======================================================
 
     let workCancelled =
@@ -1454,9 +1610,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "La resolución económica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas los movimientos de dinero.",
+              "La resolución económica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas movimientos de dinero.",
             stripeTransferId,
             stripeRefundId,
+            partialProcessing:
+              true,
           },
           { status: 500 }
         );
@@ -1467,26 +1625,43 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-6. NOTIFICAR RESOLUCIÓN
+    // 7C-8. NOTIFICAR RESOLUCIÓN
     // ======================================================
 
     try {
       await Promise.allSettled([
         sendRelydoNotification({
-          userId: claim.customer_id,
-          type: "claim_resolved",
-          title: "Reclamo resuelto",
-          message: `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
-          requestId: claim.request_id,
-          url: `/mis-solicitudes/${claim.request_id}`,
+          userId:
+            claim.customer_id,
+          type:
+            "claim_resolved",
+          title:
+            "Reclamo resuelto",
+          message:
+            `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(
+              2
+            )}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          requestId:
+            claim.request_id,
+          url:
+            `/mis-solicitudes/${claim.request_id}`,
         }),
+
         sendRelydoNotification({
-          userId: claim.provider_id,
-          type: "claim_resolved",
-          title: "Reclamo resuelto",
-          message: `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
-          requestId: claim.request_id,
-          url: `/trabajos/${claim.request_id}`,
+          userId:
+            claim.provider_id,
+          type:
+            "claim_resolved",
+          title:
+            "Reclamo resuelto",
+          message:
+            `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(
+              2
+            )}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          requestId:
+            claim.request_id,
+          url:
+            `/trabajos/${claim.request_id}`,
         }),
       ]);
     } catch (notificationError) {
@@ -1497,7 +1672,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-7. RESPUESTA FINAL
+    // 7C-9. RESPUESTA FINAL
     // ======================================================
 
     return NextResponse.json({
@@ -1519,11 +1694,20 @@ export async function POST(request: NextRequest) {
 
       workCancelled,
 
+      recoveredExistingRefund:
+        refundAlreadyProcessed &&
+        customerRefundAmount > 0,
+
+      recoveredExistingTransfer:
+        transferAlreadyProcessed &&
+        providerAwardAmount > 0,
+
       message:
         trabajoIniciado
-          ? "Resolución parcial procesada correctamente. Se aplicó el reembolso definido al cliente, la compensación definida al profesional y el trabajo fue cancelado."
+          ? "Resolución parcial procesada correctamente. Se aplicó la distribución definida y el trabajo fue cancelado."
           : "Resolución parcial procesada correctamente.",
     });
+
   } catch (error) {
     console.error(
       "Error resolviendo reclamo:",

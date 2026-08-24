@@ -560,6 +560,8 @@ export default function AdminReclamosPage() {
       return;
     }
 
+    setErrorParcial("");
+
     await resolver(
       reclamoParcial,
       "partial",
@@ -756,11 +758,19 @@ export default function AdminReclamosPage() {
 
       await cargar();
     } catch (err) {
-      setError(
+      const mensajeError =
         err instanceof Error
           ? err.message
-          : "No se pudo resolver el reclamo."
-      );
+          : "No se pudo resolver el reclamo.";
+
+      if (
+        action === "partial" &&
+        reclamoParcial?.id === reclamo.id
+      ) {
+        setErrorParcial(mensajeError);
+      } else {
+        setError(mensajeError);
+      }
     } finally {
       setProcesando(null);
     }
@@ -1349,9 +1359,11 @@ export default function AdminReclamosPage() {
                 type="button"
                 disabled={Boolean(procesando)}
                 onClick={confirmarParcial}
-                className="rounded-xl bg-purple-700 px-5 py-3 font-black text-white disabled:opacity-50"
+                className="rounded-xl bg-purple-700 px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Confirmar resolución
+                {procesando === reclamoParcial.id
+                  ? "Procesando resolución..."
+                  : "Confirmar resolución"}
               </button>
             </div>
           </div>
