@@ -54,12 +54,32 @@ type TrabajoContratado = {
 };
 
 type OfertaAceptada = {
+  id?: string;
   request_id: string;
   price: number;
   arrival_minutes: number | null;
   estimated_job_minutes: number | null;
   message: string | null;
   status: string;
+  created_at?: string;
+};
+
+type OfertaHistorial = {
+  id: string;
+  request_id: string;
+  price: number;
+  arrival_minutes: number | null;
+  estimated_job_minutes: number | null;
+  message: string | null;
+  status: string;
+  created_at: string;
+  trabajo: TrabajoContratado | null;
+};
+
+type HistorialProfesionalItem = {
+  request_id: string;
+  trabajo: TrabajoContratado | null;
+  oferta: OfertaHistorial | null;
 };
 
 type PagoProfesional = {
@@ -268,6 +288,7 @@ export default function PanelProfesional() {
   const [profile, setProfile] = useState<ProviderProfile | null>(null);
   const [email, setEmail] = useState("");
   const [trabajosContratados, setTrabajosContratados] = useState<TrabajoConOferta[]>([]);
+  const [ofertasHistorial, setOfertasHistorial] = useState<OfertaHistorial[]>([]);
   const [reclamos, setReclamos] = useState<ReclamoProfesional[]>([]);
   const [documentos, setDocumentos] = useState<DocumentoProfesional[]>([]);
   const [solicitudesDocumentos, setSolicitudesDocumentos] = useState<SolicitudDocumentoProfesional[]>([]);
@@ -330,6 +351,21 @@ export default function PanelProfesional() {
         },
         async (payload) => {
           console.log("Cambio detectado en payments:", payload);
+
+          if (mounted) {
+            await cargarPanel(false);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "offers",
+        },
+        async (payload) => {
+          console.log("Cambio detectado en offers:", payload);
 
           if (mounted) {
             await cargarPanel(false);
@@ -516,6 +552,7 @@ export default function PanelProfesional() {
 
       if (!estaVerificado) {
         setTrabajosContratados([]);
+        setOfertasHistorial([]);
         setReclamos([]);
         setHistorialReasignaciones([]);
         return;
@@ -569,6 +606,92 @@ export default function PanelProfesional() {
         );
       }
 
+      /*
+        HISTORIAL COMPLETO DE PRESUPUESTOS DEL PROFESIONAL
+
+        A diferencia de trabajosContratados, aquí cargamos TODAS las ofertas
+        enviadas por este profesional, incluso si quedaron pending/rejected
+        y nunca llegó a ser el preferred_provider_id.
+      */
+
+      const { data: todasOfertasData, error: todasOfertasError } = await supabase
+        .from("offers")
+        .select(`
+          id,
+          request_id,
+          price,
+          arrival_minutes,
+          estimated_job_minutes,
+          message,
+          status,
+          created_at
+        `)
+        .eq("professional_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (todasOfertasError) {
+        console.error(
+          "Error cargando historial completo de presupuestos:",
+          todasOfertasError
+        );
+        setOfertasHistorial([]);
+      } else {
+        const todasOfertas = (todasOfertasData || []) as Array<
+          Omit<OfertaHistorial, "trabajo">
+        >;
+
+        const idsSolicitudesOfertadas = Array.from(
+          new Set(todasOfertas.map((oferta) => oferta.request_id))
+        );
+
+        let trabajosOfertados: TrabajoContratado[] = [];
+
+        if (idsSolicitudesOfertadas.length > 0) {
+          const {
+            data: trabajosOfertadosData,
+            error: trabajosOfertadosError,
+          } = await supabase
+            .from("service_requests")
+            .select(`
+              id,
+              title,
+              description,
+              city,
+              state,
+              zip_code,
+              preferred_date,
+              preferred_time,
+              status,
+              job_stage,
+              customer_name,
+              cancellation_reason,
+              cancelled_at,
+              created_at
+            `)
+            .in("id", idsSolicitudesOfertadas);
+
+          if (trabajosOfertadosError) {
+            console.error(
+              "Error cargando trabajos ligados a presupuestos:",
+              trabajosOfertadosError
+            );
+          } else {
+            trabajosOfertados =
+              (trabajosOfertadosData || []) as TrabajoContratado[];
+          }
+        }
+
+        setOfertasHistorial(
+          todasOfertas.map((oferta) => ({
+            ...oferta,
+            trabajo:
+              trabajosOfertados.find(
+                (trabajo) => trabajo.id === oferta.request_id
+              ) || null,
+          }))
+        );
+      }
+
       const { data: trabajosData, error: trabajosError } = await supabase
         .from("service_requests")
         .select(`
@@ -601,23 +724,25 @@ export default function PanelProfesional() {
 
       if (trabajosBase.length === 0) {
         setTrabajosContratados([]);
-        return;
       }
 
       const requestIds = trabajosBase.map((trabajo) => trabajo.id);
 
-      const { data: ofertasData, error: ofertasError } = await supabase
-        .from("offers")
-        .select(`
-          request_id,
-          price,
-          arrival_minutes,
-          estimated_job_minutes,
-          message,
-          status
-        `)
-        .eq("professional_id", user.id)
-        .in("request_id", requestIds);
+      const { data: ofertasData, error: ofertasError } =
+        requestIds.length > 0
+          ? await supabase
+              .from("offers")
+              .select(`
+                request_id,
+                price,
+                arrival_minutes,
+                estimated_job_minutes,
+                message,
+                status
+              `)
+              .eq("professional_id", user.id)
+              .in("request_id", requestIds)
+          : { data: [], error: null };
 
       if (ofertasError) {
         console.error("Error cargando presupuestos:", ofertasError);
@@ -625,20 +750,23 @@ export default function PanelProfesional() {
 
       const ofertas = (ofertasData || []) as OfertaAceptada[];
 
-      const { data: pagosData, error: pagosError } = await supabase
-        .from("payments")
-        .select(`
-          request_id,
-          job_amount,
-          provider_commission_percent,
-          provider_commission_amount,
-          provider_net_amount,
-          platform_revenue_amount,
-          currency,
-          status
-        `)
-        .eq("provider_id", user.id)
-        .in("request_id", requestIds);
+      const { data: pagosData, error: pagosError } =
+        requestIds.length > 0
+          ? await supabase
+              .from("payments")
+              .select(`
+                request_id,
+                job_amount,
+                provider_commission_percent,
+                provider_commission_amount,
+                provider_net_amount,
+                platform_revenue_amount,
+                currency,
+                status
+              `)
+              .eq("provider_id", user.id)
+              .in("request_id", requestIds)
+          : { data: [], error: null };
 
       if (pagosError) {
         console.error("Error cargando pagos del profesional:", pagosError);
@@ -1114,7 +1242,93 @@ export default function PanelProfesional() {
 
   const reasignadas = idsReasignados.size;
 
-  const totalHistorial = trabajosContratados.length;
+  const historialProfesional: HistorialProfesionalItem[] = (() => {
+    const porSolicitud = new Map<string, HistorialProfesionalItem>();
+
+    for (const oferta of ofertasHistorial) {
+      porSolicitud.set(oferta.request_id, {
+        request_id: oferta.request_id,
+        trabajo: oferta.trabajo,
+        oferta,
+      });
+    }
+
+    for (const trabajo of trabajosContratados) {
+      const existente = porSolicitud.get(trabajo.id);
+
+      porSolicitud.set(trabajo.id, {
+        request_id: trabajo.id,
+        trabajo,
+        oferta: existente?.oferta || null,
+      });
+    }
+
+    return Array.from(porSolicitud.values()).sort((a, b) => {
+      const fechaA =
+        a.oferta?.created_at ||
+        a.trabajo?.created_at ||
+        "";
+      const fechaB =
+        b.oferta?.created_at ||
+        b.trabajo?.created_at ||
+        "";
+
+      return new Date(fechaB).getTime() - new Date(fechaA).getTime();
+    });
+  })();
+
+  const totalHistorial = historialProfesional.length;
+
+  function nombreEstadoHistorial(item: HistorialProfesionalItem) {
+    if (
+      item.trabajo &&
+      ["in_progress", "completed", "cancelled"].includes(item.trabajo.status)
+    ) {
+      return nombreEtapa(
+        item.trabajo.job_stage,
+        item.trabajo.status,
+        language
+      );
+    }
+
+    if (item.oferta?.status === "rejected") {
+      return T("Presupuesto rechazado", "Quote rejected");
+    }
+
+    if (
+      item.oferta?.status === "selected" ||
+      item.oferta?.status === "accepted"
+    ) {
+      return T("Presupuesto seleccionado", "Quote selected");
+    }
+
+    return T("Presupuesto enviado", "Quote sent");
+  }
+
+  function estiloEstadoHistorial(item: HistorialProfesionalItem) {
+    if (
+      item.trabajo &&
+      ["in_progress", "completed", "cancelled"].includes(item.trabajo.status)
+    ) {
+      return estiloEtapa(
+        item.trabajo.job_stage,
+        item.trabajo.status
+      );
+    }
+
+    if (item.oferta?.status === "rejected") {
+      return "bg-red-100 text-red-800";
+    }
+
+    if (
+      item.oferta?.status === "selected" ||
+      item.oferta?.status === "accepted"
+    ) {
+      return "bg-green-100 text-green-800";
+    }
+
+    return "bg-blue-100 text-blue-800";
+  }
 
   const solicitudesDocsActivas = solicitudesDocumentos.filter((solicitud) =>
     ["pending", "open", "requested"].includes(solicitud.status)
@@ -2530,11 +2744,14 @@ export default function PanelProfesional() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                  {T("Todos tus trabajos", "All your jobs")}
+                  {T("Toda tu actividad", "All your activity")}
                 </h2>
 
                 <p className="mt-2 text-slate-600">
-                  {T("Activos, completados y cancelados en una sola vista.", "Active, completed, and cancelled jobs in one view.")}
+                  {T(
+                    "Presupuestos enviados, rechazados o seleccionados y trabajos contratados en una sola vista.",
+                    "Sent, rejected or selected quotes and hired jobs in one view."
+                  )}
                 </p>
               </div>
 
@@ -2543,40 +2760,67 @@ export default function PanelProfesional() {
               </span>
             </div>
 
-            {trabajosContratados.length === 0 ? (
+            {historialProfesional.length === 0 ? (
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
                 <p className="font-bold text-slate-700">
-                  {T("Todavía no tienes trabajos en el historial.", "You don’t have any jobs in your history yet.")}
+                  {T(
+                    "Todavía no tienes actividad en el historial.",
+                    "You don’t have any activity in your history yet."
+                  )}
                 </p>
               </div>
             ) : (
               <div className="mt-6 space-y-3">
-                {trabajosContratados.map((trabajo) => (
-                  <button
-                    key={trabajo.id}
-                    type="button"
-                    onClick={() => router.push(`/trabajos/${trabajo.id}`)}
-                    className="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-black text-slate-900">
-                        {trabajo.title}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {trabajo.city}, {trabajo.state} · {formatearFecha(trabajo.created_at, language)}
-                      </p>
-                    </div>
+                {historialProfesional.map((item) => {
+                  const trabajo = item.trabajo;
+                  const oferta = item.oferta;
 
-                    <span
-                      className={`w-fit rounded-full px-3 py-1 text-sm font-extrabold ${estiloEtapa(
-                        trabajo.job_stage,
-                        trabajo.status
-                      )}`}
+                  return (
+                    <button
+                      key={item.request_id}
+                      type="button"
+                      onClick={() =>
+                        router.push(`/trabajos/${item.request_id}`)
+                      }
+                      className="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-violet-300 hover:bg-violet-50 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      {nombreEtapa(trabajo.job_stage, trabajo.status, language)}
-                    </span>
-                  </button>
-                ))}
+                      <div className="min-w-0">
+                        <p className="font-black text-slate-900">
+                          {trabajo?.title ||
+                            `${T("Trabajo", "Job")} ${item.request_id.slice(0, 8)}`}
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          {trabajo
+                            ? `${trabajo.city}, ${trabajo.state} · ${formatearFecha(
+                                oferta?.created_at || trabajo.created_at,
+                                language
+                              )}`
+                            : formatearFecha(
+                                oferta?.created_at,
+                                language
+                              )}
+                        </p>
+
+                        {oferta && (
+                          <p className="mt-2 text-sm font-bold text-slate-700">
+                            {T("Presupuesto", "Quote")}: ${Number(
+                              oferta.price
+                            ).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+
+                      <span
+                        className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-extrabold ${estiloEstadoHistorial(
+                          item
+                        )}`}
+                      >
+                        {nombreEstadoHistorial(item)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
