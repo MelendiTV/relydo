@@ -5548,9 +5548,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
           </section>
         )}
 
-        {/* PRESUPUESTOS */}
+        {/* PRESUPUESTOS: solo se muestran mientras la solicitud siga abierta y no exista un profesional seleccionado */}
 
-        <section className="mt-8">
+        {solicitud.status === "open" && !ofertaSeleccionada && (
+<section className="mt-8">
 
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
@@ -5863,6 +5864,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
           )}
 
         </section>
+        )}
 
       </div>
 
