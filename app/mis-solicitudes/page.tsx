@@ -25,6 +25,8 @@ type Solicitud = {
   status: string;
   job_stage: string | null;
   created_at: string;
+  offer_count?: number;
+  professional_count?: number;
 };
 
 type ClienteProfile = {
@@ -138,6 +140,12 @@ export default function MisSolicitudesPage() {
             "Ver seguimiento",
           verDetalles:
             "Ver detalles",
+          presupuestosRecibidos:
+            "presupuestos",
+          profesional:
+            "profesional",
+          profesionales:
+            "profesionales",
           panelCliente:
             "Panel de cliente",
           fotoAlt:
@@ -298,6 +306,12 @@ export default function MisSolicitudesPage() {
             "Track job",
           verDetalles:
             "View details",
+          presupuestosRecibidos:
+            "quotes",
+          profesional:
+            "professional",
+          profesionales:
+            "professionals",
           panelCliente:
             "Customer dashboard",
           fotoAlt:
@@ -586,7 +600,61 @@ export default function MisSolicitudesPage() {
         );
       }
 
-      setSolicitudes((data || []) as Solicitud[]);
+      const solicitudesBase = (data || []) as Solicitud[];
+
+      const requestIds = solicitudesBase.map((solicitud) => solicitud.id);
+
+      let solicitudesConPresupuestos = solicitudesBase;
+
+      if (requestIds.length > 0) {
+        const { data: ofertasData, error: ofertasError } = await supabase
+          .from("offers")
+          .select("request_id, professional_id")
+          .in("request_id", requestIds);
+
+        if (ofertasError) {
+          console.error(
+            "No pudimos cargar los contadores de presupuestos:",
+            ofertasError
+          );
+        } else {
+          const resumenOfertas = new Map<
+            string,
+            {
+              offer_count: number;
+              professionals: Set<string>;
+            }
+          >();
+
+          for (const oferta of ofertasData || []) {
+            const actual =
+              resumenOfertas.get(oferta.request_id) || {
+                offer_count: 0,
+                professionals: new Set<string>(),
+              };
+
+            actual.offer_count += 1;
+
+            if (oferta.professional_id) {
+              actual.professionals.add(oferta.professional_id);
+            }
+
+            resumenOfertas.set(oferta.request_id, actual);
+          }
+
+          solicitudesConPresupuestos = solicitudesBase.map((solicitud) => {
+            const resumen = resumenOfertas.get(solicitud.id);
+
+            return {
+              ...solicitud,
+              offer_count: resumen?.offer_count || 0,
+              professional_count: resumen?.professionals.size || 0,
+            };
+          });
+        }
+      }
+
+      setSolicitudes(solicitudesConPresupuestos);
 
       const { data: reclamosData, error: reclamosError } = await supabase
         .from("job_claims")
@@ -764,40 +832,76 @@ export default function MisSolicitudesPage() {
   );
 
   function renderSolicitud(solicitud: Solicitud) {
-    const nombre = nombreEstado(solicitud.status, solicitud.job_stage, language);
-    const estilo = estiloEstado(solicitud.status, solicitud.job_stage);
-    const icono = iconoEstado(solicitud.status, solicitud.job_stage);
+    const nombre = nombreEstado(
+      solicitud.status,
+      solicitud.job_stage,
+      language
+    );
 
-    if (solicitud.status === "in_progress") {
-      const fechaCreacion = new Intl.DateTimeFormat(
-        language === "es" ? "es-US" : "en-US",
-        {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }
-      ).format(new Date(solicitud.created_at));
+    const estilo = estiloEstado(
+      solicitud.status,
+      solicitud.job_stage
+    );
 
+    const offerCount =
+      solicitud.offer_count || 0;
+
+    const professionalCount =
+      solicitud.professional_count || 0;
+
+    const fechaCreacion = new Date(
+      solicitud.created_at
+    ).toLocaleString(
+      language === "es"
+        ? "es-US"
+        : "en-US",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
+
+    if (
+      solicitud.status === "open" ||
+      solicitud.status === "in_progress"
+    ) {
       return (
         <button
           key={solicitud.id}
           type="button"
-          onClick={() => router.push(`/mis-solicitudes/${solicitud.id}`)}
-          className="group flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 sm:flex-row sm:items-center sm:justify-between"
+          onClick={() =>
+            router.push(
+              `/mis-solicitudes/${solicitud.id}`
+            )
+          }
+          className="flex w-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-extrabold text-slate-950 sm:text-xl">
+            <h3 className="truncate text-xl font-black text-slate-950">
               {solicitud.title}
             </h3>
+
             <p className="mt-1 text-sm text-slate-500 sm:text-base">
               {solicitud.city}, {solicitud.state} · {fechaCreacion}
             </p>
+
+            {solicitud.status === "open" && (
+              <p className="mt-2 text-sm font-bold text-blue-700">
+                {offerCount} {t.presupuestosRecibidos}
+                {" · "}
+                {professionalCount}{" "}
+                {professionalCount === 1
+                  ? t.profesional
+                  : t.profesionales}
+              </p>
+            )}
           </div>
 
           <span
-            className={`w-fit shrink-0 rounded-full px-4 py-1.5 text-sm font-extrabold ${estilo}`}
+            className={`w-fit shrink-0 rounded-full px-4 py-2 text-sm font-extrabold ${estilo}`}
           >
             {nombre}
           </span>
@@ -815,7 +919,12 @@ export default function MisSolicitudesPage() {
             <span
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${estilo}`}
             >
-              <span>{icono}</span>
+              <span>
+                {iconoEstado(
+                  solicitud.status,
+                  solicitud.job_stage
+                )}
+              </span>
               {nombre}
             </span>
 
@@ -823,7 +932,9 @@ export default function MisSolicitudesPage() {
               {solicitud.title}
             </h3>
 
-            <p className="mt-2 text-slate-600">{solicitud.description}</p>
+            <p className="mt-2 text-slate-600">
+              {solicitud.description}
+            </p>
           </div>
         </div>
 
@@ -833,28 +944,40 @@ export default function MisSolicitudesPage() {
             valor={`${solicitud.city}, ${solicitud.state} ${solicitud.zip_code}`}
             icono="📍"
           />
+
           <InfoBox
             titulo={t.fecha}
-            valor={solicitud.preferred_date || t.flexible}
+            valor={
+              solicitud.preferred_date ||
+              t.flexible
+            }
             icono="📅"
           />
+
           <InfoBox
             titulo={t.hora}
-            valor={solicitud.preferred_time || t.flexible}
+            valor={
+              solicitud.preferred_time ||
+              t.flexible
+            }
             icono="🕐"
           />
         </div>
 
         <button
           type="button"
-          onClick={() => router.push(`/mis-solicitudes/${solicitud.id}`)}
+          onClick={() =>
+            router.push(
+              `/mis-solicitudes/${solicitud.id}`
+            )
+          }
           className={`mt-6 rounded-xl px-6 py-3 font-bold transition ${
             solicitud.status === "cancelled"
               ? "border-2 border-red-600 bg-white text-red-700 hover:bg-red-50"
               : "bg-blue-700 text-white hover:bg-blue-800"
           }`}
         >
-          {solicitud.status === "open" ? t.verPresupuestos : t.verDetalles}
+          {t.verDetalles}
         </button>
       </article>
     );
