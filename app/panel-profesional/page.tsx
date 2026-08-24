@@ -1280,6 +1280,13 @@ export default function PanelProfesional() {
   const totalHistorial = historialProfesional.length;
 
   function nombreEstadoHistorial(item: HistorialProfesionalItem) {
+    if (item.oferta?.status === "rejected") {
+      return T(
+        "Presupuesto rechazado por el cliente",
+        "Quote rejected by the customer"
+      );
+    }
+
     if (
       item.trabajo &&
       ["in_progress", "completed", "cancelled"].includes(item.trabajo.status)
@@ -1289,10 +1296,6 @@ export default function PanelProfesional() {
         item.trabajo.status,
         language
       );
-    }
-
-    if (item.oferta?.status === "rejected") {
-      return T("Presupuesto rechazado", "Quote rejected");
     }
 
     if (
@@ -1306,6 +1309,10 @@ export default function PanelProfesional() {
   }
 
   function estiloEstadoHistorial(item: HistorialProfesionalItem) {
+    if (item.oferta?.status === "rejected") {
+      return "bg-red-100 text-red-800";
+    }
+
     if (
       item.trabajo &&
       ["in_progress", "completed", "cancelled"].includes(item.trabajo.status)
@@ -1314,10 +1321,6 @@ export default function PanelProfesional() {
         item.trabajo.job_stage,
         item.trabajo.status
       );
-    }
-
-    if (item.oferta?.status === "rejected") {
-      return "bg-red-100 text-red-800";
     }
 
     if (
