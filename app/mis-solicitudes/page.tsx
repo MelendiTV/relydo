@@ -846,18 +846,13 @@ export default function MisSolicitudesPage() {
       solicitud.job_stage
     );
 
-    const offerCount =
-      solicitud.offer_count || 0;
-
-    const professionalCount =
-      solicitud.professional_count || 0;
+    const offerCount = solicitud.offer_count || 0;
+    const professionalCount = solicitud.professional_count || 0;
 
     const fechaCreacion = new Date(
       solicitud.created_at
     ).toLocaleString(
-      language === "es"
-        ? "es-US"
-        : "en-US",
+      language === "es" ? "es-US" : "en-US",
       {
         day: "numeric",
         month: "short",
@@ -867,117 +862,37 @@ export default function MisSolicitudesPage() {
       }
     );
 
-    if (
-      solicitud.status === "open" ||
-      solicitud.status === "in_progress"
-    ) {
-      return (
-        <a
-          key={solicitud.id}
-          href={`/mis-solicitudes/${solicitud.id}`}
-          className="relative z-20 flex w-full cursor-pointer flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="min-w-0">
-            <h3 className="truncate text-xl font-black text-slate-950">
-              {solicitud.title}
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500 sm:text-base">
-              {solicitud.city}, {solicitud.state} · {fechaCreacion}
-            </p>
-
-            {solicitud.status === "open" && (
-              <p className="mt-2 text-sm font-bold text-blue-700">
-                {offerCount} {t.presupuestosRecibidos}
-                {" · "}
-                {professionalCount}{" "}
-                {professionalCount === 1
-                  ? t.profesional
-                  : t.profesionales}
-              </p>
-            )}
-          </div>
-
-          <span
-            className={`w-fit shrink-0 rounded-full px-4 py-2 text-sm font-extrabold ${estilo}`}
-          >
-            {nombre}
-          </span>
-        </a>
-      );
-    }
-
     return (
-      <article
+      <Link
         key={solicitud.id}
-        className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+        href={`/mis-solicitudes/${solicitud.id}`}
+        className="relative z-20 flex w-full cursor-pointer flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <span
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${estilo}`}
-            >
-              <span>
-                {iconoEstado(
-                  solicitud.status,
-                  solicitud.job_stage
-                )}
-              </span>
-              {nombre}
-            </span>
+        <div className="min-w-0">
+          <h3 className="truncate text-xl font-black text-slate-950">
+            {solicitud.title}
+          </h3>
 
-            <h3 className="mt-3 text-2xl font-extrabold text-slate-900">
-              {solicitud.title}
-            </h3>
+          <p className="mt-1 text-sm text-slate-500 sm:text-base">
+            {solicitud.city}, {solicitud.state} · {fechaCreacion}
+          </p>
 
-            <p className="mt-2 text-slate-600">
-              {solicitud.description}
+          {solicitud.status === "open" && (
+            <p className="mt-2 text-sm font-bold text-blue-700">
+              {offerCount} {t.presupuestosRecibidos}
+              {" · "}
+              {professionalCount}{" "}
+              {professionalCount === 1 ? t.profesional : t.profesionales}
             </p>
-          </div>
+          )}
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <InfoBox
-            titulo={t.ubicacion}
-            valor={`${solicitud.city}, ${solicitud.state} ${solicitud.zip_code}`}
-            icono="📍"
-          />
-
-          <InfoBox
-            titulo={t.fecha}
-            valor={
-              solicitud.preferred_date ||
-              t.flexible
-            }
-            icono="📅"
-          />
-
-          <InfoBox
-            titulo={t.hora}
-            valor={
-              solicitud.preferred_time ||
-              t.flexible
-            }
-            icono="🕐"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            router.push(
-              `/mis-solicitudes/${solicitud.id}`
-            )
-          }
-          className={`mt-6 rounded-xl px-6 py-3 font-bold transition ${
-            solicitud.status === "cancelled"
-              ? "border-2 border-red-600 bg-white text-red-700 hover:bg-red-50"
-              : "bg-blue-700 text-white hover:bg-blue-800"
-          }`}
+        <span
+          className={`w-fit shrink-0 rounded-full px-4 py-2 text-sm font-extrabold ${estilo}`}
         >
-          {t.verDetalles}
-        </button>
-      </article>
+          {nombre}
+        </span>
+      </Link>
     );
   }
 
