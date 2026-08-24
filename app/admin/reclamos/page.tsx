@@ -1304,7 +1304,7 @@ export default function AdminReclamosPage() {
                     e.target.value
                   )
                 }
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-bold"
+                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-white px-4 py-3 font-bold text-slate-950 placeholder:text-slate-500 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-100"
               />
             </label>
 
@@ -1329,7 +1329,7 @@ export default function AdminReclamosPage() {
                   )
                 }
                 rows={4}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-white px-4 py-3 font-semibold text-slate-950 placeholder:text-slate-500 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-100"
               />
             </label>
 
