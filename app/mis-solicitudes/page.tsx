@@ -768,6 +768,43 @@ export default function MisSolicitudesPage() {
     const estilo = estiloEstado(solicitud.status, solicitud.job_stage);
     const icono = iconoEstado(solicitud.status, solicitud.job_stage);
 
+    if (solicitud.status === "in_progress") {
+      const fechaCreacion = new Intl.DateTimeFormat(
+        language === "es" ? "es-US" : "en-US",
+        {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }
+      ).format(new Date(solicitud.created_at));
+
+      return (
+        <button
+          key={solicitud.id}
+          type="button"
+          onClick={() => router.push(`/mis-solicitudes/${solicitud.id}`)}
+          className="group flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-extrabold text-slate-950 sm:text-xl">
+              {solicitud.title}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 sm:text-base">
+              {solicitud.city}, {solicitud.state} · {fechaCreacion}
+            </p>
+          </div>
+
+          <span
+            className={`w-fit shrink-0 rounded-full px-4 py-1.5 text-sm font-extrabold ${estilo}`}
+          >
+            {nombre}
+          </span>
+        </button>
+      );
+    }
+
     return (
       <article
         key={solicitud.id}
@@ -796,36 +833,17 @@ export default function MisSolicitudesPage() {
             valor={`${solicitud.city}, ${solicitud.state} ${solicitud.zip_code}`}
             icono="📍"
           />
-
           <InfoBox
             titulo={t.fecha}
             valor={solicitud.preferred_date || t.flexible}
             icono="📅"
           />
-
           <InfoBox
             titulo={t.hora}
             valor={solicitud.preferred_time || t.flexible}
             icono="🕐"
           />
         </div>
-
-        {solicitud.status === "in_progress" && (
-          <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 text-lg text-white">
-                {icono}
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-blue-700">
-                  {t.estadoActual}
-                </p>
-                <p className="font-extrabold text-blue-950">{nombre}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         <button
           type="button"
@@ -836,11 +854,7 @@ export default function MisSolicitudesPage() {
               : "bg-blue-700 text-white hover:bg-blue-800"
           }`}
         >
-          {solicitud.status === "open"
-            ? t.verPresupuestos
-            : solicitud.status === "in_progress"
-            ? t.verSeguimiento
-            : t.verDetalles}
+          {solicitud.status === "open" ? t.verPresupuestos : t.verDetalles}
         </button>
       </article>
     );
@@ -1080,42 +1094,6 @@ export default function MisSolicitudesPage() {
             />
           </div>
         </section>
-
-        {/* ALERTA EN PROGRESO */}
-
-        {enProgreso.length > 0 && (
-          <section className="mt-6 rounded-3xl border border-blue-300 bg-blue-50 p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-blue-700">
-                  {t.seguimiento}
-                </p>
-
-                <h2 className="mt-1 text-xl font-extrabold text-blue-950">
-                  {enProgreso.length === 1
-                    ? t.unTrabajoProgreso
-                    : language === "es"
-                    ? `Tienes ${enProgreso.length} ${t.trabajosProgreso}`
-                    : `You have ${enProgreso.length} ${t.trabajosProgreso}`}
-                </h2>
-
-                <p className="mt-1 text-blue-800">
-                  {t.avanceProfesional}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => irASeccion("trabajos-en-progreso")}
-                className="shrink-0 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800"
-              >
-                {enProgreso.length === 1
-                  ? t.verSeguimiento
-                  : `${t.verTrabajos} ${enProgreso.length} ${t.trabajos}`}
-              </button>
-            </div>
-          </section>
-        )}
 
         {error && (
           <div className="mt-6 rounded-2xl border border-red-300 bg-red-50 p-5 font-bold text-red-700">
