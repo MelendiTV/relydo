@@ -939,6 +939,39 @@ export default function TrabajoDetallePage() {
       );
 
       /*
+        ACCESO HISTÓRICO DEL PROFESIONAL
+
+        Antes de cargar el trabajo comprobamos si este profesional
+        ya envió un presupuesto para esta solicitud. Esto permite
+        que un presupuesto rechazado siga abriendo su detalle en
+        modo historial, aunque el trabajo haya sido asignado a otro
+        profesional.
+      */
+
+      const {
+        data: ofertaAcceso,
+        error: ofertaAccesoError,
+      } = await supabase
+        .from("offers")
+        .select(`
+          id,
+          status
+        `)
+        .eq("request_id", id)
+        .eq("professional_id", user.id)
+        .maybeSingle();
+
+      if (ofertaAccesoError) {
+        console.error(
+          "Error comprobando acceso histórico del profesional:",
+          ofertaAccesoError
+        );
+      }
+
+      const tieneAccesoHistorico =
+        Boolean(ofertaAcceso);
+
+      /*
         TRABAJO
       */
 
@@ -993,7 +1026,8 @@ export default function TrabajoDetallePage() {
           "open" &&
         trabajoData.preferred_provider_id &&
         trabajoData.preferred_provider_id !==
-          user.id
+          user.id &&
+        !tieneAccesoHistorico
       ) {
         throw new Error(
           T("Este trabajo fue asignado a otro profesional.", "This job was assigned to another professional.")
@@ -1005,7 +1039,8 @@ export default function TrabajoDetallePage() {
           "open" &&
         trabajoData.preferred_provider_id &&
         trabajoData.preferred_provider_id !==
-          user.id
+          user.id &&
+        !tieneAccesoHistorico
       ) {
         throw new Error(
           T("Esta solicitud está dirigida a otro profesional.", "This request is directed to another professional.")
