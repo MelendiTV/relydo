@@ -210,7 +210,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "✓ Cambio pagado": "✓ Change paid",
   "Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.": "Your approval was recorded. To complete the change, pay the additional amount through Stripe now.",
   "El cambio fue rechazado. El presupuesto anterior permanece sin cambios.": "The change was rejected. The previous budget remains unchanged.",
-  "✓ Profesional contratado": "✓ Professional hired",
+  "✓ Presupuesto seleccionado": "✓ Selected offer",
   "Resumen de pago": "Payment summary",
   "Presupuesto del profesional": "Professional's price",
   "Total del cliente": "Customer total",
@@ -315,11 +315,9 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Completada": "Completed",
   "Cancelada": "Cancelled",
   "No indicado": "Not specified",
-  "Pago retenido por RELYDO": "Payment held by RELYDO",
-  "Pago completado": "Payment completed",
+  "Pagado": "Paid",
   "Reembolsado": "Refunded",
   "Reembolso parcial": "Partial refund",
-  "Pago confirmado": "Payment confirmed",
   "Pago cancelado": "Payment cancelled",
   "El profesional inició el trabajo": "The professional started the job",
   "El profesional ya llegó": "The professional has arrived",
@@ -609,12 +607,12 @@ function calcularMontosPago(
 function nombreEstadoPagoCliente(
   status: string
 ) {
-  if (status === "ready_for_payout") {
-    return "Pago retenido por RELYDO";
-  }
-
-  if (status === "paid_out") {
-    return "Pago completado";
+  if (
+    status === "ready_for_payout" ||
+    status === "paid_out" ||
+    status === "paid"
+  ) {
+    return "Pagado";
   }
 
   if (status === "refunded") {
@@ -623,10 +621,6 @@ function nombreEstadoPagoCliente(
 
   if (status === "partially_refunded") {
     return "Reembolso parcial";
-  }
-
-  if (status === "paid") {
-    return "Pago confirmado";
   }
 
   if (status === "cancelled") {
@@ -4531,7 +4525,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
           <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
-              {T("✓ Profesional contratado")}
+              {T("✓ Presupuesto seleccionado")}
             </p>
 
             <h2 className="mt-2 text-2xl font-extrabold text-green-900">
@@ -4562,7 +4556,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">Tarifa de servicio RELYDO ({Number(payment.customer_fee_percent).toFixed(2)}%)</span>
+                    <span className="text-slate-600">Tarifa de servicio RELYDO</span>
                     <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
                   </div>
                   <div className="border-t border-slate-200 pt-3">
@@ -4593,10 +4587,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                           ? "bg-emerald-100 text-emerald-800"
                           : payment.status === "partially_refunded"
                           ? "bg-violet-100 text-violet-800"
-                          : payment.status === "paid_out"
-                          ? "bg-blue-100 text-blue-800"
-                          : payment.status === "ready_for_payout"
-                          ? "bg-amber-100 text-amber-800"
+                          : payment.status === "ready_for_payout" ||
+                            payment.status === "paid_out" ||
+                            payment.status === "paid"
+                          ? "bg-emerald-100 text-emerald-800"
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
@@ -4615,17 +4609,6 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     </div>
                   )}
 
-                  {payment.status === "ready_for_payout" && (
-                    <p className="mt-3 text-xs leading-5 text-amber-700">
-                      {T("El pago está protegido por RELYDO y todavía no ha sido liberado al profesional.")}
-                    </p>
-                  )}
-
-                  {payment.status === "paid_out" && (
-                    <p className="mt-3 text-xs leading-5 text-blue-700">
-                      {T("El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.")}
-                    </p>
-                  )}
 
                   {payment.status === "refunded" && (
                     <p className="mt-3 text-xs leading-5 text-emerald-700">
