@@ -62,6 +62,16 @@ type ClaimEvidence = {
   signed_url: string | null;
 };
 
+type JobMessage = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  sender_role: "customer" | "provider" | "admin";
+  message: string;
+  read_at: string | null;
+  created_at: string;
+};
+
 type Filtro =
   | "todos"
   | "open"
@@ -160,6 +170,8 @@ export default function AdminReclamosPage() {
 
   const [reclamos, setReclamos] = useState<JobClaim[]>([]);
   const [evidencias, setEvidencias] = useState<ClaimEvidence[]>([]);
+  const [mensajesChat, setMensajesChat] = useState<JobMessage[]>([]);
+  const [errorChat, setErrorChat] = useState("");
   const [solicitudes, setSolicitudes] = useState<SolicitudAdmin[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [filtro, setFiltro] = useState<Filtro>("todos");
@@ -222,6 +234,7 @@ export default function AdminReclamosPage() {
         solicitudesResp,
         providersResp,
         evidenceResp,
+        chatResp,
       ] = await Promise.all([
         supabase
           .from("job_claims")
@@ -282,6 +295,20 @@ export default function AdminReclamosPage() {
           `)
           .order("created_at", { ascending: true })
           .limit(2000),
+
+        supabase
+          .from("job_messages")
+          .select(`
+            id,
+            request_id,
+            sender_id,
+            sender_role,
+            message,
+            read_at,
+            created_at
+          `)
+          .order("created_at", { ascending: true })
+          .limit(5000),
       ]);
 
       if (claimsResp.error) {
@@ -307,6 +334,22 @@ export default function AdminReclamosPage() {
       setProviders(
         (providersResp.data || []) as Provider[]
       );
+
+      if (chatResp.error) {
+        console.error(
+          "Error cargando historial del chat:",
+          chatResp.error
+        );
+        setMensajesChat([]);
+        setErrorChat(
+          "No pudimos cargar el historial del chat. Revisa los permisos de lectura de job_messages para Admin."
+        );
+      } else {
+        setMensajesChat(
+          (chatResp.data || []) as JobMessage[]
+        );
+        setErrorChat("");
+      }
 
       if (evidenceResp.error) {
         console.error(
@@ -944,6 +987,13 @@ export default function AdminReclamosPage() {
                     "provider"
                 );
 
+              const mensajesCaso =
+                mensajesChat.filter(
+                  (m) =>
+                    m.request_id ===
+                    reclamo.request_id
+                );
+
               const respondio =
                 Boolean(
                   reclamo.provider_response ||
@@ -1142,6 +1192,89 @@ export default function AdminReclamosPage() {
                           clase="border-emerald-200 bg-emerald-50"
                         />
                       </div>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-slate-300 bg-white p-5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-black uppercase text-slate-500">
+                            💬 Historial del chat
+                          </p>
+                          <h3 className="mt-1 text-xl font-black text-slate-950">
+                            Conversación del trabajo
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500">
+                            Solo lectura para Admin. Los mensajes se muestran en orden cronológico.
+                          </p>
+                        </div>
+
+                        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">
+                          {mensajesCaso.length} mensaje
+                          {mensajesCaso.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+
+                      {errorChat ? (
+                        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+                          {errorChat}
+                        </div>
+                      ) : mensajesCaso.length === 0 ? (
+                        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
+                          <p className="font-black text-slate-700">
+                            No hubo mensajes entre el cliente y el profesional en este trabajo.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          {mensajesCaso.map((item) => {
+                            const esCliente =
+                              item.sender_role === "customer";
+                            const esProfesional =
+                              item.sender_role === "provider";
+
+                            const etiqueta =
+                              esCliente
+                                ? "Cliente"
+                                : esProfesional
+                                ? "Profesional"
+                                : "Admin RELYDO";
+
+                            const claseMensaje =
+                              esCliente
+                                ? "border-blue-200 bg-blue-50"
+                                : esProfesional
+                                ? "border-emerald-200 bg-emerald-50"
+                                : "border-purple-200 bg-purple-50";
+
+                            const claseEtiqueta =
+                              esCliente
+                                ? "text-blue-700"
+                                : esProfesional
+                                ? "text-emerald-700"
+                                : "text-purple-700";
+
+                            return (
+                              <div
+                                key={item.id}
+                                className={`rounded-xl border p-4 ${claseMensaje}`}
+                              >
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <p className={`text-xs font-black uppercase tracking-wide ${claseEtiqueta}`}>
+                                    {etiqueta}
+                                  </p>
+                                  <p className="text-xs font-semibold text-slate-500">
+                                    {formatearFecha(item.created_at)}
+                                  </p>
+                                </div>
+
+                                <p className="mt-2 whitespace-pre-wrap break-words leading-6 text-slate-800">
+                                  {item.message}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {reclamo.resolution_notes && (
