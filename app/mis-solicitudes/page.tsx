@@ -2461,7 +2461,10 @@ export default function MisSolicitudesPage() {
         )}
 
         {!error && abiertas.length > 0 && (
-          <section id="solicitudes-abiertas" className="mt-8 scroll-mt-6">
+          <section
+            id="solicitudes-abiertas"
+            className="mt-8 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+          >
             <h2 className="text-3xl font-extrabold text-slate-900">
               {t.solicitudesAbiertas}
             </h2>
@@ -2477,7 +2480,10 @@ export default function MisSolicitudesPage() {
         )}
 
         {!error && enProgreso.length > 0 && (
-          <section id="trabajos-en-progreso" className="mt-10 scroll-mt-6">
+          <section
+            id="trabajos-en-progreso"
+            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+          >
             <h2 className="text-3xl font-extrabold text-slate-900">
               {t.trabajosEnProgreso}
             </h2>
@@ -2493,7 +2499,10 @@ export default function MisSolicitudesPage() {
         )}
 
         {!error && completadas.length > 0 && (
-          <section id="trabajos-completados" className="mt-10 scroll-mt-6">
+          <section
+            id="trabajos-completados"
+            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+          >
             <h2 className="text-3xl font-extrabold text-slate-900">
               {t.trabajosCompletados}
             </h2>
@@ -2509,7 +2518,10 @@ export default function MisSolicitudesPage() {
         )}
 
         {!error && canceladas.length > 0 && (
-          <section id="solicitudes-canceladas" className="mt-10 scroll-mt-6">
+          <section
+            id="solicitudes-canceladas"
+            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+          >
             <h2 className="text-3xl font-extrabold text-slate-900">
               {t.solicitudesCanceladas}
             </h2>
