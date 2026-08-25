@@ -646,52 +646,66 @@ function calcularCancelacionCliente(
     Number(payment?.job_amount || 0)
   );
 
+  // El fee de servicio cobrado al cliente no se reembolsa
+  // una vez que el trabajo fue pagado/contratado.
+  const serviceFee = redondearDinero(
+    Number(payment?.customer_fee_amount || 0)
+  );
+
   let penalidadPercent = 0;
+  let profesionalPercent = 0;
+  let relydoEtapaPercent = 0;
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "on_the_way"
   ) {
-    penalidadPercent = Number(
-      settings?.customer_cancel_on_the_way_percent || 0
-    );
+    penalidadPercent = 12.5;
+    profesionalPercent = 5.5;
+    relydoEtapaPercent = 7;
   }
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "arrived"
   ) {
-    penalidadPercent = Number(
-      settings?.customer_cancel_arrived_percent || 0
-    );
+    penalidadPercent = 23.5;
+    profesionalPercent = 12;
+    relydoEtapaPercent = 11.5;
   }
 
   const penalidad = redondearDinero(
     precioTrabajo * (penalidadPercent / 100)
   );
 
-  const porcentajePro = Number(
-    settings?.cancellation_provider_percent || 0
+  const profesional = redondearDinero(
+    precioTrabajo * (profesionalPercent / 100)
   );
 
-  const profesional = redondearDinero(
-    penalidad * (porcentajePro / 100)
+  const relydoEtapa = redondearDinero(
+    precioTrabajo * (relydoEtapaPercent / 100)
   );
 
   const relydo = redondearDinero(
-    penalidad - profesional
+    serviceFee + relydoEtapa
   );
 
+  // Se devuelve el precio del servicio menos el cargo de la etapa.
+  // El fee de servicio original queda retenido por RELYDO.
   const reembolso = redondearDinero(
-    Math.max(0, totalPagado - penalidad)
+    Math.max(0, precioTrabajo - penalidad)
   );
 
   return {
     totalPagado,
     precioTrabajo,
+    serviceFee,
     penalidadPercent,
     penalidad,
+    profesionalPercent,
     profesional,
+    relydoEtapaPercent,
+    relydoEtapa,
     relydo,
     reembolso,
   };
@@ -2550,9 +2564,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       textoConfirmacion =
         `¿Confirmas la cancelación?\n\n` +
         `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
-        `Penalidad: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
-        `Profesional: $${resumen.profesional.toFixed(2)}\n` +
-        `RELYDO: $${resumen.relydo.toFixed(2)}\n` +
+        `Fee de servicio RELYDO (no reembolsable): $${resumen.serviceFee.toFixed(2)}\n` +
+        `Cargo por cancelación: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+        `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
+        `RELYDO conserva en total: $${resumen.relydo.toFixed(2)}\n` +
         `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
         `Esta acción no se puede deshacer.`;
     }
@@ -4157,10 +4172,37 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          Penalidad ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          Fee de servicio RELYDO (no reembolsable)
+                        </span>
+                        <strong className="text-slate-900">
+                          ${resumenCancelacion.serviceFee.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">
+                          Cargo por cancelación ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      {resumenCancelacion.profesional > 0 && (
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-slate-600">
+                            Compensación al profesional ({resumenCancelacion.profesionalPercent.toFixed(2)}%)
+                          </span>
+                          <strong className="text-slate-900">
+                            ${resumenCancelacion.profesional.toFixed(2)}
+                          </strong>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">RELYDO conserva</span>
+                        <strong className="text-slate-900">
+                          ${resumenCancelacion.relydo.toFixed(2)}
                         </strong>
                       </div>
 

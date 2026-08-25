@@ -351,52 +351,24 @@ export async function POST(
       );
     }
 
+    // Política de cancelación RELYDO:
+    // contratado: fee original no reembolsable, sin cargo adicional
+    // en camino: 12.5% (5.5% Pro + 7% RELYDO)
+    // llegó: 23.5% (12% Pro + 11.5% RELYDO)
     let penaltyPercent = 0;
+    let providerJobPercent = 0;
+    let relydoStagePercent = 0;
 
-    if (
-      serviceRequest.job_stage ===
-      "on_the_way"
-    ) {
-      penaltyPercent =
-        dinero(
-          settings.customer_cancel_on_the_way_percent
-        );
+    if (serviceRequest.job_stage === "on_the_way") {
+      penaltyPercent = 12.5;
+      providerJobPercent = 5.5;
+      relydoStagePercent = 7;
     }
 
-    if (
-      serviceRequest.job_stage ===
-      "arrived"
-    ) {
-      penaltyPercent =
-        dinero(
-          settings.customer_cancel_arrived_percent
-        );
-    }
-
-    const providerPercent =
-      dinero(
-        settings.cancellation_provider_percent
-      );
-
-    if (
-      !Number.isFinite(
-        penaltyPercent
-      ) ||
-      penaltyPercent < 0 ||
-      penaltyPercent > 100 ||
-      !Number.isFinite(
-        providerPercent
-      ) ||
-      providerPercent < 0 ||
-      providerPercent > 100
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "La configuración de cancelaciones no es válida.",
-        },
-        { status: 500 }
-      );
+    if (serviceRequest.job_stage === "arrived") {
+      penaltyPercent = 23.5;
+      providerJobPercent = 12;
+      relydoStagePercent = 11.5;
     }
 
     // ======================================================
@@ -420,6 +392,7 @@ export async function POST(
           customer_id,
           provider_id,
           job_amount,
+          customer_fee_amount,
           customer_total_amount,
           refunded_amount,
           currency,
@@ -536,58 +509,39 @@ export async function POST(
     // 7. CALCULAR DISTRIBUCIÓN
     // ======================================================
 
+    const serviceFeeAmount =
+      dinero(payment.customer_fee_amount || 0);
+
     const penaltyAmount =
-      dinero(
-        jobAmount *
-          (
-            penaltyPercent /
-            100
-          )
-      );
+      dinero(jobAmount * (penaltyPercent / 100));
 
     const providerAwardAmount =
-      dinero(
-        penaltyAmount *
-          (
-            providerPercent /
-            100
-          )
-      );
+      dinero(jobAmount * (providerJobPercent / 100));
 
+    const relydoStageAmount =
+      dinero(jobAmount * (relydoStagePercent / 100));
+
+    // Total que conserva RELYDO = fee original no reembolsable
+    // + su parte del cargo de cancelación de la etapa.
     const relydoCancellationAmount =
-      dinero(
-        penaltyAmount -
-          providerAwardAmount
-      );
+      dinero(serviceFeeAmount + relydoStageAmount);
 
+    // El cliente recupera el precio del servicio menos el cargo
+    // de cancelación. El fee original no se devuelve.
     const customerRefundAmount =
-      dinero(
-        Math.max(
-          0,
-          customerTotal -
-            penaltyAmount
-        )
-      );
+      dinero(Math.max(0, jobAmount - penaltyAmount));
 
     if (
-      !Number.isFinite(
-        penaltyAmount
-      ) ||
-      !Number.isFinite(
-        providerAwardAmount
-      ) ||
-      !Number.isFinite(
-        relydoCancellationAmount
-      ) ||
-      !Number.isFinite(
-        customerRefundAmount
-      )
+      !Number.isFinite(serviceFeeAmount) ||
+      serviceFeeAmount < 0 ||
+      !Number.isFinite(penaltyAmount) ||
+      !Number.isFinite(providerAwardAmount) ||
+      !Number.isFinite(relydoStageAmount) ||
+      !Number.isFinite(relydoCancellationAmount) ||
+      !Number.isFinite(customerRefundAmount)
     ) {
       return NextResponse.json(
-        {
-          error:
-            "No pudimos calcular correctamente la cancelación.",
-        },
+        { error: "No pudimos calcular correctamente la cancelación." },
         { status: 500 }
       );
     }
@@ -819,6 +773,8 @@ export async function POST(
                 penaltyPercent.toFixed(
                   2
                 ),
+              cancellation_provider_percent:
+                providerJobPercent.toFixed(2),
               cancellation_provider_amount:
                 providerAwardAmount.toFixed(
                   2
@@ -1067,7 +1023,11 @@ export async function POST(
         "contracted",
       penaltyPercent,
       penaltyAmount,
+      serviceFeeRetainedAmount: serviceFeeAmount,
+      providerPercent: providerJobPercent,
       providerAwardAmount,
+      relydoStagePercent,
+      relydoStageAmount,
       relydoCancellationAmount,
       customerRefundAmount,
       stripeTransferId,
