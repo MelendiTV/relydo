@@ -397,6 +397,9 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tu reporte fue registrado correctamente.": "Your report was submitted successfully.",
   "No se pudo enviar el reclamo.": "We could not submit the claim.",
   "Chat bloqueado porque existe un reclamo activo. A partir de este momento RELYDO Admin gestiona el caso.": "Chat is locked because there is an active claim. From this point on, RELYDO Admin manages the case.",
+  "Este trabajo tuvo un reclamo. El chat quedó cerrado permanentemente y el historial permanece disponible.": "This job had a claim. The chat is permanently closed and the history remains available.",
+  "Calificación cerrada": "Rating closed",
+  "Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.": "This job had a claim handled by RELYDO. To protect both parties, ratings are not allowed for this order.",
   "El trabajo está completado y el chat ya está cerrado.": "The job is completed and the chat is now closed.",
   "El período de 12 horas después de completar el trabajo terminó. El historial permanece disponible.": "The 12-hour period after job completion has ended. The chat history remains available.",
   "Este trabajo fue cancelado. El chat está cerrado.": "This job was cancelled. The chat is closed.",
@@ -2668,6 +2671,14 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       return;
     }
 
+    if (claim) {
+      setError(
+        T("Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.")
+      );
+
+      return;
+    }
+
     if (review) {
       setError(
         T("Ya calificaste este trabajo.")
@@ -3252,6 +3263,11 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         )
     );
 
+  // Una vez que existe un reclamo en la orden, el chat no vuelve a abrirse.
+  // El historial continúa visible, pero queda en modo solo lectura.
+  const reclamoCierraChatPermanentemente =
+    Boolean(claim);
+
   const chatDentroDe12Horas =
     Boolean(
       solicitud?.status ===
@@ -3267,7 +3283,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
   const chatPuedeEnviar =
     Boolean(
       solicitud &&
-        !reclamoActivoChat &&
+        !reclamoCierraChatPermanentemente &&
         (
           solicitud.status ===
             "in_progress" ||
@@ -3278,6 +3294,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
   function motivoChatBloqueado() {
     if (reclamoActivoChat) {
       return T("Chat bloqueado porque existe un reclamo activo. A partir de este momento RELYDO Admin gestiona el caso.");
+    }
+
+    if (claim) {
+      return T("Este trabajo tuvo un reclamo. El chat quedó cerrado permanentemente y el historial permanece disponible.");
     }
 
     if (
@@ -4732,12 +4752,16 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                   <span
                     className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
-                      chatRealtimeConectado
+                      !chatPuedeEnviar
+                        ? "bg-amber-100 text-amber-900"
+                        : chatRealtimeConectado
                         ? "bg-emerald-100 text-emerald-800"
                         : "bg-slate-700 text-slate-200"
                     }`}
                   >
-                    {chatRealtimeConectado
+                    {!chatPuedeEnviar
+                      ? T("🔒 Chat bloqueado")
+                      : chatRealtimeConectado
                       ? "● En tiempo real"
                       : "Conectando..."}
                   </span>
@@ -5073,6 +5097,20 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   </div>
 
                 </>
+              ) : claim ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+                  <p className="text-sm font-black uppercase tracking-wide text-amber-800">
+                    🔒 RELYDO
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+                    {T("Calificación cerrada")}
+                  </h2>
+
+                  <p className="mt-2 leading-7 text-amber-950">
+                    {T("Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.")}
+                  </p>
+                </div>
               ) : (
                 <>
 
