@@ -457,6 +457,69 @@ export default function NotificationsBell({
   }, []);
 
   /*
+    SINCRONIZAR EL SONIDO CON
+    AJUSTES DEL DASHBOARD
+  */
+
+  useEffect(() => {
+    async function sincronizarSonido(
+      event: Event
+    ) {
+      const customEvent =
+        event as CustomEvent<{
+          enabled?: boolean;
+        }>;
+
+      const enabled =
+        Boolean(
+          customEvent.detail?.enabled
+        );
+
+      sonidoDeseadoRef.current =
+        enabled;
+
+      setSonidoDeseado(
+        enabled
+      );
+
+      if (!enabled) {
+        setSonidoActivo(false);
+
+        const context =
+          audioContextRef.current;
+
+        if (
+          context &&
+          context.state ===
+            "running"
+        ) {
+          try {
+            await context.suspend();
+          } catch {
+            // No hacemos nada.
+          }
+        }
+
+        return;
+      }
+
+      await intentarReactivarAudio();
+    }
+
+    window.addEventListener(
+      "relydo-sound-preference",
+      sincronizarSonido
+    );
+
+    return () => {
+      window.removeEventListener(
+        "relydo-sound-preference",
+        sincronizarSonido
+      );
+    };
+  }, []);
+
+  /*
     REACTIVAR AUDIO AUTOMÁTICAMENTE
 
     Si el navegador suspende el
@@ -1618,77 +1681,11 @@ export default function NotificationsBell({
 
             </div>
 
-            {/* AVISOS RELYDO — PUSH + SONIDO UNIFICADOS */}
-
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${
-                    pushActivo && sonidoActivo
-                      ? "bg-emerald-100"
-                      : "bg-blue-100"
-                  }`}
-                >
-                  🔔
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-black text-slate-900">
-                      Avisos de RELYDO
-                    </p>
-
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        pushActivo && sonidoActivo
-                          ? "bg-emerald-500"
-                          : "bg-slate-300"
-                      }`}
-                    />
-                  </div>
-
-                  <p className="mt-0.5 text-xs leading-5 text-slate-500">
-                    {pushActivo && sonidoActivo
-                      ? modo === "profesional"
-                        ? "Recibirás avisos con sonido cuando llegue una orden o cambie un trabajo."
-                        : "Recibirás avisos con sonido cuando llegue un presupuesto o cambie tu trabajo."
-                      : "Activa los avisos y el sonido en este dispositivo."}
-                  </p>
-
-                  {pushError && (
-                    <p className="mt-1.5 text-xs font-bold text-red-700">
-                      {pushError}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    activandoPush ||
-                    activandoSonido ||
-                    (!pushDisponible && !pushActivo)
-                  }
-                  onClick={async () => {
-                    if (!pushActivo) {
-                      await activarPush();
-                    }
-
-                    await activarSonido();
-                  }}
-                  className={`shrink-0 rounded-lg px-3.5 py-2 text-xs font-black transition ${
-                    pushActivo && sonidoActivo
-                      ? "border border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                      : "bg-blue-700 text-white hover:bg-blue-800"
-                  } disabled:cursor-not-allowed disabled:opacity-50`}
-                >
-                  {activandoPush || activandoSonido
-                    ? "Activando..."
-                    : pushActivo && sonidoActivo
-                    ? "Probar"
-                    : "Activar"}
-                </button>
-              </div>
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-slate-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {modo === "profesional"
+                ? "Avisos de RELYDO Pro"
+                : "Avisos de RELYDO"}
             </div>
 
           </div>

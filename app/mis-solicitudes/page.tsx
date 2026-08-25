@@ -45,6 +45,66 @@ type ReclamoCliente = {
   created_at: string;
 };
 
+type TemaDashboard = "light" | "dark" | "system";
+type ColorDashboard =
+  | "blue"
+  | "violet"
+  | "emerald"
+  | "rose"
+  | "amber"
+  | "cyan";
+
+const THEME_STORAGE_KEY = "relydo_customer_theme";
+const COLOR_STORAGE_KEY = "relydo_customer_accent";
+const SOUND_STORAGE_KEY = "relydo_sound_enabled";
+
+const COLORES_DASHBOARD: Record<
+  ColorDashboard,
+  {
+    nombreEs: string;
+    nombreEn: string;
+    hex: string;
+    hexOscuro: string;
+  }
+> = {
+  blue: {
+    nombreEs: "Azul RELYDO",
+    nombreEn: "RELYDO Blue",
+    hex: "#1d4ed8",
+    hexOscuro: "#3730a3",
+  },
+  violet: {
+    nombreEs: "Violeta",
+    nombreEn: "Violet",
+    hex: "#7c3aed",
+    hexOscuro: "#5b21b6",
+  },
+  emerald: {
+    nombreEs: "Esmeralda",
+    nombreEn: "Emerald",
+    hex: "#059669",
+    hexOscuro: "#047857",
+  },
+  rose: {
+    nombreEs: "Rosa",
+    nombreEn: "Rose",
+    hex: "#e11d48",
+    hexOscuro: "#be123c",
+  },
+  amber: {
+    nombreEs: "Ámbar",
+    nombreEn: "Amber",
+    hex: "#d97706",
+    hexOscuro: "#b45309",
+  },
+  cyan: {
+    nombreEs: "Turquesa",
+    nombreEn: "Cyan",
+    hex: "#0891b2",
+    hexOscuro: "#0e7490",
+  },
+};
+
 function nombreEstado(
   status: string,
   jobStage: string | null,
@@ -181,6 +241,52 @@ export default function MisSolicitudesPage() {
             "+ Solicitar un nuevo trabajo",
           verProfesionales:
             "Ver profesionales",
+          ajustes:
+            "Ajustes",
+          ajustesTitulo:
+            "Personaliza tu experiencia",
+          ajustesDescripcion:
+            "Configura la apariencia, el color y los avisos de este dispositivo.",
+          apariencia:
+            "Apariencia",
+          aparienciaDesc:
+            "Elige cómo quieres ver tu panel de cliente.",
+          claro:
+            "Claro",
+          oscuro:
+            "Oscuro",
+          sistema:
+            "Sistema",
+          colorPrincipal:
+            "Color principal",
+          colorDesc:
+            "Personaliza los detalles y acciones principales del dashboard.",
+          avisos:
+            "Avisos",
+          avisosDesc:
+            "Controla las notificaciones Push y el sonido en este dispositivo.",
+          push:
+            "Notificaciones Push",
+          sonido:
+            "Sonido",
+          activo:
+            "Activo",
+          inactivo:
+            "Inactivo",
+          activar:
+            "Activar",
+          desactivar:
+            "Desactivar",
+          procesando:
+            "Procesando...",
+          pushNoDisponible:
+            "Push no disponible en este navegador.",
+          pushPermisoDenegado:
+            "El navegador bloqueó las notificaciones. Debes permitirlas desde la configuración del navegador.",
+          preferenciasGuardadas:
+            "Preferencias guardadas en este dispositivo.",
+          cerrarAjustes:
+            "Cerrar ajustes",
           resumen:
             "Resumen",
           actividad:
@@ -347,6 +453,52 @@ export default function MisSolicitudesPage() {
             "+ Request a new job",
           verProfesionales:
             "View professionals",
+          ajustes:
+            "Settings",
+          ajustesTitulo:
+            "Personalize your experience",
+          ajustesDescripcion:
+            "Configure appearance, color, and alerts for this device.",
+          apariencia:
+            "Appearance",
+          aparienciaDesc:
+            "Choose how you want your customer dashboard to look.",
+          claro:
+            "Light",
+          oscuro:
+            "Dark",
+          sistema:
+            "System",
+          colorPrincipal:
+            "Primary color",
+          colorDesc:
+            "Personalize the main accents and actions in your dashboard.",
+          avisos:
+            "Alerts",
+          avisosDesc:
+            "Control Push notifications and sound on this device.",
+          push:
+            "Push notifications",
+          sonido:
+            "Sound",
+          activo:
+            "Active",
+          inactivo:
+            "Inactive",
+          activar:
+            "Enable",
+          desactivar:
+            "Disable",
+          procesando:
+            "Processing...",
+          pushNoDisponible:
+            "Push is not available in this browser.",
+          pushPermisoDenegado:
+            "The browser blocked notifications. Allow them from your browser settings.",
+          preferenciasGuardadas:
+            "Preferences saved on this device.",
+          cerrarAjustes:
+            "Close settings",
           resumen:
             "Summary",
           actividad:
@@ -445,10 +597,161 @@ export default function MisSolicitudesPage() {
   const [reclamos, setReclamos] = useState<ReclamoCliente[]>([]);
   const [mostrarReclamos, setMostrarReclamos] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [mostrarAjustes, setMostrarAjustes] = useState(false);
+
+  const [temaDashboard, setTemaDashboard] =
+    useState<TemaDashboard>("system");
+
+  const [temaOscuro, setTemaOscuro] =
+    useState(false);
+
+  const [colorDashboard, setColorDashboard] =
+    useState<ColorDashboard>("blue");
+
+  const [pushDisponible, setPushDisponible] =
+    useState(false);
+
+  const [pushActivo, setPushActivo] =
+    useState(false);
+
+  const [procesandoPush, setProcesandoPush] =
+    useState(false);
+
+  const [sonidoActivo, setSonidoActivo] =
+    useState(false);
+
+  const [mensajeAjustes, setMensajeAjustes] =
+    useState("");
 
   useEffect(() => {
     cargarPanelCliente();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const temaGuardado =
+      localStorage.getItem(
+        THEME_STORAGE_KEY
+      ) as TemaDashboard | null;
+
+    const colorGuardado =
+      localStorage.getItem(
+        COLOR_STORAGE_KEY
+      ) as ColorDashboard | null;
+
+    const sonidoGuardado =
+      localStorage.getItem(
+        SOUND_STORAGE_KEY
+      );
+
+    const temaValido =
+      temaGuardado === "light" ||
+      temaGuardado === "dark" ||
+      temaGuardado === "system"
+        ? temaGuardado
+        : "system";
+
+    const colorValido =
+      colorGuardado &&
+      colorGuardado in
+        COLORES_DASHBOARD
+        ? colorGuardado
+        : "blue";
+
+    setTemaDashboard(
+      temaValido
+    );
+
+    setColorDashboard(
+      colorValido as ColorDashboard
+    );
+
+    setSonidoActivo(
+      sonidoGuardado === "true"
+    );
+
+    const media =
+      window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      );
+
+    const aplicarTema = () => {
+      setTemaOscuro(
+        temaValido === "dark" ||
+          (
+            temaValido === "system" &&
+            media.matches
+          )
+      );
+    };
+
+    aplicarTema();
+
+    const listener = () => {
+      if (
+        temaValido === "system"
+      ) {
+        setTemaOscuro(
+          media.matches
+        );
+      }
+    };
+
+    media.addEventListener?.(
+      "change",
+      listener
+    );
+
+    return () => {
+      media.removeEventListener?.(
+        "change",
+        listener
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const media =
+      window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      );
+
+    setTemaOscuro(
+      temaDashboard === "dark" ||
+        (
+          temaDashboard === "system" &&
+          media.matches
+        )
+    );
+  }, [temaDashboard]);
+
+  useEffect(() => {
+    const disponible =
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window;
+
+    setPushDisponible(
+      disponible
+    );
+
+    if (
+      disponible &&
+      userId
+    ) {
+      comprobarPushCliente();
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -694,6 +997,329 @@ export default function MisSolicitudesPage() {
     }
   }
 
+  function guardarTema(
+    tema: TemaDashboard
+  ) {
+    setTemaDashboard(tema);
+
+    localStorage.setItem(
+      THEME_STORAGE_KEY,
+      tema
+    );
+
+    setMensajeAjustes(
+      t.preferenciasGuardadas
+    );
+  }
+
+  function guardarColor(
+    color: ColorDashboard
+  ) {
+    setColorDashboard(color);
+
+    localStorage.setItem(
+      COLOR_STORAGE_KEY,
+      color
+    );
+
+    setMensajeAjustes(
+      t.preferenciasGuardadas
+    );
+  }
+
+  function cambiarSonido() {
+    const siguiente =
+      !sonidoActivo;
+
+    setSonidoActivo(
+      siguiente
+    );
+
+    localStorage.setItem(
+      SOUND_STORAGE_KEY,
+      String(siguiente)
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "relydo-sound-preference",
+        {
+          detail: {
+            enabled:
+              siguiente,
+          },
+        }
+      )
+    );
+
+    setMensajeAjustes(
+      t.preferenciasGuardadas
+    );
+  }
+
+  async function comprobarPushCliente() {
+    try {
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
+
+      const ready =
+        await navigator.serviceWorker.ready;
+
+      const subscription =
+        await ready.pushManager.getSubscription();
+
+      setPushActivo(
+        Boolean(subscription)
+      );
+
+      if (
+        registration &&
+        Notification.permission ===
+          "denied"
+      ) {
+        setPushActivo(false);
+      }
+    } catch (error) {
+      console.error(
+        "No se pudo comprobar Push:",
+        error
+      );
+
+      setPushActivo(false);
+    }
+  }
+
+  function urlBase64AUint8Array(
+    base64String: string
+  ) {
+    const padding =
+      "=".repeat(
+        (
+          4 -
+          (base64String.length % 4)
+        ) % 4
+      );
+
+    const base64 =
+      (
+        base64String +
+        padding
+      )
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+
+    const rawData =
+      window.atob(base64);
+
+    return Uint8Array.from(
+      [...rawData].map(
+        (character) =>
+          character.charCodeAt(0)
+      )
+    );
+  }
+
+  async function activarPushCliente() {
+    if (
+      !userId ||
+      !pushDisponible
+    ) {
+      return;
+    }
+
+    setProcesandoPush(true);
+    setMensajeAjustes("");
+
+    try {
+      const publicKey =
+        process.env
+          .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        throw new Error(
+          "Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY."
+        );
+      }
+
+      const permission =
+        await Notification.requestPermission();
+
+      if (
+        permission !== "granted"
+      ) {
+        throw new Error(
+          t.pushPermisoDenegado
+        );
+      }
+
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
+
+      await navigator.serviceWorker.ready;
+
+      let subscription =
+        await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription =
+          await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              urlBase64AUint8Array(
+                publicKey
+              ),
+          });
+      }
+
+      const json =
+        subscription.toJSON();
+
+      const endpoint =
+        subscription.endpoint;
+
+      const p256dh =
+        json.keys?.p256dh;
+
+      const auth =
+        json.keys?.auth;
+
+      if (
+        !endpoint ||
+        !p256dh ||
+        !auth
+      ) {
+        throw new Error(
+          "La suscripción Push no devolvió las claves necesarias."
+        );
+      }
+
+      const {
+        error:
+          guardarError,
+      } = await supabase
+        .from(
+          "push_subscriptions"
+        )
+        .upsert(
+          {
+            user_id:
+              userId,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent:
+              navigator.userAgent,
+            updated_at:
+              new Date().toISOString(),
+          },
+          {
+            onConflict:
+              "endpoint",
+          }
+        );
+
+      if (guardarError) {
+        throw new Error(
+          guardarError.message
+        );
+      }
+
+      setPushActivo(true);
+
+      setMensajeAjustes(
+        t.preferenciasGuardadas
+      );
+    } catch (error) {
+      console.error(
+        "No se pudo activar Push:",
+        error
+      );
+
+      setMensajeAjustes(
+        error instanceof Error
+          ? error.message
+          : t.pushNoDisponible
+      );
+    } finally {
+      setProcesandoPush(false);
+    }
+  }
+
+  async function desactivarPushCliente() {
+    if (
+      !pushDisponible
+    ) {
+      return;
+    }
+
+    setProcesandoPush(true);
+    setMensajeAjustes("");
+
+    try {
+      const registration =
+        await navigator.serviceWorker.ready;
+
+      const subscription =
+        await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        const endpoint =
+          subscription.endpoint;
+
+        await subscription.unsubscribe();
+
+        if (userId) {
+          const {
+            error:
+              deleteError,
+          } = await supabase
+            .from(
+              "push_subscriptions"
+            )
+            .delete()
+            .eq(
+              "user_id",
+              userId
+            )
+            .eq(
+              "endpoint",
+              endpoint
+            );
+
+          if (deleteError) {
+            console.warn(
+              "Push se desactivó en el navegador, pero no se pudo borrar la suscripción guardada:",
+              deleteError
+            );
+          }
+        }
+      }
+
+      setPushActivo(false);
+
+      setMensajeAjustes(
+        t.preferenciasGuardadas
+      );
+    } catch (error) {
+      console.error(
+        "No se pudo desactivar Push:",
+        error
+      );
+
+      setMensajeAjustes(
+        error instanceof Error
+          ? error.message
+          : t.pushNoDisponible
+      );
+    } finally {
+      setProcesandoPush(false);
+    }
+  }
+
   async function cerrarSesion() {
     await supabase.auth.signOut();
     window.location.href = "/login-cliente";
@@ -896,13 +1522,65 @@ export default function MisSolicitudesPage() {
     );
   }
 
+  const colorActual =
+    COLORES_DASHBOARD[
+      colorDashboard
+    ];
+
+  const fondoPagina =
+    temaOscuro
+      ? "#020617"
+      : "#f1f5f9";
+
+  const fondoTarjeta =
+    temaOscuro
+      ? "#0f172a"
+      : "#ffffff";
+
+  const textoPrincipal =
+    temaOscuro
+      ? "#f8fafc"
+      : "#0f172a";
+
+  const textoSecundario =
+    temaOscuro
+      ? "#cbd5e1"
+      : "#475569";
+
+  const bordeTarjeta =
+    temaOscuro
+      ? "#334155"
+      : "#e2e8f0";
+
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-10">
+    <main
+      className={`min-h-screen px-4 py-10 transition-colors duration-300 ${
+        temaOscuro
+          ? "relydo-customer-dark"
+          : ""
+      }`}
+      style={{
+        backgroundColor:
+          fondoPagina,
+        color:
+          textoPrincipal,
+      }}
+    >
       <div className="mx-auto max-w-6xl">
 
         {/* HEADER */}
 
-        <section className="relative z-30 overflow-visible rounded-[32px] border border-blue-500/20 bg-gradient-to-br from-blue-700 via-blue-700 to-indigo-700 text-white shadow-xl shadow-blue-900/10">
+        <section
+          className="relative z-30 overflow-visible rounded-[32px] border text-white shadow-xl"
+          style={{
+            borderColor:
+              `${colorActual.hex}55`,
+            background:
+              `linear-gradient(135deg, ${colorActual.hex}, ${colorActual.hexOscuro})`,
+            boxShadow:
+              `0 20px 45px ${colorActual.hex}22`,
+          }}
+        >
           <div className="relative px-7 py-8 md:px-10 md:py-10">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-24 left-10 h-52 w-52 rounded-full bg-cyan-300/10 blur-3xl" />
@@ -1028,11 +1706,15 @@ export default function MisSolicitudesPage() {
 
         {/* ACCIONES */}
 
-        <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => router.push("/solicitar-trabajo")}
-            className="rounded-2xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white shadow transition hover:-translate-y-0.5 hover:bg-blue-800"
+            className="rounded-2xl px-6 py-4 text-lg font-extrabold text-white shadow transition hover:-translate-y-0.5"
+            style={{
+              backgroundColor:
+                colorActual.hex,
+            }}
           >
             {t.nuevoTrabajo}
           </button>
@@ -1040,11 +1722,488 @@ export default function MisSolicitudesPage() {
           <button
             type="button"
             onClick={() => router.push("/profesionales")}
-            className="rounded-2xl border-2 border-blue-700 bg-white px-6 py-4 text-lg font-extrabold text-blue-700 shadow transition hover:-translate-y-0.5 hover:bg-blue-50"
+            className="rounded-2xl border-2 px-6 py-4 text-lg font-extrabold shadow transition hover:-translate-y-0.5"
+            style={{
+              borderColor:
+                colorActual.hex,
+              backgroundColor:
+                fondoTarjeta,
+              color:
+                colorActual.hex,
+            }}
           >
             {t.verProfesionales}
           </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMostrarAjustes(
+                (actual) =>
+                  !actual
+              )
+            }
+            className="rounded-2xl border px-6 py-4 text-lg font-extrabold shadow transition hover:-translate-y-0.5"
+            style={{
+              borderColor:
+                bordeTarjeta,
+              backgroundColor:
+                fondoTarjeta,
+              color:
+                textoPrincipal,
+            }}
+          >
+            ⚙️ {t.ajustes}
+          </button>
         </section>
+
+        {mostrarAjustes && (
+          <section
+            className="mt-5 overflow-hidden rounded-3xl border shadow-lg"
+            style={{
+              borderColor:
+                bordeTarjeta,
+              backgroundColor:
+                fondoTarjeta,
+            }}
+          >
+            <div
+              className="border-b px-6 py-5 md:px-7"
+              style={{
+                borderColor:
+                  bordeTarjeta,
+              }}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p
+                    className="text-xs font-black uppercase tracking-[0.16em]"
+                    style={{
+                      color:
+                        colorActual.hex,
+                    }}
+                  >
+                    ⚙️ {t.ajustes}
+                  </p>
+
+                  <h2
+                    className="mt-1 text-2xl font-black"
+                    style={{
+                      color:
+                        textoPrincipal,
+                    }}
+                  >
+                    {t.ajustesTitulo}
+                  </h2>
+
+                  <p
+                    className="mt-1 text-sm"
+                    style={{
+                      color:
+                        textoSecundario,
+                    }}
+                  >
+                    {t.ajustesDescripcion}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarAjustes(false)
+                  }
+                  className="w-fit rounded-xl border px-4 py-2 text-sm font-extrabold"
+                  style={{
+                    borderColor:
+                      bordeTarjeta,
+                    color:
+                      textoPrincipal,
+                    backgroundColor:
+                      temaOscuro
+                        ? "#1e293b"
+                        : "#f8fafc",
+                  }}
+                >
+                  {t.cerrarAjustes}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-5 p-6 md:grid-cols-2 md:p-7 xl:grid-cols-3">
+              {/* APARIENCIA */}
+              <div
+                className="rounded-2xl border p-5"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    ◐
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {t.apariencia}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {t.aparienciaDesc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ["light", t.claro],
+                      ["dark", t.oscuro],
+                      ["system", t.sistema],
+                    ] as const
+                  ).map(
+                    ([valor, etiqueta]) => (
+                      <button
+                        key={valor}
+                        type="button"
+                        onClick={() =>
+                          guardarTema(
+                            valor
+                          )
+                        }
+                        className="rounded-xl border px-3 py-2.5 text-xs font-black transition"
+                        style={{
+                          borderColor:
+                            temaDashboard ===
+                            valor
+                              ? colorActual.hex
+                              : bordeTarjeta,
+                          backgroundColor:
+                            temaDashboard ===
+                            valor
+                              ? `${colorActual.hex}18`
+                              : fondoTarjeta,
+                          color:
+                            temaDashboard ===
+                            valor
+                              ? colorActual.hex
+                              : textoPrincipal,
+                        }}
+                      >
+                        {etiqueta}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* COLOR */}
+              <div
+                className="rounded-2xl border p-5"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    🎨
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {t.colorPrincipal}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {t.colorDesc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  {(
+                    Object.keys(
+                      COLORES_DASHBOARD
+                    ) as ColorDashboard[]
+                  ).map(
+                    (color) => {
+                      const opcion =
+                        COLORES_DASHBOARD[
+                          color
+                        ];
+
+                      const seleccionado =
+                        colorDashboard ===
+                        color;
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() =>
+                            guardarColor(
+                              color
+                            )
+                          }
+                          title={
+                            language ===
+                            "es"
+                              ? opcion.nombreEs
+                              : opcion.nombreEn
+                          }
+                          className="flex flex-col items-center gap-2 rounded-xl border p-3 text-[10px] font-black transition"
+                          style={{
+                            borderColor:
+                              seleccionado
+                                ? opcion.hex
+                                : bordeTarjeta,
+                            backgroundColor:
+                              seleccionado
+                                ? `${opcion.hex}14`
+                                : fondoTarjeta,
+                            color:
+                              textoPrincipal,
+                          }}
+                        >
+                          <span
+                            className="h-7 w-7 rounded-full shadow-sm"
+                            style={{
+                              backgroundColor:
+                                opcion.hex,
+                              boxShadow:
+                                seleccionado
+                                  ? `0 0 0 4px ${opcion.hex}25`
+                                  : undefined,
+                            }}
+                          />
+
+                          <span>
+                            {language ===
+                            "es"
+                              ? opcion.nombreEs
+                              : opcion.nombreEn}
+                          </span>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+
+              {/* AVISOS */}
+              <div
+                className="rounded-2xl border p-5 md:col-span-2 xl:col-span-1"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    🔔
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {t.avisos}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {t.avisosDesc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div
+                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    style={{
+                      borderColor:
+                        bordeTarjeta,
+                      backgroundColor:
+                        fondoTarjeta,
+                    }}
+                  >
+                    <div>
+                      <p
+                        className="text-sm font-black"
+                        style={{
+                          color:
+                            textoPrincipal,
+                        }}
+                      >
+                        📲 {t.push}
+                      </p>
+
+                      <p
+                        className="mt-1 text-xs font-bold"
+                        style={{
+                          color:
+                            pushActivo
+                              ? "#059669"
+                              : textoSecundario,
+                        }}
+                      >
+                        {pushActivo
+                          ? t.activo
+                          : t.inactivo}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={
+                        procesandoPush ||
+                        !pushDisponible
+                      }
+                      onClick={() =>
+                        pushActivo
+                          ? desactivarPushCliente()
+                          : activarPushCliente()
+                      }
+                      className="rounded-lg px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{
+                        backgroundColor:
+                          pushActivo
+                            ? "#475569"
+                            : colorActual.hex,
+                      }}
+                    >
+                      {procesandoPush
+                        ? t.procesando
+                        : pushActivo
+                        ? t.desactivar
+                        : t.activar}
+                    </button>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    style={{
+                      borderColor:
+                        bordeTarjeta,
+                      backgroundColor:
+                        fondoTarjeta,
+                    }}
+                  >
+                    <div>
+                      <p
+                        className="text-sm font-black"
+                        style={{
+                          color:
+                            textoPrincipal,
+                        }}
+                      >
+                        🔊 {t.sonido}
+                      </p>
+
+                      <p
+                        className="mt-1 text-xs font-bold"
+                        style={{
+                          color:
+                            sonidoActivo
+                              ? "#059669"
+                              : textoSecundario,
+                        }}
+                      >
+                        {sonidoActivo
+                          ? t.activo
+                          : t.inactivo}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={
+                        cambiarSonido
+                      }
+                      className="rounded-lg px-4 py-2 text-xs font-black text-white"
+                      style={{
+                        backgroundColor:
+                          sonidoActivo
+                            ? "#475569"
+                            : colorActual.hex,
+                      }}
+                    >
+                      {sonidoActivo
+                        ? t.desactivar
+                        : t.activar}
+                    </button>
+                  </div>
+
+                  {!pushDisponible && (
+                    <p className="text-xs font-bold text-amber-700">
+                      {t.pushNoDisponible}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {mensajeAjustes && (
+              <div
+                className="border-t px-6 py-4 text-sm font-bold md:px-7"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  color:
+                    textoSecundario,
+                }}
+              >
+                ✓ {mensajeAjustes}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* RESUMEN */}
 
@@ -1367,6 +2526,39 @@ export default function MisSolicitudesPage() {
 
 
       </div>
+
+      {temaOscuro && (
+        <style jsx global>{`
+          .relydo-customer-dark .bg-white {
+            background-color: #0f172a !important;
+          }
+
+          .relydo-customer-dark .bg-slate-50 {
+            background-color: #111827 !important;
+          }
+
+          .relydo-customer-dark .bg-slate-100 {
+            background-color: #1e293b !important;
+          }
+
+          .relydo-customer-dark .text-slate-950,
+          .relydo-customer-dark .text-slate-900,
+          .relydo-customer-dark .text-slate-800 {
+            color: #f8fafc !important;
+          }
+
+          .relydo-customer-dark .text-slate-700,
+          .relydo-customer-dark .text-slate-600,
+          .relydo-customer-dark .text-slate-500 {
+            color: #cbd5e1 !important;
+          }
+
+          .relydo-customer-dark .border-slate-200,
+          .relydo-customer-dark .border-slate-300 {
+            border-color: #334155 !important;
+          }
+        `}</style>
+      )}
     </main>
   );
 }
