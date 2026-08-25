@@ -4,12 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type Payment = {
   id: string;
@@ -135,11 +139,69 @@ export default function AdminFinanzasPage() {
 
       if (
         authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
+        !user
       ) {
-        router.replace("/login-profesional");
+        router.replace(
+          "/login-admin"
+        );
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: adminProfileError,
+      } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          role,
+          admin_role
+        `)
+        .eq(
+          "id",
+          user.id
+        )
+        .maybeSingle();
+
+      if (
+        adminProfileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin"
+      ) {
+        await supabase.auth.signOut();
+
+        router.replace(
+          "/login-admin"
+        );
+        return;
+      }
+
+      if (
+        !isAdminRole(
+          adminProfile.admin_role
+        )
+      ) {
+        await supabase.auth.signOut();
+
+        router.replace(
+          "/login-admin"
+        );
+        return;
+      }
+
+      if (
+        !hasAdminPermission(
+          adminProfile.admin_role,
+          "finance"
+        )
+      ) {
+        /*
+          Es un empleado Admin válido, pero no tiene
+          permiso para Finanzas. NO cerramos su sesión.
+        */
+        router.replace(
+          "/admin"
+        );
         return;
       }
 
