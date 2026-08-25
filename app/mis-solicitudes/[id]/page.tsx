@@ -440,6 +440,11 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Procesando...": "Processing...",
   "Enviando...": "Sending...",
   "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
+  "Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar el monto adicional más la tarifa de servicio correspondiente.": "If you accept, RELYDO will take you to Stripe’s secure checkout to pay the additional amount plus the applicable service fee.",
+  "Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.": "Additional payment confirmed. The payment summary now includes the budget change.",
+  "Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.": "Stripe confirmed the additional payment. This amount is already included in the job’s total summary.",
+  "💳 Pagar adicional": "💳 Pay additional amount",
+  "✓ Aceptar": "✓ Accept",
   "Flexible": "Flexible",
 };
 
@@ -1465,11 +1470,7 @@ export default function MisSolicitudDetallePage() {
         );
 
         setMensaje(
-          `Pago adicional confirmado${
-            changeOrderId
-              ? ""
-              : ""
-          }. El resumen de pago ya incluye el cambio de presupuesto.`
+          T("Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.")
         );
 
         window.history.replaceState(
@@ -4448,9 +4449,9 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-900">
-                  Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los ${Number(
+                  {T("Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar el monto adicional más la tarifa de servicio correspondiente.")} {language === "en" ? "Additional amount:" : "Monto adicional:"} ${Number(
                     changeOrderPendiente.additional_amount
-                  ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.
+                  ).toFixed(2)}.
                 </p>
               </div>
 
@@ -4496,7 +4497,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
                     ? T("Procesando...")
-                    : `✓ Aceptar +$${Number(
+                    : `${T("✓ Aceptar")} +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
                 </button>
@@ -4573,11 +4574,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     {T("✓ Cambio pagado")}
                   </p>
                   <p className="mt-1 text-sm font-bold leading-6 text-emerald-800">
-                    Stripe confirmó el pago adicional de $
-                    {Number(
+                    {T("Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.")} {language === "en" ? "Amount paid:" : "Monto pagado:"} ${Number(
                       ultimoChangeOrder.additional_customer_total_amount ||
                         0
-                    ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.
+                    ).toFixed(2)}.
                   </p>
                 </div>
               )}
@@ -4608,7 +4608,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   {pagandoChangeOrderId ===
                   ultimoChangeOrder.id
                     ? T("Abriendo pago seguro...")
-                    : `💳 Pagar adicional · $${redondearDinero(
+                    : `${T("💳 Pagar adicional")} · $${redondearDinero(
                         Number(
                           ultimoChangeOrder.additional_amount
                         ) +
