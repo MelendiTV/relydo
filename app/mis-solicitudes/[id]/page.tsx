@@ -3283,11 +3283,13 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       setEvidenciasReclamo([]);
       setMensaje(
         evidenciasReclamo.length > 0
-          ? `Tu reporte fue registrado correctamente con ${evidenciasReclamo.length} archivo${
-              evidenciasReclamo.length === 1
-                ? ""
-                : "s"
-            } de evidencia.`
+          ? language === "en"
+            ? `Your claim was submitted successfully with ${evidenciasReclamo.length} evidence file${
+                evidenciasReclamo.length === 1 ? "" : "s"
+              }.`
+            : `Tu reporte fue registrado correctamente con ${evidenciasReclamo.length} archivo${
+                evidenciasReclamo.length === 1 ? "" : "s"
+              } de evidencia.`
           : T("Tu reporte fue registrado correctamente.")
       );
     } catch (err) {
@@ -5336,19 +5338,19 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                   <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-black uppercase text-amber-800">
                     {claim.status === "open"
-                      ? "Abierto"
+                      ? language === "en" ? "Open" : "Abierto"
                       : claim.status === "reviewing"
                       ? T("En revisión")
                       : claim.status === "resolved"
-                      ? "Resuelto"
-                      : "Rechazado"}
+                      ? language === "en" ? "Resolved" : "Resuelto"
+                      : language === "en" ? "Rejected" : "Rechazado"}
                   </span>
                 </div>
 
                 <div className="mt-6 rounded-2xl bg-red-50 p-6">
-                  <p className="text-sm font-bold text-red-700">Motivo</p>
+                  <p className="text-sm font-bold text-red-700">{T("Motivo")}</p>
                   <p className="mt-2 font-extrabold text-slate-900">
-                    {claim.reason}
+                    {T(claim.reason)}
                   </p>
 
                   {claim.description && (
