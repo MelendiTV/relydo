@@ -195,7 +195,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Total pagado": "Total paid",
   "Fee de servicio RELYDO (no reembolsable)": "RELYDO service fee (non-refundable)",
   "Cargo por cancelación": "Cancellation fee",
-  "Total de tarifas RELYDO": "Total RELYDO fees",
+  "RELYDO conserva": "RELYDO keeps",
   "Chat con": "Chat with",
   "● En tiempo real": "● Live",
   "Conectando...": "Connecting...",
@@ -665,6 +665,18 @@ function calcularCancelacionCliente(
   let penalidadPercent = 0;
   let profesionalPercent = 0;
   let relydoEtapaPercent = 0;
+
+  // Pagado / profesional contratado, pero todavía no ha salido.
+  // Cargo de cancelación: 5% del valor del servicio para RELYDO.
+  if (
+    solicitud.status === "in_progress" &&
+    !solicitud.job_stage &&
+    payment
+  ) {
+    penalidadPercent = 5;
+    profesionalPercent = 0;
+    relydoEtapaPercent = 5;
+  }
 
   if (
     solicitud.status === "in_progress" &&
@@ -2572,14 +2584,23 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       payment
     ) {
       textoConfirmacion =
-        `¿Confirmas la cancelación?\n\n` +
-        `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
-        `Fee de servicio RELYDO (no reembolsable): $${resumen.serviceFee.toFixed(2)}\n` +
-        `Cargo por cancelación: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
-        `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
-        `RELYDO conserva en total: $${resumen.relydo.toFixed(2)}\n` +
-        `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
-        `Esta acción no se puede deshacer.`;
+        language === "en"
+          ? `Confirm cancellation?\n\n` +
+            `Total paid: $${resumen.totalPagado.toFixed(2)}\n` +
+            `RELYDO service fee (non-refundable): $${resumen.serviceFee.toFixed(2)}\n` +
+            `Cancellation fee: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+            `Professional compensation: $${resumen.profesional.toFixed(2)}\n` +
+            `Total RELYDO fees: $${resumen.relydo.toFixed(2)}\n` +
+            `Customer refund: $${resumen.reembolso.toFixed(2)}\n\n` +
+            `This action cannot be undone.`
+          : `¿Confirmas la cancelación?\n\n` +
+            `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
+            `Tarifa de servicio RELYDO (no reembolsable): $${resumen.serviceFee.toFixed(2)}\n` +
+            `Cargo por cancelación: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+            `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
+            `Total de tarifas RELYDO: $${resumen.relydo.toFixed(2)}\n` +
+            `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
+            `Esta acción no se puede deshacer.`;
     }
 
     const confirmar =
@@ -4210,7 +4231,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                       )}
 
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total de tarifas RELYDO")}</span>
+                        <span className="text-slate-600">{T("RELYDO conserva")}</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.relydo.toFixed(2)}
                         </strong>

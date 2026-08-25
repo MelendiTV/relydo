@@ -352,12 +352,21 @@ export async function POST(
     }
 
     // Política de cancelación RELYDO:
-    // contratado: fee original no reembolsable, sin cargo adicional
+    // contratado/pagado, Pro aún no salió: 5% RELYDO
     // en camino: 12.5% (5.5% Pro + 7% RELYDO)
     // llegó: 23.5% (12% Pro + 11.5% RELYDO)
     let penaltyPercent = 0;
     let providerJobPercent = 0;
     let relydoStagePercent = 0;
+
+    if (
+      serviceRequest.status === "in_progress" &&
+      !serviceRequest.job_stage
+    ) {
+      penaltyPercent = 5;
+      providerJobPercent = 0;
+      relydoStagePercent = 5;
+    }
 
     if (serviceRequest.job_stage === "on_the_way") {
       penaltyPercent = 12.5;
