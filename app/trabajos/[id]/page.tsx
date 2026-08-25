@@ -3587,6 +3587,22 @@ export default function TrabajoDetallePage() {
         )
     );
 
+  /*
+    Si RELYDO ya resolvió el reclamo, el chat NO vuelve a abrirse.
+    La resolución administrativa tiene prioridad sobre la ventana normal
+    de 12 horas que existe después de completar un trabajo sin reclamo.
+  */
+  const reclamoResueltoChat =
+    Boolean(
+      reclamo &&
+        !reclamoActivoChat &&
+        (
+          Boolean(reclamo.resolved_at) ||
+          reclamo.status === "resolved" ||
+          reclamo.status === "closed"
+        )
+    );
+
   const chatDentroDe12Horas =
     Boolean(
       trabajo?.status ===
@@ -3603,6 +3619,7 @@ export default function TrabajoDetallePage() {
     Boolean(
       trabajo &&
         !reclamoActivoChat &&
+        !reclamoResueltoChat &&
         (
           trabajo.status ===
             "in_progress" ||
@@ -3613,6 +3630,10 @@ export default function TrabajoDetallePage() {
   function motivoChatBloqueado() {
     if (reclamoActivoChat) {
       return T("Chat bloqueado porque existe un reclamo activo. RELYDO Admin gestiona el caso desde este momento.", "Chat is blocked because there is an active claim. RELYDO Admin is managing the case from this point forward.");
+    }
+
+    if (reclamoResueltoChat) {
+      return T("Este reclamo ya fue resuelto por RELYDO. La comunicación de este trabajo quedó cerrada permanentemente.", "This claim has already been resolved by RELYDO. Communication for this job is now permanently closed.");
     }
 
     if (
