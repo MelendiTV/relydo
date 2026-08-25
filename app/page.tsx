@@ -1,510 +1,1020 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useLanguage } from "@/app/components/LanguageProvider";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-const LOGO_SRC = "/icon/relydo-logo.png";
+import {
+  createClient,
+} from "@supabase/supabase-js";
 
-function BrandLogo() {
+import {
+  useRouter,
+} from "next/navigation";
+
+import {
+  useLanguage,
+} from "@/app/components/LanguageProvider";
+
+import {
+  AdminRole,
+  adminRoleLabel,
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
+
+type AdminMetrics = {
+  totalUsuarios: number;
+  totalProfesionales: number;
+  profesionalesPendientes: number;
+  profesionalesAprobados: number;
+  profesionalesSuspendidos: number;
+  totalOrdenes: number;
+  ordenesAbiertas: number;
+  ordenesActivas: number;
+  ordenesCompletadas: number;
+  reclamosAbiertos: number;
+  reclamosRevision: number;
+  totalReclamosActivos: number;
+};
+
+type CardProps = {
+  titulo: string;
+  descripcion: string;
+  icono: string;
+  valor?: string | number;
+  etiqueta?: string;
+  color:
+    | "blue"
+    | "red"
+    | "emerald"
+    | "violet"
+    | "cyan"
+    | "purple"
+    | "amber"
+    | "indigo";
+  onClick: () => void;
+};
+
+const estilos = {
+  blue: {
+    border: "border-blue-200 hover:border-blue-400",
+    icon: "bg-blue-100",
+    action: "text-blue-700",
+    pill: "bg-blue-50 text-blue-800",
+  },
+  red: {
+    border: "border-red-200 hover:border-red-400",
+    icon: "bg-red-100",
+    action: "text-red-700",
+    pill: "bg-red-50 text-red-800",
+  },
+  emerald: {
+    border: "border-emerald-200 hover:border-emerald-400",
+    icon: "bg-emerald-100",
+    action: "text-emerald-700",
+    pill: "bg-emerald-50 text-emerald-800",
+  },
+  violet: {
+    border: "border-violet-200 hover:border-violet-400",
+    icon: "bg-violet-100",
+    action: "text-violet-700",
+    pill: "bg-violet-50 text-violet-800",
+  },
+  cyan: {
+    border: "border-cyan-200 hover:border-cyan-400",
+    icon: "bg-cyan-100",
+    action: "text-cyan-700",
+    pill: "bg-cyan-50 text-cyan-800",
+  },
+  purple: {
+    border: "border-purple-200 hover:border-purple-400",
+    icon: "bg-purple-100",
+    action: "text-purple-700",
+    pill: "bg-purple-50 text-purple-800",
+  },
+  amber: {
+    border: "border-amber-200 hover:border-amber-400",
+    icon: "bg-amber-100",
+    action: "text-amber-700",
+    pill: "bg-amber-50 text-amber-800",
+  },
+  indigo: {
+    border: "border-indigo-200 hover:border-indigo-400",
+    icon: "bg-indigo-100",
+    action: "text-indigo-700",
+    pill: "bg-indigo-50 text-indigo-800",
+  },
+};
+
+function AdminCard({
+  titulo,
+  descripcion,
+  icono,
+  valor,
+  etiqueta,
+  color,
+  onClick,
+}: CardProps) {
+  const style = estilos[color];
+
   return (
-    <div className="flex items-center gap-3">
-      <img
-        src={LOGO_SRC}
-        alt="RELYDO"
-        className="h-12 w-auto object-contain sm:h-14"
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
-          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-          if (fallback) fallback.style.display = "inline";
-        }}
-      />
-      <span
-        style={{ display: "none" }}
-        className="text-2xl font-black tracking-[0.06em] text-slate-950"
-      >
-        RELY<span className="text-blue-600">DO</span>
-      </span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group rounded-3xl border bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${style.border}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${style.icon}`}
+        >
+          {icono}
+        </div>
+
+        <span
+          className={`text-xl font-black transition group-hover:translate-x-1 ${style.action}`}
+        >
+          →
+        </span>
+      </div>
+
+      <h3 className="mt-5 text-xl font-black text-slate-950">
+        {titulo}
+      </h3>
+
+      <p className="mt-2 min-h-[72px] text-sm leading-6 text-slate-600">
+        {descripcion}
+      </p>
+
+      {(valor !== undefined || etiqueta) && (
+        <div
+          className={`mt-5 inline-flex rounded-xl px-3 py-2 text-sm font-black ${style.pill}`}
+        >
+          {valor !== undefined ? valor : etiqueta}
+        </div>
+      )}
+    </button>
   );
 }
 
+export default function AdminHomePage() {
+  const router =
+    useRouter();
 
-export default function Home() {
-  const router = useRouter();
-  const { language } = useLanguage();
-  const es = language === "es";
+  const { language } =
+    useLanguage();
 
-  /*
-    Si Supabase confirma el correo y, por cualquier motivo,
-    devuelve al usuario al Home principal con los tokens en
-    el hash (#access_token=...), enviamos inmediatamente ese
-    mismo hash a /verificar-email para completar el flujo.
-  */
+  const T = (
+    es: string,
+    en: string
+  ) =>
+    language === "es"
+      ? es
+      : en;
+
+  const [
+    verificandoAdmin,
+    setVerificandoAdmin,
+  ] = useState(true);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    adminEmail,
+    setAdminEmail,
+  ] = useState("");
+
+  const [
+    adminRole,
+    setAdminRole,
+  ] =
+    useState<AdminRole | null>(
+      null
+    );
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    metrics,
+    setMetrics,
+  ] = useState<AdminMetrics>({
+    totalUsuarios: 0,
+    totalProfesionales: 0,
+    profesionalesPendientes: 0,
+    profesionalesAprobados: 0,
+    profesionalesSuspendidos: 0,
+    totalOrdenes: 0,
+    ordenesAbiertas: 0,
+    ordenesActivas: 0,
+    ordenesCompletadas: 0,
+    reclamosAbiertos: 0,
+    reclamosRevision: 0,
+    totalReclamosActivos: 0,
+  });
+
   useEffect(() => {
-    const hash = window.location.hash;
-
-    if (!hash) {
-      return;
-    }
-
-    const params = new URLSearchParams(
-      hash.startsWith("#")
-        ? hash.substring(1)
-        : hash
-    );
-
-    const accessToken =
-      params.get("access_token");
-
-    const refreshToken =
-      params.get("refresh_token");
-
-    const type =
-      params.get("type");
-
-    const esConfirmacionEmail =
-      Boolean(accessToken) &&
-      Boolean(refreshToken) &&
-      (
-        type === "signup" ||
-        type === "email" ||
-        type === "email_change" ||
-        type === null
-      );
-
-    if (!esConfirmacionEmail) {
-      return;
-    }
-
-    window.location.replace(
-      `/verificar-email${hash}`
-    );
+    verificarAdmin();
   }, []);
 
-  const T = es
-    ? {
-        home: "Inicio",
-        how: "Cómo funciona",
-        trust: "Confianza",
-        customers: "Para clientes",
-        pros: "Para profesionales",
-        badge: "UNA PLATAFORMA. DOS EXPERIENCIAS.",
-        title1: "Todo empieza",
-        title2: "con RELYDO.",
-        subtitle:
-          "Una plataforma para conectar clientes y profesionales con un flujo claro, pagos protegidos y herramientas para llevar cada trabajo de principio a fin.",
-        statement: "Contrata con confianza. Trabaja con respaldo. Todo en RELYDO.",
-        pillars: ["Profesionales verificados", "Pagos protegidos", "Control de principio a fin"],
-        choose: "Elige cómo quieres usar RELYDO",
-        chooseSub:
-          "Cada lado tiene una experiencia diseñada para sus propias necesidades.",
-        customerEyebrow: "PARA CLIENTES",
-        customerTitle: "Encuentra ayuda confiable.",
-        customerDesc:
-          "Solicita un trabajo, compara presupuestos, sigue el servicio y mantén todo organizado en RELYDO.",
-        customerButton: "Entrar al portal de clientes",
-        proEyebrow: "PARA PROFESIONALES",
-        proTitle: "Haz crecer tu negocio.",
-        proDesc:
-          "Descubre oportunidades, envía presupuestos, administra trabajos y construye tu reputación profesional.",
-        proButton: "Entrar al portal profesional",
-        trustTitle: "Confianza en cada paso",
-        trustSub:
-          "Trabajo, pago, comunicación y evidencia conectados en un mismo flujo.",
-        verified: "Profesionales verificados",
-        verifiedD: "Proceso de verificación antes de habilitar el acceso profesional.",
-        quotes: "Presupuestos claros",
-        quotesD: "El cliente puede comparar propuestas antes de contratar.",
-        payments: "Pagos protegidos",
-        paymentsD: "El pago permanece asociado al trabajo dentro de la plataforma.",
-        tracking: "Seguimiento del trabajo",
-        trackingD: "Estados, comunicación y evidencias en un mismo lugar.",
-        flow: "Así funciona RELYDO",
-        flowSub: "Un flujo simple desde la necesidad hasta el trabajo terminado.",
-        s1: "Publica o encuentra una oportunidad",
-        s1d: "Clientes crean solicitudes y profesionales acceden a oportunidades relevantes.",
-        s2: "Conecta con la mejor opción",
-        s2d: "Presupuestos, detalles y comunicación permanecen organizados.",
-        s3: "Sigue el trabajo",
-        s3d: "Desde que va en camino hasta que termina, el progreso permanece visible.",
-        s4: "Cierra con confianza",
-        s4d: "Pago, evidencia y soporte quedan asociados al trabajo.",
-        final: "Dos lados. Una sola plataforma.",
-        finalD:
-          "RELYDO está diseñado para que clientes y profesionales trabajen con más claridad, control y confianza.",
-        finalC: "Soy cliente",
-        finalP: "Soy profesional",
-        footerC: "Clientes",
-        footerP: "Profesionales",
-        footerPlatform: "Plataforma",
-        footerLegal: "Legal",
-        cPortal: "Portal de clientes",
-        cLogin: "Iniciar sesión",
-        cSignup: "Crear cuenta",
-        pPortal: "Portal profesional",
-        pLogin: "Iniciar sesión profesional",
-        pSignup: "Unirme como profesional",
-        services: "Servicios",
-        professionals: "Profesionales",
-        terms: "Términos",
-        privacy: "Privacidad",
-        rights: "Todos los derechos reservados.",
+  async function verificarAdmin() {
+    setVerificandoAdmin(true);
+    setError("");
+
+    try {
+      const {
+        data: {
+          user,
+        },
+        error:
+          authError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        authError ||
+        !user
+      ) {
+        router.replace(
+          "/login-admin"
+        );
+
+        return;
       }
-    : {
-        home: "Home",
-        how: "How it works",
-        trust: "Trust",
-        customers: "For Customers",
-        pros: "For Professionals",
-        badge: "ONE PLATFORM. TWO EXPERIENCES.",
-        title1: "Everything starts",
-        title2: "with RELYDO.",
-        subtitle:
-          "A platform that connects customers and professionals through a clear workflow, protected payments and tools that keep every job organized from start to finish.",
-        statement: "Hire with confidence. Work with confidence. All in RELYDO.",
-        pillars: ["Verified professionals", "Protected payments", "Control from start to finish"],
-        choose: "Choose how you want to use RELYDO",
-        chooseSub:
-          "Each side has an experience designed around its own needs.",
-        customerEyebrow: "FOR CUSTOMERS",
-        customerTitle: "Find help you can trust.",
-        customerDesc:
-          "Request a job, compare quotes, track progress and keep everything organized inside RELYDO.",
-        customerButton: "Enter customer portal",
-        proEyebrow: "FOR PROFESSIONALS",
-        proTitle: "Grow your business.",
-        proDesc:
-          "Discover opportunities, send quotes, manage jobs and build your professional reputation.",
-        proButton: "Enter professional portal",
-        trustTitle: "Trust at every step",
-        trustSub:
-          "Job, payment, communication and evidence connected in one workflow.",
-        verified: "Verified professionals",
-        verifiedD: "A verification process before professional access is enabled.",
-        quotes: "Clear quotes",
-        quotesD: "Customers can compare proposals before hiring.",
-        payments: "Protected payments",
-        paymentsD: "Payment stays connected to the job inside the platform.",
-        tracking: "Job tracking",
-        trackingD: "Job stages, communication and evidence stay together.",
-        flow: "How RELYDO works",
-        flowSub: "A simple flow from need to completed job.",
-        s1: "Post or discover an opportunity",
-        s1d: "Customers create requests and professionals access relevant opportunities.",
-        s2: "Connect with the right fit",
-        s2d: "Quotes, details and communication remain organized.",
-        s3: "Track the job",
-        s3d: "From on-the-way through completion, progress remains visible.",
-        s4: "Finish with confidence",
-        s4d: "Payment, evidence and support remain connected to the job.",
-        final: "Two sides. One platform.",
-        finalD:
-          "RELYDO is designed so customers and professionals can work with more clarity, control and confidence.",
-        finalC: "I'm a customer",
-        finalP: "I'm a professional",
-        footerC: "Customers",
-        footerP: "Professionals",
-        footerPlatform: "Platform",
-        footerLegal: "Legal",
-        cPortal: "Customer portal",
-        cLogin: "Customer sign in",
-        cSignup: "Create account",
-        pPortal: "Professional portal",
-        pLogin: "Professional sign in",
-        pSignup: "Join as a professional",
-        services: "Services",
-        professionals: "Professionals",
-        terms: "Terms",
-        privacy: "Privacy",
-        rights: "All rights reserved.",
-      };
 
-  const anunciosEspanol = [
-    "/ads/4b37dfc4-7eb9-4b5f-8bb5-40eb6a974310.png",
-    "/ads/4daa86f7-42c8-43f5-b5bd-4c6342dfb0dd.png",
-    "/ads/58d502c8-3a92-443d-bb21-d335f41c282b.png",
-    "/ads/8864c5e6-3489-4ca5-8772-87de324ccfc2.png",
-    "/ads/9018c8ec-b41a-4d2c-882a-cac2bd5c0fbe.png",
-    "/ads/24409dde-116e-49cc-a962-70f4ca6595df.png",
-    "/ads/274974a4-c1f1-49e8-9ff6-cbd13ad4b9f7.png",
-    "/ads/ads-2.jpeg",
-    "/ads/ads-5.jpeg",
-  ];
+      const {
+        data:
+          adminProfile,
+        error:
+          adminProfileError,
+      } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          role,
+          email,
+          admin_role
+        `)
+        .eq(
+          "id",
+          user.id
+        )
+        .maybeSingle();
 
-  const anunciosIngles = [
-    "/ads/ads-10.png",
-    "/ads/ads-11.png",
-    "/ads/ads-12.png",
-    "/ads/ads-14.png",
-    "/ads/ads-15.png",
-    "/ads/ads-16.png",
-    "/ads/ads-17.png",
-    "/ads/ads-18.png",
-    "/ads/ads-18.png",
-  ];
+      if (
+        adminProfileError ||
+        !adminProfile ||
+        adminProfile.role !==
+          "admin"
+      ) {
+        await supabase.auth.signOut();
 
-  const ads = es ? anunciosEspanol : anunciosIngles;
+        router.replace(
+          "/login-admin"
+        );
 
-  const trust = [
-    [T.verified, T.verifiedD, "01"],
-    [T.quotes, T.quotesD, "02"],
-    [T.payments, T.paymentsD, "03"],
-    [T.tracking, T.trackingD, "04"],
-  ];
+        return;
+      }
 
-  const flow = [
-    [T.s1, T.s1d, "01"],
-    [T.s2, T.s2d, "02"],
-    [T.s3, T.s3d, "03"],
-    [T.s4, T.s4d, "04"],
-  ];
+      setAdminEmail(
+        user.email ||
+          adminProfile.email ||
+          T("Administrador", "Administrator")
+      );
+
+      if (
+        !isAdminRole(
+          adminProfile.admin_role
+        )
+      ) {
+        await supabase.auth.signOut();
+
+        router.replace(
+          "/login-admin"
+        );
+
+        return;
+      }
+
+      setAdminRole(
+        adminProfile.admin_role
+      );
+
+      setVerificandoAdmin(false);
+
+      await cargarResumen();
+    } catch (err) {
+      console.error(
+        "Error verificando Admin:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No pudimos verificar la sesión administrativa.", "We could not verify the administrative session.")
+      );
+
+      setVerificandoAdmin(false);
+      setLoading(false);
+    }
+  }
+
+  async function cargarResumen() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [
+        usuariosResult,
+        profesionalesResult,
+        ordenesResult,
+        reclamosResult,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "id, role",
+            {
+              count: "exact",
+            }
+          ),
+
+        supabase
+          .from(
+            "provider_profiles"
+          )
+          .select(`
+            user_id,
+            verification_status,
+            verified,
+            active
+          `),
+
+        supabase
+          .from(
+            "service_requests"
+          )
+          .select(`
+            id,
+            status
+          `)
+          .limit(5000),
+
+        supabase
+          .from("job_claims")
+          .select(`
+            id,
+            status
+          `)
+          .limit(2000),
+      ]);
+
+      if (
+        usuariosResult.error
+      ) {
+        throw new Error(
+          `${T("Usuarios", "Users")}: ${usuariosResult.error.message}`
+        );
+      }
+
+      if (
+        profesionalesResult.error
+      ) {
+        throw new Error(
+          `${T("Profesionales", "Professionals")}: ${profesionalesResult.error.message}`
+        );
+      }
+
+      if (
+        ordenesResult.error
+      ) {
+        throw new Error(
+          `${T("Órdenes", "Orders")}: ${ordenesResult.error.message}`
+        );
+      }
+
+      if (
+        reclamosResult.error
+      ) {
+        throw new Error(
+          `${T("Reclamos", "Claims")}: ${reclamosResult.error.message}`
+        );
+      }
+
+      const profesionales =
+        profesionalesResult.data ||
+        [];
+
+      const ordenes =
+        ordenesResult.data ||
+        [];
+
+      const reclamos =
+        reclamosResult.data ||
+        [];
+
+      const profesionalesPendientes =
+        profesionales.filter(
+          (provider) =>
+            provider.verification_status ===
+            "pending"
+        ).length;
+
+      const profesionalesAprobados =
+        profesionales.filter(
+          (provider) =>
+            provider.verified ===
+              true &&
+            provider.active ===
+              true
+        ).length;
+
+      const profesionalesSuspendidos =
+        profesionales.filter(
+          (provider) =>
+            provider.verified ===
+              true &&
+            provider.active !==
+              true
+        ).length;
+
+      const ordenesAbiertas =
+        ordenes.filter(
+          (orden) =>
+            orden.status ===
+            "open"
+        ).length;
+
+      const ordenesActivas =
+        ordenes.filter(
+          (orden) =>
+            orden.status ===
+            "in_progress"
+        ).length;
+
+      const ordenesCompletadas =
+        ordenes.filter(
+          (orden) =>
+            orden.status ===
+            "completed"
+        ).length;
+
+      const reclamosAbiertos =
+        reclamos.filter(
+          (reclamo) =>
+            reclamo.status ===
+            "open"
+        ).length;
+
+      const reclamosRevision =
+        reclamos.filter(
+          (reclamo) =>
+            reclamo.status ===
+            "reviewing"
+        ).length;
+
+      setMetrics({
+        totalUsuarios:
+          usuariosResult.count ||
+          usuariosResult.data
+            ?.length ||
+          0,
+
+        totalProfesionales:
+          profesionales.length,
+
+        profesionalesPendientes,
+
+        profesionalesAprobados,
+
+        profesionalesSuspendidos,
+
+        totalOrdenes:
+          ordenes.length,
+
+        ordenesAbiertas,
+
+        ordenesActivas,
+
+        ordenesCompletadas,
+
+        reclamosAbiertos,
+
+        reclamosRevision,
+
+        totalReclamosActivos:
+          reclamosAbiertos +
+          reclamosRevision,
+      });
+    } catch (err) {
+      console.error(
+        "Error cargando resumen Admin:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No pudimos cargar el resumen administrativo.", "We could not load the administrative summary.")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function cerrarSesion() {
+    await supabase.auth.signOut();
+
+    router.replace(
+      "/login-admin"
+    );
+
+    router.refresh();
+  }
+
+  const alertasPendientes =
+    useMemo(
+      () =>
+        metrics.totalReclamosActivos +
+        metrics.profesionalesPendientes,
+      [
+        metrics.totalReclamosActivos,
+        metrics.profesionalesPendientes,
+      ]
+    );
+
+  const puede = (
+    permission:
+      | "admin_home"
+      | "claims"
+      | "orders"
+      | "finance"
+      | "financial_settings"
+      | "users"
+      | "providers"
+      | "alerts"
+      | "activity"
+  ) =>
+    adminRole !== null &&
+    hasAdminPermission(
+      adminRole,
+      permission
+    );
+
+  if (
+    verificandoAdmin ||
+    adminRole === null
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+        <div className="rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-xl">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-2xl font-black text-white">
+            R
+          </div>
+
+          <p className="font-bold text-slate-900">
+            {T("Verificando sesión administrativa...", "Verifying administrative session...")}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#EEF3FA] text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07152F]/95 shadow-lg backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <button onClick={() => router.push("/")} aria-label="RELYDO Home">
-            <BrandLogo />
-          </button>
+    <main className="min-h-screen bg-slate-100">
+      <div className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-6 md:py-8">
+        {/* HEADER */}
 
-          <nav className="hidden items-center gap-8 lg:flex">
-            <button onClick={() => router.push("/")} className="text-sm font-bold text-slate-200 transition hover:text-white">
-              {T.home}
-            </button>
-            <button
-              onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
-            >
-              {T.how}
-            </button>
-            <button
-              onClick={() => document.getElementById("confianza")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
-            >
-              {T.trust}
-            </button>
-          </nav>
+        <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-2xl">
+          <div className="p-6 md:p-9">
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-blue-200">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  RELYDO ADMIN
+                </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push("/clientes")}
-              className="rounded-xl border border-white/25 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-blue-50 sm:px-5 sm:text-sm"
-            >
-              {T.customers}
-            </button>
-            <button
-              onClick={() => router.push("/para-profesionales")}
-              className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm"
-            >
-              {T.pros}
-            </button>
-          </div>
-        </div>
-      </header>
+                <h1 className="mt-5 text-3xl font-black tracking-tight md:text-5xl">
+                  {T("Centro de administración", "Administration center")}
+                </h1>
 
-      <section className="relative isolate overflow-hidden bg-[#020817]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(37,99,235,0.35),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(56,189,248,0.16),transparent_25%),linear-gradient(135deg,#020817_0%,#061a42_55%,#020817_100%)]" />
-        <div className="relative mx-auto max-w-[1440px] px-5 py-16 text-center sm:py-20 lg:px-8 lg:pb-16 lg:pt-24">
-          <div className="mx-auto max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-xs font-black tracking-[0.16em] text-blue-200">
-              <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_18px_rgba(96,165,250,0.9)]" />
-              {T.badge}
+                <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300 md:text-lg">
+                  {T(
+                    "Controla la operación de RELYDO desde un solo lugar: usuarios, profesionales, órdenes, reclamos, pagos, alertas y actividad.",
+                    "Control RELYDO operations from one place: users, professionals, orders, claims, payments, alerts, and activity."
+                  )}
+                </p>
+              </div>
+
+              <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm lg:w-[330px]">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                  {T("Sesión administrativa", "Administrative session")}
+                </p>
+
+                <p className="mt-2 break-all font-bold text-white">
+                  {adminEmail}
+                </p>
+
+                <div className="mt-3 inline-flex rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-100">
+                  {adminRoleLabel(
+                    adminRole,
+                    language
+                  )}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={cargarResumen}
+                    disabled={loading}
+                    className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15 disabled:opacity-50"
+                  >
+                    {loading
+                      ? T("Actualizando...", "Updating...")
+                      : T("↻ Actualizar", "↻ Refresh")}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={cerrarSesion}
+                    className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100"
+                  >
+                    {T("Cerrar sesión", "Sign out")}
+                  </button>
+                </div>
+              </div>
             </div>
+          </div>
+        </section>
 
-            <h1 className="mt-7 text-5xl font-black leading-[0.96] tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-              {T.title1}
-              <span className="mt-2 block bg-gradient-to-r from-blue-300 via-blue-500 to-cyan-300 bg-clip-text text-transparent">
-                {T.title2}
-              </span>
-            </h1>
+        {error && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 font-semibold text-red-700">
+            {error}
+          </div>
+        )}
 
-            <p className="mx-auto mt-7 max-w-3xl text-lg leading-8 text-slate-300 sm:text-xl">
-              {T.subtitle}
+        {/* RESUMEN */}
+
+        <section className="mt-7">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+              {T("Resumen", "Summary")}
             </p>
 
-            <div className="mx-auto mt-10 max-w-5xl">
-              <p className="text-xl font-black leading-8 text-white sm:text-2xl">
-                {T.statement}
-              </p>
-              <div className="mt-7 grid gap-3 sm:grid-cols-3">
-                {T.pillars.map((pillar) => (
-                  <div
-                    key={pillar}
-                    className="flex items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 text-sm font-bold text-slate-200 backdrop-blur-sm"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-300">✓</span>
-                    <span>{pillar}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            <h2 className="mt-2 text-3xl font-black text-slate-950">
+              {T("Estado de RELYDO", "RELYDO status")}
+            </h2>
 
-      <section className="bg-[#EEF3FA] px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto max-w-[1440px]">
-          <div className="grid gap-6 xl:grid-cols-2">
-            <article className="group overflow-hidden rounded-[2rem] border border-slate-300/80 bg-white shadow-[0_22px_75px_rgba(15,23,42,0.16)] transition hover:-translate-y-1">
-              <div className="relative overflow-hidden bg-slate-100">
-                <img
-                  src={es ? "/ads/ads-5.jpeg" : "/ads/ads-18.png"}
-                  alt="RELYDO customers"
-                  className="block h-auto w-full object-contain transition duration-500 group-hover:scale-[1.01]"
-                  loading="lazy"
-                />
-              </div>
-              <div className="p-6 sm:p-8">
-                <p className="text-lg leading-8 text-slate-600">{T.customerDesc}</p>
-                <button
-                  onClick={() => router.push("/clientes")}
-                  className="mt-7 w-full rounded-2xl bg-blue-600 px-6 py-4 font-black text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700"
-                >
-                  {T.customerButton} →
-                </button>
-              </div>
-            </article>
-
-            <article className="group overflow-hidden rounded-[2rem] border border-slate-800 bg-[#07152f] text-white shadow-[0_20px_70px_rgba(2,8,23,0.25)] transition hover:-translate-y-1">
-              <div className="relative overflow-hidden bg-slate-900">
-                <img
-                  src={es ? "/ads/ads-2.jpeg" : "/ads/ads-17.png"}
-                  alt="RELYDO professionals"
-                  className="block h-auto w-full object-contain transition duration-500 group-hover:scale-[1.01]"
-                  loading="lazy"
-                />
-              </div>
-              <div className="p-6 sm:p-8">
-                <p className="text-lg leading-8 text-slate-300">{T.proDesc}</p>
-                <button
-                  onClick={() => router.push("/para-profesionales")}
-                  className="mt-7 w-full rounded-2xl bg-white px-6 py-4 font-black text-blue-700 transition hover:bg-blue-50"
-                >
-                  {T.proButton} →
-                </button>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section id="confianza" className="bg-white px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto max-w-[1440px]">
-          <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
-            <div>
-              <p className="text-sm font-black tracking-[0.2em] text-blue-600">RELYDO TRUST</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">{T.trustTitle}</h2>
-              <p className="mt-5 text-lg leading-8 text-slate-600">{T.trustSub}</p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {trust.map(([title, desc, number]) => (
-                <div key={number} className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-6">
-                  <div className="text-sm font-black text-blue-600">{number}</div>
-                  <h3 className="mt-3 text-xl font-black">{title}</h3>
-                  <p className="mt-2 leading-7 text-slate-600">{desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="como-funciona" className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-800 to-[#02102d] px-5 py-16 text-white lg:px-8 lg:py-24">
-        <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="relative mx-auto max-w-[1440px]">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-black tracking-[0.2em] text-blue-200">RELYDO FLOW</p>
-            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">{T.flow}</h2>
-            <p className="mt-5 text-lg leading-8 text-blue-100">{T.flowSub}</p>
+            <p className="mt-2 text-slate-600">
+              {T(
+                "Una vista rápida de lo que necesita atención y de la actividad general de la plataforma.",
+                "A quick view of what needs attention and the platform's overall activity."
+              )}
+            </p>
           </div>
 
-          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {flow.map(([title, desc, number]) => (
-              <div key={number} className="rounded-[1.5rem] border border-white/15 bg-white/10 p-6 backdrop-blur">
-                <div className="text-4xl font-black text-blue-300">{number}</div>
-                <h3 className="mt-5 text-xl font-black">{title}</h3>
-                <p className="mt-3 leading-7 text-blue-100/90">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            {puede("users") && (
+            <button type="button" onClick={() => router.push("/admin/usuarios")} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Usuarios", "Users")}</p>
+              <p className="mt-2 text-3xl font-black text-slate-950">{loading ? "—" : metrics.totalUsuarios}</p>
+            </button>
+            )}
 
-      <section className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[2.5rem] bg-white shadow-[0_25px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="flex flex-col justify-center p-8 md:p-12">
-            <p className="text-sm font-black tracking-[0.2em] text-blue-600">RELYDO</p>
-            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">{T.final}</h2>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">{T.finalD}</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button onClick={() => router.push("/clientes")} className="rounded-2xl bg-blue-600 px-7 py-4 font-black text-white hover:bg-blue-700">
-                {T.finalC}
-              </button>
-              <button onClick={() => router.push("/para-profesionales")} className="rounded-2xl border border-slate-300 bg-white px-7 py-4 font-black text-slate-800 hover:border-blue-500 hover:text-blue-700">
-                {T.finalP}
-              </button>
-            </div>
-          </div>
-          <div className="min-h-[360px] bg-[#07152f] p-3">
-            <img
-              src={es ? "/ads/24409dde-116e-49cc-a962-70f4ca6595df.png" : "/ads/ads-16.png"}
-              alt="RELYDO"
-              className="h-full w-full rounded-[1.8rem] object-cover object-center"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </section>
+            {puede("providers") && (
+            <button type="button" onClick={() => router.push("/admin/operaciones")} className="rounded-2xl border border-purple-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Profesionales", "Professionals")}</p>
+              <p className="mt-2 text-3xl font-black text-purple-700">{loading ? "—" : metrics.totalProfesionales}</p>
+            </button>
+            )}
 
-      <footer className="border-t border-white/10 bg-[#07152F] px-5 py-12 text-white lg:px-8">
-        <div className="mx-auto grid max-w-[1440px] gap-10 md:grid-cols-2 lg:grid-cols-5">
+            {puede("orders") && (
+            <button type="button" onClick={() => router.push("/admin/ordenes")} className="rounded-2xl border border-blue-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Órdenes", "Orders")}</p>
+              <p className="mt-2 text-3xl font-black text-blue-700">{loading ? "—" : metrics.totalOrdenes}</p>
+            </button>
+            )}
+
+            {puede("orders") && (
+            <button type="button" onClick={() => router.push("/admin/ordenes?status=in_progress")} className="rounded-2xl border border-emerald-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("En curso", "In progress")}</p>
+              <p className="mt-2 text-3xl font-black text-emerald-700">{loading ? "—" : metrics.ordenesActivas}</p>
+            </button>
+            )}
+
+            {puede("claims") && (
+            <button type="button" onClick={() => router.push("/admin/reclamos")} className="rounded-2xl border border-red-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Reclamos activos", "Active claims")}</p>
+              <p className="mt-2 text-3xl font-black text-red-700">{loading ? "—" : metrics.totalReclamosActivos}</p>
+            </button>
+            )}
+
+            {puede("alerts") && (
+            <button type="button" onClick={() => router.push("/admin/alertas")} className="rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg">
+              <p className="text-sm font-bold text-slate-500">{T("Alertas", "Alerts")}</p>
+              <p className="mt-2 text-3xl font-black text-amber-700">{loading ? "—" : alertasPendientes}</p>
+            </button>
+            )}
+          </div>
+        </section>
+
+        {/* ACCESOS PRINCIPALES */}
+
+        <section className="mt-8">
           <div>
-            <button onClick={() => router.push("/")} aria-label="RELYDO Home">
-              <BrandLogo />
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+              {T("Administración", "Administration")}
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black text-slate-950">
+              {T("Herramientas de control", "Control tools")}
+            </h2>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {puede("claims") && (
+            <AdminCard
+              titulo={T("Reclamos de trabajos", "Job claims")}
+              descripcion={T("Revisa disputas abiertas, casos en revisión, evidencias y decisiones económicas.", "Review open disputes, cases under review, evidence, and financial decisions.")}
+              icono="⚠️"
+              valor={`${metrics.totalReclamosActivos} ${T(
+                metrics.totalReclamosActivos === 1 ? "activo" : "activos",
+                "active"
+              )}`}
+              color="red"
+              onClick={() =>
+                router.push(
+                  "/admin/reclamos"
+                )
+              }
+            />
+            )}
+
+            {puede("orders") && (
+            <AdminCard
+              titulo={T("Control de órdenes", "Order control")}
+              descripcion={T("Consulta todas las solicitudes y trabajos de la plataforma y abre el expediente de cada orden.", "Review all platform requests and jobs and open each order record.")}
+              icono="📋"
+              valor={`${metrics.totalOrdenes} ${T("registradas", "registered")}`}
+              color="blue"
+              onClick={() =>
+                router.push(
+                  "/admin/ordenes"
+                )
+              }
+            />
+            )}
+
+            {puede("finance") && (
+            <AdminCard
+              titulo={T("Finanzas y ganancias", "Finances and earnings")}
+              descripcion={T("Controla ingresos de RELYDO, pagos a profesionales, retenciones, reembolsos y volumen procesado.", "Control RELYDO revenue, professional payouts, holds, refunds, and processed volume.")}
+              icono="📊"
+              etiqueta={T("Abrir panel financiero", "Open financial panel")}
+              color="violet"
+              onClick={() =>
+                router.push(
+                  "/admin/finanzas"
+                )
+              }
+            />
+            )}
+
+            {puede("financial_settings") && (
+            <AdminCard
+              titulo={T("Configuración financiera", "Financial settings")}
+              descripcion={T("Administra comisiones, tarifa al cliente, cancelaciones y porcentajes del profesional.", "Manage commissions, customer fees, cancellations, and professional percentages.")}
+              icono="💰"
+              etiqueta={T("Administrar configuración", "Manage settings")}
+              color="emerald"
+              onClick={() =>
+                router.push(
+                  "/admin/configuracion-financiera"
+                )
+              }
+            />
+            )}
+
+            {puede("users") && (
+            <AdminCard
+              titulo={T("Gestión de usuarios", "User management")}
+              descripcion={T("Consulta clientes y profesionales, información de contacto, roles y actividad dentro de RELYDO.", "Review customers and professionals, contact information, roles, and activity within RELYDO.")}
+              icono="👥"
+              valor={metrics.totalUsuarios}
+              color="cyan"
+              onClick={() =>
+                router.push(
+                  "/admin/usuarios"
+                )
+              }
+            />
+            )}
+
+            {puede("providers") && (
+            <AdminCard
+              titulo={T("Gestión de profesionales", "Professional management")}
+              descripcion={T("Administra la red profesional, verificaciones, documentos, suspensiones y expedientes.", "Manage the professional network, verifications, documents, suspensions, and records.")}
+              icono="🧰"
+              valor={`${metrics.totalProfesionales} ${T("total", "total")}`}
+              color="purple"
+              onClick={() =>
+                router.push(
+                  "/admin/operaciones"
+                )
+              }
+            />
+            )}
+
+            {puede("alerts") && (
+            <AdminCard
+              titulo={T("Centro de alertas", "Alert center")}
+              descripcion={T("Revisa reclamos activos, profesionales pendientes y situaciones que requieren atención.", "Review active claims, pending professionals, and situations requiring attention.")}
+              icono="🔔"
+              valor={`${alertasPendientes} ${T(
+                alertasPendientes === 1 ? "pendiente" : "pendientes",
+                "pending"
+              )}`}
+              color="amber"
+              onClick={() =>
+                router.push(
+                  "/admin/alertas"
+                )
+              }
+            />
+            )}
+
+            {puede("activity") && (
+            <AdminCard
+              titulo={T("Actividad de la plataforma", "Platform activity")}
+              descripcion={T("Mide trabajos, profesionales, clientes y señales operativas relevantes de RELYDO.", "Track jobs, professionals, customers, and relevant RELYDO operational signals.")}
+              icono="📈"
+              etiqueta={T("Ver actividad", "View activity")}
+              color="indigo"
+              onClick={() =>
+                router.push(
+                  "/admin/actividad"
+                )
+              }
+            />
+            )}
+          </div>
+        </section>
+
+        {/* ATENCIÓN */}
+
+        <section className="mt-8 grid gap-5 lg:grid-cols-2">
+          {puede("providers") && (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+              {T("Requiere atención", "Requires attention")}
+            </p>
+
+            <h3 className="mt-2 text-2xl font-black text-slate-950">
+              {T("Profesionales pendientes", "Pending professionals")}
+            </h3>
+
+            <p className="mt-2 text-slate-700">
+              {T("Tienes", "You have")}{" "}
+              <strong>{metrics.profesionalesPendientes}</strong>{" "}
+              {T(
+                metrics.profesionalesPendientes === 1 ? "profesional pendiente de revisión." : "profesionales pendientes de revisión.",
+                metrics.profesionalesPendientes === 1 ? "professional pending review." : "professionals pending review."
+              )}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-3 text-sm font-bold">
+              <span className="rounded-xl bg-white px-3 py-2 text-emerald-700">
+                {T("Aprobados", "Approved")}: {metrics.profesionalesAprobados}
+              </span>
+
+              <span className="rounded-xl bg-white px-3 py-2 text-amber-700">
+                {T("Pendientes", "Pending")}: {metrics.profesionalesPendientes}
+              </span>
+
+              <span className="rounded-xl bg-white px-3 py-2 text-red-700">
+                {T("Suspendidos", "Suspended")}: {metrics.profesionalesSuspendidos}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  "/admin/operaciones"
+                )
+              }
+              className="mt-6 rounded-xl bg-amber-600 px-5 py-3 font-black text-white transition hover:bg-amber-700"
+            >
+              {T("Revisar profesionales →", "Review professionals →")}
             </button>
           </div>
+          )}
 
-          <div>
-            <h3 className="font-black">{T.footerC}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
-              <button onClick={() => router.push("/clientes")}>{T.cPortal}</button>
-              <button onClick={() => router.push("/login-cliente")}>{T.cLogin}</button>
-              <button onClick={() => router.push("/registro-cliente")}>{T.cSignup}</button>
+          {puede("claims") && (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
+              {T("Protección", "Protection")}
+            </p>
+
+            <h3 className="mt-2 text-2xl font-black text-slate-950">
+              {T("Reclamos que requieren decisión", "Claims requiring a decision")}
+            </h3>
+
+            <p className="mt-2 text-slate-700">
+              {T("Hay", "There are")}{" "}
+              <strong>{metrics.reclamosAbiertos}</strong>{" "}
+              {T(
+                metrics.reclamosAbiertos === 1 ? "abierto" : "abiertos",
+                "open"
+              )}{" "}
+              {T("y", "and")}{" "}
+              <strong>{metrics.reclamosRevision}</strong>{" "}
+              {T("en revisión.", "under review.")}
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  "/admin/reclamos"
+                )
+              }
+              className="mt-6 rounded-xl bg-red-600 px-5 py-3 font-black text-white transition hover:bg-red-700"
+            >
+              {T("Abrir reclamos →", "Open claims →")}
+            </button>
+          </div>
+          )}
+        </section>
+
+        {/* OPERACIÓN */}
+
+        {puede("orders") && (
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                {T("Operación", "Operations")}
+              </p>
+
+              <h3 className="mt-2 text-2xl font-black text-slate-950">
+                {T("Estado de las órdenes", "Order status")}
+              </h3>
+
+              <p className="mt-2 text-slate-600">
+                {T("Resumen", "Summary")} de solicitudes abiertas, trabajos activos y trabajos completados.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-blue-50 px-4 py-3 text-center">
+                <p className="text-xs font-bold text-slate-500">
+                  {T("Abiertas", "Open")}
+                </p>
+                <p className="mt-1 text-2xl font-black text-blue-700">
+                  {metrics.ordenesAbiertas}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center">
+                <p className="text-xs font-bold text-slate-500">
+                  {T("Activas", "Active")}
+                </p>
+                <p className="mt-1 text-2xl font-black text-emerald-700">
+                  {metrics.ordenesActivas}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center">
+                <p className="text-xs font-bold text-slate-500">
+                  {T("Completadas", "Completed")}
+                </p>
+                <p className="mt-1 text-2xl font-black text-slate-900">
+                  {metrics.ordenesCompletadas}
+                </p>
+              </div>
             </div>
           </div>
+        </section>
+        )}
 
-          <div>
-            <h3 className="font-black">{T.footerP}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
-              <button onClick={() => router.push("/para-profesionales")}>{T.pPortal}</button>
-              <button onClick={() => router.push("/login-profesional")}>{T.pLogin}</button>
-              <button onClick={() => router.push("/registro-profesional")}>{T.pSignup}</button>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-black">{T.footerPlatform}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
-              <button onClick={() => router.push("/servicios")}>{T.services}</button>
-              <button onClick={() => router.push("/profesionales")}>{T.professionals}</button>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-black">{T.footerLegal}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
-              <span>{T.terms}</span>
-              <span>{T.privacy}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-auto mt-10 max-w-[1440px] border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} RELYDO. {T.rights}
-        </div>
-      </footer>
+        <footer className="py-8 text-center text-xs font-semibold text-slate-400">
+          {T("RELYDO Admin · Acceso restringido", "RELYDO Admin · Restricted access")}
+        </footer>
+      </div>
     </main>
   );
 }

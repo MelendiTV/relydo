@@ -42,34 +42,33 @@ const ROLE_PERMISSIONS: Record<
     "activity",
   ],
 
+  // Reclamos: acceso estrictamente limitado a su área.
   claims_manager: [
     "admin_home",
     "claims",
-    "orders",
-    "alerts",
   ],
 
+  // Finanzas: panel financiero + configuración financiera.
   finance_manager: [
     "admin_home",
     "finance",
     "financial_settings",
-    "orders",
   ],
 
+  // Profesionales: verificación y gestión de profesionales.
   provider_manager: [
     "admin_home",
     "providers",
-    "orders",
-    "alerts",
   ],
 
+  // Soporte: usuarios y órdenes para ayudar con casos.
   support_agent: [
     "admin_home",
     "users",
     "orders",
-    "alerts",
   ],
 
+  // Operaciones: flujo operativo general.
   operations_manager: [
     "admin_home",
     "orders",
@@ -119,7 +118,6 @@ export function defaultAdminRoute(
       return "/admin/ordenes";
 
     case "super_admin":
-    default:
       return "/admin";
   }
 }
@@ -199,8 +197,9 @@ export function permissionForAdminPath(
   }
 
   /*
-    Cualquier ruta /admin nueva debe agregarse
-    explícitamente aquí antes de usarla.
+    FAIL-CLOSED:
+    cualquier ruta Admin nueva queda BLOQUEADA
+    hasta que la registremos aquí explícitamente.
   */
   return null;
 }
@@ -211,7 +210,10 @@ export function adminRoleLabel(
 ) {
   const labels: Record<
     AdminRole,
-    { es: string; en: string }
+    {
+      es: string;
+      en: string;
+    }
   > = {
     super_admin: {
       es: "Superadministrador",

@@ -16,7 +16,6 @@ import {
 } from "next/navigation";
 
 import {
-  AdminRole,
   defaultAdminRoute,
   hasAdminPermission,
   isAdminRole,
@@ -108,16 +107,26 @@ export default function AdminLayout({
       }
 
       /*
-        Compatibilidad con la cuenta Admin existente:
-        después de ejecutar el SQL, admin_role debe
-        quedar como super_admin.
+        IMPORTANTE:
+        Ya NO existe fallback a super_admin.
+        Si admin_role es NULL, inválido o desconocido,
+        se cierra la sesión.
       */
-      const adminRole: AdminRole =
-        isAdminRole(
+      if (
+        !isAdminRole(
           profile.admin_role
         )
-          ? profile.admin_role
-          : "super_admin";
+      ) {
+        await supabase.auth.signOut();
+
+        router.replace(
+          "/login-admin"
+        );
+        return;
+      }
+
+      const adminRole =
+        profile.admin_role;
 
       const permission =
         permissionForAdminPath(
@@ -125,8 +134,9 @@ export default function AdminLayout({
         );
 
       /*
-        Ruta administrativa no registrada:
-        no damos acceso por defecto.
+        FAIL-CLOSED:
+        si la ruta no está registrada,
+        no se permite.
       */
       if (!permission) {
         router.replace(

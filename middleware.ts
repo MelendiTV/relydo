@@ -21,10 +21,6 @@ export function middleware(
       "admin.relydo.co:"
     );
 
-  // ======================================================
-  // SUBDOMINIO ADMIN
-  // ======================================================
-
   if (esAdminSubdomain) {
     if (pathname === "/") {
       const url =
