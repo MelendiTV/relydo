@@ -16,7 +16,6 @@ import {
 } from "next/navigation";
 
 import {
-  defaultAdminRoute,
   hasAdminPermission,
   isAdminRole,
   permissionForAdminPath,
@@ -106,12 +105,6 @@ export default function AdminLayout({
         return;
       }
 
-      /*
-        IMPORTANTE:
-        Ya NO existe fallback a super_admin.
-        Si admin_role es NULL, inválido o desconocido,
-        se cierra la sesión.
-      */
       if (
         !isAdminRole(
           profile.admin_role
@@ -125,38 +118,37 @@ export default function AdminLayout({
         return;
       }
 
-      const adminRole =
-        profile.admin_role;
-
       const permission =
         permissionForAdminPath(
           pathname
         );
 
       /*
-        FAIL-CLOSED:
-        si la ruta no está registrada,
-        no se permite.
+        Ruta Admin desconocida:
+        regresar al Home Admin.
       */
       if (!permission) {
         router.replace(
-          defaultAdminRoute(
-            adminRole
-          )
+          "/admin"
         );
         return;
       }
 
+      /*
+        Ruta conocida pero no autorizada:
+        regresar al Home Admin.
+
+        Nunca redirigir automáticamente a otra
+        sección interna. Así evitamos bucles.
+      */
       if (
         !hasAdminPermission(
-          adminRole,
+          profile.admin_role,
           permission
         )
       ) {
         router.replace(
-          defaultAdminRoute(
-            adminRole
-          )
+          "/admin"
         );
         return;
       }

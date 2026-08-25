@@ -42,33 +42,28 @@ const ROLE_PERMISSIONS: Record<
     "activity",
   ],
 
-  // Reclamos: acceso estrictamente limitado a su área.
   claims_manager: [
     "admin_home",
     "claims",
   ],
 
-  // Finanzas: panel financiero + configuración financiera.
   finance_manager: [
     "admin_home",
     "finance",
     "financial_settings",
   ],
 
-  // Profesionales: verificación y gestión de profesionales.
   provider_manager: [
     "admin_home",
     "providers",
   ],
 
-  // Soporte: usuarios y órdenes para ayudar con casos.
   support_agent: [
     "admin_home",
     "users",
     "orders",
   ],
 
-  // Operaciones: flujo operativo general.
   operations_manager: [
     "admin_home",
     "orders",
@@ -98,28 +93,21 @@ export function hasAdminPermission(
   ].includes(permission);
 }
 
+/*
+  IMPORTANTE:
+  Todos los empleados administrativos entran primero
+  al Home Admin.
+
+  El Home muestra únicamente las áreas autorizadas
+  para su admin_role.
+
+  Esto evita ciclos de redirección entre /admin
+  y una sección interna.
+*/
 export function defaultAdminRoute(
-  role: AdminRole
+  _role: AdminRole
 ) {
-  switch (role) {
-    case "claims_manager":
-      return "/admin/reclamos";
-
-    case "finance_manager":
-      return "/admin/finanzas";
-
-    case "provider_manager":
-      return "/admin/operaciones";
-
-    case "support_agent":
-      return "/admin/usuarios";
-
-    case "operations_manager":
-      return "/admin/ordenes";
-
-    case "super_admin":
-      return "/admin";
-  }
+  return "/admin";
 }
 
 export function permissionForAdminPath(
@@ -196,11 +184,6 @@ export function permissionForAdminPath(
     return "activity";
   }
 
-  /*
-    FAIL-CLOSED:
-    cualquier ruta Admin nueva queda BLOQUEADA
-    hasta que la registremos aquí explícitamente.
-  */
   return null;
 }
 

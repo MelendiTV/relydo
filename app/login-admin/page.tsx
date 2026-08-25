@@ -19,7 +19,6 @@ import {
 } from "@/app/components/LanguageProvider";
 
 import {
-  defaultAdminRoute,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
 
@@ -110,17 +109,7 @@ export default function LoginAdminPage() {
         profileError ||
         !profile ||
         profile.role !==
-          "admin"
-      ) {
-        await supabase.auth.signOut();
-        return;
-      }
-
-      /*
-        FAIL-CLOSED:
-        un Admin sin admin_role válido NO entra.
-      */
-      if (
+          "admin" ||
         !isAdminRole(
           profile.admin_role
         )
@@ -129,10 +118,12 @@ export default function LoginAdminPage() {
         return;
       }
 
+      /*
+        Todos los roles administrativos entran
+        primero al Home Admin.
+      */
       router.replace(
-        defaultAdminRoute(
-          profile.admin_role
-        )
+        "/admin"
       );
     } finally {
       setCheckingSession(false);
@@ -247,9 +238,6 @@ export default function LoginAdminPage() {
         );
       }
 
-      /*
-        Nunca dar super_admin por defecto.
-      */
       if (
         !isAdminRole(
           profile.admin_role
@@ -266,9 +254,7 @@ export default function LoginAdminPage() {
       }
 
       router.replace(
-        defaultAdminRoute(
-          profile.admin_role
-        )
+        "/admin"
       );
 
       router.refresh();
@@ -334,9 +320,7 @@ export default function LoginAdminPage() {
           </div>
 
           <form
-            onSubmit={
-              iniciarSesion
-            }
+            onSubmit={iniciarSesion}
             className="space-y-6 p-8"
           >
             <div>
@@ -355,19 +339,13 @@ export default function LoginAdminPage() {
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(
-                  event
-                ) =>
+                onChange={(event) =>
                   setEmail(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
                 placeholder="admin@relydo.co"
-                disabled={
-                  loading
-                }
+                disabled={loading}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:opacity-60"
               />
             </div>
@@ -387,25 +365,17 @@ export default function LoginAdminPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                value={
-                  password
-                }
-                onChange={(
-                  event
-                ) =>
+                value={password}
+                onChange={(event) =>
                   setPassword(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
                 placeholder={T(
                   "Tu contraseña",
                   "Your password"
                 )}
-                disabled={
-                  loading
-                }
+                disabled={loading}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:opacity-60"
               />
             </div>
@@ -418,9 +388,7 @@ export default function LoginAdminPage() {
 
             <button
               type="submit"
-              disabled={
-                loading
-              }
+              disabled={loading}
               className="w-full rounded-2xl bg-blue-600 px-5 py-4 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading
