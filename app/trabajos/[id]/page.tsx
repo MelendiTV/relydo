@@ -4031,10 +4031,7 @@ export default function TrabajoDetallePage() {
           type="button"
           onClick={() =>
             router.push(
-              trabajo.status ===
-                "open"
-                ? "/trabajos"
-                : "/panel-profesional"
+              "/panel-profesional"
             )
           }
           className="mb-6 flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
