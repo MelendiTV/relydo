@@ -278,6 +278,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Conducta del profesional": "Professional conduct",
   "Otro problema": "Other problem",
   "Explica el problema *": "Explain the problem *",
+  "Describe qué ocurrió y qué parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
   "Fotos o videos": "Photos or videos",
   "Opcional. Puedes adjuntar hasta 10 fotos y 2 videos como evidencia.": "Optional. You can attach up to 10 photos and 2 videos as evidence.",
   "📎 Adjuntar archivos": "📎 Attach files",
@@ -5477,7 +5478,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     onChange={(e) => setMotivoReclamo(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
                   >
-                    <option value="">Selecciona un motivo</option>
+                    <option value="">{T("Selecciona un motivo")}</option>
                     <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
                     <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
                     <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
@@ -5496,7 +5497,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     onChange={(e) => setDescripcionReclamo(e.target.value)}
                     rows={5}
                     maxLength={1500}
-                    placeholder="Describe qué ocurrió y qué parte del servicio tuvo el problema..."
+                    placeholder={T("Describe qué ocurrió y qué parte del servicio tuvo el problema...")}
                     className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
                   />
                   <p className="mt-2 text-right text-sm text-slate-500">
