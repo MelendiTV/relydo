@@ -4492,9 +4492,9 @@ export default function TrabajoDetallePage() {
 
                           {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" && (
                             <div className="sm:col-span-2 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
-                              <div className="grid grid-cols-1 gap-0 md:grid-cols-[1.15fr_0.85fr]">
-                                <div className="p-5 md:p-6">
-                                  <div className="flex items-start gap-4">
+                              <div className="grid min-w-0 grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                                <div className="min-w-0 p-5 md:p-6">
+                                  <div className="flex min-w-0 items-start gap-4">
                                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-2xl">
                                       📷
                                     </div>
@@ -4571,7 +4571,7 @@ export default function TrabajoDetallePage() {
                                   )}
                                 </div>
 
-                                <div className="border-t border-slate-100 bg-slate-50/70 p-5 md:border-l md:border-t-0 md:p-6">
+                                <div className="min-w-0 border-t border-slate-100 bg-slate-50/70 p-5 xl:border-l xl:border-t-0 md:p-6">
                                   <div className="flex items-center gap-3">
                                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xl">🛡️</span>
                                     <h3 className="font-black text-slate-950">{T("Consejo RELYDO", "RELYDO tip")}</h3>
