@@ -32,6 +32,10 @@ type ProviderProfile = {
   verification_status: string | null;
   verified: boolean | null;
   active: boolean | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean | null;
+  stripe_charges_enabled: boolean | null;
+  stripe_payouts_enabled: boolean | null;
 };
 
 type GeneralProfile = {
@@ -168,7 +172,11 @@ export default function TrabajosPage() {
           trade,
           verification_status,
           verified,
-          active
+          active,
+          stripe_account_id,
+          stripe_onboarding_complete,
+          stripe_charges_enabled,
+          stripe_payouts_enabled
         `)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -213,7 +221,33 @@ export default function TrabajosPage() {
       }
 
       /*
-        4. OBTENER SERVICIOS
+        4. STRIPE CONNECT OBLIGATORIO
+
+        Un profesional verificado y activo no puede
+        ver oportunidades hasta completar Stripe
+        Connect y tener cobros/pagos habilitados.
+      */
+
+      const stripeListo =
+        Boolean(perfil.stripe_account_id) &&
+        perfil.stripe_onboarding_complete === true &&
+        perfil.stripe_charges_enabled === true &&
+        perfil.stripe_payouts_enabled === true;
+
+      if (!stripeListo) {
+        setTrabajos([]);
+        setOfferStatuses({});
+
+        throw new Error(
+          T(
+            "Configura y completa tus pagos con Stripe Connect para poder ver trabajos disponibles.",
+            "Set up and complete your Stripe Connect payments before you can view available jobs."
+          )
+        );
+      }
+
+      /*
+        5. OBTENER SERVICIOS
         ASIGNADOS AL PROFESIONAL
       */
 
