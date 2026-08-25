@@ -2590,7 +2590,7 @@ function ResumenCard({
         </p>
 
         <div
-          className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg ${fondo}`}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg font-black ${fondo} ${clase}`}
         >
           {icono}
         </div>
