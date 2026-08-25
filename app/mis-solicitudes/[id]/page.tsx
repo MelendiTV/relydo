@@ -195,7 +195,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Total pagado": "Total paid",
   "Fee de servicio RELYDO (no reembolsable)": "RELYDO service fee (non-refundable)",
   "Cargo por cancelación": "Cancellation fee",
-  "RELYDO conserva": "RELYDO keeps",
+  "Total de tarifas RELYDO": "Total RELYDO fees",
   "Chat con": "Chat with",
   "● En tiempo real": "● Live",
   "Conectando...": "Connecting...",
@@ -4210,7 +4210,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                       )}
 
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("RELYDO conserva")}</span>
+                        <span className="text-slate-600">{T("Total de tarifas RELYDO")}</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.relydo.toFixed(2)}
                         </strong>
