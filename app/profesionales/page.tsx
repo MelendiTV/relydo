@@ -82,7 +82,7 @@ export default function ProfesionalesPage() {
           cargando:
             "Cargando profesionales...",
           volverInicio:
-            "Volver al inicio",
+            "Volver a mi cuenta",
           titulo:
             "Profesionales",
           descripcion:
@@ -114,7 +114,7 @@ export default function ProfesionalesPage() {
           cargando:
             "Loading professionals...",
           volverInicio:
-            "Back to home",
+            "Back to my account",
           titulo:
             "Professionals",
           descripcion:
@@ -222,7 +222,7 @@ export default function ProfesionalesPage() {
           <button
             type="button"
             onClick={() =>
-              router.push("/")
+              router.push("/mis-solicitudes")
             }
             className="font-bold text-blue-700 hover:underline"
           >
