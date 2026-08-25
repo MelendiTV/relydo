@@ -598,6 +598,9 @@ export default function MisSolicitudesPage() {
   const [mostrarReclamos, setMostrarReclamos] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
+  const [seccionActiva, setSeccionActiva] = useState<
+    "abiertas" | "en-progreso" | "completadas" | "canceladas" | null
+  >(null);
 
   const [temaDashboard, setTemaDashboard] =
     useState<TemaDashboard>("system");
@@ -2240,7 +2243,13 @@ export default function MisSolicitudesPage() {
               clase="text-blue-700"
               icono="📋"
               fondo="bg-blue-50"
-              onClick={() => irASeccion("solicitudes-abiertas")}
+              onClick={() => {
+                setMostrarReclamos(false);
+                setMostrarHistorial(false);
+                setSeccionActiva((actual) =>
+                  actual === "abiertas" ? null : "abiertas"
+                );
+              }}
             />
 
             <ResumenCard
@@ -2249,7 +2258,13 @@ export default function MisSolicitudesPage() {
               clase="text-amber-700"
               icono="⚡"
               fondo="bg-amber-50"
-              onClick={() => irASeccion("trabajos-en-progreso")}
+              onClick={() => {
+                setMostrarReclamos(false);
+                setMostrarHistorial(false);
+                setSeccionActiva((actual) =>
+                  actual === "en-progreso" ? null : "en-progreso"
+                );
+              }}
             />
 
             <ResumenCard
@@ -2258,7 +2273,13 @@ export default function MisSolicitudesPage() {
               clase="text-emerald-700"
               icono="✓"
               fondo="bg-emerald-50"
-              onClick={() => irASeccion("trabajos-completados")}
+              onClick={() => {
+                setMostrarReclamos(false);
+                setMostrarHistorial(false);
+                setSeccionActiva((actual) =>
+                  actual === "completadas" ? null : "completadas"
+                );
+              }}
             />
 
             <ResumenCard
@@ -2267,7 +2288,13 @@ export default function MisSolicitudesPage() {
               clase="text-red-700"
               icono="×"
               fondo="bg-red-50"
-              onClick={() => irASeccion("solicitudes-canceladas")}
+              onClick={() => {
+                setMostrarReclamos(false);
+                setMostrarHistorial(false);
+                setSeccionActiva((actual) =>
+                  actual === "canceladas" ? null : "canceladas"
+                );
+              }}
             />
 
             <ResumenCard
@@ -2276,7 +2303,11 @@ export default function MisSolicitudesPage() {
               clase="text-rose-700"
               icono="⚠"
               fondo="bg-rose-50"
-              onClick={() => setMostrarReclamos((actual) => !actual)}
+              onClick={() => {
+                setSeccionActiva(null);
+                setMostrarHistorial(false);
+                setMostrarReclamos((actual) => !actual);
+              }}
             />
 
             <ResumenCard
@@ -2285,7 +2316,11 @@ export default function MisSolicitudesPage() {
               clase="text-violet-700"
               icono="↺"
               fondo="bg-violet-50"
-              onClick={() => setMostrarHistorial((actual) => !actual)}
+              onClick={() => {
+                setSeccionActiva(null);
+                setMostrarReclamos(false);
+                setMostrarHistorial((actual) => !actual);
+              }}
             />
           </div>
 
@@ -2460,79 +2495,119 @@ export default function MisSolicitudesPage() {
           </section>
         )}
 
-        {!error && abiertas.length > 0 && (
+        {!error && seccionActiva === "abiertas" && (
           <section
             id="solicitudes-abiertas"
-            className="mt-8 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            className="mt-8 scroll-mt-6 rounded-3xl border p-6 shadow-sm md:p-7"
+            style={{
+              borderColor: bordeTarjeta,
+              backgroundColor: fondoTarjeta,
+            }}
           >
-            <h2 className="text-3xl font-extrabold text-slate-900">
+            <h2 className="text-3xl font-extrabold" style={{ color: textoPrincipal }}>
               {t.solicitudesAbiertas}
             </h2>
-
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2" style={{ color: textoSecundario }}>
               {t.esperandoPresupuestos}
             </p>
-
-            <div className="mt-5 space-y-5">
-              {abiertas.map(renderSolicitud)}
-            </div>
+            {abiertas.length > 0 ? (
+              <div className="mt-5 space-y-5">
+                {abiertas.map(renderSolicitud)}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border p-5 text-center" style={{ borderColor: bordeTarjeta }}>
+                <p className="font-bold" style={{ color: textoSecundario }}>
+                  {language === "es" ? "No tienes solicitudes abiertas." : "You don't have any open requests."}
+                </p>
+              </div>
+            )}
           </section>
         )}
 
-        {!error && enProgreso.length > 0 && (
+        {!error && seccionActiva === "en-progreso" && (
           <section
             id="trabajos-en-progreso"
-            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            className="mt-8 scroll-mt-6 rounded-3xl border p-6 shadow-sm md:p-7"
+            style={{
+              borderColor: bordeTarjeta,
+              backgroundColor: fondoTarjeta,
+            }}
           >
-            <h2 className="text-3xl font-extrabold text-slate-900">
+            <h2 className="text-3xl font-extrabold" style={{ color: textoPrincipal }}>
               {t.trabajosEnProgreso}
             </h2>
-
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2" style={{ color: textoSecundario }}>
               {t.estadoTrabajos}
             </p>
-
-            <div className="mt-5 space-y-5">
-              {enProgreso.map(renderSolicitud)}
-            </div>
+            {enProgreso.length > 0 ? (
+              <div className="mt-5 space-y-5">
+                {enProgreso.map(renderSolicitud)}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border p-5 text-center" style={{ borderColor: bordeTarjeta }}>
+                <p className="font-bold" style={{ color: textoSecundario }}>
+                  {language === "es" ? "No tienes trabajos en progreso." : "You don't have any jobs in progress."}
+                </p>
+              </div>
+            )}
           </section>
         )}
 
-        {!error && completadas.length > 0 && (
+        {!error && seccionActiva === "completadas" && (
           <section
             id="trabajos-completados"
-            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            className="mt-8 scroll-mt-6 rounded-3xl border p-6 shadow-sm md:p-7"
+            style={{
+              borderColor: bordeTarjeta,
+              backgroundColor: fondoTarjeta,
+            }}
           >
-            <h2 className="text-3xl font-extrabold text-slate-900">
+            <h2 className="text-3xl font-extrabold" style={{ color: textoPrincipal }}>
               {t.trabajosCompletados}
             </h2>
-
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2" style={{ color: textoSecundario }}>
               {t.historialTerminados}
             </p>
-
-            <div className="mt-5 space-y-5">
-              {completadas.map(renderSolicitud)}
-            </div>
+            {completadas.length > 0 ? (
+              <div className="mt-5 space-y-5">
+                {completadas.map(renderSolicitud)}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border p-5 text-center" style={{ borderColor: bordeTarjeta }}>
+                <p className="font-bold" style={{ color: textoSecundario }}>
+                  {language === "es" ? "No tienes trabajos completados." : "You don't have any completed jobs."}
+                </p>
+              </div>
+            )}
           </section>
         )}
 
-        {!error && canceladas.length > 0 && (
+        {!error && seccionActiva === "canceladas" && (
           <section
             id="solicitudes-canceladas"
-            className="mt-10 scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            className="mt-8 scroll-mt-6 rounded-3xl border p-6 shadow-sm md:p-7"
+            style={{
+              borderColor: bordeTarjeta,
+              backgroundColor: fondoTarjeta,
+            }}
           >
-            <h2 className="text-3xl font-extrabold text-slate-900">
+            <h2 className="text-3xl font-extrabold" style={{ color: textoPrincipal }}>
               {t.solicitudesCanceladas}
             </h2>
-
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2" style={{ color: textoSecundario }}>
               {t.historialCanceladas}
             </p>
-
-            <div className="mt-5 space-y-5">
-              {canceladas.map(renderSolicitud)}
-            </div>
+            {canceladas.length > 0 ? (
+              <div className="mt-5 space-y-5">
+                {canceladas.map(renderSolicitud)}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border p-5 text-center" style={{ borderColor: bordeTarjeta }}>
+                <p className="font-bold" style={{ color: textoSecundario }}>
+                  {language === "es" ? "No tienes solicitudes canceladas." : "You don't have any cancelled requests."}
+                </p>
+              </div>
+            )}
           </section>
         )}
 
