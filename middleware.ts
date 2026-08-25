@@ -15,7 +15,8 @@ export function middleware(
     request.nextUrl.pathname;
 
   const esAdminSubdomain =
-    host === "admin.relydo.co" ||
+    host ===
+      "admin.relydo.co" ||
     host.startsWith(
       "admin.relydo.co:"
     );
@@ -25,14 +26,6 @@ export function middleware(
   // ======================================================
 
   if (esAdminSubdomain) {
-    /*
-      Cuando alguien entra simplemente a:
-
-      https://admin.relydo.co
-
-      lo enviamos al login administrativo.
-    */
-
     if (pathname === "/") {
       const url =
         request.nextUrl.clone();
@@ -44,15 +37,6 @@ export function middleware(
         url
       );
     }
-
-    /*
-      Permitimos únicamente las rutas necesarias
-      para el sistema administrativo.
-
-      También permitimos recursos internos de Next,
-      imágenes, favicon y APIs para que la aplicación
-      funcione correctamente.
-    */
 
     const rutaPermitida =
       pathname.startsWith(
@@ -78,12 +62,6 @@ export function middleware(
       pathname ===
         "/manifest.json";
 
-    /*
-      Si estando en admin.relydo.co intentan entrar
-      a una página pública de cliente/profesional,
-      regresamos al acceso administrativo.
-    */
-
     if (!rutaPermitida) {
       const url =
         request.nextUrl.clone();
@@ -97,20 +75,11 @@ export function middleware(
     }
   }
 
-  // ======================================================
-  // DOMINIO NORMAL
-  // ======================================================
-
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-      Ignoramos archivos estáticos comunes para evitar
-      ejecutar middleware innecesariamente.
-    */
-
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

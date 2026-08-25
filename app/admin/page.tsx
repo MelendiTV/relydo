@@ -18,6 +18,13 @@ import {
   useLanguage,
 } from "@/app/components/LanguageProvider";
 
+import {
+  AdminRole,
+  adminRoleLabel,
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -188,6 +195,14 @@ export default function AdminHomePage() {
   ] = useState("");
 
   const [
+    adminRole,
+    setAdminRole,
+  ] =
+    useState<AdminRole>(
+      "super_admin"
+    );
+
+  const [
     error,
     setError,
   ] = useState("");
@@ -249,7 +264,8 @@ export default function AdminHomePage() {
         .select(`
           id,
           role,
-          email
+          email,
+          admin_role
         `)
         .eq(
           "id",
@@ -276,6 +292,14 @@ export default function AdminHomePage() {
         user.email ||
           adminProfile.email ||
           T("Administrador", "Administrator")
+      );
+
+      setAdminRole(
+        isAdminRole(
+          adminProfile.admin_role
+        )
+          ? adminProfile.admin_role
+          : "super_admin"
       );
 
       setVerificandoAdmin(false);
@@ -522,6 +546,23 @@ export default function AdminHomePage() {
       ]
     );
 
+  const puede = (
+    permission:
+      | "admin_home"
+      | "claims"
+      | "orders"
+      | "finance"
+      | "financial_settings"
+      | "users"
+      | "providers"
+      | "alerts"
+      | "activity"
+  ) =>
+    hasAdminPermission(
+      adminRole,
+      permission
+    );
+
   if (verificandoAdmin) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
@@ -572,6 +613,13 @@ export default function AdminHomePage() {
                 <p className="mt-2 break-all font-bold text-white">
                   {adminEmail}
                 </p>
+
+                <div className="mt-3 inline-flex rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-100">
+                  {adminRoleLabel(
+                    adminRole,
+                    language
+                  )}
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
@@ -625,35 +673,47 @@ export default function AdminHomePage() {
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            {puede("users") && (
             <button type="button" onClick={() => router.push("/admin/usuarios")} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("Usuarios", "Users")}</p>
               <p className="mt-2 text-3xl font-black text-slate-950">{loading ? "—" : metrics.totalUsuarios}</p>
             </button>
+            )}
 
+            {puede("providers") && (
             <button type="button" onClick={() => router.push("/admin/operaciones")} className="rounded-2xl border border-purple-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("Profesionales", "Professionals")}</p>
               <p className="mt-2 text-3xl font-black text-purple-700">{loading ? "—" : metrics.totalProfesionales}</p>
             </button>
+            )}
 
+            {puede("orders") && (
             <button type="button" onClick={() => router.push("/admin/ordenes")} className="rounded-2xl border border-blue-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("Órdenes", "Orders")}</p>
               <p className="mt-2 text-3xl font-black text-blue-700">{loading ? "—" : metrics.totalOrdenes}</p>
             </button>
+            )}
 
+            {puede("orders") && (
             <button type="button" onClick={() => router.push("/admin/ordenes?status=in_progress")} className="rounded-2xl border border-emerald-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("En curso", "In progress")}</p>
               <p className="mt-2 text-3xl font-black text-emerald-700">{loading ? "—" : metrics.ordenesActivas}</p>
             </button>
+            )}
 
+            {puede("claims") && (
             <button type="button" onClick={() => router.push("/admin/reclamos")} className="rounded-2xl border border-red-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("Reclamos activos", "Active claims")}</p>
               <p className="mt-2 text-3xl font-black text-red-700">{loading ? "—" : metrics.totalReclamosActivos}</p>
             </button>
+            )}
 
+            {puede("alerts") && (
             <button type="button" onClick={() => router.push("/admin/alertas")} className="rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg">
               <p className="text-sm font-bold text-slate-500">{T("Alertas", "Alerts")}</p>
               <p className="mt-2 text-3xl font-black text-amber-700">{loading ? "—" : alertasPendientes}</p>
             </button>
+            )}
           </div>
         </section>
 
@@ -671,6 +731,7 @@ export default function AdminHomePage() {
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {puede("claims") && (
             <AdminCard
               titulo={T("Reclamos de trabajos", "Job claims")}
               descripcion={T("Revisa disputas abiertas, casos en revisión, evidencias y decisiones económicas.", "Review open disputes, cases under review, evidence, and financial decisions.")}
@@ -686,7 +747,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("orders") && (
             <AdminCard
               titulo={T("Control de órdenes", "Order control")}
               descripcion={T("Consulta todas las solicitudes y trabajos de la plataforma y abre el expediente de cada orden.", "Review all platform requests and jobs and open each order record.")}
@@ -699,7 +762,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("finance") && (
             <AdminCard
               titulo={T("Finanzas y ganancias", "Finances and earnings")}
               descripcion={T("Controla ingresos de RELYDO, pagos a profesionales, retenciones, reembolsos y volumen procesado.", "Control RELYDO revenue, professional payouts, holds, refunds, and processed volume.")}
@@ -712,7 +777,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("financial_settings") && (
             <AdminCard
               titulo={T("Configuración financiera", "Financial settings")}
               descripcion={T("Administra comisiones, tarifa al cliente, cancelaciones y porcentajes del profesional.", "Manage commissions, customer fees, cancellations, and professional percentages.")}
@@ -725,7 +792,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("users") && (
             <AdminCard
               titulo={T("Gestión de usuarios", "User management")}
               descripcion={T("Consulta clientes y profesionales, información de contacto, roles y actividad dentro de RELYDO.", "Review customers and professionals, contact information, roles, and activity within RELYDO.")}
@@ -738,7 +807,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("providers") && (
             <AdminCard
               titulo={T("Gestión de profesionales", "Professional management")}
               descripcion={T("Administra la red profesional, verificaciones, documentos, suspensiones y expedientes.", "Manage the professional network, verifications, documents, suspensions, and records.")}
@@ -751,7 +822,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("alerts") && (
             <AdminCard
               titulo={T("Centro de alertas", "Alert center")}
               descripcion={T("Revisa reclamos activos, profesionales pendientes y situaciones que requieren atención.", "Review active claims, pending professionals, and situations requiring attention.")}
@@ -767,7 +840,9 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
 
+            {puede("activity") && (
             <AdminCard
               titulo={T("Actividad de la plataforma", "Platform activity")}
               descripcion={T("Mide trabajos, profesionales, clientes y señales operativas relevantes de RELYDO.", "Track jobs, professionals, customers, and relevant RELYDO operational signals.")}
@@ -780,12 +855,14 @@ export default function AdminHomePage() {
                 )
               }
             />
+            )}
           </div>
         </section>
 
         {/* ATENCIÓN */}
 
         <section className="mt-8 grid gap-5 lg:grid-cols-2">
+          {puede("providers") && (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
               {T("Requiere atención", "Requires attention")}
@@ -830,7 +907,9 @@ export default function AdminHomePage() {
               {T("Revisar profesionales →", "Review professionals →")}
             </button>
           </div>
+          )}
 
+          {puede("claims") && (
           <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
               {T("Protección", "Protection")}
@@ -864,10 +943,12 @@ export default function AdminHomePage() {
               {T("Abrir reclamos →", "Open claims →")}
             </button>
           </div>
+          )}
         </section>
 
         {/* OPERACIÓN */}
 
+        {puede("orders") && (
         <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -914,6 +995,7 @@ export default function AdminHomePage() {
             </div>
           </div>
         </section>
+        )}
 
         <footer className="py-8 text-center text-xs font-semibold text-slate-400">
           {T("RELYDO Admin · Acceso restringido", "RELYDO Admin · Restricted access")}
