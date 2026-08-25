@@ -2669,9 +2669,13 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         Number(data.providerAwardAmount || 0) > 0
       ) {
         setMensaje(
-          `Solicitud cancelada correctamente. Se procesó un reembolso de $${Number(
-            data.customerRefundAmount || 0
-          ).toFixed(2)}.`
+          language === "en"
+            ? `Request cancelled successfully. A refund of $${Number(
+                data.customerRefundAmount || 0
+              ).toFixed(2)} was processed.`
+            : `Solicitud cancelada correctamente. Se procesó un reembolso de $${Number(
+                data.customerRefundAmount || 0
+              ).toFixed(2)}.`
         );
       } else {
         setMensaje(
@@ -4022,7 +4026,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     </p>
 
                     <p className="mt-2 font-semibold text-slate-800">
-                      {solicitud.cancellation_reason}
+                      {T(solicitud.cancellation_reason)}
                     </p>
 
                   </div>
