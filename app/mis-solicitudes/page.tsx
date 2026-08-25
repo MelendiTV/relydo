@@ -1574,7 +1574,7 @@ export default function MisSolicitudesPage() {
         {/* HEADER */}
 
         <section
-          className="relative z-30 overflow-visible rounded-[32px] border text-white shadow-xl"
+          className="relative z-30 overflow-visible rounded-[36px] border text-white shadow-2xl"
           style={{
             borderColor:
               `${colorActual.hex}55`,
@@ -1584,7 +1584,7 @@ export default function MisSolicitudesPage() {
               `0 20px 45px ${colorActual.hex}22`,
           }}
         >
-          <div className="relative px-7 py-8 md:px-10 md:py-10">
+          <div className="relative px-6 py-7 sm:px-8 md:px-10 md:py-9">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-24 left-10 h-52 w-52 rounded-full bg-cyan-300/10 blur-3xl" />
 
@@ -1595,10 +1595,10 @@ export default function MisSolicitudesPage() {
                   {t.panelCliente}
                 </div>
 
-                <div className="mt-4 text-2xl font-black">RELYDO</div>
+                <div className="mt-4 text-xl font-black tracking-[0.08em] sm:text-2xl">RELYDO</div>
 
-                <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <div className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-white/25 bg-white/10 shadow-lg">
+                <div className="mt-4 flex flex-row items-center gap-4">
+                  <div className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-white/30 bg-white/10 shadow-lg sm:h-20 sm:w-20">
                     {cliente?.avatar_url ? (
                       <img
                         src={cliente.avatar_url}
@@ -1630,7 +1630,7 @@ export default function MisSolicitudesPage() {
                   />
 
                   <div>
-                    <h1 className="text-3xl font-black tracking-tight md:text-5xl">
+                    <h1 className="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
                       {t.hola}, {cliente?.full_name || t.clienteNombre}
                     </h1>
 
@@ -1649,7 +1649,7 @@ export default function MisSolicitudesPage() {
                   </div>
                 </div>
 
-                <p className="mt-4 max-w-xl text-base leading-7 text-blue-100 md:text-lg">
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base md:text-lg">
                   {t.descripcionPanel}
                 </p>
 
@@ -1674,12 +1674,12 @@ export default function MisSolicitudesPage() {
                 </div>
               </div>
 
-              <div className="relative z-[100] flex items-start gap-3 md:items-center">
+              <div className="relative z-[100] flex w-full items-center justify-between gap-3 md:w-auto md:justify-end">
                 <div className="relative z-[110]">
                   <NotificationsBell modo="cliente" />
                 </div>
 
-                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                <div className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm md:w-[250px] md:flex-none">
                   <p className="text-xs font-black uppercase tracking-wide text-blue-200">
                     {t.cuenta}
                   </p>
@@ -1709,11 +1709,11 @@ export default function MisSolicitudesPage() {
 
         {/* ACCIONES */}
 
-        <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <button
             type="button"
             onClick={() => router.push("/solicitar-trabajo")}
-            className="rounded-2xl px-6 py-4 text-lg font-extrabold text-white shadow transition hover:-translate-y-0.5"
+            className="rounded-2xl px-5 py-3.5 text-base font-extrabold text-white shadow transition hover:-translate-y-0.5 sm:px-6 sm:py-4 sm:text-lg"
             style={{
               backgroundColor:
                 colorActual.hex,
@@ -1725,7 +1725,7 @@ export default function MisSolicitudesPage() {
           <button
             type="button"
             onClick={() => router.push("/profesionales")}
-            className="rounded-2xl border-2 px-6 py-4 text-lg font-extrabold shadow transition hover:-translate-y-0.5"
+            className="rounded-2xl border-2 px-5 py-3.5 text-base font-extrabold shadow transition hover:-translate-y-0.5 sm:px-6 sm:py-4 sm:text-lg"
             style={{
               borderColor:
                 colorActual.hex,
@@ -1746,7 +1746,7 @@ export default function MisSolicitudesPage() {
                   !actual
               )
             }
-            className="rounded-2xl border px-6 py-4 text-lg font-extrabold shadow transition hover:-translate-y-0.5"
+            className="rounded-2xl border px-5 py-3.5 text-base font-extrabold shadow transition hover:-translate-y-0.5 sm:px-6 sm:py-4 sm:text-lg"
             style={{
               borderColor:
                 bordeTarjeta,
@@ -2210,8 +2210,8 @@ export default function MisSolicitudesPage() {
 
         {/* RESUMEN */}
 
-        <section className="mt-7">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <section className="mt-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
                 {t.resumen}
@@ -2236,7 +2236,7 @@ export default function MisSolicitudesPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
             <ResumenCard
               titulo={t.abiertas}
               valor={String(abiertas.length)}
@@ -2669,7 +2669,7 @@ function ResumenCard({
     <button
       type="button"
       onClick={onClick}
-      className="group w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-100"
+      className="group w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-bold text-slate-500 transition group-hover:text-slate-800">
