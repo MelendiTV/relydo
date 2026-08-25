@@ -193,12 +193,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Cancelación sin penalidad": "Cancellation without penalty",
   "Esta solicitud todavía no tiene un trabajo pagado en progreso.": "This request does not yet have a paid job in progress.",
   "Total pagado": "Total paid",
-  "Fee de servicio RELYDO (no reembolsable)": "RELYDO service fee (non-refundable)",
-  "Cargo por cancelación": "Cancellation fee",
-  "RELYDO conserva": "RELYDO keeps",
-  "RELYDO conserva en total": "RELYDO keeps in total",
-  "¿Confirmas la cancelación?": "Confirm cancellation?",
-  "Esta acción no se puede deshacer.": "This action cannot be undone.",
   "No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.": "We could not find the payment for this job. Refresh the page before cancelling.",
   "Volver": "Back",
   "Trabajo iniciado": "Job started",
@@ -217,6 +211,10 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.": "Your approval was recorded. To complete the change, pay the additional amount through Stripe now.",
   "El cambio fue rechazado. El presupuesto anterior permanece sin cambios.": "The change was rejected. The previous budget remains unchanged.",
   "✓ Presupuesto seleccionado": "✓ Selected offer",
+  "Contratado": "Hired",
+  "En camino": "On the way",
+  "Has seleccionado este presupuesto por": "You selected this offer for",
+  "Tarifa de servicio RELYDO": "RELYDO service fee",
   "Resumen de pago": "Payment summary",
   "Presupuesto del profesional": "Professional's price",
   "Total del cliente": "Customer total",
@@ -2568,7 +2566,14 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       payment
     ) {
       textoConfirmacion =
-        `${T("¿Confirmas la cancelación?")}\n\n${T("Total pagado")}: $${resumen.totalPagado.toFixed(2)}\n${T("Fee de servicio RELYDO (no reembolsable)")}: $${resumen.serviceFee.toFixed(2)}\n${T("Cargo por cancelación")}: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n${T("Compensación al profesional")}: $${resumen.profesional.toFixed(2)}\n${T("RELYDO conserva en total")}: $${resumen.relydo.toFixed(2)}\n${T("Reembolso al cliente")}: $${resumen.reembolso.toFixed(2)}\n\n${T("Esta acción no se puede deshacer.")}`;
+        `¿Confirmas la cancelación?\n\n` +
+        `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
+        `Fee de servicio RELYDO (no reembolsable): $${resumen.serviceFee.toFixed(2)}\n` +
+        `Cargo por cancelación: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+        `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
+        `RELYDO conserva en total: $${resumen.relydo.toFixed(2)}\n` +
+        `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
+        `Esta acción no se puede deshacer.`;
     }
 
     const confirmar =
@@ -3638,14 +3643,14 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
     {
       numero: 1,
       icono: "🤝",
-      titulo: "Contratado",
+      titulo: T("Contratado"),
       descripcion:
         T("Profesional contratado"),
     },
     {
       numero: 2,
       icono: "🚗",
-      titulo: "En camino",
+      titulo: T("En camino"),
       descripcion:
         T("Va rumbo a tu ubicación"),
     },
@@ -4163,7 +4168,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   ) : payment ? (
                     <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total pagado")}</span>
+                        <span className="text-slate-600">Total pagado</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.totalPagado.toFixed(2)}
                         </strong>
@@ -4171,7 +4176,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Fee de servicio RELYDO (no reembolsable)")}
+                          Fee de servicio RELYDO (no reembolsable)
                         </span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.serviceFee.toFixed(2)}
@@ -4180,7 +4185,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Cargo por cancelación")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          Cargo por cancelación ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
@@ -4190,7 +4195,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                       {resumenCancelacion.profesional > 0 && (
                         <div className="flex items-center justify-between gap-4">
                           <span className="text-slate-600">
-                            {T("Compensación al profesional")} ({resumenCancelacion.profesionalPercent.toFixed(2)}%)
+                            Compensación al profesional ({resumenCancelacion.profesionalPercent.toFixed(2)}%)
                           </span>
                           <strong className="text-slate-900">
                             ${resumenCancelacion.profesional.toFixed(2)}
@@ -4199,7 +4204,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                       )}
 
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("RELYDO conserva")}</span>
+                        <span className="text-slate-600">RELYDO conserva</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.relydo.toFixed(2)}
                         </strong>
@@ -4255,8 +4260,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {cancelando
-                      ? T("Cancelando solicitud...")
-                      : T("Confirmar cancelación")}
+                      ? "Cancelando solicitud..."
+                      : "Confirmar cancelación"}
                   </button>
 
                 </div>
@@ -4596,7 +4601,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
             </h2>
 
             <p className="mt-2 text-green-800">
-              Has seleccionado este presupuesto por{" "}
+              {T("Has seleccionado este presupuesto por")}{" "}
               <strong>
                 $
                 {Number(
@@ -4610,19 +4615,19 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
             {payment && (
               <div className="mt-5 rounded-2xl border border-green-200 bg-white p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">Resumen de pago</p>
+                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">{T("Resumen de pago")}</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">Presupuesto del profesional</span>
+                    <span className="text-slate-600">{T("Presupuesto del profesional")}</span>
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">Tarifa de servicio RELYDO</span>
+                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")}</span>
                     <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
                   </div>
                   <div className="border-t border-slate-200 pt-3">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-extrabold text-slate-900">Total del cliente</span>
+                      <span className="font-extrabold text-slate-900">{T("Total del cliente")}</span>
                       <strong className="text-xl text-green-800">${totalClientePagado.toFixed(2)}</strong>
                     </div>
                   </div>
@@ -4695,7 +4700,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                 <p className="mt-1 font-extrabold text-green-900">
                   {mostrarMinutos(
-                    ofertaSeleccionada.arrival_minutes
+                    ofertaSeleccionada.arrival_minutes,
+                    language
                   )}
                 </p>
               </div>
@@ -4707,7 +4713,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                 <p className="mt-1 font-extrabold text-green-900">
                   {mostrarMinutos(
-                    ofertaSeleccionada.estimated_job_minutes
+                    ofertaSeleccionada.estimated_job_minutes,
+                    language
                   )}
                 </p>
               </div>
