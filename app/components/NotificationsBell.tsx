@@ -1618,45 +1618,45 @@ export default function NotificationsBell({
 
             </div>
 
-            {/* NOTIFICACIONES + SONIDO */}
+            {/* AVISOS RELYDO — PUSH + SONIDO UNIFICADOS */}
 
-            <div
-              className={`mt-4 rounded-xl border p-4 ${
-                pushActivo && sonidoActivo
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-blue-200 bg-blue-50"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${
+                    pushActivo && sonidoActivo
+                      ? "bg-emerald-100"
+                      : "bg-blue-100"
+                  }`}
+                >
+                  🔔
+                </div>
+
                 <div className="min-w-0 flex-1">
-                  <p
-                    className={`text-sm font-black ${
-                      pushActivo && sonidoActivo
-                        ? "text-emerald-800"
-                        : "text-blue-800"
-                    }`}
-                  >
-                    {pushActivo && sonidoActivo
-                      ? "🔔 Notificaciones y sonido activados"
-                      : "🔔 Activa las notificaciones de RELYDO"}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-black text-slate-900">
+                      Avisos de RELYDO
+                    </p>
 
-                  <p
-                    className={`mt-1 text-xs ${
-                      pushActivo && sonidoActivo
-                        ? "text-emerald-700"
-                        : "text-blue-700"
-                    }`}
-                  >
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        pushActivo && sonidoActivo
+                          ? "bg-emerald-500"
+                          : "bg-slate-300"
+                      }`}
+                    />
+                  </div>
+
+                  <p className="mt-0.5 text-xs leading-5 text-slate-500">
                     {pushActivo && sonidoActivo
                       ? modo === "profesional"
-                        ? "RELYDO puede avisarte en este dispositivo y reproducir sonido cuando llegue una orden o cambie un trabajo."
-                        : "RELYDO puede avisarte en este dispositivo y reproducir sonido cuando recibas presupuestos o cambie el estado de tu trabajo."
-                      : "Activa en un solo paso los avisos del dispositivo y el sonido de RELYDO."}
+                        ? "Recibirás avisos con sonido cuando llegue una orden o cambie un trabajo."
+                        : "Recibirás avisos con sonido cuando llegue un presupuesto o cambie tu trabajo."
+                      : "Activa los avisos y el sonido en este dispositivo."}
                   </p>
 
                   {pushError && (
-                    <p className="mt-2 text-xs font-bold text-red-700">
+                    <p className="mt-1.5 text-xs font-bold text-red-700">
                       {pushError}
                     </p>
                   )}
@@ -1676,9 +1676,9 @@ export default function NotificationsBell({
 
                     await activarSonido();
                   }}
-                  className={`shrink-0 rounded-lg px-4 py-2 text-xs font-black ${
+                  className={`shrink-0 rounded-lg px-3.5 py-2 text-xs font-black transition ${
                     pushActivo && sonidoActivo
-                      ? "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                      ? "border border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700"
                       : "bg-blue-700 text-white hover:bg-blue-800"
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
@@ -1688,28 +1688,6 @@ export default function NotificationsBell({
                     ? "Probar"
                     : "Activar"}
                 </button>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
-                <span
-                  className={`rounded-full px-2.5 py-1 ${
-                    pushActivo
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-white text-slate-600"
-                  }`}
-                >
-                  📲 Push {pushActivo ? "activo" : "pendiente"}
-                </span>
-
-                <span
-                  className={`rounded-full px-2.5 py-1 ${
-                    sonidoActivo
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-white text-slate-600"
-                  }`}
-                >
-                  🔊 Sonido {sonidoActivo ? "activo" : "pendiente"}
-                </span>
               </div>
             </div>
 
