@@ -1618,51 +1618,46 @@ export default function NotificationsBell({
 
             </div>
 
-            {/* PUSH DEL DISPOSITIVO */}
+            {/* NOTIFICACIONES + SONIDO */}
 
             <div
               className={`mt-4 rounded-xl border p-4 ${
-                pushActivo
+                pushActivo && sonidoActivo
                   ? "border-emerald-200 bg-emerald-50"
                   : "border-blue-200 bg-blue-50"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p
                     className={`text-sm font-black ${
-                      pushActivo
+                      pushActivo && sonidoActivo
                         ? "text-emerald-800"
                         : "text-blue-800"
                     }`}
                   >
-                    {pushActivo
-                      ? "📲 Notificaciones del dispositivo activadas"
-                      : "📲 Activa las notificaciones Push"}
+                    {pushActivo && sonidoActivo
+                      ? "🔔 Notificaciones y sonido activados"
+                      : "🔔 Activa las notificaciones de RELYDO"}
                   </p>
 
                   <p
                     className={`mt-1 text-xs ${
-                      pushActivo
+                      pushActivo && sonidoActivo
                         ? "text-emerald-700"
                         : "text-blue-700"
                     }`}
                   >
-                    {pushActivo
-                      ? "RELYDO puede avisarte en la pantalla del teléfono o laptop aunque la web esté en segundo plano."
-                      : "Permite que RELYDO muestre avisos en la pantalla de este dispositivo."}
+                    {pushActivo && sonidoActivo
+                      ? modo === "profesional"
+                        ? "RELYDO puede avisarte en este dispositivo y reproducir sonido cuando llegue una orden o cambie un trabajo."
+                        : "RELYDO puede avisarte en este dispositivo y reproducir sonido cuando recibas presupuestos o cambie el estado de tu trabajo."
+                      : "Activa en un solo paso los avisos del dispositivo y el sonido de RELYDO."}
                   </p>
 
                   {pushError && (
                     <p className="mt-2 text-xs font-bold text-red-700">
                       {pushError}
-                    </p>
-                  )}
-
-                  {!pushActivo && (
-                    <p className="mt-2 text-[11px] leading-4 text-slate-500">
-                      La activación Push es independiente para cada dirección del sitio
-                      (por ejemplo, localhost y relydo.vercel.app).
                     </p>
                   )}
                 </div>
@@ -1671,99 +1666,51 @@ export default function NotificationsBell({
                   type="button"
                   disabled={
                     activandoPush ||
-                    !pushDisponible ||
-                    pushActivo
+                    activandoSonido ||
+                    (!pushDisponible && !pushActivo)
                   }
-                  onClick={
-                    activarPush
-                  }
+                  onClick={async () => {
+                    if (!pushActivo) {
+                      await activarPush();
+                    }
+
+                    await activarSonido();
+                  }}
                   className={`shrink-0 rounded-lg px-4 py-2 text-xs font-black ${
-                    pushActivo
-                      ? "border border-emerald-300 bg-white text-emerald-700"
+                    pushActivo && sonidoActivo
+                      ? "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
                       : "bg-blue-700 text-white hover:bg-blue-800"
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
-                  {activandoPush
+                  {activandoPush || activandoSonido
                     ? "Activando..."
-                    : pushActivo
-                    ? "Activadas"
-                    : pushDisponible
-                    ? "Activar Push"
-                    : "No disponible"}
-                </button>
-              </div>
-            </div>
-
-            {/* SONIDO */}
-
-            <div
-              className={`mt-4 rounded-xl border p-4 ${
-                sonidoActivo
-                  ? "border-green-200 bg-green-50"
-                  : "border-amber-200 bg-amber-50"
-              }`}
-            >
-
-              <div className="flex items-center justify-between gap-3">
-
-                <div>
-
-                  <p
-                    className={`text-sm font-black ${
-                      sonidoActivo
-                        ? "text-green-800"
-                        : "text-amber-800"
-                    }`}
-                  >
-                    {sonidoActivo
-                      ? "🔊 Sonido activado"
-                      : sonidoDeseadoRef.current
-                      ? "🔄 Reactivando sonido"
-                      : "🔇 Activa el sonido"}
-                  </p>
-
-                  <p
-                    className={`mt-1 text-xs ${
-                      sonidoActivo
-                        ? "text-green-700"
-                        : "text-amber-700"
-                    }`}
-                  >
-                    {sonidoActivo
-                      ? modo ===
-                        "profesional"
-                        ? "RELYDO te avisará cuando llegue una orden o cambie un trabajo."
-                        : "RELYDO te avisará cuando recibas presupuestos o cambie el estado de tu trabajo."
-                      : sonidoDeseadoRef.current
-                      ? "RELYDO intentará reactivar el audio automáticamente."
-                      : "Pulsa Activar sonido para escuchar las notificaciones."}
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    activandoSonido
-                  }
-                  onClick={
-                    activarSonido
-                  }
-                  className={`shrink-0 rounded-lg px-4 py-2 text-xs font-black ${
-                    sonidoActivo
-                      ? "border border-green-300 bg-white text-green-700 hover:bg-green-100"
-                      : "bg-blue-700 text-white hover:bg-blue-800"
-                  } disabled:opacity-50`}
-                >
-                  {activandoSonido
-                    ? "Activando..."
-                    : sonidoActivo
+                    : pushActivo && sonidoActivo
                     ? "Probar"
-                    : "Activar sonido"}
+                    : "Activar"}
                 </button>
-
               </div>
 
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
+                <span
+                  className={`rounded-full px-2.5 py-1 ${
+                    pushActivo
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-white text-slate-600"
+                  }`}
+                >
+                  📲 Push {pushActivo ? "activo" : "pendiente"}
+                </span>
+
+                <span
+                  className={`rounded-full px-2.5 py-1 ${
+                    sonidoActivo
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-white text-slate-600"
+                  }`}
+                >
+                  🔊 Sonido {sonidoActivo ? "activo" : "pendiente"}
+                </span>
+              </div>
             </div>
 
           </div>
