@@ -432,12 +432,38 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...": "Example: These photos show the part of the job that was left incomplete and the damage I found after the service...",
   "presupuesto disponible": "offer available",
   "presupuestos disponibles": "offers available",
+  "Reclamo resuelto parcialmente por RELYDO.": "Claim partially resolved by RELYDO.",
+  "Reclamo resuelto a favor del cliente por RELYDO.": "Claim resolved in favor of the customer by RELYDO.",
+  "Reclamo resuelto a favor del profesional por RELYDO.": "Claim resolved in favor of the professional by RELYDO.",
+  "Reclamo resuelto por RELYDO.": "Claim resolved by RELYDO.",
+  "Se necesitan materiales adicionales": "Additional materials are needed",
+  "Procesando...": "Processing...",
+  "Enviando...": "Sending...",
+  "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
+  "Flexible": "Flexible",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
   return language === "en"
     ? DETAIL_TRANSLATIONS_EN[spanish] || spanish
     : spanish;
+}
+
+function resolutionNoteText(
+  language: "es" | "en",
+  note: string | null
+) {
+  if (!note || language !== "en") {
+    return note || "";
+  }
+
+  return note
+    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replace(/^Profesional:/gm, "Professional:")
+    .replace(/^Cliente:/gm, "Customer:");
 }
 
 function nombreOficio(
@@ -4007,7 +4033,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                 <h2 className="mt-2 text-2xl font-extrabold text-red-900">
                   {canceladoPorRelydo
-                    ? "Trabajo cancelado por resolución de RELYDO"
+                    ? T("Trabajo cancelado por resolución de RELYDO")
                     : T("Este trabajo fue cancelado")}
                 </h2>
 
@@ -4066,7 +4092,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                             {T("Nota de resolución")}
                           </p>
                           <p className="mt-2 whitespace-pre-wrap font-semibold leading-6 text-slate-800">
-                            {claim.resolution_notes}
+                            {resolutionNoteText(language, claim.resolution_notes)}
                           </p>
                         </div>
                       )}
@@ -4399,7 +4425,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                     : changeOrderPendiente.reason === "trabajo_adicional"
                     ? T("Se necesita trabajo adicional")
                     : changeOrderPendiente.reason === "materiales_adicionales"
-                    ? "Se necesitan materiales adicionales"
+                    ? T("Se necesitan materiales adicionales")
                     : changeOrderPendiente.reason === "otro"
                     ? T("Otro motivo")
                     : changeOrderPendiente.reason}
@@ -4447,7 +4473,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? "Procesando..."
+                    ? T("Procesando...")
                     : T("✕ Rechazar cambio")}
                 </button>
 
@@ -4469,7 +4495,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? "Procesando..."
+                    ? T("Procesando...")
                     : `✓ Aceptar +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
@@ -5246,7 +5272,9 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                     <p className="mt-2 text-sm text-slate-500">
                       {rating === 0
-                        ? "Selecciona de 1 a 5 estrellas."
+                        ? T("Selecciona de 1 a 5 estrellas.")
+                        : language === "en"
+                        ? `You selected ${rating} ${rating === 1 ? "star" : "stars"}.`
                         : `Has seleccionado ${rating} ${
                             rating === 1
                               ? "estrella"
@@ -5401,7 +5429,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                           {T("Resolución de RELYDO")}
                         </p>
                         <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
-                          {claim.resolution_notes}
+                          {resolutionNoteText(language, claim.resolution_notes)}
                         </p>
                       </div>
                     )}
