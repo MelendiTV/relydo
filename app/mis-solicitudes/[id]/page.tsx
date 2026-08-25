@@ -2587,18 +2587,16 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         language === "en"
           ? `Confirm cancellation?\n\n` +
             `Total paid: $${resumen.totalPagado.toFixed(2)}\n` +
-            `RELYDO service fee (non-refundable): $${resumen.serviceFee.toFixed(2)}\n` +
-            `Cancellation fee: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+            `RELYDO service fee: $${resumen.serviceFee.toFixed(2)}\n` +
+            `Cancellation fee: $${resumen.penalidad.toFixed(2)}\n` +
             `Professional compensation: $${resumen.profesional.toFixed(2)}\n` +
-            `Total RELYDO fees: $${resumen.relydo.toFixed(2)}\n` +
             `Customer refund: $${resumen.reembolso.toFixed(2)}\n\n` +
             `This action cannot be undone.`
           : `¿Confirmas la cancelación?\n\n` +
             `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
-            `Tarifa de servicio RELYDO (no reembolsable): $${resumen.serviceFee.toFixed(2)}\n` +
-            `Cargo por cancelación: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+            `Tarifa de servicio RELYDO: $${resumen.serviceFee.toFixed(2)}\n` +
+            `Cargo por cancelación: $${resumen.penalidad.toFixed(2)}\n` +
             `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
-            `Total de tarifas RELYDO: $${resumen.relydo.toFixed(2)}\n` +
             `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
             `Esta acción no se puede deshacer.`;
     }
@@ -4207,7 +4205,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Fee de servicio RELYDO (no reembolsable)")}
+                          {T("Tarifa de servicio RELYDO")}
                         </span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.serviceFee.toFixed(2)}
@@ -4216,28 +4214,19 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Cargo por cancelación")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          {T("Cargo por cancelación")}
                         </span>
                         <strong className="text-red-700">
-                          -${resumenCancelacion.penalidad.toFixed(2)}
+                          ${resumenCancelacion.penalidad.toFixed(2)}
                         </strong>
                       </div>
 
-                      {resumenCancelacion.profesional > 0 && (
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-600">
-                            {T("Compensación al profesional")} ({resumenCancelacion.profesionalPercent.toFixed(2)}%)
-                          </span>
-                          <strong className="text-slate-900">
-                            ${resumenCancelacion.profesional.toFixed(2)}
-                          </strong>
-                        </div>
-                      )}
-
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total de tarifas RELYDO")}</span>
+                        <span className="text-slate-600">
+                          {T("Compensación al profesional")}
+                        </span>
                         <strong className="text-slate-900">
-                          ${resumenCancelacion.relydo.toFixed(2)}
+                          ${resumenCancelacion.profesional.toFixed(2)}
                         </strong>
                       </div>
 
