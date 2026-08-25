@@ -371,6 +371,14 @@ export default function TrabajoDetallePage() {
     useState(false);
 
   const [
+    pagosConfigurados,
+    setPagosConfigurados,
+  ] =
+    useState<boolean | null>(
+      null
+    );
+
+  const [
     cambiandoEstado,
     setCambiandoEstado,
   ] =
@@ -941,6 +949,66 @@ export default function TrabajoDetallePage() {
       setProviderId(
         user.id
       );
+
+      /*
+        ESTADO DE PAGOS DEL PROFESIONAL
+
+        El profesional puede ver el trabajo aunque Stripe todavía
+        no esté configurado. Esta comprobación solo decide si puede
+        enviar un presupuesto.
+      */
+
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        setPagosConfigurados(false);
+      } else {
+        try {
+          const stripeStatusResponse =
+            await fetch(
+              "/api/stripe/connect/status",
+              {
+                method: "GET",
+                headers: {
+                  Authorization:
+                    `Bearer ${sessionData.session.access_token}`,
+                },
+                cache: "no-store",
+              }
+            );
+
+          const stripeStatus =
+            await stripeStatusResponse
+              .json()
+              .catch(() => null);
+
+          const pagosListos =
+            stripeStatusResponse.ok &&
+            stripeStatus?.connected === true &&
+            stripeStatus?.onboardingComplete === true &&
+            stripeStatus?.payoutsEnabled === true &&
+            stripeStatus?.transfersCapability === "active";
+
+          setPagosConfigurados(
+            pagosListos
+          );
+        } catch (stripeError) {
+          console.error(
+            "Error comprobando Stripe Connect:",
+            stripeError
+          );
+
+          // Si no podemos verificar Stripe, no permitimos enviar
+          // presupuestos hasta poder confirmar el estado.
+          setPagosConfigurados(false);
+        }
+      }
 
       /*
         ACCESO HISTÓRICO DEL PROFESIONAL
@@ -1538,6 +1606,77 @@ export default function TrabajoDetallePage() {
       if (!message) {
         throw new Error(
           T("Escribe un mensaje para el cliente.", "Write a message for the customer.")
+        );
+      }
+
+      /*
+        BARRERA REAL DE STRIPE CONNECT
+
+        Aunque alguien intentara saltarse la interfaz, volvemos a
+        comprobar Stripe justo antes de guardar el presupuesto.
+      */
+
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        throw new Error(
+          T(
+            "No pudimos verificar tu sesión para comprobar tus pagos.",
+            "We could not verify your session to check your payments."
+          )
+        );
+      }
+
+      const stripeStatusResponse =
+        await fetch(
+          "/api/stripe/connect/status",
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${sessionData.session.access_token}`,
+            },
+            cache: "no-store",
+          }
+        );
+
+      const stripeStatus =
+        await stripeStatusResponse
+          .json()
+          .catch(() => null);
+
+      if (!stripeStatusResponse.ok) {
+        throw new Error(
+          stripeStatus?.error ||
+            T(
+              "No pudimos comprobar tu configuración de pagos.",
+              "We could not verify your payment setup."
+            )
+        );
+      }
+
+      const pagosListos =
+        stripeStatus?.connected === true &&
+        stripeStatus?.onboardingComplete === true &&
+        stripeStatus?.payoutsEnabled === true &&
+        stripeStatus?.transfersCapability === "active";
+
+      setPagosConfigurados(
+        pagosListos
+      );
+
+      if (!pagosListos) {
+        throw new Error(
+          T(
+            "Antes de enviar presupuestos debes configurar tus pagos con Stripe Connect desde tu Panel Profesional.",
+            "Before sending quotes, you must set up Stripe Connect payments from your Professional Dashboard."
+          )
         );
       }
 
@@ -6014,6 +6153,46 @@ export default function TrabajoDetallePage() {
                 <p className="mt-2 text-green-800">
                   {T("El cliente ya puede comparar tu presupuesto con otras ofertas.", "The customer can now compare your quote with other offers.")}
                 </p>
+              </div>
+            ) : pagosConfigurados === null ? (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="font-black text-slate-800">
+                  {T(
+                    "Comprobando configuración de pagos...",
+                    "Checking payment setup..."
+                  )}
+                </p>
+              </div>
+            ) : !pagosConfigurados ? (
+              <div className="mt-6 rounded-2xl border-2 border-red-300 bg-red-50 p-6">
+                <p className="text-lg font-black text-red-800">
+                  {T(
+                    "🔒 Configura tus pagos para enviar presupuestos",
+                    "🔒 Set up your payments to send quotes"
+                  )}
+                </p>
+
+                <p className="mt-2 leading-7 text-red-700">
+                  {T(
+                    "Puedes revisar todos los detalles de este trabajo, pero antes de enviar un presupuesto debes completar tu configuración de Stripe Connect.",
+                    "You can review all the details of this job, but before sending a quote you must complete your Stripe Connect setup."
+                  )}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/panel-profesional"
+                    )
+                  }
+                  className="mt-5 w-full rounded-xl bg-red-600 px-6 py-4 text-lg font-black text-white shadow-md transition hover:bg-red-700"
+                >
+                  {T(
+                    "Configurar pagos",
+                    "Set up payments"
+                  )}
+                </button>
               </div>
             ) : (
               <form
