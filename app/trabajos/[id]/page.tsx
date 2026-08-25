@@ -278,6 +278,23 @@ function calcularTiempoRestante(
 }
 
 
+function resolutionNoteText(
+  language: "es" | "en",
+  note: string | null
+) {
+  if (!note || language !== "en") {
+    return note || "";
+  }
+
+  return note
+    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replace(/^Profesional:/gm, "Professional:")
+    .replace(/^Cliente:/gm, "Customer:");
+}
+
 function formatearHoraChat(
   fecha: string,
   language: "es" | "en"
@@ -5313,7 +5330,7 @@ export default function TrabajoDetallePage() {
                                       {T("Resolución de RELYDO", "RELYDO resolution")}
                                     </p>
                                     <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                      {reclamo.resolution_notes}
+                                      {resolutionNoteText(language, reclamo.resolution_notes)}
                                     </p>
                                   </div>
                                 )}
@@ -6113,7 +6130,15 @@ export default function TrabajoDetallePage() {
                   </p>
 
                   <p className="mt-2 text-sm leading-6 text-green-800">
-                    {T("RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.", "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally.")}
+                    {cancelado
+                      ? T(
+                          "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
+                          "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
+                        )
+                      : T(
+                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
+                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
+                        )}
                   </p>
 
                   {reclamo.resolution_notes && (
@@ -6123,7 +6148,7 @@ export default function TrabajoDetallePage() {
                       </p>
 
                       <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                        {reclamo.resolution_notes}
+                        {resolutionNoteText(language, reclamo.resolution_notes)}
                       </p>
                     </div>
                   )}
