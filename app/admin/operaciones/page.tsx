@@ -1837,21 +1837,35 @@ export default function AdminPage() {
     setError("");
     setMensaje("");
 
-    const userDocs =
-      docsDelUsuario(
-        userId
-      );
+    const userDocs = docsDelUsuario(userId);
+    const docsPendientes = documentosPendientesRevision(userId);
+    const solicitudesPendientes = solicitudesDocsDelUsuario(userId).filter(
+      (solicitud) =>
+        solicitud.status === "pending" ||
+        solicitud.status === "submitted"
+    );
+    const docsAprobados = userDocs.filter(
+      (doc) => doc.status === "approved"
+    );
 
-    if (
-      nuevoEstado ===
-        "verified" &&
-      userDocs.length ===
-        0
-    ) {
+    if (nuevoEstado === "verified" && docsAprobados.length === 0) {
       setError(
-        "No puedes aprobar este profesional porque no tiene documentos registrados."
+        "No puedes aprobar este profesional hasta que tenga al menos un documento aprobado."
       );
+      return;
+    }
 
+    if (nuevoEstado === "verified" && docsPendientes.length > 0) {
+      setError(
+        "Todavía hay documentos pendientes de revisión. Apruébalos o recházalos antes de aprobar al profesional."
+      );
+      return;
+    }
+
+    if (nuevoEstado === "verified" && solicitudesPendientes.length > 0) {
+      setError(
+        "Todavía hay solicitudes de documentación abiertas. Complétalas antes de aprobar al profesional."
+      );
       return;
     }
 
@@ -1909,33 +1923,18 @@ export default function AdminPage() {
         );
       }
 
-      if (
-        userDocs.length >
-        0
-      ) {
-        const {
-          error:
-            documentError,
-        } = await supabase
-          .from(
-            "provider_documents"
-          )
-          .update({
-            status:
-              esVerificado
-                ? "approved"
-                : "rejected",
-          })
-          .eq(
-            "user_id",
-            userId
-          );
+      // Los documentos se revisan individualmente. Aprobar la cuenta NO debe
+      // aprobar automáticamente archivos pendientes o previamente rechazados.
+      if (!esVerificado && userDocs.length > 0) {
+        const { error: documentError } = await supabase
+          .from("provider_documents")
+          .update({ status: "rejected" })
+          .eq("user_id", userId)
+          .in("status", ["pending", "submitted"]);
 
-        if (
-          documentError
-        ) {
+        if (documentError) {
           throw new Error(
-            `El perfil cambió, pero hubo un problema actualizando los documentos: ${documentError.message}`
+            `El perfil cambió, pero hubo un problema actualizando los documentos pendientes: ${documentError.message}`
           );
         }
       }
@@ -4012,6 +4011,97 @@ export default function AdminPage() {
                         )}
 
                       </div>
+
+                      {/* DECISIÓN DE VERIFICACIÓN */}
+
+                      {provider.verified !== true &&
+                        provider.verification_status !== "rejected" && (
+                          <div className="mt-6 border-t border-slate-200 pt-5">
+                            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                              Decisión de verificación
+                            </p>
+
+                            {(() => {
+                              const aprobados = userDocs.filter(
+                                (doc) => doc.status === "approved"
+                              );
+                              const pendientesRevision = documentosPendientesRevision(
+                                provider.user_id
+                              );
+                              const solicitudesAbiertas = userSolicitudes.filter(
+                                (solicitud) =>
+                                  solicitud.status === "pending" ||
+                                  solicitud.status === "submitted"
+                              );
+                              const puedeAprobar =
+                                aprobados.length > 0 &&
+                                pendientesRevision.length === 0 &&
+                                solicitudesAbiertas.length === 0;
+
+                              return (
+                                <>
+                                  {!puedeAprobar && (
+                                    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                                      <p className="font-extrabold">Aprobación bloqueada temporalmente</p>
+                                      <p className="mt-1">
+                                        {aprobados.length === 0
+                                          ? "Debe existir al menos un documento aprobado. "
+                                          : ""}
+                                        {pendientesRevision.length > 0
+                                          ? `Hay ${pendientesRevision.length} documento(s) pendiente(s) de revisión. `
+                                          : ""}
+                                        {solicitudesAbiertas.length > 0
+                                          ? `Hay ${solicitudesAbiertas.length} solicitud(es) de documentación abierta(s).`
+                                          : ""}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div className="grid gap-3 md:grid-cols-3">
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        procesando === provider.user_id || !puedeAprobar
+                                      }
+                                      onClick={() =>
+                                        cambiarEstado(provider.user_id, "verified")
+                                      }
+                                      className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      {procesando === provider.user_id
+                                        ? "Procesando..."
+                                        : puedeAprobar
+                                        ? "✅ Aprobar profesional"
+                                        : "Aprobación pendiente"}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={procesando === provider.user_id}
+                                      onClick={() => abrirSolicitudDocumentos(provider)}
+                                      className="rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-3 font-extrabold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                                    >
+                                      📄 Solicitar documentos
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={procesando === provider.user_id}
+                                      onClick={() =>
+                                        cambiarEstado(provider.user_id, "rejected")
+                                      }
+                                      className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white transition hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      {procesando === provider.user_id
+                                        ? "Procesando..."
+                                        : "✕ Rechazar profesional"}
+                                    </button>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
 
                       {/* CONTROLES ADMIN */}
 
