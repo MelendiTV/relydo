@@ -44,7 +44,10 @@ function RotatingAd({
   ads: HomeAd[];
   label: string;
 }) {
-  const activeAds = ads.filter((ad) => ad.active);
+  const [failedImages, setFailedImages] = useState<string[]>([]);
+  const activeAds = ads.filter(
+    (ad) => ad.active && !failedImages.includes(ad.image)
+  );
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -90,7 +93,7 @@ function RotatingAd({
         href={current.url}
         target="_blank"
         rel="noopener noreferrer sponsored"
-        className="group relative block aspect-[16/6] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/20 sm:aspect-[5/1]"
+        className="group relative block aspect-[16/5] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/20 sm:aspect-[6/1]"
         aria-label={current.alt}
       >
         <img
@@ -99,6 +102,13 @@ function RotatingAd({
           alt={current.alt}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
           loading="lazy"
+          onError={() => {
+            setFailedImages((currentFailed) =>
+              currentFailed.includes(current.image)
+                ? currentFailed
+                : [...currentFailed, current.image]
+            );
+          }}
         />
       </a>
     </div>
@@ -438,7 +448,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#EEF3FA] px-5 py-16 lg:px-8 lg:py-24">
+      <section className="bg-[#EEF3FA] px-5 pb-8 pt-16 lg:px-8 lg:pb-10 lg:pt-24">
         <div className="mx-auto max-w-[1440px]">
           <div className="grid gap-6 xl:grid-cols-2">
             <article className="group overflow-hidden rounded-[2rem] border border-slate-300/80 bg-white shadow-[0_22px_75px_rgba(15,23,42,0.16)] transition hover:-translate-y-1">
@@ -484,7 +494,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#EEF3FA] px-5 pb-16 lg:px-8 lg:pb-20">
+      <section className="bg-[#EEF3FA] px-5 pb-8 lg:px-8 lg:pb-10">
         <RotatingAd ads={homeAdsSlot1} label={T.sponsored} />
       </section>
 
@@ -531,11 +541,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#f6f8fc] px-5 pt-16 lg:px-8 lg:pt-20">
+      <section className="bg-[#f6f8fc] px-5 pt-8 lg:px-8 lg:pt-10">
         <RotatingAd ads={homeAdsSlot2} label={T.sponsored} />
       </section>
 
-      <section className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24">
+      <section className="bg-[#f6f8fc] px-5 pb-16 pt-10 lg:px-8 lg:pb-24 lg:pt-12">
         <div className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[2.5rem] bg-white shadow-[0_25px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[0.9fr_1.1fr]">
           <div className="flex flex-col justify-center p-8 md:p-12">
             <p className="text-sm font-black tracking-[0.2em] text-blue-600">RELYDO</p>
