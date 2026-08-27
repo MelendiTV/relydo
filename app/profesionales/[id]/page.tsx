@@ -104,7 +104,7 @@ export default function PerfilProfesional() {
   }
 
   function volver() {
-    router.push(
+    router.replace(
       destinoRegresoSeguro()
     );
   }
@@ -233,9 +233,7 @@ export default function PerfilProfesional() {
             onClick={volver}
             className="mt-7 rounded-xl bg-blue-700 px-6 py-3 font-extrabold text-white hover:bg-blue-800"
           >
-            {returnTo
-              ? T("Volver a la oferta", "Back to offer")
-              : T("Volver a profesionales", "Back to professionals")}
+            {T("Volver a profesionales", "Back to professionals")}
           </button>
 
         </div>
@@ -257,9 +255,7 @@ export default function PerfilProfesional() {
           className="mb-5 font-bold text-blue-700 hover:underline"
         >
           ←{" "}
-          {returnTo
-            ? T("Volver a la oferta", "Back to offer")
-            : T("Volver a profesionales", "Back to professionals")}
+          {T("Volver a profesionales", "Back to professionals")}
         </button>
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
@@ -616,9 +612,7 @@ export default function PerfilProfesional() {
                 className="font-bold text-blue-700 hover:underline"
               >
                 ←{" "}
-                {returnTo
-                  ? T("Volver", "Back")
-                  : T("Volver a profesionales", "Back to professionals")}
+                {T("Volver a profesionales", "Back to professionals")}
               </button>
 
             </div>
