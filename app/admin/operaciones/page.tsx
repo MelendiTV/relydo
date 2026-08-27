@@ -879,10 +879,12 @@ export default function AdminPage() {
     CARGAR DATOS
   */
 
-  async function cargarDatos() {
-    setLoading(
-      true
-    );
+  async function cargarDatos(mostrarLoading = true) {
+    if (mostrarLoading) {
+      setLoading(
+        true
+      );
+    }
 
     setError("");
 
@@ -1460,9 +1462,11 @@ export default function AdminPage() {
           : "Ocurrió un error inesperado."
       );
     } finally {
-      setLoading(
-        false
-      );
+      if (mostrarLoading) {
+        setLoading(
+          false
+        );
+      }
     }
   }
 
@@ -1671,7 +1675,7 @@ export default function AdminPage() {
           ? `${nombreTipoDocumento(doc.document_type)} aprobado. Ya es el documento vigente.`
           : `${nombreTipoDocumento(doc.document_type)} rechazado. El profesional deberá enviarlo nuevamente.`
       );
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo revisar el documento.");
     } finally {
@@ -1735,7 +1739,7 @@ export default function AdminPage() {
         "Solicitud de documentación eliminada correctamente."
       );
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
@@ -2207,7 +2211,7 @@ export default function AdminPage() {
         false
       );
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setSolicitudDocsError(
         err instanceof Error
@@ -2342,7 +2346,7 @@ export default function AdminPage() {
           : "Profesional rechazado correctamente."
       );
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
@@ -2428,7 +2432,7 @@ export default function AdminPage() {
           : `${nombre} fue suspendido correctamente.`
       );
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
@@ -2490,7 +2494,7 @@ export default function AdminPage() {
         "Reclamo marcado como En revisión. El pago continúa retenido."
       );
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
@@ -2992,7 +2996,7 @@ export default function AdminPage() {
         );
       }
 
-      await cargarDatos();
+      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
