@@ -11,6 +11,7 @@ import {
 } from "@supabase/supabase-js";
 
 import {
+  useRouter,
   useSearchParams,
 } from "next/navigation";
 
@@ -89,6 +90,8 @@ function nombreOficio(
 }
 
 function SolicitarTrabajoContenido() {
+  const router = useRouter();
+
   const searchParams =
     useSearchParams();
 
@@ -1275,16 +1278,15 @@ function SolicitarTrabajoContenido() {
 
         <div className="mb-8">
 
-          <a
-            href={
-              profesionalId
-                ? `/profesionales/${profesionalId}`
-                : "/profesionales"
-            }
-            className="font-medium text-blue-700 hover:underline"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label={text.volver}
+            title={text.volver}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl text-slate-700 shadow-sm transition hover:-translate-x-0.5 hover:border-blue-300 hover:text-blue-700 hover:shadow-md"
           >
-            ← {text.volver}
-          </a>
+            ←
+          </button>
 
         </div>
 
