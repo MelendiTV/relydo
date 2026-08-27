@@ -350,12 +350,12 @@ export default function ClientesHome() {
     );
   }
 
-  function irAServicio(
-    nombre: string
+  function irAProfesionales(
+    trade: string
   ) {
     router.push(
-      `/servicios?buscar=${encodeURIComponent(
-        nombre
+      `/profesionales?trade=${encodeURIComponent(
+        trade
       )}`
     );
   }
@@ -364,34 +364,42 @@ export default function ClientesHome() {
     {
       icon: "🚰",
       label: text.plumbing,
+      trade: "plumbing",
     },
     {
       icon: "⚡",
       label: text.electrical,
+      trade: "electrical",
     },
     {
       icon: "❄️",
       label: text.hvac,
+      trade: "hvac",
     },
     {
       icon: "🧹",
       label: text.cleaning,
+      trade: "cleaning",
     },
     {
       icon: "🎨",
       label: text.painting,
+      trade: "painting",
     },
     {
       icon: "🪚",
       label: text.carpentry,
+      trade: "carpentry",
     },
     {
       icon: "🚚",
       label: text.moving,
+      trade: "moving",
     },
     {
       icon: "•••",
       label: text.more,
+      trade: null,
     },
   ];
 
@@ -759,9 +767,11 @@ export default function ClientesHome() {
                       return;
                     }
 
-                    irAServicio(
-                      servicio.label
-                    );
+                    if (servicio.trade) {
+                      irAProfesionales(
+                        servicio.trade
+                      );
+                    }
                   }}
                   className="group rounded-[1.4rem] border border-slate-200 bg-[#f8fafc] p-5 text-center transition hover:-translate-y-1 hover:border-blue-300 hover:bg-white hover:shadow-xl"
                 >
