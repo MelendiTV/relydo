@@ -1438,7 +1438,7 @@ export default function MisSolicitudesPage() {
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
-    window.location.href = "/login-cliente";
+    window.location.href = "/";
   }
 
   async function subirAvatar(event: React.ChangeEvent<HTMLInputElement>) {
