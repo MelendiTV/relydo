@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
@@ -25,6 +25,82 @@ function BrandLogo() {
       >
         RELY<span className="text-blue-600">DO</span>
       </span>
+    </div>
+  );
+}
+
+
+type HomeAd = {
+  image: string;
+  url: string;
+  alt: string;
+  active: boolean;
+};
+
+function RotatingAd({
+  ads,
+  label,
+}: {
+  ads: HomeAd[];
+  label: string;
+}) {
+  const activeAds = ads.filter((ad) => ad.active);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (activeAds.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % activeAds.length);
+    }, 7000);
+
+    return () => window.clearInterval(timer);
+  }, [activeAds.length]);
+
+  useEffect(() => {
+    if (index >= activeAds.length) setIndex(0);
+  }, [activeAds.length, index]);
+
+  if (activeAds.length === 0) return null;
+
+  const current = activeAds[index] ?? activeAds[0];
+
+  return (
+    <div className="mx-auto w-full max-w-[1180px]">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          {label}
+        </span>
+
+        {activeAds.length > 1 && (
+          <div className="flex items-center gap-1.5" aria-label={`${activeAds.length} ads`}>
+            {activeAds.map((_, dotIndex) => (
+              <span
+                key={dotIndex}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  dotIndex === index ? "w-5 bg-blue-600" : "w-1.5 bg-slate-300"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <a
+        href={current.url}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        className="group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+        aria-label={current.alt}
+      >
+        <img
+          key={current.image}
+          src={current.image}
+          alt={current.alt}
+          className="block h-auto w-full object-cover transition-opacity duration-500"
+          loading="lazy"
+        />
+      </a>
     </div>
   );
 }
@@ -150,6 +226,7 @@ export default function Home() {
         terms: "Términos",
         privacy: "Privacidad",
         rights: "Todos los derechos reservados.",
+        sponsored: "Publicidad",
       }
     : {
         home: "Home",
@@ -218,33 +295,51 @@ export default function Home() {
         terms: "Terms",
         privacy: "Privacy",
         rights: "All rights reserved.",
+        sponsored: "Sponsored",
       };
 
-  const anunciosEspanol = [
-    "/ads/4b37dfc4-7eb9-4b5f-8bb5-40eb6a974310.png",
-    "/ads/4daa86f7-42c8-43f5-b5bd-4c6342dfb0dd.png",
-    "/ads/58d502c8-3a92-443d-bb21-d335f41c282b.png",
-    "/ads/8864c5e6-3489-4ca5-8772-87de324ccfc2.png",
-    "/ads/9018c8ec-b41a-4d2c-882a-cac2bd5c0fbe.png",
-    "/ads/24409dde-116e-49cc-a962-70f4ca6595df.png",
-    "/ads/274974a4-c1f1-49e8-9ff6-cbd13ad4b9f7.png",
-    "/ads/ads-2.jpeg",
-    "/ads/ads-5.jpeg",
+  /*
+    HOME ADS
+    --------
+    Cada campaña tiene:
+      image  = imagen guardada en /public/ads/home/
+      url    = destino real de compra/web
+      alt    = descripción accesible
+      active = true para mostrarla / false para ocultarla
+
+    IMPORTANTE:
+    Las URLs example.com son placeholders seguros.
+    Reemplázalas por enlaces reales antes de activar campañas comerciales.
+  */
+  const homeAdsSlot1: HomeAd[] = [
+    {
+      image: "/ads/home/slot-1-ad-1.png",
+      url: "https://example.com/",
+      alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
+      active: true,
+    },
+    {
+      image: "/ads/home/slot-1-ad-2.png",
+      url: "https://example.com/",
+      alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
+      active: true,
+    },
   ];
 
-  const anunciosIngles = [
-    "/ads/ads-10.png",
-    "/ads/ads-11.png",
-    "/ads/ads-12.png",
-    "/ads/ads-14.png",
-    "/ads/ads-15.png",
-    "/ads/ads-16.png",
-    "/ads/ads-17.png",
-    "/ads/ads-18.png",
-    "/ads/ads-18.png",
+  const homeAdsSlot2: HomeAd[] = [
+    {
+      image: "/ads/home/slot-2-ad-1.png",
+      url: "https://example.com/",
+      alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
+      active: true,
+    },
+    {
+      image: "/ads/home/slot-2-ad-2.png",
+      url: "https://example.com/",
+      alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
+      active: true,
+    },
   ];
-
-  const ads = es ? anunciosEspanol : anunciosIngles;
 
   const trust = [
     [T.verified, T.verifiedD, "01"],
@@ -389,6 +484,10 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="bg-[#EEF3FA] px-5 pb-16 lg:px-8 lg:pb-20">
+        <RotatingAd ads={homeAdsSlot1} label={T.sponsored} />
+      </section>
+
       <section id="confianza" className="bg-white px-5 py-16 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-[1440px]">
           <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
@@ -432,6 +531,10 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="bg-[#f6f8fc] px-5 pt-16 lg:px-8 lg:pt-20">
+        <RotatingAd ads={homeAdsSlot2} label={T.sponsored} />
+      </section>
+
       <section className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24">
         <div className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[2.5rem] bg-white shadow-[0_25px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[0.9fr_1.1fr]">
           <div className="flex flex-col justify-center p-8 md:p-12">
@@ -468,7 +571,7 @@ export default function Home() {
 
           <div>
             <h3 className="font-black">{T.footerC}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300 [&_button]:transition [&_button]:hover:text-white">
               <button onClick={() => router.push("/clientes")}>{T.cPortal}</button>
               <button onClick={() => router.push("/login-cliente")}>{T.cLogin}</button>
               <button onClick={() => router.push("/registro-cliente")}>{T.cSignup}</button>
@@ -477,7 +580,7 @@ export default function Home() {
 
           <div>
             <h3 className="font-black">{T.footerP}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300 [&_button]:transition [&_button]:hover:text-white">
               <button onClick={() => router.push("/para-profesionales")}>{T.pPortal}</button>
               <button onClick={() => router.push("/login-profesional")}>{T.pLogin}</button>
               <button onClick={() => router.push("/registro-profesional")}>{T.pSignup}</button>
@@ -486,7 +589,7 @@ export default function Home() {
 
           <div>
             <h3 className="font-black">{T.footerPlatform}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300 [&_button]:transition [&_button]:hover:text-white">
               <button onClick={() => router.push("/servicios")}>{T.services}</button>
               <button onClick={() => router.push("/profesionales")}>{T.professionals}</button>
             </div>
@@ -494,14 +597,14 @@ export default function Home() {
 
           <div>
             <h3 className="font-black">{T.footerLegal}</h3>
-            <div className="mt-4 flex flex-col items-start gap-3 text-slate-600">
+            <div className="mt-4 flex flex-col items-start gap-3 text-slate-300 [&_button]:transition [&_button]:hover:text-white">
               <span>{T.terms}</span>
               <span>{T.privacy}</span>
             </div>
           </div>
         </div>
 
-        <div className="mx-auto mt-10 max-w-[1440px] border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
+        <div className="mx-auto mt-10 max-w-[1440px] border-t border-white/15 pt-6 text-center text-sm text-slate-400">
           © {new Date().getFullYear()} RELYDO. {T.rights}
         </div>
       </footer>
