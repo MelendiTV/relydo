@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -73,12 +73,13 @@ function nombreOficio(
   return oficios[trade] || trade;
 }
 
-export default function ProfesionalesPage() {
+function ProfesionalesContenido() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { language } = useLanguage();
 
-  const requestedTrade = searchParams.get("trade")?.trim() || "";
+  const requestedTrade =
+    searchParams.get("trade")?.trim() || "";
 
   const text =
     language === "es"
@@ -114,7 +115,7 @@ export default function ProfesionalesPage() {
           solicitarTrabajo:
             "Solicitar trabajo",
           sinCoincidencias:
-            "No encontramos profesionales para esta categoría en tu zona.",
+            "No encontramos profesionales de esta especialidad en tu zona.",
           sinCoincidenciasDescripcion:
             "Prueba otra categoría o vuelve más tarde mientras ampliamos la red de profesionales.",
         }
@@ -150,9 +151,9 @@ export default function ProfesionalesPage() {
           solicitarTrabajo:
             "Request job",
           sinCoincidencias:
-            "We couldn't find professionals for this category in your area.",
+            "We couldn't find professionals in this specialty in your area.",
           sinCoincidenciasDescripcion:
-            "Try another category or check back later as we expand our professional network.",
+            "Try another category or check back later as we expand the professional network.",
         };
 
   const [profesionales, setProfesionales] =
@@ -172,27 +173,49 @@ export default function ProfesionalesPage() {
     setLoading(true);
     setError("");
 
-    const {
-      data: authData,
-    } = await supabase.auth.getUser();
+    const normalizar = (
+      valor: string | null | undefined
+    ) =>
+      (valor || "")
+        .trim()
+        .toLowerCase();
+
+    const normalizarTrade = (
+      valor: string | null | undefined
+    ) =>
+      normalizar(valor)
+        .replace(/_/g, "-")
+        .replace(/\s+/g, "-");
 
     let customerCity = "";
     let customerState = "";
     let customerZip = "";
 
+    const {
+      data: authData,
+    } = await supabase.auth.getUser();
+
     if (authData.user) {
-      const { data: customerProfile } = await supabase
+      const {
+        data: customerProfile,
+      } = await supabase
         .from("profiles")
         .select("city, state, zip")
         .eq("id", authData.user.id)
         .maybeSingle();
 
-      customerCity = customerProfile?.city?.trim() || "";
-      customerState = customerProfile?.state?.trim() || "";
-      customerZip = customerProfile?.zip?.trim() || "";
+      customerCity =
+        customerProfile?.city?.trim() || "";
+      customerState =
+        customerProfile?.state?.trim() || "";
+      customerZip =
+        customerProfile?.zip?.trim() || "";
     }
 
-    let query = supabase
+    const {
+      data,
+      error: profesionalesError,
+    } = await supabase
       .from("provider_profiles")
       .select(`
         user_id,
@@ -212,34 +235,10 @@ export default function ProfesionalesPage() {
       `)
       .eq("verification_status", "verified")
       .eq("verified", true)
-      .eq("active", true);
-
-    if (requestedTrade) {
-      query = query.eq("trade", requestedTrade);
-    }
-
-    /*
-      Ubicación:
-      - Si el cliente tiene ciudad y estado, mostramos profesionales de esa ciudad/estado.
-      - Si no tiene ciudad pero sí ZIP, usamos el ZIP.
-      - Si todavía no hay ubicación guardada, no inventamos una ubicación y mantenemos
-        únicamente el filtro de categoría.
-      - El radio real por millas requiere coordenadas/geocodificación; no se simula aquí.
-    */
-    if (customerCity && customerState) {
-      query = query
-        .ilike("city", customerCity)
-        .ilike("state", customerState);
-    } else if (customerZip) {
-      query = query.eq("zip", customerZip);
-    }
-
-    const {
-      data,
-      error: profesionalesError,
-    } = await query.order("average_rating", {
-      ascending: false,
-    });
+      .eq("active", true)
+      .order("average_rating", {
+        ascending: false,
+      });
 
     if (profesionalesError) {
       console.error(
@@ -255,7 +254,73 @@ export default function ProfesionalesPage() {
       return;
     }
 
-    setProfesionales(data || []);
+    const tradeBuscado =
+      normalizarTrade(requestedTrade);
+
+    const ciudadCliente =
+      normalizar(customerCity);
+
+    const estadoCliente =
+      normalizar(customerState);
+
+    const zipCliente =
+      normalizar(customerZip);
+
+    const filtrados = (data || []).filter(
+      (profesional) => {
+        const tradeProfesional =
+          normalizarTrade(
+            profesional.trade
+          );
+
+        const coincideTrade =
+          !tradeBuscado ||
+          tradeProfesional ===
+            tradeBuscado;
+
+        if (!coincideTrade) {
+          return false;
+        }
+
+        const ciudadProfesional =
+          normalizar(
+            profesional.city
+          );
+
+        const estadoProfesional =
+          normalizar(
+            profesional.state
+          );
+
+        const zipProfesional =
+          normalizar(
+            profesional.zip
+          );
+
+        if (
+          ciudadCliente &&
+          estadoCliente
+        ) {
+          return (
+            ciudadProfesional ===
+              ciudadCliente &&
+            estadoProfesional ===
+              estadoCliente
+          );
+        }
+
+        if (zipCliente) {
+          return (
+            zipProfesional ===
+            zipCliente
+          );
+        }
+
+        return true;
+      }
+    );
+
+    setProfesionales(filtrados);
     setLoading(false);
   }
 
@@ -446,5 +511,23 @@ export default function ProfesionalesPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function ProfesionalesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+          <div className="rounded-2xl border border-slate-200 bg-white px-8 py-7 shadow-lg">
+            <p className="font-bold text-slate-700">
+              Cargando...
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <ProfesionalesContenido />
+    </Suspense>
   );
 }
