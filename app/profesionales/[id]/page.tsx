@@ -409,7 +409,7 @@ export default function PerfilProfesional() {
                   <p className="mt-1 font-extrabold text-slate-900">
                     {profesional.service_radius_miles ??
                       0}{" "}
-                    millas
+                    {T("millas", "miles")}
                   </p>
 
                 </div>
@@ -617,8 +617,8 @@ export default function PerfilProfesional() {
               >
                 ←{" "}
                 {returnTo
-                  ? "Volver a la oferta"
-                  : "Volver a profesionales"}
+                  ? T("Volver", "Back")
+                  : T("Volver a profesionales", "Back to professionals")}
               </button>
 
             </div>

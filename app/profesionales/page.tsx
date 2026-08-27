@@ -80,6 +80,10 @@ function ProfesionalesContenido() {
   const requestedTrade =
     searchParams.get("trade")?.trim() || "";
 
+  const professionalsReturnPath = requestedTrade
+    ? `/profesionales?trade=${encodeURIComponent(requestedTrade)}`
+    : "/profesionales";
+
   const text =
     language === "es"
       ? {
@@ -484,7 +488,9 @@ function ProfesionalesContenido() {
                         type="button"
                         onClick={() =>
                           router.push(
-                            `/profesionales/${profesional.user_id}`
+                            `/profesionales/${profesional.user_id}?returnTo=${encodeURIComponent(
+                              professionalsReturnPath
+                            )}`
                           )
                         }
                         className="rounded-xl border-2 border-blue-700 px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
