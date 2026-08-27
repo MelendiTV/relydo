@@ -90,14 +90,14 @@ function RotatingAd({
         href={current.url}
         target="_blank"
         rel="noopener noreferrer sponsored"
-        className="group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+        className="group relative block aspect-[16/6] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/20 sm:aspect-[5/1]"
         aria-label={current.alt}
       >
         <img
           key={current.image}
           src={current.image}
           alt={current.alt}
-          className="block h-auto w-full object-cover transition-opacity duration-500"
+          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
           loading="lazy"
         />
       </a>
