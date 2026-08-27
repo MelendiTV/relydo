@@ -10,6 +10,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
+
+type SolicitudDocumentoPendiente = {
+  id: string;
+  provider_id: string;
+  document_type: string | null;
+  message: string;
+  status: string;
+  requested_at: string;
+  submitted_at: string | null;
+};
+
 export default function LoginProfesional() {
   const router = useRouter();
   const { language } = useLanguage();
@@ -91,8 +102,10 @@ export default function LoginProfesional() {
   const [password, setPassword] = useState("");
 
   const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
 
   const [cargando, setCargando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
 
   const [
     estadoCuenta,
@@ -105,6 +118,30 @@ export default function LoginProfesional() {
     nombreNegocio,
     setNombreNegocio,
   ] = useState("");
+
+  const [
+    solicitudesDocumentos,
+    setSolicitudesDocumentos,
+  ] =
+    useState<SolicitudDocumentoPendiente[]>([]);
+
+  const [
+    archivosSolicitud,
+    setArchivosSolicitud,
+  ] =
+    useState<Record<string, File | null>>({});
+
+  const [
+    enviandoSolicitud,
+    setEnviandoSolicitud,
+  ] =
+    useState<string | null>(null);
+
+  const [
+    mensajeDocumentos,
+    setMensajeDocumentos,
+  ] =
+    useState("");
 
   /*
     ASEGURAR QUE LA ESPECIALIDAD
@@ -183,12 +220,382 @@ export default function LoginProfesional() {
     }
   }
 
+  function nombreTipoDocumento(
+    tipo: string | null
+  ) {
+    if (tipo === "license") {
+      return language === "es"
+        ? "Licencia"
+        : "License";
+    }
+
+    if (tipo === "insurance") {
+      return language === "es"
+        ? "Seguro"
+        : "Insurance";
+    }
+
+    if (tipo === "bond") {
+      return language === "es"
+        ? "Bond / Fianza"
+        : "Bond";
+    }
+
+    if (tipo === "other") {
+      return language === "es"
+        ? "Otro documento"
+        : "Other document";
+    }
+
+    return language === "es"
+      ? "Documentación adicional"
+      : "Additional documentation";
+  }
+
+  async function cargarSolicitudesDocumentos(
+    providerId: string
+  ) {
+    const {
+      data,
+      error:
+        solicitudesError,
+    } =
+      await supabase
+        .from(
+          "provider_document_requests"
+        )
+        .select(`
+          id,
+          provider_id,
+          document_type,
+          message,
+          status,
+          requested_at,
+          submitted_at
+        `)
+        .eq(
+          "provider_id",
+          providerId
+        )
+        .in(
+          "status",
+          [
+            "pending",
+            "submitted",
+          ]
+        )
+        .order(
+          "requested_at",
+          {
+            ascending: false,
+          }
+        );
+
+    if (solicitudesError) {
+      console.error(
+        "No se pudieron cargar las solicitudes de documentos:",
+        solicitudesError
+      );
+
+      setSolicitudesDocumentos(
+        []
+      );
+      return;
+    }
+
+    setSolicitudesDocumentos(
+      (data ||
+        []) as SolicitudDocumentoPendiente[]
+    );
+  }
+
+  function seleccionarArchivoSolicitud(
+    solicitudId: string,
+    file: File | null
+  ) {
+    setError("");
+    setMensajeDocumentos("");
+
+    if (!file) {
+      setArchivosSolicitud(
+        (actual) => ({
+          ...actual,
+          [solicitudId]:
+            null,
+        })
+      );
+      return;
+    }
+
+    const esImagen =
+      file.type.startsWith(
+        "image/"
+      );
+
+    const esPdf =
+      file.type ===
+      "application/pdf";
+
+    if (!esImagen && !esPdf) {
+      setError(
+        language === "es"
+          ? "El documento debe ser una imagen o un archivo PDF."
+          : "The document must be an image or PDF file."
+      );
+      return;
+    }
+
+    if (
+      file.size >
+      10 * 1024 * 1024
+    ) {
+      setError(
+        language === "es"
+          ? "El documento no puede superar 10 MB."
+          : "The document cannot exceed 10 MB."
+      );
+      return;
+    }
+
+    setArchivosSolicitud(
+      (actual) => ({
+        ...actual,
+        [solicitudId]:
+          file,
+      })
+    );
+  }
+
+  async function enviarDocumentoSolicitado(
+    solicitud: SolicitudDocumentoPendiente
+  ) {
+    const file =
+      archivosSolicitud[
+        solicitud.id
+      ];
+
+    if (!file) {
+      setError(
+        language === "es"
+          ? "Selecciona primero una foto o archivo."
+          : "Select a photo or file first."
+      );
+      return;
+    }
+
+    setError("");
+    setMensajeDocumentos("");
+    setEnviandoSolicitud(
+      solicitud.id
+    );
+
+    try {
+      const {
+        data: {
+          user,
+        },
+        error:
+          userError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        userError ||
+        !user
+      ) {
+        throw new Error(
+          language === "es"
+            ? "Tu sesión ya no está disponible."
+            : "Your session is no longer available."
+        );
+      }
+
+      if (
+        user.id !==
+        solicitud.provider_id
+      ) {
+        throw new Error(
+          language === "es"
+            ? "Esta solicitud no pertenece a tu cuenta."
+            : "This request does not belong to your account."
+        );
+      }
+
+      const documentType =
+        solicitud.document_type ||
+        "other";
+
+      const extensionOriginal =
+        file.name
+          .split(".")
+          .pop()
+          ?.toLowerCase();
+
+      const extension =
+        extensionOriginal &&
+        /^[a-z0-9]{1,8}$/.test(
+          extensionOriginal
+        )
+          ? extensionOriginal
+          : file.type ===
+            "application/pdf"
+          ? "pdf"
+          : "jpg";
+
+      const ruta =
+        `${user.id}/${documentType}-${Date.now()}.${extension}`;
+
+      const {
+        error:
+          uploadError,
+      } =
+        await supabase.storage
+          .from(
+            "provider-documents"
+          )
+          .upload(
+            ruta,
+            file,
+            {
+              cacheControl:
+                "3600",
+              upsert:
+                false,
+            }
+          );
+
+      if (uploadError) {
+        throw new Error(
+          `${
+            language === "es"
+              ? "No se pudo subir el documento"
+              : "Could not upload the document"
+          }: ${uploadError.message}`
+        );
+      }
+
+      const {
+        error:
+          insertError,
+      } =
+        await supabase
+          .from(
+            "provider_documents"
+          )
+          .insert({
+            user_id:
+              user.id,
+            document_type:
+              documentType,
+            file_path:
+              ruta,
+            status:
+              "pending",
+            rejection_reason:
+              null,
+          });
+
+      if (insertError) {
+        await supabase.storage
+          .from(
+            "provider-documents"
+          )
+          .remove(
+            [ruta]
+          );
+
+        throw new Error(
+          `${
+            language === "es"
+              ? "El archivo subió, pero no se pudo registrar"
+              : "The file uploaded, but could not be registered"
+          }: ${insertError.message}`
+        );
+      }
+
+      const ahora =
+        new Date().toISOString();
+
+      const {
+        error:
+          requestError,
+      } =
+        await supabase
+          .from(
+            "provider_document_requests"
+          )
+          .update({
+            status:
+              "submitted",
+            submitted_at:
+              ahora,
+            updated_at:
+              ahora,
+          })
+          .eq(
+            "id",
+            solicitud.id
+          )
+          .eq(
+            "provider_id",
+            user.id
+          );
+
+      if (requestError) {
+        throw new Error(
+          `${
+            language === "es"
+              ? "El documento se guardó, pero no se pudo actualizar la solicitud"
+              : "The document was saved, but the request could not be updated"
+          }: ${requestError.message}`
+        );
+      }
+
+      setArchivosSolicitud(
+        (actual) => ({
+          ...actual,
+          [solicitud.id]:
+            null,
+        })
+      );
+
+      setMensajeDocumentos(
+        language === "es"
+          ? "Documento enviado correctamente. RELYDO lo revisará antes de aprobar tu cuenta."
+          : "Document sent successfully. RELYDO will review it before approving your account."
+      );
+
+      await cargarSolicitudesDocumentos(
+        user.id
+      );
+    } catch (err) {
+      console.error(
+        "Error enviando documento solicitado:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : language ===
+            "es"
+          ? "No se pudo enviar el documento."
+          : "Could not send the document."
+      );
+    } finally {
+      setEnviandoSolicitud(
+        null
+      );
+    }
+  }
+
   async function handleLogin(
     e: React.FormEvent<HTMLFormElement>
   ) {
     e.preventDefault();
 
     setError("");
+    setMensaje("");
     setCargando(true);
 
     try {
@@ -387,6 +794,10 @@ export default function LoginProfesional() {
           providerProfile.verification_status ===
           "pending"
         ) {
+          await cargarSolicitudesDocumentos(
+            user.id
+          );
+
           setEstadoCuenta("pending");
           setCargando(false);
           return;
@@ -474,10 +885,68 @@ export default function LoginProfesional() {
     }
   }
 
-  function irARecuperarContrasena() {
-    router.push(
-      "/recuperar-contrasena?tipo=profesional"
-    );
+  async function recuperarContrasena() {
+    setError("");
+    setMensaje("");
+
+    const emailLimpio =
+      email.trim().toLowerCase();
+
+    if (!emailLimpio) {
+      setError(
+        text.escribeEmail
+      );
+      return;
+    }
+
+    setRecuperando(true);
+
+    try {
+      const redirectTo =
+        `${window.location.origin}/recuperar-contrasena`;
+
+      const {
+        error: resetError,
+      } =
+        await supabase.auth.resetPasswordForEmail(
+          emailLimpio,
+          {
+            redirectTo,
+          }
+        );
+
+      if (resetError) {
+        throw new Error(
+          resetError.message
+        );
+      }
+
+      setMensaje(
+        text.correoRecuperacion
+      );
+    } catch (err) {
+      if (err instanceof Error) {
+        if (
+          err.message
+            .toLowerCase()
+            .includes("rate limit")
+        ) {
+          setError(
+            text.limiteCorreos
+          );
+        } else {
+          setError(
+            `${text.noEnviarCorreo}: ${err.message}`
+          );
+        }
+      } else {
+        setError(
+          text.noEnviarRecuperacion
+        );
+      }
+    } finally {
+      setRecuperando(false);
+    }
   }
 
   async function salirCuentaPendiente() {
@@ -524,6 +993,7 @@ export default function LoginProfesional() {
 
           <div className="p-7 md:p-9">
             {esPendiente ? (
+              <>
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
                 <p className="text-lg font-black">
                   ⏳{" "}
@@ -544,6 +1014,133 @@ export default function LoginProfesional() {
                     : "You do not need to register again."}
                 </p>
               </div>
+
+              {solicitudesDocumentos.length > 0 && (
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+                    <p className="text-lg font-black text-blue-950">
+                      📄{" "}
+                      {language === "es"
+                        ? "RELYDO necesita documentación adicional"
+                        : "RELYDO needs additional documentation"}
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-blue-900">
+                      {language === "es"
+                        ? "Puedes subir aquí los documentos solicitados aunque tu cuenta siga en revisión."
+                        : "You can upload the requested documents here even while your account is still under review."}
+                    </p>
+                  </div>
+
+                  {solicitudesDocumentos.map(
+                    (solicitud) => (
+                      <div
+                        key={
+                          solicitud.id
+                        }
+                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-black text-slate-900">
+                              {nombreTipoDocumento(
+                                solicitud.document_type
+                              )}
+                            </p>
+
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                              {
+                                solicitud.message
+                              }
+                            </p>
+                          </div>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-black ${
+                              solicitud.status ===
+                              "submitted"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {solicitud.status ===
+                            "submitted"
+                              ? language ===
+                                "es"
+                                ? "Enviado · en revisión"
+                                : "Submitted · under review"
+                              : language ===
+                                "es"
+                              ? "Pendiente"
+                              : "Pending"}
+                          </span>
+                        </div>
+
+                        {solicitud.status ===
+                          "pending" && (
+                          <div className="mt-4 space-y-3">
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              disabled={
+                                enviandoSolicitud ===
+                                solicitud.id
+                              }
+                              onChange={(e) =>
+                                seleccionarArchivoSolicitud(
+                                  solicitud.id,
+                                  e.target.files?.[
+                                    0
+                                  ] ||
+                                    null
+                                )
+                              }
+                              className="block w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm text-slate-700"
+                            />
+
+                            <button
+                              type="button"
+                              disabled={
+                                enviandoSolicitud ===
+                                  solicitud.id ||
+                                !archivosSolicitud[
+                                  solicitud.id
+                                ]
+                              }
+                              onClick={() =>
+                                enviarDocumentoSolicitado(
+                                  solicitud
+                                )
+                              }
+                              className="w-full rounded-xl bg-blue-700 px-5 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {enviandoSolicitud ===
+                              solicitud.id
+                                ? language ===
+                                  "es"
+                                  ? "Subiendo..."
+                                  : "Uploading..."
+                                : language ===
+                                  "es"
+                                ? "Subir documento solicitado"
+                                : "Upload requested document"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+
+                  {mensajeDocumentos && (
+                    <div className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-bold text-green-800">
+                      {
+                        mensajeDocumentos
+                      }
+                    </div>
+                  )}
+                </div>
+              )}
+              </>
             ) : esRechazada ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950">
                 <p className="text-lg font-black">
@@ -666,14 +1263,16 @@ export default function LoginProfesional() {
               <button
                 type="button"
                 onClick={
-                  irARecuperarContrasena
+                  recuperarContrasena
                 }
                 disabled={
-                  cargando
+                  recuperando
                 }
                 className="text-sm font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {text.olvidoPassword}
+                {recuperando
+                  ? text.enviandoCorreo
+                  : text.olvidoPassword}
               </button>
 
             </div>
@@ -686,12 +1285,17 @@ export default function LoginProfesional() {
             </div>
           )}
 
-
+          {mensaje && (
+            <div className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-medium text-green-700">
+              {mensaje}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={
-              cargando
+              cargando ||
+              recuperando
             }
             className="w-full rounded-xl bg-blue-700 py-4 text-lg font-extrabold text-white shadow-md transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -699,6 +1303,22 @@ export default function LoginProfesional() {
               ? text.entrando
               : text.iniciarSesion}
           </button>
+
+          <div className="border-t border-slate-200 pt-6">
+
+            <p className="text-center text-slate-600">
+              {text.noCuenta}{" "}
+
+              <a
+                href="/registro-profesional"
+                className="font-bold text-blue-700 hover:underline"
+              >
+                {text.registrate}
+              </a>
+
+            </p>
+
+          </div>
 
         </form>
 

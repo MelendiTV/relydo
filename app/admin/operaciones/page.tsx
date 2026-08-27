@@ -717,6 +717,18 @@ export default function AdminPage() {
   ] =
     useState(false);
 
+  const [
+    solicitudDocsPorEmail,
+    setSolicitudDocsPorEmail,
+  ] =
+    useState(true);
+
+  const [
+    solicitudDocsPorSms,
+    setSolicitudDocsPorSms,
+  ] =
+    useState(false);
+
 
   /*
     MODAL DE RESOLUCIÓN PARCIAL
@@ -1822,6 +1834,19 @@ export default function AdminPage() {
   function abrirSolicitudDocumentos(
     provider: Provider
   ) {
+    const contacto =
+      datosContactoProfesional(
+        provider
+      );
+
+    const tieneEmail =
+      contacto.email !==
+      "No registrado";
+
+    const tieneTelefono =
+      contacto.phone !==
+      "No registrado";
+
     setSolicitudDocsProvider(
       provider
     );
@@ -1833,6 +1858,16 @@ export default function AdminPage() {
     );
     setSolicitudDocsError(
       ""
+    );
+
+    // Email queda seleccionado por defecto cuando existe.
+    // Si no hay email pero sí teléfono, usamos SMS por defecto.
+    setSolicitudDocsPorEmail(
+      tieneEmail
+    );
+    setSolicitudDocsPorSms(
+      !tieneEmail &&
+        tieneTelefono
     );
   }
 
@@ -1853,6 +1888,12 @@ export default function AdminPage() {
     setSolicitudDocsError(
       ""
     );
+    setSolicitudDocsPorEmail(
+      true
+    );
+    setSolicitudDocsPorSms(
+      false
+    );
   }
 
   async function solicitarDocumentos() {
@@ -1866,6 +1907,39 @@ export default function AdminPage() {
     if (!mensajeSolicitud) {
       setSolicitudDocsError(
         "Escribe qué documento o información necesita enviar el profesional."
+      );
+      return;
+    }
+
+    const contacto =
+      datosContactoProfesional(
+        solicitudDocsProvider
+      );
+
+    const tieneEmail =
+      contacto.email !==
+      "No registrado";
+
+    const tieneTelefono =
+      contacto.phone !==
+      "No registrado";
+
+    if (
+      solicitudDocsPorEmail &&
+      !tieneEmail
+    ) {
+      setSolicitudDocsError(
+        "Este profesional no tiene un correo electrónico registrado."
+      );
+      return;
+    }
+
+    if (
+      solicitudDocsPorSms &&
+      !tieneTelefono
+    ) {
+      setSolicitudDocsError(
+        "Este profesional no tiene un teléfono registrado."
       );
       return;
     }
@@ -1900,7 +1974,12 @@ export default function AdminPage() {
           ? null
           : solicitudDocsTipo;
 
-      const { error: insertError } =
+      const {
+        data:
+          solicitudCreada,
+        error:
+          insertError,
+      } =
         await supabase
           .from(
             "provider_document_requests"
@@ -1918,11 +1997,19 @@ export default function AdminPage() {
               mensajeSolicitud,
             status:
               "pending",
-          });
+          })
+          .select("id")
+          .single();
 
-      if (insertError) {
+      if (
+        insertError ||
+        !solicitudCreada?.id
+      ) {
         throw new Error(
-          `No se pudo crear la solicitud de documentos: ${insertError.message}`
+          `No se pudo crear la solicitud de documentos: ${
+            insertError?.message ||
+            "No se obtuvo el ID de la solicitud."
+          }`
         );
       }
 
@@ -1930,8 +2017,115 @@ export default function AdminPage() {
         solicitudDocsProvider.business_name ||
         "el profesional";
 
+      let avisoNotificacion =
+        "";
+
+      if (
+        solicitudDocsPorEmail ||
+        solicitudDocsPorSms
+      ) {
+        const {
+          data: {
+            session,
+          },
+        } =
+          await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          avisoNotificacion =
+            " La solicitud quedó guardada, pero no se pudo iniciar el envío externo porque la sesión de Admin no tiene un token disponible.";
+        } else {
+          try {
+            const response =
+              await fetch(
+                "/api/provider-document-request",
+                {
+                  method:
+                    "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                    Authorization:
+                      `Bearer ${session.access_token}`,
+                  },
+                  body:
+                    JSON.stringify({
+                      requestId:
+                        solicitudCreada.id,
+                      sendEmail:
+                        solicitudDocsPorEmail,
+                      sendSms:
+                        solicitudDocsPorSms,
+                    }),
+                }
+              );
+
+            const resultado =
+              await response.json();
+
+            if (!response.ok) {
+              avisoNotificacion =
+                ` La solicitud quedó guardada, pero hubo un problema enviando la notificación: ${
+                  resultado?.error ||
+                  "Error de notificación."
+                }`;
+            } else {
+              const partes:
+                string[] =
+                [];
+
+              if (
+                solicitudDocsPorEmail
+              ) {
+                partes.push(
+                  resultado?.email?.sent
+                    ? "correo enviado"
+                    : `correo no enviado${
+                        resultado?.email?.error
+                          ? ` (${resultado.email.error})`
+                          : ""
+                      }`
+                );
+              }
+
+              if (
+                solicitudDocsPorSms
+              ) {
+                partes.push(
+                  resultado?.sms?.sent
+                    ? "SMS enviado"
+                    : `SMS no enviado${
+                        resultado?.sms?.error
+                          ? ` (${resultado.sms.error})`
+                          : ""
+                      }`
+                );
+              }
+
+              if (
+                partes.length >
+                0
+              ) {
+                avisoNotificacion =
+                  ` Notificación: ${partes.join(
+                    " · "
+                  )}.`;
+              }
+            }
+          } catch (notificationError) {
+            console.error(
+              "Error enviando notificación de documentos:",
+              notificationError
+            );
+
+            avisoNotificacion =
+              " La solicitud quedó guardada, pero no se pudo completar el envío externo.";
+          }
+        }
+      }
+
       setMensaje(
-        `Solicitud de documentos enviada correctamente a ${nombre}.`
+        `Solicitud de documentos creada correctamente para ${nombre}.${avisoNotificacion}`
       );
 
       setSolicitudDocsProvider(
@@ -1945,6 +2139,12 @@ export default function AdminPage() {
       );
       setSolicitudDocsError(
         ""
+      );
+      setSolicitudDocsPorEmail(
+        true
+      );
+      setSolicitudDocsPorSms(
+        false
       );
 
       await cargarDatos();
@@ -4905,9 +5105,114 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                El profesional podrá ver esta solicitud en RELYDO. En el siguiente paso conectaremos su panel para que pueda responder y subir únicamente la documentación solicitada.
-              </div>
+              {(() => {
+                const contacto =
+                  datosContactoProfesional(
+                    solicitudDocsProvider
+                  );
+
+                const tieneEmail =
+                  contacto.email !==
+                  "No registrado";
+
+                const tieneTelefono =
+                  contacto.phone !==
+                  "No registrado";
+
+                return (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-sm font-extrabold text-slate-700">
+                        Enviar solicitud por
+                      </p>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label
+                          className={`flex items-start gap-3 rounded-xl border p-4 ${
+                            tieneEmail
+                              ? "cursor-pointer border-slate-300 bg-white"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              solicitudDocsPorEmail &&
+                              tieneEmail
+                            }
+                            disabled={
+                              solicitandoDocs ||
+                              !tieneEmail
+                            }
+                            onChange={(e) =>
+                              setSolicitudDocsPorEmail(
+                                e.target.checked
+                              )
+                            }
+                            className="mt-1 h-4 w-4"
+                          />
+
+                          <span>
+                            <span className="block font-extrabold text-slate-900">
+                              ✉️ Correo electrónico
+                            </span>
+                            <span className="mt-1 block break-all text-sm text-slate-600">
+                              {tieneEmail
+                                ? contacto.email
+                                : "No hay correo registrado"}
+                            </span>
+                          </span>
+                        </label>
+
+                        <label
+                          className={`flex items-start gap-3 rounded-xl border p-4 ${
+                            tieneTelefono
+                              ? "cursor-pointer border-slate-300 bg-white"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              solicitudDocsPorSms &&
+                              tieneTelefono
+                            }
+                            disabled={
+                              solicitandoDocs ||
+                              !tieneTelefono
+                            }
+                            onChange={(e) =>
+                              setSolicitudDocsPorSms(
+                                e.target.checked
+                              )
+                            }
+                            className="mt-1 h-4 w-4"
+                          />
+
+                          <span>
+                            <span className="block font-extrabold text-slate-900">
+                              📱 Mensaje de texto (SMS)
+                            </span>
+                            <span className="mt-1 block text-sm text-slate-600">
+                              {tieneTelefono
+                                ? contacto.phone
+                                : "No hay teléfono registrado"}
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+
+                      <p className="mt-2 text-xs font-semibold text-slate-500">
+                        RELYDO detecta automáticamente el correo y el teléfono guardados por el profesional. No tienes que escribirlos manualmente.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                      La solicitud siempre quedará registrada en RELYDO. Si seleccionas correo o SMS, el profesional recibirá un enlace para iniciar sesión y subir únicamente la documentación solicitada aunque su cuenta continúe en revisión.
+                    </div>
+                  </div>
+                );
+              })()}
 
               {solicitudDocsError && (
                 <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-700">
