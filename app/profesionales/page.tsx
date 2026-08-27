@@ -24,7 +24,6 @@ type Profesional = {
   active: boolean | null;
   city: string | null;
   state: string | null;
-  zip: string | null;
 };
 
 function nombreOficio(
@@ -189,7 +188,6 @@ function ProfesionalesContenido() {
 
     let customerCity = "";
     let customerState = "";
-    let customerZip = "";
 
     const {
       data: authData,
@@ -200,7 +198,7 @@ function ProfesionalesContenido() {
         data: customerProfile,
       } = await supabase
         .from("profiles")
-        .select("city, state, zip")
+        .select("city, state")
         .eq("id", authData.user.id)
         .maybeSingle();
 
@@ -208,8 +206,6 @@ function ProfesionalesContenido() {
         customerProfile?.city?.trim() || "";
       customerState =
         customerProfile?.state?.trim() || "";
-      customerZip =
-        customerProfile?.zip?.trim() || "";
     }
 
     const {
@@ -230,8 +226,7 @@ function ProfesionalesContenido() {
         verified,
         active,
         city,
-        state,
-        zip
+        state
       `)
       .eq("verification_status", "verified")
       .eq("verified", true)
@@ -263,9 +258,6 @@ function ProfesionalesContenido() {
     const estadoCliente =
       normalizar(customerState);
 
-    const zipCliente =
-      normalizar(customerZip);
-
     const filtrados = (data || []).filter(
       (profesional) => {
         const tradeProfesional =
@@ -292,11 +284,6 @@ function ProfesionalesContenido() {
             profesional.state
           );
 
-        const zipProfesional =
-          normalizar(
-            profesional.zip
-          );
-
         if (
           ciudadCliente &&
           estadoCliente
@@ -306,13 +293,6 @@ function ProfesionalesContenido() {
               ciudadCliente &&
             estadoProfesional ===
               estadoCliente
-          );
-        }
-
-        if (zipCliente) {
-          return (
-            zipProfesional ===
-            zipCliente
           );
         }
 
