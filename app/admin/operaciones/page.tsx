@@ -1689,6 +1689,66 @@ export default function AdminPage() {
     );
   }
 
+  async function eliminarSolicitudDocumentos(
+    solicitud: ProviderDocumentRequest
+  ) {
+    const confirmar =
+      window.confirm(
+        solicitud.status ===
+          "submitted"
+          ? "¿Eliminar esta solicitud de documentos? El documento que el profesional ya haya subido NO se eliminará del expediente."
+          : "¿Eliminar esta solicitud de documentos? El profesional dejará de verla como solicitud pendiente."
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setProcesando(
+      solicitud.id
+    );
+    setError("");
+    setMensaje("");
+
+    try {
+      const {
+        error:
+          deleteError,
+      } =
+        await supabase
+          .from(
+            "provider_document_requests"
+          )
+          .delete()
+          .eq(
+            "id",
+            solicitud.id
+          );
+
+      if (deleteError) {
+        throw new Error(
+          `No se pudo eliminar la solicitud: ${deleteError.message}`
+        );
+      }
+
+      setMensaje(
+        "Solicitud de documentación eliminada correctamente."
+      );
+
+      await cargarDatos();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo eliminar la solicitud de documentación."
+      );
+    } finally {
+      setProcesando(
+        null
+      );
+    }
+  }
+
   function toggleExpediente(
     userId: string
   ) {
@@ -4365,8 +4425,8 @@ export default function AdminPage() {
                                         key={solicitud.id}
                                         className="rounded-xl border border-slate-200 bg-white p-4"
                                       >
-                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                          <div>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                          <div className="min-w-0 flex-1">
                                             <p className="font-extrabold text-slate-900">
                                               {nombreTipoDocumento(
                                                 solicitud.document_type
@@ -4378,19 +4438,51 @@ export default function AdminPage() {
                                             </p>
                                           </div>
 
-                                          <span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${
-                                            solicitud.status === "completed"
-                                              ? "bg-green-100 text-green-800"
-                                              : solicitud.status === "cancelled"
-                                              ? "bg-slate-200 text-slate-700"
-                                              : "bg-amber-100 text-amber-800"
-                                          }`}>
-                                            {solicitud.status}
-                                          </span>
+                                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                            <span
+                                              className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${
+                                                solicitud.status === "completed"
+                                                  ? "bg-green-100 text-green-800"
+                                                  : solicitud.status === "cancelled"
+                                                  ? "bg-slate-200 text-slate-700"
+                                                  : solicitud.status === "submitted"
+                                                  ? "bg-blue-100 text-blue-800"
+                                                  : "bg-amber-100 text-amber-800"
+                                              }`}
+                                            >
+                                              {solicitud.status === "completed"
+                                                ? "Completada"
+                                                : solicitud.status === "cancelled"
+                                                ? "Cancelada"
+                                                : solicitud.status === "submitted"
+                                                ? "Enviada"
+                                                : "Pendiente"}
+                                            </span>
+
+                                            <button
+                                              type="button"
+                                              disabled={
+                                                procesando ===
+                                                solicitud.id
+                                              }
+                                              onClick={() =>
+                                                eliminarSolicitudDocumentos(
+                                                  solicitud
+                                                )
+                                              }
+                                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                              {procesando ===
+                                              solicitud.id
+                                                ? "Eliminando..."
+                                                : "🗑 Eliminar"}
+                                            </button>
+                                          </div>
                                         </div>
 
                                         <p className="mt-3 text-xs text-slate-500">
-                                          Solicitado: {formatearFecha(
+                                          Solicitado:{" "}
+                                          {formatearFecha(
                                             solicitud.requested_at
                                           )}
                                         </p>
@@ -4995,7 +5087,7 @@ export default function AdminPage() {
 
       {solicitudDocsProvider && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-6"
           onMouseDown={(e) => {
             if (
               e.target ===
@@ -5006,7 +5098,7 @@ export default function AdminPage() {
           }}
         >
 
-          <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="my-auto w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]">
 
             <div className="bg-amber-500 px-7 py-6 text-slate-950">
 

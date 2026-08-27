@@ -62,16 +62,6 @@ type ClaimEvidence = {
   signed_url: string | null;
 };
 
-type JobMessage = {
-  id: string;
-  request_id: string;
-  sender_id: string;
-  sender_role: "customer" | "provider" | "admin";
-  message: string;
-  read_at: string | null;
-  created_at: string;
-};
-
 type Filtro =
   | "todos"
   | "open"
@@ -170,8 +160,6 @@ export default function AdminReclamosPage() {
 
   const [reclamos, setReclamos] = useState<JobClaim[]>([]);
   const [evidencias, setEvidencias] = useState<ClaimEvidence[]>([]);
-  const [mensajesChat, setMensajesChat] = useState<JobMessage[]>([]);
-  const [errorChat, setErrorChat] = useState("");
   const [solicitudes, setSolicitudes] = useState<SolicitudAdmin[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [filtro, setFiltro] = useState<Filtro>("todos");
@@ -234,7 +222,6 @@ export default function AdminReclamosPage() {
         solicitudesResp,
         providersResp,
         evidenceResp,
-        chatResp,
       ] = await Promise.all([
         supabase
           .from("job_claims")
@@ -295,20 +282,6 @@ export default function AdminReclamosPage() {
           `)
           .order("created_at", { ascending: true })
           .limit(2000),
-
-        supabase
-          .from("job_messages")
-          .select(`
-            id,
-            request_id,
-            sender_id,
-            sender_role,
-            message,
-            read_at,
-            created_at
-          `)
-          .order("created_at", { ascending: true })
-          .limit(5000),
       ]);
 
       if (claimsResp.error) {
@@ -334,22 +307,6 @@ export default function AdminReclamosPage() {
       setProviders(
         (providersResp.data || []) as Provider[]
       );
-
-      if (chatResp.error) {
-        console.error(
-          "Error cargando historial del chat:",
-          chatResp.error
-        );
-        setMensajesChat([]);
-        setErrorChat(
-          "No pudimos cargar el historial del chat. Revisa los permisos de lectura de job_messages para Admin."
-        );
-      } else {
-        setMensajesChat(
-          (chatResp.data || []) as JobMessage[]
-        );
-        setErrorChat("");
-      }
 
       if (evidenceResp.error) {
         console.error(
@@ -448,6 +405,142 @@ export default function AdminReclamosPage() {
       );
     } finally {
       setProcesando(null);
+    }
+  }
+
+  async function reabrirReclamo(
+    reclamo: JobClaim
+  ) {
+    setError("");
+    setMensaje("");
+
+    if (
+      reclamo.status !==
+        "resolved" &&
+      reclamo.status !==
+        "rejected"
+    ) {
+      setError(
+        "Solo puedes reabrir un reclamo que ya esté cerrado."
+      );
+      return;
+    }
+
+    const confirmar =
+      window.confirm(
+        "¿Reabrir este caso para revisión administrativa?\n\nLa resolución económica anterior NO se revierte ni se volverá a ejecutar automáticamente. El caso se abrirá únicamente para revisión y seguimiento."
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setProcesando(
+      reclamo.id
+    );
+
+    try {
+      const {
+        error,
+      } =
+        await supabase
+          .from(
+            "job_claims"
+          )
+          .update({
+            status:
+              "reviewing",
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            reclamo.id
+          );
+
+      if (error) {
+        throw new Error(
+          error.message
+        );
+      }
+
+      setMensaje(
+        "Caso reabierto para revisión administrativa. La resolución económica anterior se conserva."
+      );
+
+      await cargar();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo reabrir el reclamo."
+      );
+    } finally {
+      setProcesando(
+        null
+      );
+    }
+  }
+
+  async function cerrarRevisionReabierta(
+    reclamo: JobClaim
+  ) {
+    setError("");
+    setMensaje("");
+
+    const confirmar =
+      window.confirm(
+        "¿Cerrar nuevamente esta revisión? Se conservará exactamente la resolución económica anterior."
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setProcesando(
+      reclamo.id
+    );
+
+    try {
+      const {
+        error,
+      } =
+        await supabase
+          .from(
+            "job_claims"
+          )
+          .update({
+            status:
+              "resolved",
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            reclamo.id
+          );
+
+      if (error) {
+        throw new Error(
+          error.message
+        );
+      }
+
+      setMensaje(
+        "Revisión reabierta cerrada. Se conservó la resolución económica anterior."
+      );
+
+      await cargar();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo cerrar nuevamente el reclamo."
+      );
+    } finally {
+      setProcesando(
+        null
+      );
     }
   }
 
@@ -603,8 +696,6 @@ export default function AdminReclamosPage() {
       return;
     }
 
-    setErrorParcial("");
-
     await resolver(
       reclamoParcial,
       "partial",
@@ -630,13 +721,6 @@ export default function AdminReclamosPage() {
   ) {
     setError("");
     setMensaje("");
-
-    if (reclamo.status !== "reviewing") {
-      setError(
-        "Primero debes pasar el reclamo a En revisión antes de tomar una decisión económica."
-      );
-      return;
-    }
 
     const evidenciasPro =
       evidencias.filter(
@@ -801,19 +885,11 @@ export default function AdminReclamosPage() {
 
       await cargar();
     } catch (err) {
-      const mensajeError =
+      setError(
         err instanceof Error
           ? err.message
-          : "No se pudo resolver el reclamo.";
-
-      if (
-        action === "partial" &&
-        reclamoParcial?.id === reclamo.id
-      ) {
-        setErrorParcial(mensajeError);
-      } else {
-        setError(mensajeError);
-      }
+          : "No se pudo resolver el reclamo."
+      );
     } finally {
       setProcesando(null);
     }
@@ -987,13 +1063,6 @@ export default function AdminReclamosPage() {
                     "provider"
                 );
 
-              const mensajesCaso =
-                mensajesChat.filter(
-                  (m) =>
-                    m.request_id ===
-                    reclamo.request_id
-                );
-
               const respondio =
                 Boolean(
                   reclamo.provider_response ||
@@ -1010,6 +1079,13 @@ export default function AdminReclamosPage() {
               const activo =
                 reclamo.status === "open" ||
                 reclamo.status === "reviewing";
+
+              const esReabierto =
+                reclamo.status === "reviewing" &&
+                Boolean(
+                  reclamo.resolved_at ||
+                  reclamo.resolution_type
+                );
 
               return (
                 <details
@@ -1077,7 +1153,7 @@ export default function AdminReclamosPage() {
                         titulo="Cliente"
                         valor={
                           trabajo?.customer_name ||
-                          "Cliente RELYDO"
+                          "Cliente FixFlow"
                         }
                         secundario={
                           trabajo?.customer_email ||
@@ -1089,7 +1165,7 @@ export default function AdminReclamosPage() {
                         titulo="Profesional"
                         valor={
                           profesional?.business_name ||
-                          "Profesional RELYDO"
+                          "Profesional FixFlow"
                         }
                         secundario={
                           profesional
@@ -1194,89 +1270,6 @@ export default function AdminReclamosPage() {
                       </div>
                     </div>
 
-                    <div className="mt-5 rounded-2xl border border-slate-300 bg-white p-5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-black uppercase text-slate-500">
-                            💬 Historial del chat
-                          </p>
-                          <h3 className="mt-1 text-xl font-black text-slate-950">
-                            Conversación del trabajo
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-500">
-                            Solo lectura para Admin. Los mensajes se muestran en orden cronológico.
-                          </p>
-                        </div>
-
-                        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">
-                          {mensajesCaso.length} mensaje
-                          {mensajesCaso.length === 1 ? "" : "s"}
-                        </span>
-                      </div>
-
-                      {errorChat ? (
-                        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-                          {errorChat}
-                        </div>
-                      ) : mensajesCaso.length === 0 ? (
-                        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
-                          <p className="font-black text-slate-700">
-                            No hubo mensajes entre el cliente y el profesional en este trabajo.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          {mensajesCaso.map((item) => {
-                            const esCliente =
-                              item.sender_role === "customer";
-                            const esProfesional =
-                              item.sender_role === "provider";
-
-                            const etiqueta =
-                              esCliente
-                                ? "Cliente"
-                                : esProfesional
-                                ? "Profesional"
-                                : "Admin RELYDO";
-
-                            const claseMensaje =
-                              esCliente
-                                ? "border-blue-200 bg-blue-50"
-                                : esProfesional
-                                ? "border-emerald-200 bg-emerald-50"
-                                : "border-purple-200 bg-purple-50";
-
-                            const claseEtiqueta =
-                              esCliente
-                                ? "text-blue-700"
-                                : esProfesional
-                                ? "text-emerald-700"
-                                : "text-purple-700";
-
-                            return (
-                              <div
-                                key={item.id}
-                                className={`rounded-xl border p-4 ${claseMensaje}`}
-                              >
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                  <p className={`text-xs font-black uppercase tracking-wide ${claseEtiqueta}`}>
-                                    {etiqueta}
-                                  </p>
-                                  <p className="text-xs font-semibold text-slate-500">
-                                    {formatearFecha(item.created_at)}
-                                  </p>
-                                </div>
-
-                                <p className="mt-2 whitespace-pre-wrap break-words leading-6 text-slate-800">
-                                  {item.message}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
                     {reclamo.resolution_notes && (
                       <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-5">
                         <p className="font-black text-blue-900">
@@ -1313,7 +1306,18 @@ export default function AdminReclamosPage() {
                       </div>
                     )}
 
-                    {activo && (
+                    {esReabierto && (
+                      <div className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-5 text-purple-950">
+                        <p className="font-black">
+                          ↻ Caso reabierto para revisión administrativa
+                        </p>
+                        <p className="mt-2 text-sm leading-6">
+                          La resolución económica anterior se conserva. Para evitar pagos o reembolsos duplicados, las acciones económicas permanecen bloqueadas en esta revisión reabierta.
+                        </p>
+                      </div>
+                    )}
+
+                    {activo && !esReabierto && (
                       <div className="mt-5">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                           {reclamo.status === "open" && (
@@ -1334,61 +1338,103 @@ export default function AdminReclamosPage() {
                             </button>
                           )}
 
-                          {reclamo.status === "reviewing" && (
-                            <>
-                              <button
-                                type="button"
-                                disabled={
-                                  procesando ===
-                                  reclamo.id
-                                }
-                                onClick={() =>
-                                  resolver(
-                                    reclamo,
-                                    "pay_provider"
-                                  )
-                                }
-                                className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                              >
-                                💰 Pagar profesional
-                              </button>
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                              reclamo.id
+                            }
+                            onClick={() =>
+                              resolver(
+                                reclamo,
+                                "pay_provider"
+                              )
+                            }
+                            className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            💰 Pagar profesional
+                          </button>
 
-                              <button
-                                type="button"
-                                disabled={
-                                  procesando ===
-                                  reclamo.id
-                                }
-                                onClick={() =>
-                                  resolver(
-                                    reclamo,
-                                    "refund_customer"
-                                  )
-                                }
-                                className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                              >
-                                ↩️ Reembolsar cliente
-                              </button>
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                              reclamo.id
+                            }
+                            onClick={() =>
+                              resolver(
+                                reclamo,
+                                "refund_customer"
+                              )
+                            }
+                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            ↩️ Reembolsar cliente
+                          </button>
 
-                              <button
-                                type="button"
-                                disabled={
-                                  procesando ===
-                                    reclamo.id ||
-                                  cargandoParcial
-                                }
-                                onClick={() =>
-                                  abrirParcial(
-                                    reclamo
-                                  )
-                                }
-                                className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                              >
-                                ⚖️ Resolución parcial
-                              </button>
-                            </>
-                          )}
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                                reclamo.id ||
+                              cargandoParcial
+                            }
+                            onClick={() =>
+                              abrirParcial(
+                                reclamo
+                              )
+                            }
+                            className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            ⚖️ Resolución parcial
+                          </button>
                         </div>
+                      </div>
+                    )}
+
+                    {esReabierto && (
+                      <div className="mt-5">
+                        <button
+                          type="button"
+                          disabled={
+                            procesando ===
+                            reclamo.id
+                          }
+                          onClick={() =>
+                            cerrarRevisionReabierta(
+                              reclamo
+                            )
+                          }
+                          className="w-full rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white transition hover:bg-purple-800 disabled:opacity-50"
+                        >
+                          {procesando ===
+                          reclamo.id
+                            ? "Procesando..."
+                            : "✓ Cerrar revisión reabierta"}
+                        </button>
+                      </div>
+                    )}
+
+                    {!activo && (
+                      <div className="mt-5">
+                        <button
+                          type="button"
+                          disabled={
+                            procesando ===
+                            reclamo.id
+                          }
+                          onClick={() =>
+                            reabrirReclamo(
+                              reclamo
+                            )
+                          }
+                          className="w-full rounded-xl border-2 border-purple-600 bg-purple-50 px-5 py-3 font-extrabold text-purple-800 transition hover:bg-purple-100 disabled:opacity-50"
+                        >
+                          {procesando ===
+                          reclamo.id
+                            ? "Procesando..."
+                            : "↻ Reabrir caso"}
+                        </button>
                       </div>
                     )}
 
@@ -1447,7 +1493,7 @@ export default function AdminReclamosPage() {
                     e.target.value
                   )
                 }
-                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-white px-4 py-3 font-bold text-slate-950 placeholder:text-slate-500 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-bold"
               />
             </label>
 
@@ -1472,7 +1518,7 @@ export default function AdminReclamosPage() {
                   )
                 }
                 rows={4}
-                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-white px-4 py-3 font-semibold text-slate-950 placeholder:text-slate-500 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
               />
             </label>
 
@@ -1492,11 +1538,9 @@ export default function AdminReclamosPage() {
                 type="button"
                 disabled={Boolean(procesando)}
                 onClick={confirmarParcial}
-                className="rounded-xl bg-purple-700 px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-purple-700 px-5 py-3 font-black text-white disabled:opacity-50"
               >
-                {procesando === reclamoParcial.id
-                  ? "Procesando resolución..."
-                  : "Confirmar resolución"}
+                Confirmar resolución
               </button>
             </div>
           </div>
