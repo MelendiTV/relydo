@@ -15,6 +15,16 @@ type Provider = {
   bio: string | null;
   trade: string | null;
 
+  legal_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  zip_code?: string | null;
+
   years_experience: number | null;
   service_radius_miles: number | null;
 
@@ -37,6 +47,22 @@ type Provider = {
   completed_jobs: number | null;
 
   created_at?: string | null;
+};
+
+type ProviderContact = {
+  id: string;
+  full_name?: string | null;
+  legal_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  apartment?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  zip_code?: string | null;
 };
 
 type DocumentRow = {
@@ -499,6 +525,12 @@ export default function AdminPage() {
     useState<Provider[]>([]);
 
   const [
+    providerContacts,
+    setProviderContacts,
+  ] =
+    useState<Record<string, ProviderContact>>({});
+
+  const [
     documents,
     setDocuments,
   ] =
@@ -882,6 +914,47 @@ export default function AdminPage() {
       );
 
       /*
+        DATOS PERSONALES / CONTACTO DE PROFESIONALES
+      */
+
+      const providerIds = todos
+        .map((provider) => provider.user_id)
+        .filter(Boolean);
+
+      if (providerIds.length > 0) {
+        const {
+          data: providerContactData,
+          error: providerContactError,
+        } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", providerIds);
+
+        if (providerContactError) {
+          console.error(
+            "No se pudo cargar la información personal de los profesionales:",
+            providerContactError
+          );
+
+          setProviderContacts({});
+        } else {
+          const contactos =
+            (providerContactData || []) as ProviderContact[];
+
+          const contactosPorId = contactos.reduce<
+            Record<string, ProviderContact>
+          >((acumulado, contacto) => {
+            acumulado[contacto.id] = contacto;
+            return acumulado;
+          }, {});
+
+          setProviderContacts(contactosPorId);
+        }
+      } else {
+        setProviderContacts({});
+      }
+
+      /*
         SOLO PENDIENTES
       */
 
@@ -1228,22 +1301,13 @@ export default function AdminPage() {
         PROVIDER IDS
       */
 
-      const providerIds =
-        [
-          ...new Set(
-            historialBase
-              .map(
-                (item) =>
-                  item.provider_id
-              )
-              .filter(
-                (
-                  id
-                ): id is string =>
-                  Boolean(id)
-              )
-          ),
-        ];
+      const historialProviderIds: string[] = [
+        ...new Set(
+          historialBase.flatMap((item) =>
+            item.provider_id ? [item.provider_id] : []
+          )
+        ),
+      ];
 
       /*
         DATOS DE TRABAJOS
@@ -1302,7 +1366,7 @@ export default function AdminPage() {
         [];
 
       if (
-        providerIds.length >
+        historialProviderIds.length >
         0
       ) {
         const {
@@ -1321,7 +1385,7 @@ export default function AdminPage() {
           `)
           .in(
             "user_id",
-            providerIds
+            historialProviderIds
           );
 
         if (
@@ -1404,6 +1468,79 @@ export default function AdminPage() {
         item.action ===
           "provider_released"
     ).length;
+  }
+
+  function datosContactoProfesional(
+    provider: Provider
+  ) {
+    const profile =
+      providerContacts[provider.user_id] || null;
+
+    const nombre =
+      profile?.full_name ||
+      profile?.legal_name ||
+      provider.legal_name ||
+      "No registrado";
+
+    const email =
+      profile?.email ||
+      provider.email ||
+      "No registrado";
+
+    const phone =
+      profile?.phone ||
+      provider.phone ||
+      "No registrado";
+
+    const addressLine1 =
+      profile?.address_line1 ||
+      profile?.address ||
+      provider.address_line1 ||
+      "";
+
+    const addressLine2 =
+      profile?.address_line2 ||
+      profile?.apartment ||
+      provider.address_line2 ||
+      "";
+
+    const city =
+      profile?.city ||
+      provider.city ||
+      "";
+
+    const state =
+      profile?.state ||
+      provider.state ||
+      "";
+
+    const zip =
+      profile?.zip ||
+      profile?.zip_code ||
+      provider.zip ||
+      provider.zip_code ||
+      "";
+
+    const direccionPartes = [
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      zip,
+    ].filter((parte) => String(parte || "").trim());
+
+    return {
+      nombre,
+      email,
+      phone,
+      direccion:
+        direccionPartes.length > 0
+          ? direccionPartes.join(", ")
+          : "No registrada",
+      city: city || "No registrada",
+      state: state || "No registrado",
+      zip: zip || "No registrado",
+    };
   }
 
   /*
@@ -3663,6 +3800,11 @@ export default function AdminPage() {
                       provider.user_id
                     );
 
+                  const contacto =
+                    datosContactoProfesional(
+                      provider
+                    );
+
                   return (
                     <article
                       key={
@@ -3704,6 +3846,58 @@ export default function AdminPage() {
                           )}
                         </span>
 
+                      </div>
+
+                      {/* INFORMACIÓN PERSONAL Y DE CONTACTO */}
+
+                      <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+                              Información del profesional
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Datos de identidad, contacto y ubicación registrados en RELYDO.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre completo</p>
+                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.nombre}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Correo electrónico</p>
+                            <p className="mt-1 break-all font-extrabold text-slate-900">{contacto.email}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Teléfono</p>
+                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.phone}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4 sm:col-span-2 lg:col-span-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
+                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.direccion}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Ciudad</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{contacto.city}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Estado</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{contacto.state}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">ZIP</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{contacto.zip}</p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* ESTADÍSTICAS */}
@@ -4240,6 +4434,11 @@ export default function AdminPage() {
                       provider.user_id
                     );
 
+                  const contacto =
+                    datosContactoProfesional(
+                      provider
+                    );
+
                   return (
                     <article
                       key={
@@ -4287,6 +4486,25 @@ export default function AdminPage() {
                           </h3>
 
                           <div className="space-y-3 text-slate-700">
+
+                            <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre completo</p>
+                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.nombre}</p>
+                              </div>
+                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Correo electrónico</p>
+                                <p className="mt-1 break-all font-extrabold text-slate-900">{contacto.email}</p>
+                              </div>
+                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Teléfono</p>
+                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.phone}</p>
+                              </div>
+                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
+                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.direccion}</p>
+                              </div>
+                            </div>
 
                             <p>
                               <strong>
