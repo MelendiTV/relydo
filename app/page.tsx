@@ -44,10 +44,7 @@ function RotatingAd({
   ads: HomeAd[];
   label: string;
 }) {
-  const [failedImages, setFailedImages] = useState<string[]>([]);
-  const activeAds = ads.filter(
-    (ad) => ad.active && !failedImages.includes(ad.image)
-  );
+  const activeAds = ads.filter((ad) => ad.active);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -102,13 +99,6 @@ function RotatingAd({
           alt={current.alt}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
           loading="lazy"
-          onError={() => {
-            setFailedImages((currentFailed) =>
-              currentFailed.includes(current.image)
-                ? currentFailed
-                : [...currentFailed, current.image]
-            );
-          }}
         />
       </a>
     </div>
