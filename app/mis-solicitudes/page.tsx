@@ -287,6 +287,34 @@ export default function MisSolicitudesPage() {
             "Preferencias guardadas en este dispositivo.",
           cerrarAjustes:
             "Cerrar ajustes",
+          cuentaAjustes:
+            "Cuenta",
+          cuentaAjustesDesc:
+            "Administra la eliminación permanente de tu cuenta RELYDO.",
+          eliminarCuenta:
+            "Eliminar cuenta",
+          eliminarCuentaDesc:
+            "Elimina permanentemente tu cuenta y los datos personales que RELYDO no esté obligado a conservar.",
+          eliminarCuentaAviso:
+            "Esta acción no se puede deshacer.",
+          confirmarEliminarTitulo:
+            "¿Eliminar tu cuenta?",
+          confirmarEliminarDesc:
+            "Comprobaremos primero que no tengas trabajos activos ni reclamos pendientes. Si todo está cerrado, tu cuenta se eliminará.",
+          confirmarEliminarCheck:
+            "Entiendo que esta acción es permanente.",
+          cancelarEliminar:
+            "Cancelar",
+          confirmarEliminar:
+            "Eliminar mi cuenta",
+          eliminandoCuenta:
+            "Eliminando cuenta...",
+          cuentaConPendientes:
+            "No podemos eliminar tu cuenta todavía porque tienes asuntos pendientes.",
+          cuentaEliminada:
+            "Tu cuenta fue eliminada correctamente.",
+          errorEliminarCuenta:
+            "No pudimos eliminar tu cuenta.",
           resumen:
             "Resumen",
           actividad:
@@ -499,6 +527,34 @@ export default function MisSolicitudesPage() {
             "Preferences saved on this device.",
           cerrarAjustes:
             "Close settings",
+          cuentaAjustes:
+            "Account",
+          cuentaAjustesDesc:
+            "Manage permanent deletion of your RELYDO account.",
+          eliminarCuenta:
+            "Delete account",
+          eliminarCuentaDesc:
+            "Permanently delete your account and personal data RELYDO is not legally required to retain.",
+          eliminarCuentaAviso:
+            "This action cannot be undone.",
+          confirmarEliminarTitulo:
+            "Delete your account?",
+          confirmarEliminarDesc:
+            "We will first check that you have no active jobs or unresolved claims. If everything is closed, your account will be deleted.",
+          confirmarEliminarCheck:
+            "I understand that this action is permanent.",
+          cancelarEliminar:
+            "Cancel",
+          confirmarEliminar:
+            "Delete my account",
+          eliminandoCuenta:
+            "Deleting account...",
+          cuentaConPendientes:
+            "We cannot delete your account yet because you have unresolved items.",
+          cuentaEliminada:
+            "Your account was deleted successfully.",
+          errorEliminarCuenta:
+            "We could not delete your account.",
           resumen:
             "Summary",
           actividad:
@@ -625,6 +681,11 @@ export default function MisSolicitudesPage() {
 
   const [mensajeAjustes, setMensajeAjustes] =
     useState("");
+
+  const [mostrarEliminarCuenta, setMostrarEliminarCuenta] = useState(false);
+  const [confirmacionEliminar, setConfirmacionEliminar] = useState(false);
+  const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
+  const [mensajeEliminarCuenta, setMensajeEliminarCuenta] = useState("");
 
   useEffect(() => {
     cargarPanelCliente();
@@ -1323,6 +1384,58 @@ export default function MisSolicitudesPage() {
     }
   }
 
+  async function eliminarCuentaCliente() {
+    if (!confirmacionEliminar || eliminandoCuenta) return;
+
+    setEliminandoCuenta(true);
+    setMensajeEliminarCuenta("");
+
+    try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      const accessToken = sessionData.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        throw new Error(t.sesionNoDisponible);
+      }
+
+      const response = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          const details = Array.isArray(result?.pending)
+            ? result.pending.join(" · ")
+            : "";
+          throw new Error(
+            details
+              ? `${t.cuentaConPendientes} ${details}`
+              : t.cuentaConPendientes
+          );
+        }
+
+        throw new Error(result?.error || t.errorEliminarCuenta);
+      }
+
+      await supabase.auth.signOut();
+      window.location.href = `/login-cliente?account_deleted=1`;
+    } catch (error) {
+      setMensajeEliminarCuenta(
+        error instanceof Error ? error.message : t.errorEliminarCuenta
+      );
+    } finally {
+      setEliminandoCuenta(false);
+    }
+  }
+
   async function cerrarSesion() {
     await supabase.auth.signOut();
     window.location.href = "/login-cliente";
@@ -1838,7 +1951,7 @@ export default function MisSolicitudesPage() {
               </div>
             </div>
 
-            <div className="grid gap-5 p-6 md:grid-cols-2 md:p-7 xl:grid-cols-3">
+            <div className="grid gap-5 p-6 md:grid-cols-2 md:p-7 xl:grid-cols-4">
               {/* APARIENCIA */}
               <div
                 className="rounded-2xl border p-5"
@@ -2196,6 +2309,50 @@ export default function MisSolicitudesPage() {
                   )}
                 </div>
               </div>
+
+              {/* CUENTA */}
+              <div
+                className="rounded-2xl border p-5 md:col-span-2 xl:col-span-1"
+                style={{
+                  borderColor: "#fecaca",
+                  backgroundColor: temaOscuro ? "#111827" : "#fff7f7",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">👤</div>
+                  <div>
+                    <h3 className="font-black" style={{ color: textoPrincipal }}>
+                      {t.cuentaAjustes}
+                    </h3>
+                    <p className="mt-1 text-xs leading-5" style={{ color: textoSecundario }}>
+                      {t.cuentaAjustesDesc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-black text-red-800">
+                    {t.eliminarCuenta}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-red-700">
+                    {t.eliminarCuentaDesc}
+                  </p>
+                  <p className="mt-2 text-xs font-black text-red-800">
+                    {t.eliminarCuentaAviso}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarEliminarCuenta(true);
+                      setConfirmacionEliminar(false);
+                      setMensajeEliminarCuenta("");
+                    }}
+                    className="mt-4 w-full rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                  >
+                    {t.eliminarCuenta}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {mensajeAjustes && (
@@ -2212,6 +2369,63 @@ export default function MisSolicitudesPage() {
               </div>
             )}
           </section>
+        )}
+
+        {mostrarEliminarCuenta && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 shadow-2xl sm:p-7">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-2xl">
+                  ⚠️
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">
+                    {t.confirmarEliminarTitulo}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t.confirmarEliminarDesc}
+                  </p>
+                </div>
+              </div>
+
+              <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <input
+                  type="checkbox"
+                  checked={confirmacionEliminar}
+                  onChange={(event) => setConfirmacionEliminar(event.target.checked)}
+                  className="mt-1 h-4 w-4"
+                />
+                <span className="text-sm font-bold leading-6 text-red-900">
+                  {t.confirmarEliminarCheck}
+                </span>
+              </label>
+
+              {mensajeEliminarCuenta && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">
+                  {mensajeEliminarCuenta}
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  disabled={eliminandoCuenta}
+                  onClick={() => setMostrarEliminarCuenta(false)}
+                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
+                >
+                  {t.cancelarEliminar}
+                </button>
+                <button
+                  type="button"
+                  disabled={!confirmacionEliminar || eliminandoCuenta}
+                  onClick={eliminarCuentaCliente}
+                  className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {eliminandoCuenta ? t.eliminandoCuenta : t.confirmarEliminar}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* RESUMEN */}
