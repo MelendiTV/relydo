@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseServiceRoleKey = process.env.SUPABASE_SECRET_KEY!;
 
 const ACTIVE_REQUEST_STATUSES = ["open", "in_progress"];
 const ACTIVE_CLAIM_STATUSES = ["open", "reviewing", "in_review"];
