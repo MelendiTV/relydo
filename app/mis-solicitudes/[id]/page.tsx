@@ -440,6 +440,10 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Procesando...": "Processing...",
   "Enviando...": "Sending...",
   "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
+  "Selecciona una calificación de 1 a 5 estrellas.": "Select a rating from 1 to 5 stars.",
+  "Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.": "You can only attach JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.",
+  "Cada foto o video debe pesar 50 MB o menos.": "Each photo or video must be 50 MB or less.",
+  "Explica brevemente qué muestran las fotos o videos que adjuntaste.": "Briefly explain what the photos or videos you attached show.",
   "Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar el monto adicional más la tarifa de servicio correspondiente.": "If you accept, RELYDO will take you to Stripe’s secure checkout to pay the additional amount plus the applicable service fee.",
   "Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.": "Additional payment confirmed. The payment summary now includes the budget change.",
   "Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.": "Stripe confirmed the additional payment. This amount is already included in the job’s total summary.",
@@ -2800,7 +2804,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       rating > 5
     ) {
       setError(
-        "Selecciona una calificación de 1 a 5 estrellas."
+        T("Selecciona una calificación de 1 a 5 estrellas.")
       );
 
       return;
@@ -2977,7 +2981,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       invalidos.length > 0
     ) {
       setError(
-        "Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV."
+        T("Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.")
       );
       event.target.value = "";
       return;
@@ -2994,7 +2998,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       demasiadoGrandes.length > 0
     ) {
       setError(
-        "Cada foto o video debe pesar 50 MB o menos."
+        T("Cada foto o video debe pesar 50 MB o menos.")
       );
       event.target.value = "";
       return;
@@ -3234,7 +3238,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       explicacionEvidenciaCliente.trim().length < 5
     ) {
       setError(
-        "Explica brevemente qué muestran las fotos o videos que adjuntaste."
+        T("Explica brevemente qué muestran las fotos o videos que adjuntaste.")
       );
       return;
     }
@@ -5726,10 +5730,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 0 && (
                 <div className="rounded-full bg-blue-100 px-4 py-2 font-extrabold text-blue-800">
                   {ofertasPendientes}{" "}
-                  {ofertasPendientes ===
-                  1
-                    ? "presupuesto disponible"
-                    : "presupuestos disponibles"}
+                  {T(
+                    ofertasPendientes === 1
+                      ? "presupuesto disponible"
+                      : "presupuestos disponibles"
+                  )}
                 </div>
               )}
 
