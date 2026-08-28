@@ -457,9 +457,7 @@ export default function ProfesionalesHome() {
                     ? "Cómo funciona RELYDO para profesionales"
                     : "How RELYDO works for professionals"
                 }
-                className={`block h-auto w-full object-contain ${
-                  es ? "-mt-[5.7%]" : "-mt-[1.15%]"
-                }`}
+                className="-mt-[1.15%] block h-auto w-full object-contain"
                 loading="lazy"
               />
             </div>
