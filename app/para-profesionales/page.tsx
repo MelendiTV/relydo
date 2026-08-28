@@ -240,8 +240,8 @@ export default function ProfesionalesHome() {
       ];
 
   const howItWorksImage = es
-    ? "/ads/pro-how-it-works-en.png"
-    : "/ads/pro-how-it-works-es.png";
+    ? "/ads/pro-how-it-works-es.png"
+    : "/ads/pro-how-it-works-en.png";
 
   const items = [
     {
@@ -457,7 +457,9 @@ export default function ProfesionalesHome() {
                     ? "Cómo funciona RELYDO para profesionales"
                     : "How RELYDO works for professionals"
                 }
-                className="-mt-[1.15%] block h-auto w-full object-contain"
+                className={`block h-auto w-full object-contain ${
+                  es ? "-mt-[5.7%]" : "-mt-[1.15%]"
+                }`}
                 loading="lazy"
               />
             </div>
