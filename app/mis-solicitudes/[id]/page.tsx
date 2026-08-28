@@ -445,6 +445,21 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.": "Stripe confirmed the additional payment. This amount is already included in the job’s total summary.",
   "💳 Pagar adicional": "💳 Pay additional amount",
   "✓ Aceptar": "✓ Accept",
+  "¿Cómo fue tu experiencia con": "How was your experience with",
+  "tarifa RELYDO": "RELYDO fee",
+  "Total": "Total",
+  "año": "year",
+  "años": "years",
+  "Revisar y continuar": "Review and continue",
+  "Contratar por": "Hire for",
+  "Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.": "Budget change accepted. We will now take you to Stripe’s secure checkout to charge only the additional amount and the applicable service fee.",
+  "¿Confirmas que aceptas el cambio de presupuesto?": "Do you confirm that you accept the budget change?",
+
+  "Adicional": "Additional",
+  "Nuevo total": "New total",
+  "Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.": "By accepting, you will continue to Stripe’s secure checkout to pay the additional amount and the RELYDO service fee.",
+  "¿Confirmas que deseas rechazar este cambio de presupuesto por": "Are you sure you want to reject this budget change for",
+  "adicionales?": "additional?",
   "Flexible": "Flexible",
 };
 
@@ -2410,22 +2425,22 @@ export default function MisSolicitudDetallePage() {
     const confirmar =
       window.confirm(
         decision === "accepted"
-          ? `¿Confirmas que aceptas el cambio de presupuesto?
+          ? `${T("¿Confirmas que aceptas el cambio de presupuesto?")}
 
-Total anterior: $${Number(
+${T("Total anterior")}: $${Number(
               changeOrder.original_amount
             ).toFixed(2)}
-Adicional: $${Number(
+${T("Adicional")}: $${Number(
               changeOrder.additional_amount
             ).toFixed(2)}
-Nuevo total: $${Number(
+${T("Nuevo total")}: $${Number(
               changeOrder.new_total_amount
             ).toFixed(2)}
 
-Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.`
-          : `¿Confirmas que deseas rechazar este cambio de presupuesto por $${Number(
+${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.")}`
+          : `${T("¿Confirmas que deseas rechazar este cambio de presupuesto por")} $${Number(
               changeOrder.additional_amount
-            ).toFixed(2)} adicionales?`
+            ).toFixed(2)} ${T("adicionales?")}`
       );
 
     if (!confirmar) {
@@ -2530,7 +2545,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         decision === "accepted"
       ) {
         setMensaje(
-          `Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.`
+          T("Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.")
         );
 
         await pagarCambioPresupuesto(
@@ -5220,7 +5235,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   </h2>
 
                   <p className="mt-2 text-slate-600">
-                    ¿Cómo fue tu experiencia con{" "}
+                    {T("¿Cómo fue tu experiencia con")}{" "}
                     <strong>
                       {ofertaSeleccionada.profesional
                         ?.business_name ||
@@ -5802,9 +5817,11 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                           </h3>
 
                           <p className="mt-1 font-semibold text-blue-700">
-                            {nombreOficio(
-                              oferta.profesional?.trade ||
-                                null
+                            {T(
+                              nombreOficio(
+                                oferta.profesional?.trade ||
+                                  null
+                              )
                             )}
                           </p>
 
@@ -5828,10 +5845,10 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                           {paymentSettings && (
                             <>
                               <p className="mt-2 text-xs font-semibold text-green-700">
-                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} tarifa RELYDO
+                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} {T("tarifa RELYDO")}
                               </p>
                               <p className="mt-1 text-sm font-black text-green-950">
-                                Total: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
+                                {T("Total")}: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
                               </p>
                             </>
                           )}
@@ -5849,7 +5866,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                           <p className="mt-1 font-extrabold text-slate-900">
                             {mostrarMinutos(
-                              oferta.arrival_minutes
+                              oferta.arrival_minutes,
+                              language
                             )}
                           </p>
                         </div>
@@ -5861,7 +5879,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
 
                           <p className="mt-1 font-extrabold text-slate-900">
                             {mostrarMinutos(
-                              oferta.estimated_job_minutes
+                              oferta.estimated_job_minutes,
+                              language
                             )}
                           </p>
                         </div>
@@ -5887,9 +5906,12 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                           </p>
 
                           <p className="mt-1 font-extrabold text-slate-900">
-                            {oferta.profesional?.years_experience ??
-                              0}{" "}
-                            años
+                            {oferta.profesional?.years_experience ?? 0}{" "}
+                            {T(
+                              Number(oferta.profesional?.years_experience ?? 0) === 1
+                                ? "año"
+                                : "años"
+                            )}
                           </p>
                         </div>
 
@@ -5959,11 +5981,11 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                               oferta.id
                                 ? T("Contratando profesional...")
                                 : paymentSettings
-                                ? `Revisar y continuar · Total $${calcularMontosPago(
+                                ? `${T("Revisar y continuar")} · ${T("Total")} $${calcularMontosPago(
                                     oferta.price,
                                     paymentSettings
                                   ).customerTotalAmount.toFixed(2)}`
-                                : `Contratar por $${Number(
+                                : `${T("Contratar por")} $${Number(
                                     oferta.price
                                   ).toFixed(
                                     2
