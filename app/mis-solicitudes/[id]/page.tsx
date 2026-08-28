@@ -5070,14 +5070,22 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         item.file_type === "image"
                     ).length
                   }{" "}
-                  foto(s) ·{" "}
+                  {language === "en"
+                    ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                      ? "photo"
+                      : "photos"
+                    : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                      ? "foto"
+                      : "fotos"} ·{" "}
                   {
                     evidenciasFinales.filter(
                       (item) =>
                         item.file_type === "video"
                     ).length
                   }{" "}
-                  video(s)
+                  {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
+                    ? "video"
+                    : "videos"}
                 </div>
               </div>
 
@@ -5629,12 +5637,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           (file) =>
                             file.type.startsWith("image/")
                         ).length}{" "}
-                        foto(s) ·{" "}
+                        {language === "en"
+                          ? evidenciasReclamo.filter((file) => file.type.startsWith("image/")).length === 1
+                            ? "photo"
+                            : "photos"
+                          : evidenciasReclamo.filter((file) => file.type.startsWith("image/")).length === 1
+                            ? "foto"
+                            : "fotos"} ·{" "}
                         {evidenciasReclamo.filter(
                           (file) =>
                             file.type.startsWith("video/")
                         ).length}{" "}
-                        video(s)
+                        {evidenciasReclamo.filter((file) => file.type.startsWith("video/")).length === 1
+                          ? "video"
+                          : "videos"}
                       </p>
                     </div>
                   )}
