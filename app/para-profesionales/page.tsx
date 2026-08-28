@@ -231,12 +231,12 @@ export default function ProfesionalesHome() {
 
   const ads = es
     ? [
-        "/ads/ads-2.jpeg",
-        "/ads/imagen20.png",
-      ]
-    : [
         "/ads/ads-17.png",
         "/ads/imagen.png",
+      ]
+    : [
+        "/ads/ads-2.jpeg",
+        "/ads/imagen20.png",
       ];
 
   const howItWorksImage = es
