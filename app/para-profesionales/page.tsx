@@ -449,16 +449,18 @@ export default function ProfesionalesHome() {
       >
         <div className="mx-auto max-w-[1440px]">
           <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-2 shadow-[0_25px_70px_rgba(15,23,42,0.12)]">
-            <img
-              src={howItWorksImage}
-              alt={
-                es
-                  ? "Cómo funciona RELYDO para profesionales"
-                  : "How RELYDO works for professionals"
-              }
-              className="block h-auto w-full rounded-[1.55rem] object-contain"
-              loading="lazy"
-            />
+            <div className="overflow-hidden rounded-[1.55rem]">
+              <img
+                src={howItWorksImage}
+                alt={
+                  es
+                    ? "Cómo funciona RELYDO para profesionales"
+                    : "How RELYDO works for professionals"
+                }
+                className="-mt-[1.15%] block h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </div>
           </div>
         </div>
       </section>
