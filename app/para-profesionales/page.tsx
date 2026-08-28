@@ -240,8 +240,8 @@ export default function ProfesionalesHome() {
       ];
 
   const howItWorksImage = es
-    ? "/ads/pro-how-it-works-es.png"
-    : "/ads/pro-how-it-works-en.png";
+    ? "/ads/pro-how-it-works-en.png"
+    : "/ads/pro-how-it-works-es.png";
 
   const items = [
     {
