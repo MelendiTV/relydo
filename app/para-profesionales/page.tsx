@@ -239,6 +239,10 @@ export default function ProfesionalesHome() {
         "/ads/imagen.png",
       ];
 
+  const howItWorksImage = es
+    ? "/ads/pro-how-it-works-es.png"
+    : "/ads/pro-how-it-works-en.png";
+
   const items = [
     {
       title: T.w1,
@@ -441,42 +445,20 @@ export default function ProfesionalesHome() {
 
       <section
         id="como-funciona-profesional"
-        className="scroll-mt-20 bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24"
+        className="scroll-mt-20 bg-[#f6f8fc] px-5 py-12 lg:px-8 lg:py-16"
       >
         <div className="mx-auto max-w-[1440px]">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-black tracking-[0.2em] text-blue-600">
-              {T.whyEyebrow}
-            </p>
-
-            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
-              {T.why}
-            </h2>
-
-            <p className="mt-5 text-lg leading-8 text-slate-600">
-              {T.whyD}
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {items.map((item) => (
-              <div
-                key={item.number}
-                className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
-              >
-                <div className="text-4xl font-black text-blue-200">
-                  {item.number}
-                </div>
-
-                <h3 className="mt-4 text-xl font-black">
-                  {item.title}
-                </h3>
-
-                <p className="mt-3 leading-7 text-slate-600">
-                  {item.description}
-                </p>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-2 shadow-[0_25px_70px_rgba(15,23,42,0.12)]">
+            <img
+              src={howItWorksImage}
+              alt={
+                es
+                  ? "Cómo funciona RELYDO para profesionales"
+                  : "How RELYDO works for professionals"
+              }
+              className="block h-auto w-full rounded-[1.55rem] object-contain"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
