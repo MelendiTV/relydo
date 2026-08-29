@@ -1573,9 +1573,6 @@ export default function AdminPage() {
     const direccionPartes = [
       addressLine1,
       addressLine2,
-      city,
-      state,
-      zip,
     ].filter((parte) => String(parte || "").trim());
 
     return {
