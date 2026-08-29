@@ -1558,41 +1558,26 @@ export default function AdminPage() {
       provider.zip_code ||
       "";
 
-    const direccionCompleta =
-      profile?.address ||
-      "";
-
-    const escaparRegex = (valor: string) =>
-      valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const ubicacionFinal = [
-      city,
-      state,
-      zip,
-    ]
-      .filter(Boolean)
-      .map((parte) => escaparRegex(String(parte)))
-      .join("\\s*,?\\s*");
-
-    const direccionSinUbicacion =
-      direccionCompleta && ubicacionFinal
-        ? direccionCompleta
-            .replace(
-              new RegExp(
-                `,?\\s*${ubicacionFinal}\\s*$`,
-                "i"
-              ),
-              ""
-            )
-            .replace(/,\s*$/, "")
-            .trim()
-        : direccionCompleta.trim();
-
-    const addressLine1 =
+    const rawAddress =
       profile?.address_line1 ||
+      profile?.address ||
       provider.address_line1 ||
-      direccionSinUbicacion ||
       "";
+
+    const cityEscaped = String(city).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const stateEscaped = String(state).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const zipEscaped = String(zip).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const addressLine1 = String(rawAddress)
+      .replace(
+        new RegExp(
+          `,?\\s*${cityEscaped}\\s*,?\\s*${stateEscaped}\\s*,?\\s*${zipEscaped}\\s*$`,
+          "i"
+        ),
+        ""
+      )
+      .replace(/,\s*$/, "")
+      .trim();
 
     const addressLine2 =
       profile?.address_line2 ||
@@ -1603,9 +1588,7 @@ export default function AdminPage() {
     const direccionPartes = [
       addressLine1,
       addressLine2 &&
-      !String(addressLine1)
-        .toLowerCase()
-        .includes(String(addressLine2).toLowerCase())
+      !addressLine1.toLowerCase().includes(String(addressLine2).toLowerCase())
         ? addressLine2
         : "",
     ].filter((parte) => String(parte || "").trim());
