@@ -1541,6 +1541,18 @@ export default function AdminPage() {
       provider.phone ||
       "No registrado";
 
+    const addressLine1 =
+      profile?.address_line1 ||
+      profile?.address ||
+      provider.address_line1 ||
+      "";
+
+    const addressLine2 =
+      profile?.address_line2 ||
+      profile?.apartment ||
+      provider.address_line2 ||
+      "";
+
     const city =
       profile?.city ||
       provider.city ||
@@ -1558,39 +1570,9 @@ export default function AdminPage() {
       provider.zip_code ||
       "";
 
-    const rawAddress =
-      profile?.address_line1 ||
-      profile?.address ||
-      provider.address_line1 ||
-      "";
-
-    const cityEscaped = String(city).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const stateEscaped = String(state).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const zipEscaped = String(zip).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const addressLine1 = String(rawAddress)
-      .replace(
-        new RegExp(
-          `,?\\s*${cityEscaped}\\s*,?\\s*${stateEscaped}\\s*,?\\s*${zipEscaped}\\s*$`,
-          "i"
-        ),
-        ""
-      )
-      .replace(/,\s*$/, "")
-      .trim();
-
-    const addressLine2 =
-      profile?.address_line2 ||
-      profile?.apartment ||
-      provider.address_line2 ||
-      "";
-
     const direccionPartes = [
       addressLine1,
-      addressLine2 &&
-      !addressLine1.toLowerCase().includes(String(addressLine2).toLowerCase())
-        ? addressLine2
-        : "",
+      addressLine2,
     ].filter((parte) => String(parte || "").trim());
 
     return {
@@ -1605,6 +1587,41 @@ export default function AdminPage() {
       state: state || "No registrado",
       zip: zip || "No registrado",
     };
+  }
+
+  function direccionRegistradaLimpia(contacto: {
+    direccion: string;
+    city: string;
+    state: string;
+    zip: string;
+  }) {
+    let direccion = String(contacto.direccion || "").trim();
+
+    const partesUbicacion = [
+      contacto.city,
+      contacto.state,
+      contacto.zip,
+    ].filter(
+      (valor) =>
+        valor &&
+        !String(valor).toLowerCase().startsWith("no ")
+    );
+
+    const sufijo = partesUbicacion.join(", ");
+
+    if (
+      sufijo &&
+      direccion.toLowerCase().endsWith(
+        sufijo.toLowerCase()
+      )
+    ) {
+      direccion = direccion
+        .slice(0, direccion.length - sufijo.length)
+        .replace(/,\s*$/, "")
+        .trim();
+    }
+
+    return direccion || "No registrada";
   }
 
   /*
@@ -4407,7 +4424,7 @@ export default function AdminPage() {
 
                           <div className="rounded-xl border border-blue-100 bg-white p-4 sm:col-span-2 lg:col-span-3">
                             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
-                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.direccion}</p>
+                            <p className="mt-1 break-words font-extrabold text-slate-900">{direccionRegistradaLimpia(contacto)}</p>
                           </div>
 
                           <div className="rounded-xl border border-blue-100 bg-white p-4">
@@ -5116,7 +5133,7 @@ export default function AdminPage() {
                               </div>
                               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
-                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.direccion}</p>
+                                <p className="mt-1 break-words font-extrabold text-slate-900">{direccionRegistradaLimpia(contacto)}</p>
                               </div>
                             </div>
 
