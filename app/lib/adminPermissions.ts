@@ -1,222 +1,231 @@
-export type RequirementLevel =
-  | "required"
-  | "conditional"
-  | "not_required"
-  | "manual_review";
+export type AdminRole =
+  | "super_admin"
+  | "claims_manager"
+  | "finance_manager"
+  | "provider_manager"
+  | "support_agent"
+  | "operations_manager";
 
-export type ProviderRequirementInput = {
-  trade: string | null | undefined;
-  state: string | null | undefined;
-  declaredLicenseRequired?: boolean | null;
-  declaredInsured?: boolean | null;
-  declaredBonded?: boolean | null;
+export type AdminPermission =
+  | "admin_home"
+  | "claims"
+  | "orders"
+  | "finance"
+  | "financial_settings"
+  | "users"
+  | "providers"
+  | "alerts"
+  | "activity";
+
+export const ADMIN_ROLES: AdminRole[] = [
+  "super_admin",
+  "claims_manager",
+  "finance_manager",
+  "provider_manager",
+  "support_agent",
+  "operations_manager",
+];
+
+const ROLE_PERMISSIONS: Record<
+  Exclude<AdminRole, "super_admin">,
+  AdminPermission[]
+> = {
+  claims_manager: [
+    "admin_home",
+    "claims",
+  ],
+
+  finance_manager: [
+    "admin_home",
+    "finance",
+    "financial_settings",
+  ],
+
+  provider_manager: [
+    "admin_home",
+    "providers",
+  ],
+
+  support_agent: [
+    "admin_home",
+    "users",
+    "orders",
+  ],
+
+  operations_manager: [
+    "admin_home",
+    "orders",
+    "providers",
+    "alerts",
+    "activity",
+  ],
 };
 
-export type ProviderRequirementResult = {
-  jurisdiction: string;
-  license: RequirementLevel;
-  insurance: RequirementLevel;
-  bond: RequirementLevel;
-  effectiveLicenseRequired: boolean;
-  effectiveInsuranceRequired: boolean;
-  effectiveBondRequired: boolean;
-  manualReview: boolean;
-  notesEs: string[];
-  notesEn: string[];
-};
-
-/*
-  RELYDO — motor inicial de requisitos profesionales.
-
-  IMPORTANTE:
-  - Esta matriz NO sustituye asesoría legal ni una consulta oficial.
-  - La primera jurisdicción automatizada es Nevada.
-  - Nevada tiene una exención limitada para ciertos trabajos de reparación/
-    mantenimiento de menos de $1,000, pero NO cubre plomería, electricidad,
-    refrigeración, calefacción ni aire acondicionado, entre otras excepciones.
-  - Cada licencia de contratista de Nevada requiere un license bond/cash deposit.
-  - "insured" en RELYDO no se interpreta automáticamente como Workers'
-    Compensation. Por eso no convertimos un seguro genérico en requisito legal
-    automático.
-*/
-
-const normalize = (value: string | null | undefined) =>
-  String(value || "").trim().toLowerCase();
-
-export function getProviderRequirements(
-  input: ProviderRequirementInput
-): ProviderRequirementResult {
-  const trade = normalize(input.trade);
-  const state = normalize(input.state);
-
-  const declaredLicense = input.declaredLicenseRequired === true;
-  const declaredInsurance = input.declaredInsured === true;
-  const declaredBond = input.declaredBonded === true;
-
-  // Fuera de Nevada todavía no imponemos una regla legal automática.
-  // Conservamos las declaraciones del profesional y exigimos revisión manual.
-  if (state !== "nv" && state !== "nevada") {
-    return {
-      jurisdiction: state ? state.toUpperCase() : "UNKNOWN",
-      license: "manual_review",
-      insurance: declaredInsurance ? "required" : "manual_review",
-      bond: declaredBond ? "required" : "manual_review",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredBond,
-      manualReview: true,
-      notesEs: [
-        "RELYDO todavía no tiene una matriz legal automática para este estado.",
-        "Se mantienen las declaraciones del profesional y el expediente requiere revisión administrativa.",
-      ],
-      notesEn: [
-        "RELYDO does not yet have an automated legal requirements matrix for this state.",
-        "The professional's declarations are preserved and the file requires administrative review.",
-      ],
-    };
-  }
-
-  // Nevada: estas categorías no pueden usar la exención de reparación menor
-  // por el tipo de trabajo. RELYDO exige licencia para operar bajo la categoría.
-  const alwaysLicensedNevada = new Set([
-    "plumbing",
-    "electrical",
-    "hvac",
-  ]);
-
-  // Nevada reconoce clasificaciones de contratista para estas actividades,
-  // pero ciertos trabajos menores pueden caer en la exención legal si cumplen
-  // TODAS sus condiciones. Sin conocer aún cada trabajo, se marcan conditional.
-  const conditionalContractorNevada = new Set([
-    "carpentry",
-    "painting",
-    "landscaping",
-  ]);
-
-  // Renta pura de equipos no equivale a instalación/reparación HVAC.
-  // Si el servicio incluye instalación, reparación, refrigeración, calefacción
-  // o A/C, debe tratarse como HVAC.
-  if (trade === "ac_rental") {
-    return {
-      jurisdiction: "NV",
-      license: "conditional",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredBond ? "required" : "conditional",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredLicense || declaredBond,
-      manualReview: true,
-      notesEs: [
-        "La renta pura de equipos no se trata automáticamente como trabajo HVAC.",
-        "Si incluye instalación, reparación, refrigeración, calefacción o aire acondicionado, debe revisarse como HVAC.",
-        "Si opera bajo licencia de contratista de Nevada, RELYDO exige verificar también el bond de esa licencia.",
-      ],
-      notesEn: [
-        "Equipment rental alone is not automatically treated as HVAC contracting work.",
-        "If it includes installation, repair, refrigeration, heating, or air-conditioning work, it must be reviewed as HVAC.",
-        "If operating under a Nevada contractor license, RELYDO also requires verification of that license bond.",
-      ],
-    };
-  }
-
-  if (alwaysLicensedNevada.has(trade)) {
-    return {
-      jurisdiction: "NV",
-      license: "required",
-      insurance: declaredInsurance ? "required" : "conditional",
-      bond: "required",
-      effectiveLicenseRequired: true,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: true,
-      manualReview: false,
-      notesEs: [
-        "Esta categoría no puede usar la exención de reparación/mantenimiento menor de Nevada por el tipo de trabajo.",
-        "RELYDO exige licencia de contratista válida para esta categoría.",
-        "Una licencia de contratista activa de Nevada requiere un license bond o depósito en efectivo aprobado por el Board.",
-        "El seguro general declarado por el profesional se verifica si fue declarado. Workers' Compensation se trata aparte porque puede existir una exención legal.",
-      ],
-      notesEn: [
-        "This category cannot use Nevada's minor repair/maintenance exemption because of the type of work.",
-        "RELYDO requires a valid contractor license for this category.",
-        "An active Nevada contractor license requires a license bond or Board-approved cash deposit.",
-        "General insurance declared by the professional is verified when declared. Workers' Compensation is treated separately because a legal exemption may apply.",
-      ],
-    };
-  }
-
-  if (conditionalContractorNevada.has(trade)) {
-    return {
-      jurisdiction: "NV",
-      license: "conditional",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredLicense ? "required" : "conditional",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredLicense || declaredBond,
-      manualReview: !declaredLicense,
-      notesEs: [
-        "Nevada regula esta actividad como clasificación de contratista, pero ciertos trabajos menores pueden estar exentos si cumplen todas las condiciones legales.",
-        "Si el profesional declara una licencia de contratista, RELYDO exige verificarla y verificar su bond.",
-        "Un profesional sin licencia en esta categoría debe quedar limitado a trabajos legalmente exentos; la elegibilidad por trabajo se añadirá al motor de matching.",
-      ],
-      notesEn: [
-        "Nevada regulates this activity as a contractor classification, but some minor work may be exempt when every legal condition is met.",
-        "If the professional declares a contractor license, RELYDO requires verification of both the license and its bond.",
-        "An unlicensed professional in this category must be limited to legally exempt work; job-level eligibility will be added to the matching engine.",
-      ],
-    };
-  }
-
-  if (trade === "cleaning" || trade === "moving") {
-    return {
-      jurisdiction: "NV",
-      license: "not_required",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredBond ? "required" : "not_required",
-      effectiveLicenseRequired: false,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredBond,
-      manualReview: false,
-      notesEs: [
-        "RELYDO no impone automáticamente una licencia de contratista de Nevada para esta categoría.",
-        "Otros permisos, registros o licencias comerciales que puedan aplicar se revisan por separado.",
-      ],
-      notesEn: [
-        "RELYDO does not automatically impose a Nevada contractor license for this category.",
-        "Other permits, registrations, or business licenses that may apply are reviewed separately.",
-      ],
-    };
-  }
-
-  // "other" y cualquier oficio futuro desconocido nunca se autoexime.
-  return {
-    jurisdiction: "NV",
-    license: "manual_review",
-    insurance: declaredInsurance ? "required" : "manual_review",
-    bond: declaredBond ? "required" : "manual_review",
-    effectiveLicenseRequired: declaredLicense,
-    effectiveInsuranceRequired: declaredInsurance,
-    effectiveBondRequired: declaredBond,
-    manualReview: true,
-    notesEs: [
-      "Esta categoría necesita revisión manual antes de determinar sus requisitos.",
-    ],
-    notesEn: [
-      "This category requires manual review before its requirements can be determined.",
-    ],
-  };
+export function isAdminRole(
+  value: unknown
+): value is AdminRole {
+  return (
+    typeof value === "string" &&
+    ADMIN_ROLES.includes(
+      value as AdminRole
+    )
+  );
 }
 
-export function requirementLabel(
-  level: RequirementLevel,
-  language: "es" | "en" = "es"
+export function hasAdminPermission(
+  role: AdminRole,
+  permission: AdminPermission
 ) {
-  const labels = {
-    required: { es: "Requerido", en: "Required" },
-    conditional: { es: "Condicional", en: "Conditional" },
-    not_required: { es: "No requerido", en: "Not required" },
-    manual_review: { es: "Revisión manual", en: "Manual review" },
-  } as const;
+  /*
+    El Super Admin tiene acceso total a cualquier permiso
+    administrativo válido definido en AdminPermission.
 
-  return labels[level][language];
+    No depende de una lista manual que pudiera quedarse
+    incompleta al agregar nuevas áreas en el futuro.
+  */
+  if (role === "super_admin") {
+    return true;
+  }
+
+  return ROLE_PERMISSIONS[
+    role
+  ].includes(permission);
+}
+
+/*
+  Todos los empleados administrativos entran primero
+  al Home Admin.
+
+  El Home muestra únicamente las áreas autorizadas
+  para su admin_role.
+
+  Esto evita ciclos de redirección entre /admin
+  y una sección interna.
+*/
+export function defaultAdminRoute(
+  _role: AdminRole
+) {
+  return "/admin";
+}
+
+export function permissionForAdminPath(
+  pathname: string
+): AdminPermission | null {
+  if (
+    pathname === "/admin" ||
+    pathname === "/admin/"
+  ) {
+    return "admin_home";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/reclamos"
+    )
+  ) {
+    return "claims";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/ordenes"
+    )
+  ) {
+    return "orders";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/configuracion-financiera"
+    )
+  ) {
+    return "financial_settings";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/finanzas"
+    )
+  ) {
+    return "finance";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/usuarios"
+    )
+  ) {
+    return "users";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/operaciones"
+    )
+  ) {
+    return "providers";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/alertas"
+    )
+  ) {
+    return "alerts";
+  }
+
+  if (
+    pathname.startsWith(
+      "/admin/actividad"
+    )
+  ) {
+    return "activity";
+  }
+
+  return null;
+}
+
+export function adminRoleLabel(
+  role: AdminRole,
+  language: "es" | "en"
+) {
+  const labels: Record<
+    AdminRole,
+    {
+      es: string;
+      en: string;
+    }
+  > = {
+    super_admin: {
+      es: "Superadministrador",
+      en: "Super Admin",
+    },
+
+    claims_manager: {
+      es: "Responsable de reclamos",
+      en: "Claims Manager",
+    },
+
+    finance_manager: {
+      es: "Responsable de finanzas",
+      en: "Finance Manager",
+    },
+
+    provider_manager: {
+      es: "Responsable de profesionales",
+      en: "Provider Manager",
+    },
+
+    support_agent: {
+      es: "Agente de soporte",
+      en: "Support Agent",
+    },
+
+    operations_manager: {
+      es: "Responsable de operaciones",
+      en: "Operations Manager",
+    },
+  };
+
+  return labels[role][language];
 }
