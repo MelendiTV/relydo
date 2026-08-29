@@ -21,6 +21,8 @@ export default function RegistroProfesional() {
   const [registroCompletado, setRegistroCompletado] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false);
+  const [requiereLicencia, setRequiereLicencia] = useState("");
+  const [tieneSeguro, setTieneSeguro] = useState("");
 
   async function handleSubmit(
     e: React.FormEvent<HTMLFormElement>
@@ -325,21 +327,21 @@ export default function RegistroProfesional() {
               licenseRequired,
 
             license_number:
-              licenseNumber || null,
+              licenseRequired ? licenseNumber || null : null,
 
             license_state:
-              licenseState || null,
+              licenseRequired ? licenseState || null : null,
 
             license_expiration:
-              licenseExpiration || null,
+              licenseRequired ? licenseExpiration || null : null,
 
             insured,
 
             insurance_company:
-              insuranceCompany || null,
+              insured ? insuranceCompany || null : null,
 
             insurance_expiration:
-              insuranceExpiration || null,
+              insured ? insuranceExpiration || null : null,
 
             bonded,
           },
@@ -753,6 +755,8 @@ export default function RegistroProfesional() {
                       <select
                         name="license_required"
                         required
+                        value={requiereLicencia}
+                        onChange={(e) => setRequiereLicencia(e.target.value)}
                         className={inputClass}
                       >
                         <option value="">
@@ -770,6 +774,8 @@ export default function RegistroProfesional() {
 
                     </div>
 
+                    {requiereLicencia === "yes" && (
+                      <>
                     <div className="grid gap-5 md:grid-cols-2">
 
                       <div>
@@ -822,6 +828,8 @@ export default function RegistroProfesional() {
                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
                       {T("La copia de tu licencia se solicitará después de confirmar tu correo e iniciar sesión.", "A copy of your license will be requested after you confirm your email and sign in.")}
                     </div>
+                      </>
+                    )}
 
                   </div>
 
@@ -1098,6 +1106,8 @@ export default function RegistroProfesional() {
                       <select
                         name="insured"
                         required
+                        value={tieneSeguro}
+                        onChange={(e) => setTieneSeguro(e.target.value)}
                         className={inputClass}
                       >
 
@@ -1117,6 +1127,8 @@ export default function RegistroProfesional() {
 
                     </div>
 
+                    {tieneSeguro === "yes" && (
+                      <>
                     <div>
 
                       <label className={labelClass}>
@@ -1149,6 +1161,8 @@ export default function RegistroProfesional() {
                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
                       {T("Los comprobantes de seguro y bond se subirán después de confirmar tu email.", "Insurance and bond documents will be uploaded after you confirm your email.")}
                     </div>
+                      </>
+                    )}
 
                   </div>
 
