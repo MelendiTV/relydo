@@ -4,9 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {
+  AdminRole,
   hasAdminPermission,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
+import {
+  getProviderRequirements,
+  requirementLabel,
+} from "@/app/lib/providerRequirements";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -652,6 +657,14 @@ export default function AdminPage() {
     useState("");
 
   const [
+    adminRole,
+    setAdminRole,
+  ] =
+    useState<AdminRole | null>(
+      null
+    );
+
+  const [
     mensaje,
     setMensaje,
   ] =
@@ -882,6 +895,10 @@ export default function AdminPage() {
       user.email ||
       adminProfile.email ||
       "Administrador"
+    );
+
+    setAdminRole(
+      adminProfile.admin_role
     );
 
     setVerificandoAdmin(
@@ -1596,31 +1613,134 @@ export default function AdminPage() {
     );
   }
 
-  function documentoVigente(userId: string, tipo: string) {
-    return documentosOrdenados(userId).find(
-      (doc) => doc.document_type === tipo && doc.status === "approved"
-    ) || null;
+  function fechaDocumentoVencida(
+    fecha: string | null | undefined
+  ) {
+    const valor =
+      String(fecha || "").trim();
+
+    if (!valor) {
+      return false;
+    }
+
+    const fechaObj =
+      /^\d{4}-\d{2}-\d{2}$/.test(valor)
+        ? new Date(
+            `${valor}T23:59:59.999`
+          )
+        : new Date(valor);
+
+    if (
+      Number.isNaN(
+        fechaObj.getTime()
+      )
+    ) {
+      return false;
+    }
+
+    return (
+      fechaObj.getTime() <
+      Date.now()
+    );
+  }
+
+  function vencimientoDocumentoBase(
+    doc: DocumentRow,
+    provider?: Provider | null
+  ) {
+    if (doc.expiration_date) {
+      return doc.expiration_date;
+    }
+
+    if (
+      provider &&
+      doc.document_type === "license"
+    ) {
+      return provider.license_expiration;
+    }
+
+    if (
+      provider &&
+      doc.document_type === "insurance"
+    ) {
+      return provider.insurance_expiration;
+    }
+
+    return null;
+  }
+
+  function documentoAprobadoYVigente(
+    doc: DocumentRow,
+    provider?: Provider | null
+  ) {
+    if (
+      doc.status !== "approved"
+    ) {
+      return false;
+    }
+
+    const vencimiento =
+      vencimientoDocumentoBase(
+        doc,
+        provider
+      );
+
+    return !fechaDocumentoVencida(
+      vencimiento
+    );
+  }
+
+  function documentoVigente(
+    userId: string,
+    tipo: string,
+    provider?: Provider | null
+  ) {
+    return (
+      documentosOrdenados(userId).find(
+        (doc) =>
+          doc.document_type === tipo &&
+          documentoAprobadoYVigente(
+            doc,
+            provider
+          )
+      ) || null
+    );
+  }
+
+  function requisitosProfesional(
+    provider: Provider
+  ) {
+    return getProviderRequirements({
+      trade: provider.trade,
+      state: provider.state,
+      declaredLicenseRequired:
+        provider.license_required,
+      declaredInsured:
+        provider.insured,
+      declaredBonded:
+        provider.bonded,
+    });
   }
 
   function documentoEsRequerido(
     provider: Provider,
     tipo: string
   ) {
+    const requisitos =
+      requisitosProfesional(provider);
+
     if (tipo === "license") {
-      return provider.license_required === true;
+      return requisitos.effectiveLicenseRequired;
     }
 
     if (tipo === "insurance") {
-      return provider.insured === true;
+      return requisitos.effectiveInsuranceRequired;
     }
 
     if (tipo === "bond") {
-      return provider.bonded === true;
+      return requisitos.effectiveBondRequired;
     }
 
-    // "other" nunca es obligatorio de forma automática.
-    // Si Admin necesita algo adicional, una solicitud documental abierta
-    // seguirá bloqueando la aprobación hasta completarse o eliminarse.
     return false;
   }
 
@@ -1639,7 +1759,8 @@ export default function AdminPage() {
       (tipo) =>
         !documentoVigente(
           provider.user_id,
-          tipo
+          tipo,
+          provider
         )
     );
   }
@@ -1650,17 +1771,44 @@ export default function AdminPage() {
     );
   }
 
-  function documentosHistoricos(userId: string) {
-    const ordenados = documentosOrdenados(userId);
-    const vigentes = new Set<string>();
-    for (const tipo of ["license", "insurance", "bond", "other"]) {
-      const actual = ordenados.find(
-        (doc) => doc.document_type === tipo && doc.status === "approved"
-      );
-      if (actual?.id) vigentes.add(actual.id);
+  function documentosHistoricos(
+    userId: string,
+    provider?: Provider | null
+  ) {
+    const ordenados =
+      documentosOrdenados(userId);
+
+    const vigentes =
+      new Set<string>();
+
+    for (
+      const tipo of [
+        "license",
+        "insurance",
+        "bond",
+        "other",
+      ]
+    ) {
+      const actual =
+        documentoVigente(
+          userId,
+          tipo,
+          provider
+        );
+
+      if (actual?.id) {
+        vigentes.add(actual.id);
+      }
     }
+
     return ordenados.filter(
-      (doc) => doc.status !== "pending" && doc.status !== "submitted" && (!doc.id || !vigentes.has(doc.id))
+      (doc) =>
+        doc.status !== "pending" &&
+        doc.status !== "submitted" &&
+        (
+          !doc.id ||
+          !vigentes.has(doc.id)
+        )
     );
   }
 
@@ -1888,19 +2036,10 @@ export default function AdminPage() {
     doc: DocumentRow,
     provider: Provider
   ) {
-    if (doc.expiration_date) {
-      return doc.expiration_date;
-    }
-
-    if (doc.document_type === "license") {
-      return provider.license_expiration;
-    }
-
-    if (doc.document_type === "insurance") {
-      return provider.insurance_expiration;
-    }
-
-    return null;
+    return vencimientoDocumentoBase(
+      doc,
+      provider
+    );
   }
 
   /*
@@ -2330,6 +2469,22 @@ export default function AdminPage() {
           )
         : [];
 
+    const requisitos =
+      provider
+        ? requisitosProfesional(provider)
+        : null;
+
+    if (
+      nuevoEstado === "verified" &&
+      requisitos?.manualReview === true &&
+      adminRole !== "super_admin"
+    ) {
+      setError(
+        "Este oficio requiere revisión manual. Solo el Super Admin puede aprobar manualmente este expediente después de revisar sus requisitos."
+      );
+      return;
+    }
+
     if (
       nuevoEstado === "verified" &&
       requeridosFaltantes.length > 0
@@ -2356,11 +2511,18 @@ export default function AdminPage() {
       return;
     }
 
+    const requiereOverrideManual =
+      nuevoEstado === "verified" &&
+      requisitos?.manualReview === true &&
+      adminRole === "super_admin";
+
     const confirmar =
       window.confirm(
         nuevoEstado ===
           "verified"
-          ? "¿Seguro que deseas aprobar este profesional?"
+          ? requiereOverrideManual
+            ? "Este expediente requiere revisión manual. Como Super Admin puedes tomar la decisión final. ¿Confirmas que revisaste los requisitos y deseas aprobar este profesional?"
+            : "¿Seguro que deseas aprobar este profesional?"
           : "¿Seguro que deseas rechazar este profesional?"
       );
 
@@ -4411,7 +4573,7 @@ export default function AdminPage() {
 
                               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                                 {["license", "insurance", "bond", "other"].map((tipo) => {
-                                  const doc = documentoVigente(provider.user_id, tipo);
+                                  const doc = documentoVigente(provider.user_id, tipo, provider);
                                   const requerido = documentoEsRequerido(provider, tipo);
                                   const vencimiento = doc ? vencimientoDocumento(doc, provider) : null;
                                   return (
@@ -4419,6 +4581,19 @@ export default function AdminPage() {
                                       <div className="flex items-start justify-between gap-3">
                                         <div>
                                           <p className="font-extrabold text-slate-900">{nombreTipoDocumento(tipo)}</p>
+                                          {tipo !== "other" && (
+                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                              Regla {requisitosProfesional(provider).jurisdiction}:{" "}
+                                              {requirementLabel(
+                                                tipo === "license"
+                                                  ? requisitosProfesional(provider).license
+                                                  : tipo === "insurance"
+                                                  ? requisitosProfesional(provider).insurance
+                                                  : requisitosProfesional(provider).bond,
+                                                "es"
+                                              )}
+                                            </p>
+                                          )}
                                           <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-extrabold ${
                                             doc
                                               ? "bg-green-100 text-green-800"
@@ -4477,11 +4652,11 @@ export default function AdminPage() {
                                 </div>
                               )}
 
-                              {documentosHistoricos(provider.user_id).length > 0 && (
+                              {documentosHistoricos(provider.user_id, provider).length > 0 && (
                                 <details className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                                  <summary className="cursor-pointer font-extrabold text-slate-700">Historial de documentos ({documentosHistoricos(provider.user_id).length})</summary>
+                                  <summary className="cursor-pointer font-extrabold text-slate-700">Historial de documentos ({documentosHistoricos(provider.user_id, provider).length})</summary>
                                   <div className="mt-3 space-y-2">
-                                    {documentosHistoricos(provider.user_id).map((doc, index) => (
+                                    {documentosHistoricos(provider.user_id, provider).map((doc, index) => (
                                       <div key={`${doc.id || doc.file_path}-hist-${index}`} className="flex flex-col gap-2 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
                                           <p className="font-bold text-slate-800">{nombreTipoDocumento(doc.document_type)}</p>
@@ -4621,17 +4796,45 @@ export default function AdminPage() {
                                   solicitud.status === "pending" ||
                                   solicitud.status === "submitted"
                               );
+                              const requisitos =
+                                requisitosProfesional(
+                                  provider
+                                );
+                              const puedeResolverRevisionManual =
+                                requisitos.manualReview === false ||
+                                adminRole === "super_admin";
+
                               const puedeAprobar =
+                                puedeResolverRevisionManual &&
                                 requeridosFaltantes.length === 0 &&
                                 pendientesRevision.length === 0 &&
                                 solicitudesAbiertas.length === 0;
 
                               return (
                                 <>
+                                  {requisitos.manualReview &&
+                                    adminRole === "super_admin" &&
+                                    requeridosFaltantes.length === 0 &&
+                                    pendientesRevision.length === 0 &&
+                                    solicitudesAbiertas.length === 0 && (
+                                      <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                                        <p className="font-extrabold">
+                                          Revisión manual requerida
+                                        </p>
+                                        <p className="mt-1">
+                                          La matriz de {requisitos.jurisdiction} no puede decidir automáticamente este caso. Como Super Admin puedes aprobarlo después de revisar el oficio y confirmar que el profesional cumple los requisitos aplicables.
+                                        </p>
+                                      </div>
+                                    )}
+
                                   {!puedeAprobar && (
                                     <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                                       <p className="font-extrabold">Aprobación bloqueada temporalmente</p>
                                       <p className="mt-1">
+                                        {requisitos.manualReview &&
+                                        adminRole !== "super_admin"
+                                          ? `La matriz de ${requisitos.jurisdiction} marca este oficio para revisión manual. Solo el Super Admin puede tomar la decisión final. `
+                                          : ""}
                                         {requeridosFaltantes.length > 0
                                           ? `Faltan documentos obligatorios aprobados: ${requeridosFaltantes
                                               .map((tipo) => nombreTipoDocumento(tipo))

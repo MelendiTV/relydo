@@ -36,12 +36,12 @@ export type ProviderRequirementResult = {
     refrigeración, calefacción ni aire acondicionado, entre otras excepciones.
   - Cada licencia de contratista de Nevada requiere un license bond/cash deposit.
   - "insured" en RELYDO no se interpreta automáticamente como Workers'
-    Compensation. Por eso no convertimos un seguro genérico en requisito legal
-    automático.
+    Compensation.
 */
 
-const normalize = (value: string | null | undefined) =>
-  String(value || "").trim().toLowerCase();
+const normalize = (
+  value: string | null | undefined
+) => String(value || "").trim().toLowerCase();
 
 export function getProviderRequirements(
   input: ProviderRequirementInput
@@ -49,26 +49,57 @@ export function getProviderRequirements(
   const trade = normalize(input.trade);
   const state = normalize(input.state);
 
-  const declaredLicense = input.declaredLicenseRequired === true;
-  const declaredInsurance = input.declaredInsured === true;
-  const declaredBond = input.declaredBonded === true;
+  const declaredLicense =
+    input.declaredLicenseRequired === true;
 
-  // Fuera de Nevada todavía no imponemos una regla legal automática.
-  // Conservamos las declaraciones del profesional y exigimos revisión manual.
-  if (state !== "nv" && state !== "nevada") {
+  const declaredInsurance =
+    input.declaredInsured === true;
+
+  const declaredBond =
+    input.declaredBonded === true;
+
+  /*
+    ESTADOS QUE TODAVÍA NO TIENEN MATRIZ
+  */
+
+  if (
+    state !== "nv" &&
+    state !== "nevada"
+  ) {
     return {
-      jurisdiction: state ? state.toUpperCase() : "UNKNOWN",
+      jurisdiction:
+        state
+          ? state.toUpperCase()
+          : "UNKNOWN",
+
       license: "manual_review",
-      insurance: declaredInsurance ? "required" : "manual_review",
-      bond: declaredBond ? "required" : "manual_review",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredBond,
+
+      insurance:
+        declaredInsurance
+          ? "required"
+          : "manual_review",
+
+      bond:
+        declaredBond
+          ? "required"
+          : "manual_review",
+
+      effectiveLicenseRequired:
+        declaredLicense,
+
+      effectiveInsuranceRequired:
+        declaredInsurance,
+
+      effectiveBondRequired:
+        declaredBond,
+
       manualReview: true,
+
       notesEs: [
         "RELYDO todavía no tiene una matriz legal automática para este estado.",
         "Se mantienen las declaraciones del profesional y el expediente requiere revisión administrativa.",
       ],
+
       notesEn: [
         "RELYDO does not yet have an automated legal requirements matrix for this state.",
         "The professional's declarations are preserved and the file requires administrative review.",
@@ -76,41 +107,66 @@ export function getProviderRequirements(
     };
   }
 
-  // Nevada: estas categorías no pueden usar la exención de reparación menor
-  // por el tipo de trabajo. RELYDO exige licencia para operar bajo la categoría.
-  const alwaysLicensedNevada = new Set([
-    "plumbing",
-    "electrical",
-    "hvac",
-  ]);
+  /*
+    NEVADA — LICENCIA OBLIGATORIA
+  */
 
-  // Nevada reconoce clasificaciones de contratista para estas actividades,
-  // pero ciertos trabajos menores pueden caer en la exención legal si cumplen
-  // TODAS sus condiciones. Sin conocer aún cada trabajo, se marcan conditional.
-  const conditionalContractorNevada = new Set([
-    "carpentry",
-    "painting",
-    "landscaping",
-  ]);
+  const alwaysLicensedNevada =
+    new Set<string>([
+      "plumbing",
+      "electrical",
+      "hvac",
+    ]);
 
-  // Renta pura de equipos no equivale a instalación/reparación HVAC.
-  // Si el servicio incluye instalación, reparación, refrigeración, calefacción
-  // o A/C, debe tratarse como HVAC.
+  /*
+    NEVADA — LICENCIA CONDICIONAL
+  */
+
+  const conditionalContractorNevada =
+    new Set<string>([
+      "carpentry",
+      "painting",
+      "landscaping",
+    ]);
+
+  /*
+    RENTA DE AIRE ACONDICIONADO
+  */
+
   if (trade === "ac_rental") {
     return {
       jurisdiction: "NV",
+
       license: "conditional",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredBond ? "required" : "conditional",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredLicense || declaredBond,
+
+      insurance:
+        declaredInsurance
+          ? "required"
+          : "not_required",
+
+      bond:
+        declaredBond
+          ? "required"
+          : "conditional",
+
+      effectiveLicenseRequired:
+        declaredLicense,
+
+      effectiveInsuranceRequired:
+        declaredInsurance,
+
+      effectiveBondRequired:
+        declaredLicense ||
+        declaredBond,
+
       manualReview: true,
+
       notesEs: [
         "La renta pura de equipos no se trata automáticamente como trabajo HVAC.",
         "Si incluye instalación, reparación, refrigeración, calefacción o aire acondicionado, debe revisarse como HVAC.",
         "Si opera bajo licencia de contratista de Nevada, RELYDO exige verificar también el bond de esa licencia.",
       ],
+
       notesEn: [
         "Equipment rental alone is not automatically treated as HVAC contracting work.",
         "If it includes installation, repair, refrigeration, heating, or air-conditioning work, it must be reviewed as HVAC.",
@@ -119,68 +175,140 @@ export function getProviderRequirements(
     };
   }
 
-  if (alwaysLicensedNevada.has(trade)) {
+  /*
+    PLOMERÍA / ELECTRICIDAD / HVAC
+  */
+
+  if (
+    alwaysLicensedNevada.has(trade)
+  ) {
     return {
       jurisdiction: "NV",
+
       license: "required",
-      insurance: declaredInsurance ? "required" : "conditional",
+
+      insurance:
+        declaredInsurance
+          ? "required"
+          : "conditional",
+
       bond: "required",
+
       effectiveLicenseRequired: true,
-      effectiveInsuranceRequired: declaredInsurance,
+
+      effectiveInsuranceRequired:
+        declaredInsurance,
+
       effectiveBondRequired: true,
+
       manualReview: false,
+
       notesEs: [
-        "Esta categoría no puede usar la exención de reparación/mantenimiento menor de Nevada por el tipo de trabajo.",
+        "Esta categoría no puede usar la exención de reparación o mantenimiento menor de Nevada por el tipo de trabajo.",
         "RELYDO exige licencia de contratista válida para esta categoría.",
         "Una licencia de contratista activa de Nevada requiere un license bond o depósito en efectivo aprobado por el Board.",
-        "El seguro general declarado por el profesional se verifica si fue declarado. Workers' Compensation se trata aparte porque puede existir una exención legal.",
+        "El seguro declarado por el profesional se verifica si fue declarado.",
       ],
+
       notesEn: [
-        "This category cannot use Nevada's minor repair/maintenance exemption because of the type of work.",
+        "This category cannot use Nevada's minor repair or maintenance exemption because of the type of work.",
         "RELYDO requires a valid contractor license for this category.",
         "An active Nevada contractor license requires a license bond or Board-approved cash deposit.",
-        "General insurance declared by the professional is verified when declared. Workers' Compensation is treated separately because a legal exemption may apply.",
+        "Insurance declared by the professional is verified when declared.",
       ],
     };
   }
 
-  if (conditionalContractorNevada.has(trade)) {
+  /*
+    CARPINTERÍA / PINTURA / LANDSCAPING
+  */
+
+  if (
+    conditionalContractorNevada.has(
+      trade
+    )
+  ) {
     return {
       jurisdiction: "NV",
+
       license: "conditional",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredLicense ? "required" : "conditional",
-      effectiveLicenseRequired: declaredLicense,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredLicense || declaredBond,
-      manualReview: !declaredLicense,
+
+      insurance:
+        declaredInsurance
+          ? "required"
+          : "not_required",
+
+      bond:
+        declaredLicense
+          ? "required"
+          : "conditional",
+
+      effectiveLicenseRequired:
+        declaredLicense,
+
+      effectiveInsuranceRequired:
+        declaredInsurance,
+
+      effectiveBondRequired:
+        declaredLicense ||
+        declaredBond,
+
+      manualReview:
+        !declaredLicense,
+
       notesEs: [
         "Nevada regula esta actividad como clasificación de contratista, pero ciertos trabajos menores pueden estar exentos si cumplen todas las condiciones legales.",
         "Si el profesional declara una licencia de contratista, RELYDO exige verificarla y verificar su bond.",
-        "Un profesional sin licencia en esta categoría debe quedar limitado a trabajos legalmente exentos; la elegibilidad por trabajo se añadirá al motor de matching.",
+        "Un profesional sin licencia en esta categoría debe quedar limitado a trabajos legalmente exentos.",
       ],
+
       notesEn: [
         "Nevada regulates this activity as a contractor classification, but some minor work may be exempt when every legal condition is met.",
         "If the professional declares a contractor license, RELYDO requires verification of both the license and its bond.",
-        "An unlicensed professional in this category must be limited to legally exempt work; job-level eligibility will be added to the matching engine.",
+        "An unlicensed professional in this category must be limited to legally exempt work.",
       ],
     };
   }
 
-  if (trade === "cleaning" || trade === "moving") {
+  /*
+    LIMPIEZA / MUDANZAS
+  */
+
+  if (
+    trade === "cleaning" ||
+    trade === "moving"
+  ) {
     return {
       jurisdiction: "NV",
+
       license: "not_required",
-      insurance: declaredInsurance ? "required" : "not_required",
-      bond: declaredBond ? "required" : "not_required",
-      effectiveLicenseRequired: false,
-      effectiveInsuranceRequired: declaredInsurance,
-      effectiveBondRequired: declaredBond,
+
+      insurance:
+        declaredInsurance
+          ? "required"
+          : "not_required",
+
+      bond:
+        declaredBond
+          ? "required"
+          : "not_required",
+
+      effectiveLicenseRequired:
+        false,
+
+      effectiveInsuranceRequired:
+        declaredInsurance,
+
+      effectiveBondRequired:
+        declaredBond,
+
       manualReview: false,
+
       notesEs: [
         "RELYDO no impone automáticamente una licencia de contratista de Nevada para esta categoría.",
         "Otros permisos, registros o licencias comerciales que puedan aplicar se revisan por separado.",
       ],
+
       notesEn: [
         "RELYDO does not automatically impose a Nevada contractor license for this category.",
         "Other permits, registrations, or business licenses that may apply are reviewed separately.",
@@ -188,19 +316,40 @@ export function getProviderRequirements(
     };
   }
 
-  // "other" y cualquier oficio futuro desconocido nunca se autoexime.
+  /*
+    OTROS / CATEGORÍAS NUEVAS
+  */
+
   return {
     jurisdiction: "NV",
+
     license: "manual_review",
-    insurance: declaredInsurance ? "required" : "manual_review",
-    bond: declaredBond ? "required" : "manual_review",
-    effectiveLicenseRequired: declaredLicense,
-    effectiveInsuranceRequired: declaredInsurance,
-    effectiveBondRequired: declaredBond,
+
+    insurance:
+      declaredInsurance
+        ? "required"
+        : "manual_review",
+
+    bond:
+      declaredBond
+        ? "required"
+        : "manual_review",
+
+    effectiveLicenseRequired:
+      declaredLicense,
+
+    effectiveInsuranceRequired:
+      declaredInsurance,
+
+    effectiveBondRequired:
+      declaredBond,
+
     manualReview: true,
+
     notesEs: [
       "Esta categoría necesita revisión manual antes de determinar sus requisitos.",
     ],
+
     notesEn: [
       "This category requires manual review before its requirements can be determined.",
     ],
@@ -212,10 +361,25 @@ export function requirementLabel(
   language: "es" | "en" = "es"
 ) {
   const labels = {
-    required: { es: "Requerido", en: "Required" },
-    conditional: { es: "Condicional", en: "Conditional" },
-    not_required: { es: "No requerido", en: "Not required" },
-    manual_review: { es: "Revisión manual", en: "Manual review" },
+    required: {
+      es: "Requerido",
+      en: "Required",
+    },
+
+    conditional: {
+      es: "Condicional",
+      en: "Conditional",
+    },
+
+    not_required: {
+      es: "No requerido",
+      en: "Not required",
+    },
+
+    manual_review: {
+      es: "Revisión manual",
+      en: "Manual review",
+    },
   } as const;
 
   return labels[level][language];
