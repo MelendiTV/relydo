@@ -833,6 +833,10 @@ export default function RegistroProfesional() {
                           {T("HVAC / Aire acondicionado", "HVAC / Air conditioning")}
                         </option>
 
+                        <option value="ac_rental">
+                          {T("Renta de aires acondicionados", "Air conditioner rental")}
+                        </option>
+
                         <option value="carpentry">
                           {T("Carpintería", "Carpentry")}
                         </option>

@@ -49,6 +49,7 @@ function nombreOficio(
     plumbing: "Plomería",
     electrical: "Electricidad",
     hvac: "HVAC / Aire acondicionado",
+    ac_rental: "Renta de aires acondicionados",
     carpentry: "Carpintería",
     painting: "Pintura",
     landscaping: "Jardinería",
@@ -80,6 +81,7 @@ function nombreOficio(
     plumbing: "Plumbing",
     electrical: "Electrical",
     hvac: "HVAC / Air conditioning",
+    ac_rental: "Air conditioner rental",
     carpentry: "Carpentry",
     painting: "Painting",
     landscaping: "Landscaping",
@@ -293,6 +295,7 @@ function SolicitarTrabajoContenido() {
             landscaping: "Jardinería",
             cleaning: "Limpieza",
             hvac: "Aire acondicionado / HVAC",
+            acRental: "Renta de aires acondicionados",
             carpentry: "Carpintería",
             moving: "Mudanzas",
             applianceRepair:
@@ -443,6 +446,7 @@ function SolicitarTrabajoContenido() {
             landscaping: "Landscaping",
             cleaning: "Cleaning",
             hvac: "Air conditioning / HVAC",
+            acRental: "Air conditioner rental",
             carpentry: "Carpentry",
             moving: "Moving",
             applianceRepair:
@@ -1470,6 +1474,10 @@ function SolicitarTrabajoContenido() {
 
                   <option value="hvac">
                     {text.servicios.hvac}
+                  </option>
+
+                  <option value="ac_rental">
+                    {text.servicios.acRental}
                   </option>
 
                   <option value="carpentry">
