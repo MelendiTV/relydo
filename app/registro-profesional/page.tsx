@@ -604,7 +604,7 @@ export default function RegistroProfesional() {
                         required
                         type="text"
                         autoComplete="name"
-                        placeholder={T("Ej: Carlos Rodríguez", "Example: Carlos Rodriguez")}
+                        placeholder={T("Ej: Carlos Rodríguez", "Example: John Smith")}
                         className={inputClass}
                       />
                     </div>
@@ -618,7 +618,7 @@ export default function RegistroProfesional() {
                         name="business_name"
                         required
                         type="text"
-                        placeholder={T("Ej: Carlos Plumbing LLC", "Example: Carlos Plumbing LLC")}
+                        placeholder={T("Ej: Carlos Plumbing LLC", "Example: John Smith Plumbing LLC")}
                         className={inputClass}
                       />
                     </div>
