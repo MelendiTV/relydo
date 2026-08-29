@@ -636,7 +636,7 @@ export default function RegistroProfesional() {
                           required
                           type="email"
                           autoComplete="email"
-                          placeholder="tu@email.com"
+                          placeholder={T("tu@email.com", "you@email.com")}
                           className={inputClass}
                         />
 
@@ -653,7 +653,7 @@ export default function RegistroProfesional() {
                           required
                           type="tel"
                           autoComplete="tel"
-                          placeholder="(702) 555-1234"
+                          placeholder="(555) 123-4567"
                           className={inputClass}
                         />
 
@@ -787,7 +787,7 @@ export default function RegistroProfesional() {
                         <input
                           name="license_number"
                           type="text"
-                          placeholder="Ej: 012345"
+                          placeholder={T("Ej: 012345", "Example: 012345")}
                           className={inputClass}
                         />
 
