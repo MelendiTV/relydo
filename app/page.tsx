@@ -12,7 +12,7 @@ function BrandLogo() {
       <img
         src={LOGO_SRC}
         alt="RELYDO"
-        className="h-12 w-auto object-contain sm:h-14"
+        className="h-16 w-auto object-contain sm:h-20"
         onError={(event) => {
           event.currentTarget.style.display = "none";
           const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
