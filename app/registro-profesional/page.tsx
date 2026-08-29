@@ -19,6 +19,8 @@ export default function RegistroProfesional() {
   const [mensaje, setMensaje] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [registroCompletado, setRegistroCompletado] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false);
 
   async function handleSubmit(
     e: React.FormEvent<HTMLFormElement>
@@ -53,6 +55,13 @@ export default function RegistroProfesional() {
     const password = String(
       formData.get("password") || ""
     );
+
+    const confirmPassword = String(
+      formData.get("confirm_password") || ""
+    );
+
+    const acceptedTerms =
+      formData.get("accepted_terms") === "yes";
 
     const trade = String(
       formData.get("trade") || ""
@@ -126,6 +135,25 @@ export default function RegistroProfesional() {
     if (password.length < 8) {
       setError(
         T("La contraseña debe tener al menos 8 caracteres.", "Password must be at least 8 characters.")
+      );
+      setEnviando(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError(
+        T("Las contraseñas no coinciden.", "Passwords do not match.")
+      );
+      setEnviando(false);
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError(
+        T(
+          "Debes aceptar los Términos de servicio y la Política de privacidad para crear tu cuenta.",
+          "You must accept the Terms of Service and Privacy Policy to create your account."
+        )
       );
       setEnviando(false);
       return;
@@ -637,15 +665,65 @@ export default function RegistroProfesional() {
                         {T("Contraseña *", "Password *")}
                       </label>
 
-                      <input
-                        name="password"
-                        required
-                        type="password"
-                        minLength={8}
-                        autoComplete="new-password"
-                        placeholder={T("Mínimo 8 caracteres", "Minimum 8 characters")}
-                        className={inputClass}
-                      />
+                      <div className="relative">
+                        <input
+                          name="password"
+                          required
+                          type={mostrarPassword ? "text" : "password"}
+                          minLength={8}
+                          autoComplete="new-password"
+                          placeholder={T("Mínimo 8 caracteres", "Minimum 8 characters")}
+                          className={`${inputClass} pr-14`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setMostrarPassword((actual) => !actual)}
+                          className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-xl text-slate-500 transition hover:text-blue-700"
+                          aria-label={mostrarPassword
+                            ? T("Ocultar contraseña", "Hide password")
+                            : T("Mostrar contraseña", "Show password")}
+                          title={mostrarPassword
+                            ? T("Ocultar contraseña", "Hide password")
+                            : T("Mostrar contraseña", "Show password")}
+                        >
+                          {mostrarPassword ? "🙈" : "👁️"}
+                        </button>
+                      </div>
+
+                    </div>
+
+                    <div>
+
+                      <label className={labelClass}>
+                        {T("Confirmar contraseña *", "Confirm password *")}
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          name="confirm_password"
+                          required
+                          type={mostrarConfirmPassword ? "text" : "password"}
+                          minLength={8}
+                          autoComplete="new-password"
+                          placeholder={T("Escribe nuevamente tu contraseña", "Enter your password again")}
+                          className={`${inputClass} pr-14`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setMostrarConfirmPassword((actual) => !actual)}
+                          className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-xl text-slate-500 transition hover:text-blue-700"
+                          aria-label={mostrarConfirmPassword
+                            ? T("Ocultar confirmación de contraseña", "Hide password confirmation")
+                            : T("Mostrar confirmación de contraseña", "Show password confirmation")}
+                          title={mostrarConfirmPassword
+                            ? T("Ocultar confirmación de contraseña", "Hide password confirmation")
+                            : T("Mostrar confirmación de contraseña", "Show password confirmation")}
+                        >
+                          {mostrarConfirmPassword ? "🙈" : "👁️"}
+                        </button>
+                      </div>
 
                     </div>
 
@@ -1118,8 +1196,41 @@ export default function RegistroProfesional() {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-700">
-                  {T("Al registrarte, confirmas que la información suministrada es correcta y aceptas el proceso de verificación de RELYDO.", "By registering, you confirm that the information provided is accurate and agree to RELYDO’s verification process.")}
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      name="accepted_terms"
+                      value="yes"
+                      required
+                      className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
+                    />
+
+                    <span className="text-sm leading-6 text-slate-700">
+                      {T(
+                        "Confirmo que la información suministrada es correcta, acepto el proceso de verificación de RELYDO y acepto los ",
+                        "I confirm that the information provided is accurate, I agree to RELYDO’s verification process, and I accept the "
+                      )}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-blue-700 hover:underline"
+                      >
+                        {T("Términos de servicio", "Terms of Service")}
+                      </a>
+                      {T(" y la ", " and the ")}
+                      <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-blue-700 hover:underline"
+                      >
+                        {T("Política de privacidad", "Privacy Policy")}
+                      </a>
+                      .
+                    </span>
+                  </label>
                 </div>
 
                 <button
