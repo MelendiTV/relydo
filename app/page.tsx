@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/icon/relydo-logo.png";
+const LOGO_SRC = "/icon/logo-oficial.png";
 
 function BrandLogo() {
   return (
