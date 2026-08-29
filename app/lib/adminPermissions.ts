@@ -27,21 +27,9 @@ export const ADMIN_ROLES: AdminRole[] = [
 ];
 
 const ROLE_PERMISSIONS: Record<
-  AdminRole,
+  Exclude<AdminRole, "super_admin">,
   AdminPermission[]
 > = {
-  super_admin: [
-    "admin_home",
-    "claims",
-    "orders",
-    "finance",
-    "financial_settings",
-    "users",
-    "providers",
-    "alerts",
-    "activity",
-  ],
-
   claims_manager: [
     "admin_home",
     "claims",
@@ -88,13 +76,23 @@ export function hasAdminPermission(
   role: AdminRole,
   permission: AdminPermission
 ) {
+  /*
+    El Super Admin tiene acceso total a cualquier permiso
+    administrativo válido definido en AdminPermission.
+
+    No depende de una lista manual que pudiera quedarse
+    incompleta al agregar nuevas áreas en el futuro.
+  */
+  if (role === "super_admin") {
+    return true;
+  }
+
   return ROLE_PERMISSIONS[
     role
   ].includes(permission);
 }
 
 /*
-  IMPORTANTE:
   Todos los empleados administrativos entran primero
   al Home Admin.
 

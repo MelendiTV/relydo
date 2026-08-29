@@ -277,7 +277,10 @@ export default function AdminHomePage() {
         adminProfileError ||
         !adminProfile ||
         adminProfile.role !==
-          "admin"
+          "admin" ||
+        !isAdminRole(
+          adminProfile.admin_role
+        )
       ) {
         await supabase.auth.signOut();
 
@@ -295,11 +298,7 @@ export default function AdminHomePage() {
       );
 
       setAdminRole(
-        isAdminRole(
-          adminProfile.admin_role
-        )
-          ? adminProfile.admin_role
-          : "super_admin"
+        adminProfile.admin_role
       );
 
       setVerificandoAdmin(false);

@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -843,7 +847,8 @@ export default function AdminPage() {
       .select(`
         id,
         role,
-        email
+        email,
+        admin_role
       `)
       .eq("id", user.id)
       .maybeSingle();
@@ -851,7 +856,8 @@ export default function AdminPage() {
     if (
       adminProfileError ||
       !adminProfile ||
-      adminProfile.role !== "admin"
+      adminProfile.role !== "admin" ||
+      !isAdminRole(adminProfile.admin_role)
     ) {
       await supabase.auth.signOut();
 
@@ -859,6 +865,16 @@ export default function AdminPage() {
         "/login-admin"
       );
 
+      return;
+    }
+
+    if (
+      !hasAdminPermission(
+        adminProfile.admin_role,
+        "providers"
+      )
+    ) {
+      router.replace("/admin");
       return;
     }
 
@@ -1586,6 +1602,48 @@ export default function AdminPage() {
     ) || null;
   }
 
+  function documentoEsRequerido(
+    provider: Provider,
+    tipo: string
+  ) {
+    if (tipo === "license") {
+      return provider.license_required === true;
+    }
+
+    if (tipo === "insurance") {
+      return provider.insured === true;
+    }
+
+    if (tipo === "bond") {
+      return provider.bonded === true;
+    }
+
+    // "other" nunca es obligatorio de forma automática.
+    // Si Admin necesita algo adicional, una solicitud documental abierta
+    // seguirá bloqueando la aprobación hasta completarse o eliminarse.
+    return false;
+  }
+
+  function tiposDocumentosRequeridos(
+    provider: Provider
+  ) {
+    return ["license", "insurance", "bond"].filter(
+      (tipo) => documentoEsRequerido(provider, tipo)
+    );
+  }
+
+  function documentosRequeridosFaltantes(
+    provider: Provider
+  ) {
+    return tiposDocumentosRequeridos(provider).filter(
+      (tipo) =>
+        !documentoVigente(
+          provider.user_id,
+          tipo
+        )
+    );
+  }
+
   function documentosPendientesRevision(userId: string) {
     return documentosOrdenados(userId).filter(
       (doc) => doc.status === "pending" || doc.status === "submitted"
@@ -2245,13 +2303,41 @@ export default function AdminPage() {
         solicitud.status === "pending" ||
         solicitud.status === "submitted"
     );
-    const docsAprobados = userDocs.filter(
-      (doc) => doc.status === "approved"
-    );
 
-    if (nuevoEstado === "verified" && docsAprobados.length === 0) {
+    const provider =
+      todosProviders.find(
+        (item) => item.user_id === userId
+      ) ||
+      providers.find(
+        (item) => item.user_id === userId
+      ) ||
+      null;
+
+    if (
+      nuevoEstado === "verified" &&
+      !provider
+    ) {
       setError(
-        "No puedes aprobar este profesional hasta que tenga al menos un documento aprobado."
+        "No pudimos cargar la información del profesional para validar sus requisitos."
+      );
+      return;
+    }
+
+    const requeridosFaltantes =
+      provider
+        ? documentosRequeridosFaltantes(
+            provider
+          )
+        : [];
+
+    if (
+      nuevoEstado === "verified" &&
+      requeridosFaltantes.length > 0
+    ) {
+      setError(
+        `Faltan documentos obligatorios aprobados: ${requeridosFaltantes
+          .map((tipo) => nombreTipoDocumento(tipo))
+          .join(", ")}.`
       );
       return;
     }
@@ -4326,14 +4412,25 @@ export default function AdminPage() {
                               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                                 {["license", "insurance", "bond", "other"].map((tipo) => {
                                   const doc = documentoVigente(provider.user_id, tipo);
+                                  const requerido = documentoEsRequerido(provider, tipo);
                                   const vencimiento = doc ? vencimientoDocumento(doc, provider) : null;
                                   return (
                                     <div key={tipo} className="rounded-xl border border-slate-200 bg-white p-4">
                                       <div className="flex items-start justify-between gap-3">
                                         <div>
                                           <p className="font-extrabold text-slate-900">{nombreTipoDocumento(tipo)}</p>
-                                          <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-extrabold ${doc ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
-                                            {doc ? "Aprobado" : "Sin documento vigente"}
+                                          <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-extrabold ${
+                                            doc
+                                              ? "bg-green-100 text-green-800"
+                                              : requerido
+                                              ? "bg-amber-100 text-amber-800"
+                                              : "bg-slate-100 text-slate-600"
+                                          }`}>
+                                            {doc
+                                              ? "Aprobado"
+                                              : requerido
+                                              ? "Documento requerido"
+                                              : "No requerido"}
                                           </span>
                                         </div>
                                         {doc && (
@@ -4512,9 +4609,10 @@ export default function AdminPage() {
                             </p>
 
                             {(() => {
-                              const aprobados = userDocs.filter(
-                                (doc) => doc.status === "approved"
-                              );
+                              const requeridosFaltantes =
+                                documentosRequeridosFaltantes(
+                                  provider
+                                );
                               const pendientesRevision = documentosPendientesRevision(
                                 provider.user_id
                               );
@@ -4524,7 +4622,7 @@ export default function AdminPage() {
                                   solicitud.status === "submitted"
                               );
                               const puedeAprobar =
-                                aprobados.length > 0 &&
+                                requeridosFaltantes.length === 0 &&
                                 pendientesRevision.length === 0 &&
                                 solicitudesAbiertas.length === 0;
 
@@ -4534,8 +4632,10 @@ export default function AdminPage() {
                                     <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                                       <p className="font-extrabold">Aprobación bloqueada temporalmente</p>
                                       <p className="mt-1">
-                                        {aprobados.length === 0
-                                          ? "Debe existir al menos un documento aprobado. "
+                                        {requeridosFaltantes.length > 0
+                                          ? `Faltan documentos obligatorios aprobados: ${requeridosFaltantes
+                                              .map((tipo) => nombreTipoDocumento(tipo))
+                                              .join(", ")}. `
                                           : ""}
                                         {pendientesRevision.length > 0
                                           ? `Hay ${pendientesRevision.length} documento(s) pendiente(s) de revisión. `
