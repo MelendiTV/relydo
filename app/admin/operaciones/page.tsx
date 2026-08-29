@@ -1541,18 +1541,6 @@ export default function AdminPage() {
       provider.phone ||
       "No registrado";
 
-    const addressLine1 =
-      profile?.address_line1 ||
-      profile?.address ||
-      provider.address_line1 ||
-      "";
-
-    const addressLine2 =
-      profile?.address_line2 ||
-      profile?.apartment ||
-      provider.address_line2 ||
-      "";
-
     const city =
       profile?.city ||
       provider.city ||
@@ -1570,9 +1558,56 @@ export default function AdminPage() {
       provider.zip_code ||
       "";
 
+    const direccionCompleta =
+      profile?.address ||
+      "";
+
+    const escaparRegex = (valor: string) =>
+      valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const ubicacionFinal = [
+      city,
+      state,
+      zip,
+    ]
+      .filter(Boolean)
+      .map((parte) => escaparRegex(String(parte)))
+      .join("\\s*,?\\s*");
+
+    const direccionSinUbicacion =
+      direccionCompleta && ubicacionFinal
+        ? direccionCompleta
+            .replace(
+              new RegExp(
+                `,?\\s*${ubicacionFinal}\\s*$`,
+                "i"
+              ),
+              ""
+            )
+            .replace(/,\s*$/, "")
+            .trim()
+        : direccionCompleta.trim();
+
+    const addressLine1 =
+      profile?.address_line1 ||
+      provider.address_line1 ||
+      direccionSinUbicacion ||
+      "";
+
+    const addressLine2 =
+      profile?.address_line2 ||
+      profile?.apartment ||
+      provider.address_line2 ||
+      "";
+
     const direccionPartes = [
       addressLine1,
-      addressLine2,
+      addressLine2 &&
+      !String(addressLine1)
+        .toLowerCase()
+        .includes(String(addressLine2).toLowerCase())
+        ? addressLine2
+        : "",
     ].filter((parte) => String(parte || "").trim());
 
     return {
