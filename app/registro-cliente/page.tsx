@@ -61,6 +61,15 @@ function RegistroClienteContenido() {
   const [confirmPassword, setConfirmPassword] =
     useState("");
 
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
+
+  const [acceptedTerms, setAcceptedTerms] =
+    useState(false);
+
   const [loading, setLoading] =
     useState(false);
 
@@ -141,6 +150,24 @@ function RegistroClienteContenido() {
             "Confirmar contraseña",
           confirmPasswordPlaceholder:
             "Escribe nuevamente tu contraseña",
+
+          mostrarPassword:
+            "Mostrar contraseña",
+          ocultarPassword:
+            "Ocultar contraseña",
+
+          aceptarInicio:
+            "Confirmo que la información proporcionada es correcta y acepto los ",
+          terminos:
+            "Términos de servicio",
+          conectorPrivacidad:
+            " y la ",
+          privacidad:
+            "Política de privacidad",
+          aceptarFinal:
+            " de RELYDO.",
+          terminosRequeridos:
+            "Debes aceptar los Términos de servicio y la Política de privacidad para crear tu cuenta.",
 
           crearCuenta:
             "Crear cuenta",
@@ -256,6 +283,24 @@ function RegistroClienteContenido() {
             "Confirm password",
           confirmPasswordPlaceholder:
             "Enter your password again",
+
+          mostrarPassword:
+            "Show password",
+          ocultarPassword:
+            "Hide password",
+
+          aceptarInicio:
+            "I confirm that the information provided is accurate and I accept RELYDO’s ",
+          terminos:
+            "Terms of Service",
+          conectorPrivacidad:
+            " and ",
+          privacidad:
+            "Privacy Policy",
+          aceptarFinal:
+            ".",
+          terminosRequeridos:
+            "You must accept the Terms of Service and Privacy Policy to create your account.",
 
           crearCuenta:
             "Create account",
@@ -415,6 +460,13 @@ function RegistroClienteContenido() {
     ) {
       setError(
         text.passwordsNoCoinciden
+      );
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError(
+        text.terminosRequeridos
       );
       return;
     }
@@ -936,24 +988,49 @@ function RegistroClienteContenido() {
                   {text.password}
                 </label>
 
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) =>
-                    setPassword(
-                      e.target.value
-                    )
-                  }
-                  required
-                  disabled={loading}
-                  autoComplete="new-password"
-                  minLength={8}
-                  placeholder={
-                    text.passwordPlaceholder
-                  }
-                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) =>
+                      setPassword(
+                        e.target.value
+                      )
+                    }
+                    required
+                    disabled={loading}
+                    autoComplete="new-password"
+                    minLength={8}
+                    placeholder={
+                      text.passwordPlaceholder
+                    }
+                    className="w-full rounded-xl border border-slate-300 p-4 pr-14 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword(
+                        (value) => !value
+                      )
+                    }
+                    disabled={loading}
+                    aria-label={
+                      showPassword
+                        ? text.ocultarPassword
+                        : text.mostrarPassword
+                    }
+                    title={
+                      showPassword
+                        ? text.ocultarPassword
+                        : text.mostrarPassword
+                    }
+                    className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-xl text-slate-500 transition hover:text-blue-700 disabled:opacity-50"
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
 
               {/* CONFIRMAR CONTRASEÑA */}
@@ -966,24 +1043,90 @@ function RegistroClienteContenido() {
                   {text.confirmPassword}
                 </label>
 
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) =>
-                    setConfirmPassword(
-                      e.target.value
-                    )
-                  }
-                  required
-                  disabled={loading}
-                  autoComplete="new-password"
-                  minLength={8}
-                  placeholder={
-                    text.confirmPasswordPlaceholder
-                  }
-                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
-                />
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) =>
+                      setConfirmPassword(
+                        e.target.value
+                      )
+                    }
+                    required
+                    disabled={loading}
+                    autoComplete="new-password"
+                    minLength={8}
+                    placeholder={
+                      text.confirmPasswordPlaceholder
+                    }
+                    className="w-full rounded-xl border border-slate-300 p-4 pr-14 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmPassword(
+                        (value) => !value
+                      )
+                    }
+                    disabled={loading}
+                    aria-label={
+                      showConfirmPassword
+                        ? text.ocultarPassword
+                        : text.mostrarPassword
+                    }
+                    title={
+                      showConfirmPassword
+                        ? text.ocultarPassword
+                        : text.mostrarPassword
+                    }
+                    className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-xl text-slate-500 transition hover:text-blue-700 disabled:opacity-50"
+                  >
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+              </div>
+
+              {/* TÉRMINOS Y PRIVACIDAD */}
+
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) =>
+                      setAcceptedTerms(
+                        e.target.checked
+                      )
+                    }
+                    required
+                    disabled={loading}
+                    className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-blue-600 disabled:opacity-50"
+                  />
+
+                  <span className="text-sm leading-6 text-slate-700">
+                    {text.aceptarInicio}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-blue-700 hover:underline"
+                    >
+                      {text.terminos}
+                    </a>
+                    {text.conectorPrivacidad}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-blue-700 hover:underline"
+                    >
+                      {text.privacidad}
+                    </a>
+                    {text.aceptarFinal}
+                  </span>
+                </label>
               </div>
 
               {/* CREAR CUENTA */}
