@@ -1243,16 +1243,6 @@ export default function RegistroProfesional() {
                     : T("Crear cuenta profesional", "Create professional account")}
                 </button>
 
-                <p className="text-center text-sm text-slate-600">
-                  {T("¿Ya tienes cuenta?", "Already have an account?")}{" "}
-
-                  <a
-                    href="/login-profesional"
-                    className="font-bold text-blue-700 hover:underline"
-                  >
-                    {T("Inicia sesión", "Sign in")}
-                  </a>
-                </p>
 
               </div>
 
