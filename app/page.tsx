@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/ads/logo-oficial.png";
+const LOGO_SRC = "/icon/logo-oficial.png";
 
 function BrandLogo() {
   return (
