@@ -601,11 +601,18 @@ function ProfesionalesContenido() {
   function seleccionarTrade(
     trade: string
   ) {
-    setTradeSeleccionado(trade);
+    const mismoTrade =
+      normalizarTrade(tradeSeleccionado) ===
+      normalizarTrade(trade);
 
-    if (trade) {
+    const siguienteTrade =
+      mismoTrade ? "" : trade;
+
+    setTradeSeleccionado(siguienteTrade);
+
+    if (siguienteTrade) {
       router.replace(
-        `/profesionales?trade=${encodeURIComponent(trade)}`
+        `/profesionales?trade=${encodeURIComponent(siguienteTrade)}`
       );
     } else {
       router.replace("/profesionales");
