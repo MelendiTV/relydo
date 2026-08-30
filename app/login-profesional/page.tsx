@@ -1404,6 +1404,23 @@ export default function LoginProfesional() {
                   placeholder={text.passwordPlaceholder}
                   className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
+
+                <div className="mt-3 text-right">
+                  <button
+                    type="button"
+                    onClick={recuperarContrasena}
+                    disabled={
+                      cargando ||
+                      googleLoading ||
+                      recuperando
+                    }
+                    className="font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {recuperando
+                      ? text.enviandoCorreo
+                      : text.olvidoPassword}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -1420,23 +1437,6 @@ export default function LoginProfesional() {
                   : text.iniciarSesion}
               </button>
             </form>
-
-            <div className="mt-6 border-t border-slate-200 pt-6 text-center">
-              <button
-                type="button"
-                onClick={recuperarContrasena}
-                disabled={
-                  cargando ||
-                  googleLoading ||
-                  recuperando
-                }
-                className="font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {recuperando
-                  ? text.enviandoCorreo
-                  : text.olvidoPassword}
-              </button>
-            </div>
 
             <div className="mt-6 border-t border-slate-200 pt-6">
               <p className="text-center text-slate-600">
