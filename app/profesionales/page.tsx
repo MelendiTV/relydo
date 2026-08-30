@@ -712,39 +712,56 @@ function ProfesionalesContenido() {
           <>
             {/* 21 ESPECIALIDADES COMPACTAS: 11 ARRIBA / 10 ABAJO EN DESKTOP */}
             <div className="mt-5">
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-11">
-                {categorias.map((categoria) => (
-                  <button
-                    key={categoria.trade}
-                    type="button"
-                    onClick={() => seleccionarTrade(categoria.trade)}
-                    title={categoria.nombre}
-                    className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[11px] font-extrabold leading-none transition ${
-                      normalizarTrade(tradeSeleccionado) === categoria.trade
-                        ? "border-blue-700 bg-blue-700 text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                    }`}
-                  >
-                    <span className="truncate">{categoria.nombre}</span>
-                    <span className="shrink-0 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px]">
-                      {categoria.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-2 flex items-center justify-between">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
                 <button
                   type="button"
                   onClick={() => seleccionarTrade("")}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
+                  className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-extrabold transition ${
                     !tradeSeleccionado
-                      ? "border-blue-700 bg-blue-700 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-blue-50"
+                      ? "border-blue-700 bg-blue-700 text-white shadow-sm"
+                      : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400 hover:bg-blue-100"
                   }`}
                 >
-                  {text.todos} · {profesionales.length}
+                  <span>{text.todos}</span>
+                  <span className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
+                    {profesionales.length}
+                  </span>
                 </button>
+
+                {categorias.map((categoria, index) => {
+                  const tonos = [
+                    "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100",
+                    "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+                    "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100",
+                    "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                    "border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100",
+                    "border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100",
+                  ];
+                  const activo =
+                    normalizarTrade(tradeSeleccionado) === categoria.trade;
+
+                  return (
+                    <button
+                      key={categoria.trade}
+                      type="button"
+                      onClick={() => seleccionarTrade(categoria.trade)}
+                      title={categoria.nombre}
+                      className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-extrabold transition ${
+                        activo
+                          ? "border-blue-700 bg-blue-700 text-white shadow-sm"
+                          : tonos[index % tonos.length]
+                      }`}
+                    >
+                      <span className="whitespace-nowrap">{categoria.nombre}</span>
+                      <span className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
+                        {categoria.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 flex items-center justify-end">
 
                 {(tradeSeleccionado || busqueda) && (
                   <button
