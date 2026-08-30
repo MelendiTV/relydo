@@ -951,68 +951,13 @@ export default function LoginProfesional() {
     }
   }
 
-  async function recuperarContrasena() {
+  function recuperarContrasena() {
     setError("");
     setMensaje("");
 
-    const emailLimpio =
-      email.trim().toLowerCase();
-
-    if (!emailLimpio) {
-      setError(
-        text.escribeEmail
-      );
-      return;
-    }
-
-    setRecuperando(true);
-
-    try {
-      const redirectTo =
-        `${window.location.origin}/recuperar-contrasena`;
-
-      const {
-        error: resetError,
-      } =
-        await supabase.auth.resetPasswordForEmail(
-          emailLimpio,
-          {
-            redirectTo,
-          }
-        );
-
-      if (resetError) {
-        throw new Error(
-          resetError.message
-        );
-      }
-
-      setMensaje(
-        text.correoRecuperacion
-      );
-    } catch (err) {
-      if (err instanceof Error) {
-        if (
-          err.message
-            .toLowerCase()
-            .includes("rate limit")
-        ) {
-          setError(
-            text.limiteCorreos
-          );
-        } else {
-          setError(
-            `${text.noEnviarCorreo}: ${err.message}`
-          );
-        }
-      } else {
-        setError(
-          text.noEnviarRecuperacion
-        );
-      }
-    } finally {
-      setRecuperando(false);
-    }
+    router.push(
+      "/recuperar-contrasena?tipo=profesional"
+    );
   }
 
   async function salirCuentaPendiente() {
@@ -1416,9 +1361,7 @@ export default function LoginProfesional() {
                     }
                     className="font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {recuperando
-                      ? text.enviandoCorreo
-                      : text.olvidoPassword}
+                    {text.olvidoPassword}
                   </button>
                 </div>
               </div>
