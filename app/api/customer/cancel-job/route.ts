@@ -361,7 +361,10 @@ export async function POST(
 
     if (
       serviceRequest.status === "in_progress" &&
-      !serviceRequest.job_stage
+      (
+        !serviceRequest.job_stage ||
+        serviceRequest.job_stage === "hired"
+      )
     ) {
       penaltyPercent = 5;
       providerJobPercent = 0;
