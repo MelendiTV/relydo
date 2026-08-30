@@ -1065,17 +1065,37 @@ export default function TrabajoDetallePage() {
       */
 
       const {
-        data: trabajoDataRaw,
-        error: trabajoError,
-      } = await supabase.rpc(
-        "get_provider_request_safe",
-        {
-          p_request_id: id,
-        }
-      );
-
-      const trabajoData =
-        trabajoDataRaw as Trabajo | null;
+        data:
+          trabajoData,
+        error:
+          trabajoError,
+      } = await supabase
+        .from(
+          "service_requests"
+        )
+        .select(`
+          id,
+          title,
+          description,
+          address_line1,
+          city,
+          state,
+          zip_code,
+          preferred_date,
+          preferred_time,
+          status,
+          job_stage,
+          customer_name,
+          customer_id,
+          preferred_provider_id,
+          cancellation_reason,
+          completed_at
+        `)
+        .eq(
+          "id",
+          id
+        )
+        .maybeSingle();
 
       if (
         trabajoError ||
@@ -2065,10 +2085,23 @@ export default function TrabajoDetallePage() {
       return;
     }
 
-    const combinados = [
+    const combinadosSinFiltrar = [
       ...archivosEvidenciaFinal,
       ...nuevos,
     ];
+
+    // Evita seleccionar dos veces el mismo archivo en el mismo lote.
+    const archivosUnicos = new Map<string, File>();
+
+    for (const file of combinadosSinFiltrar) {
+      const clave = `${file.name}-${file.size}-${file.lastModified}-${file.type}`;
+
+      if (!archivosUnicos.has(clave)) {
+        archivosUnicos.set(clave, file);
+      }
+    }
+
+    const combinados = Array.from(archivosUnicos.values());
 
     const fotosSeleccionadas =
       combinados.filter((file) =>
@@ -2233,15 +2266,30 @@ export default function TrabajoDetallePage() {
           );
         }
 
-        guardadas.push(
-          evidenciaData as EvidenciaFinal
+        const evidenciaGuardada =
+          evidenciaData as EvidenciaFinal;
+
+        guardadas.push(evidenciaGuardada);
+
+        // Registrar inmediatamente cada archivo que sí terminó correctamente.
+        // Si un archivo posterior falla, los ya guardados desaparecen de la
+        // cola pendiente y un reintento no vuelve a insertarlos.
+        setEvidenciasFinales((actuales) =>
+          actuales.some(
+            (item) => item.id === evidenciaGuardada.id
+          )
+            ? actuales
+            : [...actuales, evidenciaGuardada]
+        );
+
+        setArchivosEvidenciaFinal((actuales) =>
+          actuales.filter((item) => item !== file)
         );
       }
 
-      setEvidenciasFinales((actuales) => [
-        ...actuales,
-        ...guardadas,
-      ]);
+      // Cada evidencia se añadió al estado inmediatamente después de
+      // confirmarse en la base de datos. Al llegar aquí, la cola pendiente
+      // debe quedar vacía.
       setArchivosEvidenciaFinal([]);
 
       setMensaje(
@@ -4468,7 +4516,7 @@ export default function TrabajoDetallePage() {
                               }
                               className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:opacity-50"
                             >
-                              {T("🚗 Estoy en camino", "🚗 I'm on my way")}
+                              🚗 Estoy en camino
                             </button>
                           )}
 
@@ -4572,7 +4620,7 @@ export default function TrabajoDetallePage() {
                                             onClick={() => quitarEvidenciaFinalSeleccionada(index)}
                                             className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1 text-sm font-bold text-red-700 hover:bg-red-50"
                                           >
-                                            {T("Quitar", "Remove")}
+                                            Quitar
                                           </button>
                                         </div>
                                       ))}
@@ -4754,7 +4802,7 @@ export default function TrabajoDetallePage() {
 
                               <div className="rounded-xl bg-white p-4">
                                 <p className="text-xs font-bold text-slate-500">
-                                  {T("Nuevo total propuesto", "New proposed total")}
+                                  Nuevo total propuesto
                                 </p>
                                 <p className="mt-1 text-xl font-black text-slate-950">
                                   ${Number(
@@ -4993,7 +5041,7 @@ export default function TrabajoDetallePage() {
                                         }
                                         className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-black text-red-700 hover:bg-red-50"
                                       >
-                                        {T("Quitar", "Remove")}
+                                        Quitar
                                       </button>
                                     </div>
                                   )
@@ -5033,7 +5081,7 @@ export default function TrabajoDetallePage() {
                               <div className="mt-3 border-t border-violet-200 pt-3">
                                 <div className="flex items-center justify-between gap-4">
                                   <span className="font-black text-violet-950">
-                                    {T("Nuevo total propuesto", "New proposed total")}
+                                    Nuevo total propuesto
                                   </span>
                                   <strong className="text-xl text-violet-950">
                                     ${(
@@ -5100,34 +5148,32 @@ export default function TrabajoDetallePage() {
                   {trabajo.description}
                 </p>
 
-                {trabajo.address_line1 &&
-                  trabajo.preferred_provider_id === providerId &&
-                  trabajo.status !== "open" && (
-                    <>
-                      <div className="my-5 border-t border-slate-200" />
+                {trabajo.address_line1 && (
+                  <>
+                    <div className="my-5 border-t border-slate-200" />
 
-                      <p className="font-black text-slate-900">
-                        {T("Dirección del servicio", "Service address")}
-                      </p>
+                    <p className="font-black text-slate-900">
+                      {T("Dirección del servicio", "Service address")}
+                    </p>
 
-                      <p className="mt-2 text-slate-600">
-                        {
-                          trabajo.address_line1
-                        }
-                        ,{" "}
-                        {
-                          trabajo.city
-                        }
-                        ,{" "}
-                        {
-                          trabajo.state
-                        }{" "}
-                        {
-                          trabajo.zip_code
-                        }
-                      </p>
-                    </>
-                  )}
+                    <p className="mt-2 text-slate-600">
+                      {
+                        trabajo.address_line1
+                      }
+                      ,{" "}
+                      {
+                        trabajo.city
+                      }
+                      ,{" "}
+                      {
+                        trabajo.state
+                      }{" "}
+                      {
+                        trabajo.zip_code
+                      }
+                    </p>
+                  </>
+                )}
               </div>
             </section>
           </div>
@@ -5482,7 +5528,7 @@ export default function TrabajoDetallePage() {
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-xs font-semibold text-slate-500">
-                          {T("Tiempo para llegar", "Arrival time")}
+                          Tiempo para llegar
                         </p>
                         <p className="mt-1 font-black text-slate-900">
                           {mostrarMinutos(oferta.arrival_minutes, language)}
@@ -6006,7 +6052,7 @@ export default function TrabajoDetallePage() {
                               }
                               className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
-                              {T("Quitar", "Remove")}
+                              Quitar
                             </button>
                           </div>
                         )
@@ -6245,7 +6291,7 @@ export default function TrabajoDetallePage() {
                         min="0.01"
                         step="0.01"
                         required
-                        placeholder={T("Ej. 150.00", "e.g. 150.00")}
+                        placeholder="Ej. 150.00"
                         className="w-full p-4 text-slate-900 outline-none"
                       />
                     </div>
@@ -6253,7 +6299,7 @@ export default function TrabajoDetallePage() {
 
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-800">
-                      {T("Minutos para llegar", "Minutes to arrive")}
+                      Minutos para llegar
                     </label>
 
                     <input
@@ -6262,7 +6308,7 @@ export default function TrabajoDetallePage() {
                       min="0"
                       step="1"
                       required
-                      placeholder={T("Ej. 30", "e.g. 30")}
+                      placeholder="Ej. 30"
                       className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
                     />
                   </div>
@@ -6278,7 +6324,7 @@ export default function TrabajoDetallePage() {
                       min="1"
                       step="1"
                       required
-                      placeholder={T("Ej. 60", "e.g. 60")}
+                      placeholder="Ej. 60"
                       className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
                     />
                   </div>
