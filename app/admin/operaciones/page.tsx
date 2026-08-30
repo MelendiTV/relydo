@@ -4444,6 +4444,74 @@ export default function AdminPage() {
                         </div>
                       </div>
 
+                      {/* INFORMACIÓN PROFESIONAL REGISTRADA */}
+
+                      <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+                        <div>
+                          <p className="text-sm font-bold uppercase tracking-wide text-indigo-700">
+                            Información profesional registrada
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            Datos declarados por el profesional durante su registro en RELYDO.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre del negocio</p>
+                            <p className="mt-1 break-words font-extrabold text-slate-900">{provider.business_name || "No indicado"}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Profesión / especialidad</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{nombreOficio(provider.trade)}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Años de experiencia</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{provider.years_experience ?? 0} años</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Radio de servicio</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{provider.service_radius_miles ?? 0} millas</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Licencia profesional</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{provider.license_required ? "Requerida / declarada" : "No requerida / no declarada"}</p>
+                            <p className="mt-1 text-sm text-slate-600">N.º: {provider.license_number || "No indicado"}</p>
+                            <p className="text-sm text-slate-600">Estado: {provider.license_state || "No indicado"}</p>
+                            <p className="text-sm text-slate-600">Vence: {provider.license_expiration ? fechaDocumento(provider.license_expiration) : "No indicado"}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Seguro de responsabilidad</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{provider.insured ? "Sí" : "No"}</p>
+                            <p className="mt-1 text-sm text-slate-600">Compañía: {provider.insurance_company || "No indicada"}</p>
+                            <p className="text-sm text-slate-600">Vence: {provider.insurance_expiration ? fechaDocumento(provider.insurance_expiration) : "No indicado"}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Bond / Fianza</p>
+                            <p className="mt-1 font-extrabold text-slate-900">{provider.bonded ? "Sí" : "No"}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:col-span-2">
+                            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Background check</p>
+                            <p className="mt-1 font-extrabold text-amber-900">Pendiente de implementación</p>
+                            <p className="mt-1 text-sm text-amber-800">
+                              Este espacio queda preparado para mostrar el resultado del proveedor de background check cuando se integre: pendiente, aprobado, revisión requerida o rechazado.
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-indigo-100 bg-white p-4 sm:col-span-2 lg:col-span-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Sobre el profesional / negocio</p>
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{provider.bio || "No se registró una descripción."}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* ESTADÍSTICAS */}
 
                       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -5249,6 +5317,13 @@ export default function AdminPage() {
                             </div>
                           )}
 
+                        </div>
+
+                        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-sm font-extrabold text-amber-900">Background check</p>
+                          <p className="mt-1 text-sm text-amber-800">
+                            Pendiente de implementación. Cuando integremos el proveedor de background check, aquí Admin verá su estado y resultado sin mezclarlo con la aprobación documental.
+                          </p>
                         </div>
 
                         {/* DOCUMENTOS */}
