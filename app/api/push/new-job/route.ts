@@ -361,7 +361,106 @@ export async function POST(
     }
 
     /*
-      7. BUSCAR DISPOSITIVOS PUSH
+      7. CREAR CONTENIDO DE LA NOTIFICACIÓN
+    */
+
+    const titulo =
+      trabajo.preferred_provider_id
+        ? "🆕 Nueva solicitud para ti"
+        : "🆕 Nuevo trabajo disponible";
+
+    const mensaje =
+      `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
+
+    const notificationType =
+      "new_job_available";
+
+    /*
+      8. RESERVAR LA NOTIFICACIÓN Y EVITAR DUPLICADOS
+
+      La tabla notifications actúa también como registro
+      de idempotencia para este evento.
+
+      IMPORTANTE:
+      En Supabase debe existir un índice UNIQUE para:
+      user_id + type + request_id cuando type sea
+      new_job_available.
+
+      Si este endpoint se ejecuta otra vez para el mismo
+      trabajo, el INSERT devolverá PostgreSQL 23505 y ese
+      profesional no volverá a recibir el Push.
+    */
+
+    const providerIdsToNotify: string[] =
+      [];
+
+    let duplicadosOmitidos = 0;
+
+    for (
+      const providerId
+      of providerIds
+    ) {
+      const { error: notificationError } =
+        await supabaseAdmin
+          .from("notifications")
+          .insert({
+            user_id: providerId,
+            type: notificationType,
+            title: titulo,
+            message: mensaje,
+            request_id: trabajo.id,
+            read: false,
+          });
+
+      if (notificationError) {
+        if (
+          notificationError.code ===
+          "23505"
+        ) {
+          duplicadosOmitidos += 1;
+          continue;
+        }
+
+        console.error(
+          "Error guardando notificación de nuevo trabajo:",
+          notificationError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              notificationError.message,
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      providerIdsToNotify.push(
+        providerId
+      );
+    }
+
+    if (
+      providerIdsToNotify.length === 0
+    ) {
+      return NextResponse.json({
+        success: true,
+        providers:
+          providerIds.length,
+        devices: 0,
+        sent: 0,
+        duplicatesSkipped:
+          duplicadosOmitidos,
+        message:
+          "La notificación de este trabajo ya había sido enviada.",
+      });
+    }
+
+    /*
+      9. BUSCAR DISPOSITIVOS PUSH
+      SOLO DE LOS PROS QUE AÚN NO HABÍAN SIDO NOTIFICADOS
     */
 
     const {
@@ -381,7 +480,7 @@ export async function POST(
       `)
       .in(
         "user_id",
-        providerIds
+        providerIdsToNotify
       );
 
     if (subscriptionsError) {
@@ -403,25 +502,15 @@ export async function POST(
       return NextResponse.json({
         success: true,
         providers:
-          providerIds.length,
+          providerIdsToNotify.length,
         devices: 0,
         sent: 0,
+        duplicatesSkipped:
+          duplicadosOmitidos,
         message:
           "Los profesionales encontrados todavía no tienen Push activado.",
       });
     }
-
-    /*
-      8. CREAR NOTIFICACIÓN
-    */
-
-    const titulo =
-      trabajo.preferred_provider_id
-        ? "🆕 Nueva solicitud para ti"
-        : "🆕 Nuevo trabajo disponible";
-
-    const mensaje =
-      `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
 
     const payload =
       JSON.stringify({
@@ -432,7 +521,7 @@ export async function POST(
       });
 
     /*
-      9. ENVIAR A TODOS LOS DISPOSITIVOS
+      10. ENVIAR A TODOS LOS DISPOSITIVOS
     */
 
     let enviados = 0;
@@ -517,6 +606,9 @@ export async function POST(
 
       sent:
         enviados,
+
+      duplicatesSkipped:
+        duplicadosOmitidos,
 
       failed:
         fallidos,
