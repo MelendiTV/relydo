@@ -177,6 +177,67 @@ type PanelResumen =
   | "history"
   | "documents";
 
+
+type TemaProfesional = "light" | "dark" | "system";
+type ColorProfesional =
+  | "blue"
+  | "violet"
+  | "emerald"
+  | "rose"
+  | "amber"
+  | "cyan";
+
+const PROVIDER_THEME_STORAGE_KEY = "relydo_provider_theme";
+const PROVIDER_COLOR_STORAGE_KEY = "relydo_provider_accent";
+const SOUND_STORAGE_KEY = "relydo_sound_enabled";
+
+const COLORES_PROFESIONAL: Record<
+  ColorProfesional,
+  {
+    nombreEs: string;
+    nombreEn: string;
+    hex: string;
+    hexOscuro: string;
+  }
+> = {
+  blue: {
+    nombreEs: "Azul RELYDO",
+    nombreEn: "RELYDO Blue",
+    hex: "#1d4ed8",
+    hexOscuro: "#3730a3",
+  },
+  violet: {
+    nombreEs: "Violeta",
+    nombreEn: "Violet",
+    hex: "#7c3aed",
+    hexOscuro: "#5b21b6",
+  },
+  emerald: {
+    nombreEs: "Esmeralda",
+    nombreEn: "Emerald",
+    hex: "#059669",
+    hexOscuro: "#047857",
+  },
+  rose: {
+    nombreEs: "Rosa",
+    nombreEn: "Rose",
+    hex: "#e11d48",
+    hexOscuro: "#be123c",
+  },
+  amber: {
+    nombreEs: "Ámbar",
+    nombreEn: "Amber",
+    hex: "#d97706",
+    hexOscuro: "#b45309",
+  },
+  cyan: {
+    nombreEs: "Turquesa",
+    nombreEn: "Cyan",
+    hex: "#0891b2",
+    hexOscuro: "#0e7490",
+  },
+};
+
 function nombreOficio(trade: string | null, language: "es" | "en") {
   const nombresEs: Record<string, string> = {
     plumbing: "Plomería",
@@ -336,6 +397,227 @@ export default function PanelProfesional() {
   const [errorPagos, setErrorPagos] =
     useState("");
 
+
+  const [userId, setUserId] =
+    useState<string | null>(null);
+
+  const [mostrarAjustes, setMostrarAjustes] =
+    useState(false);
+
+  const [temaProfesional, setTemaProfesional] =
+    useState<TemaProfesional>("system");
+
+  const [temaOscuro, setTemaOscuro] =
+    useState(false);
+
+  const [colorProfesional, setColorProfesional] =
+    useState<ColorProfesional>("blue");
+
+  const [pushDisponible, setPushDisponible] =
+    useState(false);
+
+  const [pushActivo, setPushActivo] =
+    useState(false);
+
+  const [procesandoPush, setProcesandoPush] =
+    useState(false);
+
+  const [sonidoActivo, setSonidoActivo] =
+    useState(false);
+
+  const [mensajeAjustes, setMensajeAjustes] =
+    useState("");
+
+  const [mostrarEliminarCuenta, setMostrarEliminarCuenta] =
+    useState(false);
+
+  const [confirmacionEliminar, setConfirmacionEliminar] =
+    useState(false);
+
+  const [eliminandoCuenta, setEliminandoCuenta] =
+    useState(false);
+
+  const [mensajeEliminarCuenta, setMensajeEliminarCuenta] =
+    useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const temaGuardado =
+      localStorage.getItem(
+        PROVIDER_THEME_STORAGE_KEY
+      ) as TemaProfesional | null;
+
+    const colorGuardado =
+      localStorage.getItem(
+        PROVIDER_COLOR_STORAGE_KEY
+      ) as ColorProfesional | null;
+
+    const sonidoGuardado =
+      localStorage.getItem(
+        SOUND_STORAGE_KEY
+      );
+
+    const temaValido =
+      temaGuardado === "light" ||
+      temaGuardado === "dark" ||
+      temaGuardado === "system"
+        ? temaGuardado
+        : "system";
+
+    const colorValido =
+      colorGuardado &&
+      colorGuardado in COLORES_PROFESIONAL
+        ? colorGuardado
+        : "blue";
+
+    setTemaProfesional(temaValido);
+    setColorProfesional(
+      colorValido as ColorProfesional
+    );
+    setSonidoActivo(
+      sonidoGuardado === "true"
+    );
+
+    const media =
+      window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      );
+
+    const aplicarTema = () => {
+      const oscuro =
+        temaValido === "dark" ||
+        (
+          temaValido === "system" &&
+          media.matches
+        );
+
+      setTemaOscuro(oscuro);
+
+      document.documentElement.dataset.relydoProviderTheme =
+        oscuro ? "dark" : "light";
+
+      document.documentElement.dataset.relydoProviderAccent =
+        colorValido;
+
+      document.documentElement.style.setProperty(
+        "--relydo-provider-accent",
+        COLORES_PROFESIONAL[
+          colorValido as ColorProfesional
+        ].hex
+      );
+
+      document.documentElement.style.setProperty(
+        "--relydo-provider-accent-dark",
+        COLORES_PROFESIONAL[
+          colorValido as ColorProfesional
+        ].hexOscuro
+      );
+    };
+
+    aplicarTema();
+
+    const listener = () => {
+      if (temaValido === "system") {
+        aplicarTema();
+      }
+    };
+
+    media.addEventListener?.(
+      "change",
+      listener
+    );
+
+    return () => {
+      media.removeEventListener?.(
+        "change",
+        listener
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const media =
+      window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      );
+
+    const oscuro =
+      temaProfesional === "dark" ||
+      (
+        temaProfesional === "system" &&
+        media.matches
+      );
+
+    setTemaOscuro(oscuro);
+
+    document.documentElement.dataset.relydoProviderTheme =
+      oscuro ? "dark" : "light";
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "relydo-provider-appearance",
+        {
+          detail: {
+            theme: temaProfesional,
+            dark: oscuro,
+            color: colorProfesional,
+          },
+        }
+      )
+    );
+  }, [
+    temaProfesional,
+    colorProfesional,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const colorActual =
+      COLORES_PROFESIONAL[
+        colorProfesional
+      ];
+
+    document.documentElement.dataset.relydoProviderAccent =
+      colorProfesional;
+
+    document.documentElement.style.setProperty(
+      "--relydo-provider-accent",
+      colorActual.hex
+    );
+
+    document.documentElement.style.setProperty(
+      "--relydo-provider-accent-dark",
+      colorActual.hexOscuro
+    );
+  }, [colorProfesional]);
+
+  useEffect(() => {
+    const disponible =
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window;
+
+    setPushDisponible(disponible);
+
+    if (
+      disponible &&
+      userId
+    ) {
+      comprobarPushProfesional();
+    }
+  }, [userId]);
+
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
 
@@ -460,6 +742,461 @@ export default function PanelProfesional() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  function guardarTemaProfesional(
+    tema: TemaProfesional
+  ) {
+    setTemaProfesional(tema);
+
+    localStorage.setItem(
+      PROVIDER_THEME_STORAGE_KEY,
+      tema
+    );
+
+    setMensajeAjustes(
+      T(
+        "Preferencias guardadas en este dispositivo.",
+        "Preferences saved on this device."
+      )
+    );
+  }
+
+  function guardarColorProfesional(
+    color: ColorProfesional
+  ) {
+    setColorProfesional(color);
+
+    localStorage.setItem(
+      PROVIDER_COLOR_STORAGE_KEY,
+      color
+    );
+
+    setMensajeAjustes(
+      T(
+        "Preferencias guardadas en este dispositivo.",
+        "Preferences saved on this device."
+      )
+    );
+  }
+
+  function cambiarSonido() {
+    const siguiente =
+      !sonidoActivo;
+
+    setSonidoActivo(
+      siguiente
+    );
+
+    localStorage.setItem(
+      SOUND_STORAGE_KEY,
+      String(siguiente)
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "relydo-sound-preference",
+        {
+          detail: {
+            enabled:
+              siguiente,
+          },
+        }
+      )
+    );
+
+    setMensajeAjustes(
+      T(
+        "Preferencias guardadas en este dispositivo.",
+        "Preferences saved on this device."
+      )
+    );
+  }
+
+  async function comprobarPushProfesional() {
+    try {
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
+
+      const ready =
+        await navigator.serviceWorker.ready;
+
+      const subscription =
+        await ready.pushManager.getSubscription();
+
+      setPushActivo(
+        Boolean(subscription)
+      );
+
+      if (
+        registration &&
+        Notification.permission ===
+          "denied"
+      ) {
+        setPushActivo(false);
+      }
+    } catch (error) {
+      console.error(
+        "No se pudo comprobar Push profesional:",
+        error
+      );
+
+      setPushActivo(false);
+    }
+  }
+
+  function urlBase64AUint8Array(
+    base64String: string
+  ) {
+    const padding =
+      "=".repeat(
+        (
+          4 -
+          (base64String.length % 4)
+        ) % 4
+      );
+
+    const base64 =
+      (
+        base64String +
+        padding
+      )
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+
+    const rawData =
+      window.atob(base64);
+
+    return Uint8Array.from(
+      [...rawData].map(
+        (character) =>
+          character.charCodeAt(0)
+      )
+    );
+  }
+
+  async function activarPushProfesional() {
+    if (
+      !userId ||
+      !pushDisponible
+    ) {
+      return;
+    }
+
+    setProcesandoPush(true);
+    setMensajeAjustes("");
+
+    try {
+      const publicKey =
+        process.env
+          .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        throw new Error(
+          "Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY."
+        );
+      }
+
+      const permission =
+        await Notification.requestPermission();
+
+      if (
+        permission !== "granted"
+      ) {
+        throw new Error(
+          T(
+            "El navegador bloqueó las notificaciones. Debes permitirlas desde la configuración del navegador.",
+            "The browser blocked notifications. Allow them from your browser settings."
+          )
+        );
+      }
+
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
+
+      await navigator.serviceWorker.ready;
+
+      let subscription =
+        await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription =
+          await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              urlBase64AUint8Array(
+                publicKey
+              ),
+          });
+      }
+
+      const json =
+        subscription.toJSON();
+
+      const endpoint =
+        subscription.endpoint;
+
+      const p256dh =
+        json.keys?.p256dh;
+
+      const auth =
+        json.keys?.auth;
+
+      if (
+        !endpoint ||
+        !p256dh ||
+        !auth
+      ) {
+        throw new Error(
+          T(
+            "La suscripción Push no devolvió las claves necesarias.",
+            "The Push subscription did not return the required keys."
+          )
+        );
+      }
+
+      const {
+        error:
+          guardarError,
+      } = await supabase
+        .from(
+          "push_subscriptions"
+        )
+        .upsert(
+          {
+            user_id:
+              userId,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent:
+              navigator.userAgent,
+            updated_at:
+              new Date().toISOString(),
+          },
+          {
+            onConflict:
+              "endpoint",
+          }
+        );
+
+      if (guardarError) {
+        throw new Error(
+          guardarError.message
+        );
+      }
+
+      setPushActivo(true);
+
+      setMensajeAjustes(
+        T(
+          "Preferencias guardadas en este dispositivo.",
+          "Preferences saved on this device."
+        )
+      );
+    } catch (error) {
+      console.error(
+        "No se pudo activar Push profesional:",
+        error
+      );
+
+      setMensajeAjustes(
+        error instanceof Error
+          ? error.message
+          : T(
+              "Push no disponible en este navegador.",
+              "Push is not available in this browser."
+            )
+      );
+    } finally {
+      setProcesandoPush(false);
+    }
+  }
+
+  async function desactivarPushProfesional() {
+    if (
+      !pushDisponible
+    ) {
+      return;
+    }
+
+    setProcesandoPush(true);
+    setMensajeAjustes("");
+
+    try {
+      const registration =
+        await navigator.serviceWorker.ready;
+
+      const subscription =
+        await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        const endpoint =
+          subscription.endpoint;
+
+        await subscription.unsubscribe();
+
+        if (userId) {
+          const {
+            error:
+              deleteError,
+          } = await supabase
+            .from(
+              "push_subscriptions"
+            )
+            .delete()
+            .eq(
+              "user_id",
+              userId
+            )
+            .eq(
+              "endpoint",
+              endpoint
+            );
+
+          if (deleteError) {
+            console.warn(
+              "Push se desactivó en el navegador, pero no se pudo borrar la suscripción guardada:",
+              deleteError
+            );
+          }
+        }
+      }
+
+      setPushActivo(false);
+
+      setMensajeAjustes(
+        T(
+          "Preferencias guardadas en este dispositivo.",
+          "Preferences saved on this device."
+        )
+      );
+    } catch (error) {
+      console.error(
+        "No se pudo desactivar Push profesional:",
+        error
+      );
+
+      setMensajeAjustes(
+        error instanceof Error
+          ? error.message
+          : T(
+              "Push no disponible en este navegador.",
+              "Push is not available in this browser."
+            )
+      );
+    } finally {
+      setProcesandoPush(false);
+    }
+  }
+
+  async function eliminarCuentaProfesional() {
+    if (
+      !confirmacionEliminar ||
+      eliminandoCuenta
+    ) {
+      return;
+    }
+
+    setEliminandoCuenta(true);
+    setMensajeEliminarCuenta("");
+
+    try {
+      const {
+        data: sessionData,
+        error: sessionError,
+      } =
+        await supabase.auth.getSession();
+
+      const accessToken =
+        sessionData.session?.access_token;
+
+      if (
+        sessionError ||
+        !accessToken
+      ) {
+        throw new Error(
+          T(
+            "Tu sesión ya no está disponible.",
+            "Your session is no longer available."
+          )
+        );
+      }
+
+      const response =
+        await fetch(
+          "/api/account/delete",
+          {
+            method: "DELETE",
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
+
+      const result =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        if (
+          response.status === 409
+        ) {
+          const details =
+            Array.isArray(
+              result?.pending
+            )
+              ? result.pending.join(
+                  " · "
+                )
+              : "";
+
+          throw new Error(
+            details
+              ? `${T(
+                  "No podemos eliminar tu cuenta todavía porque tienes asuntos pendientes.",
+                  "We cannot delete your account yet because you have unresolved items."
+                )} ${details}`
+              : T(
+                  "No podemos eliminar tu cuenta todavía porque tienes asuntos pendientes.",
+                  "We cannot delete your account yet because you have unresolved items."
+                )
+          );
+        }
+
+        throw new Error(
+          result?.error ||
+            T(
+              "No pudimos eliminar tu cuenta.",
+              "We could not delete your account."
+            )
+        );
+      }
+
+      await supabase.auth.signOut();
+
+      window.location.href =
+        "/login-profesional?account_deleted=1";
+    } catch (error) {
+      setMensajeEliminarCuenta(
+        error instanceof Error
+          ? error.message
+          : T(
+              "No pudimos eliminar tu cuenta.",
+              "We could not delete your account."
+            )
+      );
+    } finally {
+      setEliminandoCuenta(false);
+    }
+  }
 
   async function consultarEstadoPagos(
     mostrarCargaStripe = true
@@ -638,6 +1375,7 @@ export default function PanelProfesional() {
         return;
       }
 
+      setUserId(user.id);
       setEmail(user.email || "");
 
       const { data: baseProfile, error: baseProfileError } = await supabase
@@ -1554,8 +2292,83 @@ export default function PanelProfesional() {
     ? T("Por vencer", "Expiring")
     : T("Al día", "Up to date");
 
+  const colorActual =
+    COLORES_PROFESIONAL[
+      colorProfesional
+    ];
+
+  const fondoPagina =
+    temaOscuro
+      ? "#020617"
+      : "#f1f5f9";
+
+  const fondoTarjeta =
+    temaOscuro
+      ? "#0f172a"
+      : "#ffffff";
+
+  const textoPrincipal =
+    temaOscuro
+      ? "#f8fafc"
+      : "#0f172a";
+
+  const textoSecundario =
+    temaOscuro
+      ? "#cbd5e1"
+      : "#475569";
+
+  const bordeTarjeta =
+    temaOscuro
+      ? "#334155"
+      : "#e2e8f0";
+
   return (
-    <main className="min-h-screen bg-slate-100 px-4 pb-28 pt-0 md:py-10">
+    <main
+      className={`min-h-screen px-4 pb-28 pt-0 transition-colors duration-300 md:py-10 ${
+        temaOscuro
+          ? "relydo-provider-dark"
+          : "relydo-provider-light"
+      }`}
+      style={{
+        backgroundColor:
+          fondoPagina,
+        color:
+          textoPrincipal,
+      }}
+    >
+      <style jsx global>{`
+        .relydo-provider-dark .bg-white {
+          background-color: #0f172a !important;
+        }
+        .relydo-provider-dark .bg-slate-50,
+        .relydo-provider-dark .bg-slate-100 {
+          background-color: #111827 !important;
+        }
+        .relydo-provider-dark .text-slate-950,
+        .relydo-provider-dark .text-slate-900,
+        .relydo-provider-dark .text-slate-800,
+        .relydo-provider-dark .text-slate-700 {
+          color: #f8fafc !important;
+        }
+        .relydo-provider-dark .text-slate-600,
+        .relydo-provider-dark .text-slate-500,
+        .relydo-provider-dark .text-slate-400 {
+          color: #cbd5e1 !important;
+        }
+        .relydo-provider-dark .border-slate-100,
+        .relydo-provider-dark .border-slate-200,
+        .relydo-provider-dark .border-slate-300 {
+          border-color: #334155 !important;
+        }
+        .relydo-provider-dark .hover\\:bg-blue-50:hover {
+          background-color: #172554 !important;
+        }
+        .relydo-provider-dark .hover\\:bg-slate-50:hover,
+        .relydo-provider-dark .hover\\:bg-slate-100:hover {
+          background-color: #1e293b !important;
+        }
+      `}</style>
+
       {/* BARRA SUPERIOR MÓVIL */}
       <div className="sticky top-0 z-[160] -mx-4 mb-3 flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 text-white shadow-lg md:hidden">
         <button type="button" onClick={() => setMenuMovilAbierto(true)} className="flex h-10 w-10 items-center justify-center rounded-xl text-2xl font-black active:bg-white/10" aria-label={T("Abrir menú", "Open menu")}>☰</button>
@@ -1569,7 +2382,17 @@ export default function PanelProfesional() {
 
         {/* HEADER */}
 
-        <section className="relative z-30 overflow-visible rounded-[32px] border border-blue-500/20 bg-gradient-to-br from-blue-700 via-blue-700 to-indigo-700 text-white shadow-xl shadow-blue-900/10">
+        <section
+          className="relative z-30 overflow-visible rounded-[32px] border text-white shadow-xl"
+          style={{
+            borderColor:
+              `${colorActual.hex}55`,
+            background:
+              `linear-gradient(135deg, ${colorActual.hex}, ${colorActual.hexOscuro})`,
+            boxShadow:
+              `0 16px 36px ${colorActual.hex}20`,
+          }}
+        >
           <div className="relative px-4 py-5 md:px-10 md:py-10">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-24 left-10 h-52 w-52 rounded-full bg-cyan-300/10 blur-3xl" />
@@ -1692,6 +2515,785 @@ export default function PanelProfesional() {
             </div>
           </div>
         </section>
+
+        {/* ACCIONES RÁPIDAS / AJUSTES */}
+
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/trabajos")
+            }
+            className="rounded-xl px-5 py-3 text-base font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-lg"
+            style={{
+              backgroundColor:
+                colorActual.hex,
+            }}
+          >
+            {T(
+              "Trabajos disponibles",
+              "Available jobs"
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/pagos")
+            }
+            className="rounded-xl border-2 px-5 py-3 text-base font-extrabold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-lg"
+            style={{
+              borderColor:
+                colorActual.hex,
+              backgroundColor:
+                fondoTarjeta,
+              color:
+                colorActual.hex,
+            }}
+          >
+            {T("Pagos", "Payments")}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMostrarAjustes(
+                (actual) =>
+                  !actual
+              )
+            }
+            className="rounded-xl border px-5 py-3 text-base font-extrabold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-lg"
+            style={{
+              borderColor:
+                bordeTarjeta,
+              backgroundColor:
+                fondoTarjeta,
+              color:
+                textoPrincipal,
+            }}
+          >
+            ⚙️ {T("Ajustes", "Settings")}
+          </button>
+        </section>
+
+        {mostrarAjustes && (
+          <section
+            id="ajustes-profesional"
+            className="mt-5 overflow-hidden rounded-3xl border shadow-lg"
+            style={{
+              borderColor:
+                bordeTarjeta,
+              backgroundColor:
+                fondoTarjeta,
+            }}
+          >
+            <div
+              className="border-b px-6 py-5 md:px-7"
+              style={{
+                borderColor:
+                  bordeTarjeta,
+              }}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p
+                    className="text-xs font-black uppercase tracking-[0.16em]"
+                    style={{
+                      color:
+                        colorActual.hex,
+                    }}
+                  >
+                    ⚙️ {T("Ajustes", "Settings")}
+                  </p>
+
+                  <h2
+                    className="mt-1 text-2xl font-black"
+                    style={{
+                      color:
+                        textoPrincipal,
+                    }}
+                  >
+                    {T(
+                      "Personaliza tu experiencia",
+                      "Personalize your experience"
+                    )}
+                  </h2>
+
+                  <p
+                    className="mt-1 text-sm"
+                    style={{
+                      color:
+                        textoSecundario,
+                    }}
+                  >
+                    {T(
+                      "Configura la apariencia, el color y los avisos de tu experiencia profesional.",
+                      "Configure the appearance, color, and alerts for your professional experience."
+                    )}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarAjustes(false)
+                  }
+                  className="w-fit rounded-xl border px-4 py-2 text-sm font-extrabold"
+                  style={{
+                    borderColor:
+                      bordeTarjeta,
+                    color:
+                      textoPrincipal,
+                    backgroundColor:
+                      temaOscuro
+                        ? "#1e293b"
+                        : "#f8fafc",
+                  }}
+                >
+                  {T(
+                    "Cerrar ajustes",
+                    "Close settings"
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-5 p-6 md:grid-cols-2 md:p-7 xl:grid-cols-4">
+              {/* APARIENCIA */}
+              <div
+                className="rounded-2xl border p-5"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    ◐
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {T(
+                        "Apariencia",
+                        "Appearance"
+                      )}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {T(
+                        "Elige cómo quieres ver tu experiencia profesional.",
+                        "Choose how you want your professional experience to look."
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      [
+                        "light",
+                        T(
+                          "Claro",
+                          "Light"
+                        ),
+                      ],
+                      [
+                        "dark",
+                        T(
+                          "Oscuro",
+                          "Dark"
+                        ),
+                      ],
+                      [
+                        "system",
+                        T(
+                          "Sistema",
+                          "System"
+                        ),
+                      ],
+                    ] as const
+                  ).map(
+                    ([valor, etiqueta]) => (
+                      <button
+                        key={valor}
+                        type="button"
+                        onClick={() =>
+                          guardarTemaProfesional(
+                            valor
+                          )
+                        }
+                        className="rounded-xl border px-3 py-2.5 text-xs font-black transition"
+                        style={{
+                          borderColor:
+                            temaProfesional ===
+                            valor
+                              ? colorActual.hex
+                              : bordeTarjeta,
+                          backgroundColor:
+                            temaProfesional ===
+                            valor
+                              ? `${colorActual.hex}18`
+                              : fondoTarjeta,
+                          color:
+                            temaProfesional ===
+                            valor
+                              ? colorActual.hex
+                              : textoPrincipal,
+                        }}
+                      >
+                        {etiqueta}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* COLOR */}
+              <div
+                className="rounded-2xl border p-5"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    🎨
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {T(
+                        "Color principal",
+                        "Primary color"
+                      )}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {T(
+                        "Personaliza los detalles y acciones principales de RELYDO Pro.",
+                        "Personalize the main accents and actions in RELYDO Pro."
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  {(
+                    Object.keys(
+                      COLORES_PROFESIONAL
+                    ) as ColorProfesional[]
+                  ).map(
+                    (color) => {
+                      const opcion =
+                        COLORES_PROFESIONAL[
+                          color
+                        ];
+
+                      const seleccionado =
+                        colorProfesional ===
+                        color;
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() =>
+                            guardarColorProfesional(
+                              color
+                            )
+                          }
+                          title={
+                            language ===
+                            "es"
+                              ? opcion.nombreEs
+                              : opcion.nombreEn
+                          }
+                          className="flex flex-col items-center gap-2 rounded-xl border p-3 text-[10px] font-black transition"
+                          style={{
+                            borderColor:
+                              seleccionado
+                                ? opcion.hex
+                                : bordeTarjeta,
+                            backgroundColor:
+                              seleccionado
+                                ? `${opcion.hex}14`
+                                : fondoTarjeta,
+                            color:
+                              textoPrincipal,
+                          }}
+                        >
+                          <span
+                            className="h-7 w-7 rounded-full shadow-sm"
+                            style={{
+                              backgroundColor:
+                                opcion.hex,
+                              boxShadow:
+                                seleccionado
+                                  ? `0 0 0 4px ${opcion.hex}25`
+                                  : undefined,
+                            }}
+                          />
+
+                          <span>
+                            {language ===
+                            "es"
+                              ? opcion.nombreEs
+                              : opcion.nombreEn}
+                          </span>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+
+              {/* AVISOS */}
+              <div
+                className="rounded-2xl border p-5 md:col-span-2 xl:col-span-1"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#f8fafc",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    🔔
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {T(
+                        "Avisos",
+                        "Alerts"
+                      )}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {T(
+                        "Controla las notificaciones Push y el sonido en este dispositivo.",
+                        "Control Push notifications and sound on this device."
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div
+                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    style={{
+                      borderColor:
+                        bordeTarjeta,
+                      backgroundColor:
+                        fondoTarjeta,
+                    }}
+                  >
+                    <div>
+                      <p
+                        className="text-sm font-black"
+                        style={{
+                          color:
+                            textoPrincipal,
+                        }}
+                      >
+                        📲 {T(
+                          "Notificaciones Push",
+                          "Push notifications"
+                        )}
+                      </p>
+
+                      <p
+                        className="mt-1 text-xs font-bold"
+                        style={{
+                          color:
+                            pushActivo
+                              ? "#059669"
+                              : textoSecundario,
+                        }}
+                      >
+                        {pushActivo
+                          ? T(
+                              "Activo",
+                              "Active"
+                            )
+                          : T(
+                              "Inactivo",
+                              "Inactive"
+                            )}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={
+                        procesandoPush ||
+                        !pushDisponible
+                      }
+                      onClick={() =>
+                        pushActivo
+                          ? desactivarPushProfesional()
+                          : activarPushProfesional()
+                      }
+                      className="rounded-lg px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{
+                        backgroundColor:
+                          pushActivo
+                            ? "#475569"
+                            : colorActual.hex,
+                      }}
+                    >
+                      {procesandoPush
+                        ? T(
+                            "Procesando...",
+                            "Processing..."
+                          )
+                        : pushActivo
+                        ? T(
+                            "Desactivar",
+                            "Disable"
+                          )
+                        : T(
+                            "Activar",
+                            "Enable"
+                          )}
+                    </button>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    style={{
+                      borderColor:
+                        bordeTarjeta,
+                      backgroundColor:
+                        fondoTarjeta,
+                    }}
+                  >
+                    <div>
+                      <p
+                        className="text-sm font-black"
+                        style={{
+                          color:
+                            textoPrincipal,
+                        }}
+                      >
+                        🔊 {T(
+                          "Sonido",
+                          "Sound"
+                        )}
+                      </p>
+
+                      <p
+                        className="mt-1 text-xs font-bold"
+                        style={{
+                          color:
+                            sonidoActivo
+                              ? "#059669"
+                              : textoSecundario,
+                        }}
+                      >
+                        {sonidoActivo
+                          ? T(
+                              "Activo",
+                              "Active"
+                            )
+                          : T(
+                              "Inactivo",
+                              "Inactive"
+                            )}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={
+                        cambiarSonido
+                      }
+                      className="rounded-lg px-4 py-2 text-xs font-black text-white"
+                      style={{
+                        backgroundColor:
+                          sonidoActivo
+                            ? "#475569"
+                            : colorActual.hex,
+                      }}
+                    >
+                      {sonidoActivo
+                        ? T(
+                            "Desactivar",
+                            "Disable"
+                          )
+                        : T(
+                            "Activar",
+                            "Enable"
+                          )}
+                    </button>
+                  </div>
+
+                  {!pushDisponible && (
+                    <p className="text-xs font-bold text-amber-700">
+                      {T(
+                        "Push no disponible en este navegador.",
+                        "Push is not available in this browser."
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* CUENTA */}
+              <div
+                className="rounded-2xl border p-5 md:col-span-2 xl:col-span-1"
+                style={{
+                  borderColor:
+                    "#fecaca",
+                  backgroundColor:
+                    temaOscuro
+                      ? "#111827"
+                      : "#fff7f7",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">
+                    👤
+                  </div>
+
+                  <div>
+                    <h3
+                      className="font-black"
+                      style={{
+                        color:
+                          textoPrincipal,
+                      }}
+                    >
+                      {T(
+                        "Cuenta",
+                        "Account"
+                      )}
+                    </h3>
+
+                    <p
+                      className="mt-1 text-xs leading-5"
+                      style={{
+                        color:
+                          textoSecundario,
+                      }}
+                    >
+                      {T(
+                        "Administra la eliminación permanente de tu cuenta profesional RELYDO.",
+                        "Manage permanent deletion of your RELYDO professional account."
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-black text-red-800">
+                    {T(
+                      "Eliminar cuenta",
+                      "Delete account"
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-red-700">
+                    {T(
+                      "Elimina permanentemente tu cuenta y los datos personales que RELYDO no esté obligado a conservar.",
+                      "Permanently delete your account and personal data RELYDO is not legally required to retain."
+                    )}
+                  </p>
+
+                  <p className="mt-2 text-xs font-black text-red-800">
+                    {T(
+                      "Esta acción no se puede deshacer.",
+                      "This action cannot be undone."
+                    )}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarEliminarCuenta(
+                        true
+                      );
+                      setConfirmacionEliminar(
+                        false
+                      );
+                      setMensajeEliminarCuenta(
+                        ""
+                      );
+                    }}
+                    className="mt-4 w-full rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                  >
+                    {T(
+                      "Eliminar cuenta",
+                      "Delete account"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {mensajeAjustes && (
+              <div
+                className="border-t px-6 py-4 text-sm font-bold md:px-7"
+                style={{
+                  borderColor:
+                    bordeTarjeta,
+                  color:
+                    textoSecundario,
+                }}
+              >
+                ✓ {mensajeAjustes}
+              </div>
+            )}
+          </section>
+        )}
+
+        {mostrarEliminarCuenta && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 shadow-2xl sm:p-7">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-2xl">
+                  ⚠️
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">
+                    {T(
+                      "¿Eliminar tu cuenta?",
+                      "Delete your account?"
+                    )}
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {T(
+                      "Comprobaremos primero que no tengas trabajos activos, pagos pendientes ni reclamos pendientes. Si todo está cerrado, tu cuenta se eliminará.",
+                      "We will first check that you have no active jobs, pending payments, or unresolved claims. If everything is closed, your account will be deleted."
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <input
+                  type="checkbox"
+                  checked={
+                    confirmacionEliminar
+                  }
+                  onChange={(event) =>
+                    setConfirmacionEliminar(
+                      event.target.checked
+                    )
+                  }
+                  className="mt-1 h-4 w-4"
+                />
+
+                <span className="text-sm font-bold leading-6 text-red-900">
+                  {T(
+                    "Entiendo que esta acción es permanente.",
+                    "I understand that this action is permanent."
+                  )}
+                </span>
+              </label>
+
+              {mensajeEliminarCuenta && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">
+                  {mensajeEliminarCuenta}
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  disabled={
+                    eliminandoCuenta
+                  }
+                  onClick={() =>
+                    setMostrarEliminarCuenta(
+                      false
+                    )
+                  }
+                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
+                >
+                  {T(
+                    "Cancelar",
+                    "Cancel"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    !confirmacionEliminar ||
+                    eliminandoCuenta
+                  }
+                  onClick={
+                    eliminarCuentaProfesional
+                  }
+                  className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {eliminandoCuenta
+                    ? T(
+                        "Eliminando cuenta...",
+                        "Deleting account..."
+                      )
+                    : T(
+                        "Eliminar mi cuenta",
+                        "Delete my account"
+                      )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* PAGOS STRIPE CONNECT
             El bloque grande solo aparece cuando el profesional necesita
@@ -3162,6 +4764,20 @@ export default function PanelProfesional() {
               <MenuMovilItem icono="★" texto={T("Reputación", "Reputation")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("rating"); }} />
               <MenuMovilItem icono="▤" texto={T("Documentos", "Documents")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("documents"); }} />
               <MenuMovilItem icono="↺" texto={T("Historial", "History")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("history"); }} />
+              <MenuMovilItem
+                icono="⚙"
+                texto={T("Ajustes", "Settings")}
+                onClick={() => {
+                  setMenuMovilAbierto(false);
+                  setMostrarAjustes(true);
+                  window.setTimeout(() => {
+                    document.getElementById("ajustes-profesional")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }, 80);
+                }}
+              />
             </div>
             <div className="mt-5 border-t border-slate-100 pt-4">
               <button type="button" onClick={cerrarSesion} className="w-full rounded-xl bg-slate-950 px-4 py-3 font-black text-white">{T("Cerrar sesión", "Sign out")}</button>
