@@ -116,13 +116,13 @@ export default function PagosProfesionalPage() {
     }
 
     const rows = (paymentRows || []) as PaymentRow[];
-    setPayments(rows);
 
     const requestIds = [
       ...new Set(rows.map((row) => row.request_id).filter(Boolean)),
     ];
 
     if (requestIds.length === 0) {
+      setPayments([]);
       setRequestsMap({});
       return;
     }
@@ -151,6 +151,18 @@ export default function PagosProfesionalPage() {
       nextMap[request.id] = request;
     }
 
+    const visiblePayments = rows.filter((payment) => {
+      const request = nextMap[payment.request_id];
+      const trabajoTerminado = request?.status === "completed";
+      const dineroYaLiberado =
+        payment.status === "paid_out" ||
+        Boolean(payment.released_at) ||
+        Boolean(payment.stripe_transfer_id);
+
+      return trabajoTerminado || dineroYaLiberado;
+    });
+
+    setPayments(visiblePayments);
     setRequestsMap(nextMap);
   }
 
