@@ -141,6 +141,31 @@ function nombreOficio(
   return oficios[key] || trade;
 }
 
+
+const ESPECIALIDADES = [
+  "plumbing",
+  "electrical",
+  "hvac",
+  "carpentry",
+  "painting",
+  "landscaping",
+  "cleaning",
+  "moving",
+  "handyman",
+  "appliance-repair",
+  "locksmith",
+  "roofing",
+  "flooring",
+  "tile",
+  "drywall",
+  "masonry",
+  "doors-windows",
+  "garage",
+  "fencing",
+  "pools-spas",
+  "pest-control",
+] as const;
+
 function ProfesionalesContenido() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -497,47 +522,19 @@ function ProfesionalesContenido() {
   }
 
   const categorias = useMemo(() => {
-    const conteo = new Map<
-      string,
-      number
-    >();
+    const conteo = new Map<string, number>();
 
-    profesionales.forEach(
-      (profesional) => {
-        const trade =
-          normalizarTrade(
-            profesional.trade
-          );
+    profesionales.forEach((profesional) => {
+      const trade = normalizarTrade(profesional.trade);
+      if (!trade) return;
+      conteo.set(trade, (conteo.get(trade) || 0) + 1);
+    });
 
-        if (!trade) return;
-
-        conteo.set(
-          trade,
-          (conteo.get(trade) || 0) + 1
-        );
-      }
-    );
-
-    return Array.from(
-      conteo.entries()
-    )
-      .map(([trade, count]) => ({
-        trade,
-        count,
-        nombre: nombreOficio(
-          trade,
-          language
-        ),
-      }))
-      .sort((a, b) => {
-        if (b.count !== a.count) {
-          return b.count - a.count;
-        }
-
-        return a.nombre.localeCompare(
-          b.nombre
-        );
-      });
+    return ESPECIALIDADES.map((trade) => ({
+      trade,
+      count: conteo.get(trade) || 0,
+      nombre: nombreOficio(trade, language),
+    }));
   }, [profesionales, language]);
 
   const profesionalesFiltrados =
@@ -657,184 +654,109 @@ function ProfesionalesContenido() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10">
       <div className="mx-auto max-w-6xl">
+        {/* BUSCADOR ARRIBA */}
+        {!error && (
+          <div className="relative mb-5">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">
+              🔍
+            </span>
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(event) => setBusqueda(event.target.value)}
+              placeholder={text.buscarPlaceholder}
+              className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
+          </div>
+        )}
+
         {/* HEADER */}
-        <div>
-          <button
-            type="button"
-            onClick={() =>
-              router.back()
-            }
-            aria-label={
-              language === "es"
-                ? "Volver a la página anterior"
-                : "Go back to previous page"
-            }
-            title={
-              language === "es"
-                ? "Volver"
-                : "Back"
-            }
-            className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:-translate-x-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md active:scale-95"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-              aria-hidden="true"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label={
+                language === "es"
+                  ? "Volver a la página anterior"
+                  : "Go back to previous page"
+              }
+              title={language === "es" ? "Volver" : "Back"}
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
             >
-              <path d="M19 12H5" />
-              <path d="M12 19l-7-7 7-7" />
-            </svg>
-          </button>
+              ←
+            </button>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-4xl font-extrabold text-slate-900">
-                {text.titulo}
-              </h1>
+            <h1 className="text-4xl font-extrabold text-slate-900">
+              {text.titulo}
+            </h1>
+            <p className="mt-1 text-base text-slate-600">
+              {text.descripcion}
+            </p>
+          </div>
 
-              <p className="mt-2 text-lg text-slate-600">
-                {text.descripcion}
-              </p>
-            </div>
-
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
-              <span>📍</span>
-              <span>
-                {areaLabel ||
-                  text.ubicacionNoDisponible}
-              </span>
-            </div>
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
+            <span>📍</span>
+            <span>{areaLabel || text.ubicacionNoDisponible}</span>
           </div>
         </div>
 
         {/* ERROR */}
         {error && (
-          <div className="mt-7 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
+          <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
             {error}
           </div>
         )}
 
         {!error && (
           <>
-            {/* BUSCADOR */}
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl">
-                  🔍
-                </span>
-
-                <input
-                  type="search"
-                  value={busqueda}
-                  onChange={(event) =>
-                    setBusqueda(
-                      event.target.value
-                    )
-                  }
-                  placeholder={
-                    text.buscarPlaceholder
-                  }
-                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-4 pl-12 pr-4 text-base font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-
-              {/* ESPECIALIDADES */}
-              <div className="mt-6">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="font-extrabold text-slate-900">
-                      {
-                        text.especialidadesZona
-                      }
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      {
-                        profesionales.length
-                      }{" "}
-                      {profesionales.length ===
-                      1
-                        ? text.resultado
-                        : text.resultados}
-                    </p>
-                  </div>
-
-                  {(tradeSeleccionado ||
-                    busqueda) && (
-                    <button
-                      type="button"
-                      onClick={
-                        limpiarFiltros
-                      }
-                      className="mt-2 w-fit text-sm font-bold text-blue-700 hover:text-blue-900 sm:mt-0"
-                    >
-                      {text.limpiar}
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible">
+            {/* 21 ESPECIALIDADES COMPACTAS: 11 ARRIBA / 10 ABAJO EN DESKTOP */}
+            <div className="mt-5">
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-11">
+                {categorias.map((categoria) => (
                   <button
+                    key={categoria.trade}
                     type="button"
-                    onClick={() =>
-                      seleccionarTrade(
-                        ""
-                      )
-                    }
-                    className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-extrabold transition ${
-                      !tradeSeleccionado
-                        ? "border-blue-700 bg-blue-700 text-white shadow-md"
+                    onClick={() => seleccionarTrade(categoria.trade)}
+                    title={categoria.nombre}
+                    className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[11px] font-extrabold leading-none transition ${
+                      normalizarTrade(tradeSeleccionado) === categoria.trade
+                        ? "border-blue-700 bg-blue-700 text-white shadow-sm"
                         : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
                     }`}
                   >
-                    {text.todos}{" "}
-                    <span className="ml-1 rounded-full bg-black/10 px-2 py-0.5 text-xs">
-                      {
-                        profesionales.length
-                      }
+                    <span className="truncate">{categoria.nombre}</span>
+                    <span className="shrink-0 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px]">
+                      {categoria.count}
                     </span>
                   </button>
-
-                  {categorias.map(
-                    (categoria) => (
-                      <button
-                        key={
-                          categoria.trade
-                        }
-                        type="button"
-                        onClick={() =>
-                          seleccionarTrade(
-                            categoria.trade
-                          )
-                        }
-                        className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-extrabold transition ${
-                          normalizarTrade(
-                            tradeSeleccionado
-                          ) ===
-                          categoria.trade
-                            ? "border-blue-700 bg-blue-700 text-white shadow-md"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                        }`}
-                      >
-                        {
-                          categoria.nombre
-                        }{" "}
-                        <span className="ml-1 rounded-full bg-black/10 px-2 py-0.5 text-xs">
-                          {
-                            categoria.count
-                          }
-                        </span>
-                      </button>
-                    )
-                  )}
-                </div>
+                ))}
               </div>
-            </section>
+
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => seleccionarTrade("")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
+                    !tradeSeleccionado
+                      ? "border-blue-700 bg-blue-700 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-blue-50"
+                  }`}
+                >
+                  {text.todos} · {profesionales.length}
+                </button>
+
+                {(tradeSeleccionado || busqueda) && (
+                  <button
+                    type="button"
+                    onClick={limpiarFiltros}
+                    className="text-xs font-bold text-blue-700 hover:text-blue-900"
+                  >
+                    {text.limpiar}
+                  </button>
+                )}
+              </div>
+            </div>
 
             {/* TITULO RESULTADOS */}
             <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
