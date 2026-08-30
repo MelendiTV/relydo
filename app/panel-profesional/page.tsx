@@ -367,6 +367,7 @@ export default function PanelProfesional() {
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const [profile, setProfile] = useState<ProviderProfile | null>(null);
+  const [ratingCount, setRatingCount] = useState(0);
   const [email, setEmail] = useState("");
   const [trabajosContratados, setTrabajosContratados] = useState<TrabajoConOferta[]>([]);
   const [ofertasHistorial, setOfertasHistorial] = useState<OfertaHistorial[]>([]);
@@ -1420,6 +1421,18 @@ export default function PanelProfesional() {
 
       setProfile(providerProfile as ProviderProfile);
 
+      const { count: reviewsCount, error: reviewsCountError } = await supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("reviewee_id", user.id);
+
+      if (reviewsCountError) {
+        console.error("Error cargando cantidad de calificaciones:", reviewsCountError);
+        setRatingCount(0);
+      } else {
+        setRatingCount(reviewsCount ?? 0);
+      }
+
       await consultarEstadoPagos(false);
 
       const { data: documentosData, error: documentosError } = await supabase
@@ -2466,7 +2479,10 @@ export default function PanelProfesional() {
                   </span>
 
                   <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
-                    ⭐ {Number(profile.average_rating || 0).toFixed(1)}
+                    ⭐ {Number(profile.average_rating || 0).toFixed(1)} · {ratingCount} {T(
+                      ratingCount === 1 ? "calificación" : "calificaciones",
+                      ratingCount === 1 ? "rating" : "ratings"
+                    )}
                   </span>
 
                   <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
@@ -3488,9 +3504,9 @@ export default function PanelProfesional() {
               clase="text-amber-600"
               icono="★"
               fondo="bg-amber-50 text-amber-600"
-              detalle={`${profile.completed_jobs ?? trabajosCompletados.length} ${T(
-                "trabajos",
-                "jobs"
+              detalle={`${ratingCount} ${T(
+                ratingCount === 1 ? "calificación" : "calificaciones",
+                ratingCount === 1 ? "rating" : "ratings"
               )}`}
               textoAccion={T("Ver calificación", "View rating")}
               onClick={() => abrirPanel("rating")}
@@ -3581,9 +3597,9 @@ export default function PanelProfesional() {
               valorClase="text-amber-600"
               icono="★"
               fondo="bg-amber-50 text-amber-600"
-              detalle={`${profile.completed_jobs ?? trabajosCompletados.length} ${T(
-                "trabajos",
-                "jobs"
+              detalle={`${ratingCount} ${T(
+                ratingCount === 1 ? "calificación" : "calificaciones",
+                ratingCount === 1 ? "rating" : "ratings"
               )}`}
               onClick={() => abrirPanel("rating")}
             />
@@ -4116,8 +4132,8 @@ export default function PanelProfesional() {
                 </h2>
                 <p className="mt-2 text-slate-600">
                   {T(
-                    "Aquí ves tu calificación actual y el total de trabajos completados.",
-                    "Here you can see your current rating and total completed jobs."
+                    "Aquí ves tu calificación actual, cuántas veces te han calificado y el total de trabajos completados.",
+                    "Here you can see your current rating, how many ratings you have received, and your total completed jobs."
                   )}
                 </p>
               </div>
@@ -4126,6 +4142,12 @@ export default function PanelProfesional() {
                   ★ {Number(profile.average_rating || 0).toFixed(1)}
                 </p>
                 <p className="mt-1 text-sm font-bold text-amber-800">
+                  {ratingCount} {T(
+                    ratingCount === 1 ? "calificación" : "calificaciones",
+                    ratingCount === 1 ? "rating" : "ratings"
+                  )}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-amber-700">
                   {profile.completed_jobs ?? trabajosCompletados.length} {T("trabajos completados", "completed jobs")}
                 </p>
               </div>
