@@ -184,6 +184,9 @@ export async function POST(
           accepted_at,
           rejected_at,
           created_at,
+          payment_status,
+          stripe_checkout_session_id,
+          paid_at,
           updated_at
         `)
         .eq(
@@ -246,6 +249,61 @@ export async function POST(
           status: 400,
         }
       );
+    }
+
+    // ======================================================
+    // 5B. EVITAR CHECKOUTS DUPLICADOS / DOBLE COBRO
+    // ======================================================
+
+    if (changeOrder.payment_status === "paid") {
+      return NextResponse.json(
+        {
+          error: "Este cambio de presupuesto ya fue pagado.",
+          alreadyPaid: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (changeOrder.stripe_checkout_session_id) {
+      try {
+        const existingSession =
+          await stripe.checkout.sessions.retrieve(
+            changeOrder.stripe_checkout_session_id
+          );
+
+        if (
+          existingSession.payment_status === "paid" ||
+          existingSession.status === "complete"
+        ) {
+          return NextResponse.json(
+            {
+              error: "Este cambio de presupuesto ya tiene un pago completado en Stripe.",
+              alreadyPaid: true,
+              sessionId: existingSession.id,
+            },
+            { status: 409 }
+          );
+        }
+
+        if (
+          existingSession.status === "open" &&
+          existingSession.url
+        ) {
+          return NextResponse.json({
+            success: true,
+            reused: true,
+            url: existingSession.url,
+            sessionId: existingSession.id,
+            changeOrderId: changeOrder.id,
+          });
+        }
+      } catch (existingSessionError) {
+        console.warn(
+          "No se pudo reutilizar la sesión previa de Stripe; se intentará crear una nueva:",
+          existingSessionError
+        );
+      }
     }
 
     // ======================================================
@@ -738,6 +796,10 @@ export async function POST(
                   ),
               },
             },
+          },
+          {
+            idempotencyKey:
+              `relydo_change_order_checkout_${changeOrder.id}_${changeOrder.updated_at || changeOrder.accepted_at || "accepted"}`,
           }
         );
 
@@ -752,6 +814,29 @@ export async function POST(
         {
           status: 500,
         }
+      );
+    }
+
+    const { error: saveSessionError } =
+      await supabaseAdmin
+        .from("change_orders")
+        .update({
+          stripe_checkout_session_id: session.id,
+        })
+        .eq("id", changeOrder.id)
+        .neq("payment_status", "paid");
+
+    if (saveSessionError) {
+      console.error(
+        "Stripe creó la sesión, pero no se pudo guardar su ID:",
+        saveSessionError
+      );
+
+      return NextResponse.json(
+        {
+          error: "No pudimos asegurar la sesión de pago. Intenta nuevamente.",
+        },
+        { status: 500 }
       );
     }
 
