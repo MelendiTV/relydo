@@ -4572,7 +4572,7 @@ export default function TrabajoDetallePage() {
                                             onClick={() => quitarEvidenciaFinalSeleccionada(index)}
                                             className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1 text-sm font-bold text-red-700 hover:bg-red-50"
                                           >
-                                            Quitar
+                                            {T("Quitar", "Remove")}
                                           </button>
                                         </div>
                                       ))}
@@ -4754,7 +4754,7 @@ export default function TrabajoDetallePage() {
 
                               <div className="rounded-xl bg-white p-4">
                                 <p className="text-xs font-bold text-slate-500">
-                                  Nuevo total propuesto
+                                  {T("Nuevo total propuesto", "New proposed total")}
                                 </p>
                                 <p className="mt-1 text-xl font-black text-slate-950">
                                   ${Number(
@@ -4993,7 +4993,7 @@ export default function TrabajoDetallePage() {
                                         }
                                         className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-black text-red-700 hover:bg-red-50"
                                       >
-                                        Quitar
+                                        {T("Quitar", "Remove")}
                                       </button>
                                     </div>
                                   )
@@ -5033,7 +5033,7 @@ export default function TrabajoDetallePage() {
                               <div className="mt-3 border-t border-violet-200 pt-3">
                                 <div className="flex items-center justify-between gap-4">
                                   <span className="font-black text-violet-950">
-                                    Nuevo total propuesto
+                                    {T("Nuevo total propuesto", "New proposed total")}
                                   </span>
                                   <strong className="text-xl text-violet-950">
                                     ${(
@@ -6006,7 +6006,7 @@ export default function TrabajoDetallePage() {
                               }
                               className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
-                              Quitar
+                              {T("Quitar", "Remove")}
                             </button>
                           </div>
                         )
