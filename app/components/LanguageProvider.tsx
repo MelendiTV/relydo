@@ -9,6 +9,10 @@ import {
 } from "react";
 
 import {
+  createClient,
+} from "@supabase/supabase-js";
+
+import {
   getBrowserLanguage,
   type AppLanguage,
 } from "@/lib/language";
@@ -20,6 +24,11 @@ type LanguageContextType = {
 const LanguageContext =
   createContext<LanguageContextType | null>(null);
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
+
 export function LanguageProvider({
   children,
 }: {
@@ -29,7 +38,67 @@ export function LanguageProvider({
     useState<AppLanguage>("en");
 
   useEffect(() => {
-    setLanguage(getBrowserLanguage());
+    let active = true;
+
+    async function detectAndPersistLanguage() {
+      const detectedLanguage =
+        getBrowserLanguage();
+
+      if (active) {
+        setLanguage(detectedLanguage);
+      }
+
+      try {
+        const {
+          data: {
+            user,
+          },
+          error:
+            userError,
+        } =
+          await supabase.auth.getUser();
+
+        if (
+          userError ||
+          !user
+        ) {
+          return;
+        }
+
+        const {
+          error:
+            updateError,
+        } =
+          await supabase
+            .from("profiles")
+            .update({
+              preferred_language:
+                detectedLanguage,
+            })
+            .eq(
+              "id",
+              user.id
+            );
+
+        if (updateError) {
+          console.warn(
+            "Could not save preferred language:",
+            updateError.message
+          );
+        }
+      } catch (error) {
+        console.warn(
+          "Could not persist preferred language:",
+          error
+        );
+      }
+    }
+
+    detectAndPersistLanguage();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -40,7 +109,8 @@ export function LanguageProvider({
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext);
+  const context =
+    useContext(LanguageContext);
 
   if (!context) {
     throw new Error(

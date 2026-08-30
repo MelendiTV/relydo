@@ -509,7 +509,7 @@ export async function POST(
           full_name,
           email,
           phone,
-          language
+          preferred_language
         `)
         .eq(
           "id",
@@ -547,7 +547,7 @@ export async function POST(
       ).trim();
 
     const language =
-      normalizeLanguage(contactProfile?.language);
+      normalizeLanguage(contactProfile?.preferred_language);
 
     const siteUrl =
       (
