@@ -51,6 +51,11 @@ export default function LoginProfesional() {
           titulo: "Iniciar sesión como profesional",
           descripcion:
             "Inicia sesión para acceder a tu cuenta.",
+          volverInicio: "Volver al inicio",
+          continuarGoogle: "Continuar con Google",
+          conectandoGoogle: "Conectando con Google...",
+          separador: "o continúa con email",
+          errorGoogle: "No se pudo iniciar sesión con Google.",
           email: "Email",
           emailPlaceholder: "tu@email.com",
           password: "Contraseña",
@@ -86,6 +91,11 @@ export default function LoginProfesional() {
           titulo: "Professional sign in",
           descripcion:
             "Sign in to access your account.",
+          volverInicio: "Back to home",
+          continuarGoogle: "Continue with Google",
+          conectandoGoogle: "Connecting with Google...",
+          separador: "or continue with email",
+          errorGoogle: "Unable to sign in with Google.",
           email: "Email",
           emailPlaceholder: "you@email.com",
           password: "Password",
@@ -105,6 +115,7 @@ export default function LoginProfesional() {
   const [mensaje, setMensaje] = useState("");
 
   const [cargando, setCargando] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [recuperando, setRecuperando] = useState(false);
 
   const [
@@ -586,6 +597,61 @@ export default function LoginProfesional() {
       setEnviandoSolicitud(
         null
       );
+    }
+  }
+
+  async function iniciarSesionGoogle() {
+    if (
+      cargando ||
+      googleLoading ||
+      recuperando
+    ) {
+      return;
+    }
+
+    setGoogleLoading(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      window.localStorage.setItem(
+        "relydo_provider_oauth_redirect",
+        "/panel-profesional"
+      );
+
+      const redirectTo =
+        `${window.location.origin}/auth/google/profesional`;
+
+      const {
+        error: googleError,
+      } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+          },
+        });
+
+      if (googleError) {
+        window.localStorage.removeItem(
+          "relydo_provider_oauth_redirect"
+        );
+
+        throw googleError;
+      }
+    } catch (err) {
+      console.error(
+        "Error iniciando sesión profesional con Google:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? `${text.errorGoogle} ${err.message}`
+          : text.errorGoogle
+      );
+
+      setGoogleLoading(false);
     }
   }
 
@@ -1187,143 +1253,205 @@ export default function LoginProfesional() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-10">
-
-      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
-
-        {/* HEADER */}
-
-        <div className="bg-blue-700 px-8 py-8 text-white">
-
-          <div className="text-2xl font-black">
-            RELYDO
-          </div>
-
-          <h1 className="mt-2 text-3xl font-extrabold">
-            {text.titulo}
-          </h1>
-
-          <p className="mt-2 text-blue-100">
-            {text.descripcion}
-          </p>
-
-        </div>
-
-        {/* FORM */}
-
-        <form
-          onSubmit={handleLogin}
-          className="space-y-6 p-8"
+    <main className="min-h-screen bg-slate-100 px-4 py-10">
+      <div className="mx-auto w-full max-w-md">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          disabled={
+            cargando ||
+            googleLoading ||
+            recuperando
+          }
+          className="font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
         >
+          ← {text.volverInicio}
+        </button>
 
-          <div>
+        <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <div className="bg-blue-700 p-8 text-white">
+            <div className="text-2xl font-black">
+              RELYDO
+            </div>
 
-            <label className="mb-2 block font-bold text-slate-900">
-              {text.email}
-            </label>
+            <h1 className="mt-2 text-3xl font-extrabold">
+              {text.titulo}
+            </h1>
 
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) =>
-                setEmail(
-                  e.target.value
-                )
-              }
-              placeholder={text.emailPlaceholder}
-              className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-            />
-
+            <p className="mt-2 text-blue-100">
+              {text.descripcion}
+            </p>
           </div>
 
-          <div>
+          <div className="p-8">
+            {error && (
+              <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-700">
+                {error}
+              </div>
+            )}
 
-            <label className="mb-2 block font-bold text-slate-900">
-              {text.password}
-            </label>
+            {mensaje && (
+              <div className="mb-6 rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-medium text-green-700">
+                {mensaje}
+              </div>
+            )}
 
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) =>
-                setPassword(
-                  e.target.value
-                )
+            <button
+              type="button"
+              onClick={iniciarSesionGoogle}
+              disabled={
+                cargando ||
+                googleLoading ||
+                recuperando
               }
-              placeholder={text.passwordPlaceholder}
-              className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-            />
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-4 text-base font-extrabold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+              >
+                <path
+                  fill="#4285F4"
+                  d="M21.6 12.23c0-.71-.06-1.23-.2-1.77H12v3.4h5.52a4.71 4.71 0 0 1-2.05 3.09l-.02.11 2.98 2.3.21.02c1.94-1.79 2.96-4.43 2.96-7.15Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 22c2.7 0 4.97-.89 6.63-2.42l-3.17-2.44c-.85.57-1.98.97-3.46.97a6 6 0 0 1-5.67-4.15l-.1.01-3.1 2.4-.04.1A10 10 0 0 0 12 22Z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M6.33 13.96A6.17 6.17 0 0 1 6 12c0-.68.12-1.34.32-1.96v-.12L3.18 7.48l-.1.05A10 10 0 0 0 2 12c0 1.61.39 3.13 1.08 4.47l3.25-2.51Z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.89c1.88 0 3.15.81 3.88 1.49l2.82-2.75C16.97 3.02 14.7 2 12 2a10 10 0 0 0-8.92 5.53l3.24 2.51A6.01 6.01 0 0 1 12 5.89Z"
+                />
+              </svg>
 
-            <div className="mt-3 text-right">
+              <span>
+                {googleLoading
+                  ? text.conectandoGoogle
+                  : text.continuarGoogle}
+              </span>
+            </button>
+
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+                {text.separador}
+              </span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <form
+              onSubmit={handleLogin}
+              className="space-y-5"
+            >
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-2 block font-bold text-slate-900"
+                >
+                  {text.email}
+                </label>
+
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(
+                      e.target.value
+                    )
+                  }
+                  disabled={
+                    cargando ||
+                    googleLoading ||
+                    recuperando
+                  }
+                  placeholder={text.emailPlaceholder}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-2 block font-bold text-slate-900"
+                >
+                  {text.password}
+                </label>
+
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) =>
+                    setPassword(
+                      e.target.value
+                    )
+                  }
+                  disabled={
+                    cargando ||
+                    googleLoading ||
+                    recuperando
+                  }
+                  placeholder={text.passwordPlaceholder}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </div>
 
               <button
-                type="button"
-                onClick={
-                  recuperarContrasena
-                }
+                type="submit"
                 disabled={
+                  cargando ||
+                  googleLoading ||
                   recuperando
                 }
-                className="text-sm font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-blue-700 py-4 text-lg font-extrabold text-white shadow-md transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cargando
+                  ? text.entrando
+                  : text.iniciarSesion}
+              </button>
+            </form>
+
+            <div className="mt-6 border-t border-slate-200 pt-6 text-center">
+              <button
+                type="button"
+                onClick={recuperarContrasena}
+                disabled={
+                  cargando ||
+                  googleLoading ||
+                  recuperando
+                }
+                className="font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {recuperando
                   ? text.enviandoCorreo
                   : text.olvidoPassword}
               </button>
-
             </div>
 
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <p className="text-center text-slate-600">
+                {text.noCuenta}{" "}
+                <a
+                  href="/registro-profesional"
+                  className="font-bold text-blue-700 hover:underline"
+                >
+                  {text.registrate}
+                </a>
+              </p>
+            </div>
           </div>
-
-          {error && (
-            <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
-
-          {mensaje && (
-            <div className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-medium text-green-700">
-              {mensaje}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={
-              cargando ||
-              recuperando
-            }
-            className="w-full rounded-xl bg-blue-700 py-4 text-lg font-extrabold text-white shadow-md transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {cargando
-              ? text.entrando
-              : text.iniciarSesion}
-          </button>
-
-          <div className="border-t border-slate-200 pt-6">
-
-            <p className="text-center text-slate-600">
-              {text.noCuenta}{" "}
-
-              <a
-                href="/registro-profesional"
-                className="font-bold text-blue-700 hover:underline"
-              >
-                {text.registrate}
-              </a>
-
-            </p>
-
-          </div>
-
-        </form>
-
+        </div>
       </div>
-
     </main>
   );
 }
