@@ -36,18 +36,27 @@ function normalizePhone(value: string | null | undefined) {
   return raw;
 }
 
+type NotificationLanguage = "es" | "en";
+
+function normalizeLanguage(value: unknown): NotificationLanguage {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw.startsWith("en") ? "en" : "es";
+}
+
 async function sendResendEmail({
   to,
   businessName,
   documentName,
   message,
   uploadUrl,
+  language,
 }: {
   to: string;
   businessName: string;
   documentName: string;
   message: string;
   uploadUrl: string;
+  language: NotificationLanguage;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -71,6 +80,33 @@ async function sendResendEmail({
   const safeMessage =
     escapeHtml(message).replaceAll("\n", "<br />");
 
+  const copy =
+    language === "en"
+      ? {
+          subject: "RELYDO needs additional documentation",
+          title: "Documentation required",
+          hello: "Hello",
+          intro:
+            "Our team needs additional documentation to complete the verification of your professional account.",
+          requestedDocument: "Requested document",
+          relydoMessage: "Message from RELYDO",
+          uploadDocument: "Upload document",
+          security:
+            "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
+        }
+      : {
+          subject: "RELYDO necesita documentación adicional",
+          title: "Documentación requerida",
+          hello: "Hola",
+          intro:
+            "Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.",
+          requestedDocument: "Documento solicitado",
+          relydoMessage: "Mensaje de RELYDO",
+          uploadDocument: "Subir documento",
+          security:
+            "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.",
+        };
+
   const response = await fetch(
     "https://api.resend.com/emails",
     {
@@ -82,39 +118,38 @@ async function sendResendEmail({
       body: JSON.stringify({
         from,
         to: [to],
-        subject:
-          "RELYDO necesita documentación adicional",
+        subject: copy.subject,
         html: `
           <div style="margin:0;background:#f1f5f9;padding:32px;font-family:Arial,sans-serif;color:#0f172a">
             <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #dbeafe">
               <div style="background:#1d4ed8;padding:28px 32px;color:white">
                 <div style="font-size:24px;font-weight:800">RELYDO</div>
-                <div style="font-size:28px;font-weight:800;margin-top:8px">Documentación requerida</div>
+                <div style="font-size:28px;font-weight:800;margin-top:8px">${copy.title}</div>
               </div>
 
               <div style="padding:32px">
                 <p style="font-size:16px;line-height:1.7;margin-top:0">
-                  Hola ${safeBusiness},
+                  ${copy.hello} ${safeBusiness},
                 </p>
 
                 <p style="font-size:16px;line-height:1.7">
-                  Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.
+                  ${copy.intro}
                 </p>
 
                 <div style="margin:24px 0;padding:18px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0">
-                  <div style="font-weight:800;margin-bottom:8px">Documento solicitado</div>
+                  <div style="font-weight:800;margin-bottom:8px">${copy.requestedDocument}</div>
                   <div>${safeDocument}</div>
 
-                  <div style="font-weight:800;margin:18px 0 8px">Mensaje de RELYDO</div>
+                  <div style="font-weight:800;margin:18px 0 8px">${copy.relydoMessage}</div>
                   <div style="line-height:1.6">${safeMessage}</div>
                 </div>
 
                 <a href="${uploadUrl}" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">
-                  Subir documento
+                  ${copy.uploadDocument}
                 </a>
 
                 <p style="font-size:13px;line-height:1.6;color:#64748b;margin-top:24px">
-                  Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.
+                  ${copy.security}
                 </p>
               </div>
             </div>
@@ -147,10 +182,12 @@ async function sendTwilioSms({
   to,
   documentName,
   uploadUrl,
+  language,
 }: {
   to: string;
   documentName: string;
   uploadUrl: string;
+  language: NotificationLanguage;
 }) {
   const accountSid =
     process.env.TWILIO_ACCOUNT_SID;
@@ -184,8 +221,9 @@ async function sendTwilioSms({
     To: normalized,
     From: from,
     Body:
-      `RELYDO: necesitamos ${documentName} para completar tu verificación. ` +
-      `Inicia sesión y súbelo aquí: ${uploadUrl}`,
+      language === "en"
+        ? `RELYDO: we need ${documentName} to complete your verification. Sign in and upload it here: ${uploadUrl}`
+        : `RELYDO: necesitamos ${documentName} para completar tu verificación. Inicia sesión y súbelo aquí: ${uploadUrl}`,
   });
 
   const response = await fetch(
@@ -222,23 +260,22 @@ async function sendTwilioSms({
   };
 }
 
-function documentLabel(type: string | null) {
-  if (type === "license") {
-    return "la licencia";
+function documentLabel(
+  type: string | null,
+  language: NotificationLanguage
+) {
+  if (language === "en") {
+    if (type === "license") return "professional/trade license";
+    if (type === "insurance") return "proof of insurance";
+    if (type === "bond") return "bond";
+    if (type === "other") return "an additional document";
+    return "additional documentation";
   }
 
-  if (type === "insurance") {
-    return "el comprobante de seguro";
-  }
-
-  if (type === "bond") {
-    return "la fianza / bond";
-  }
-
-  if (type === "other") {
-    return "un documento adicional";
-  }
-
+  if (type === "license") return "la licencia profesional / del oficio";
+  if (type === "insurance") return "el comprobante de seguro";
+  if (type === "bond") return "la fianza / bond";
+  if (type === "other") return "un documento adicional";
   return "documentación adicional";
 }
 
@@ -471,7 +508,8 @@ export async function POST(
           id,
           full_name,
           email,
-          phone
+          phone,
+          language
         `)
         .eq(
           "id",
@@ -508,6 +546,9 @@ export async function POST(
           ""
       ).trim();
 
+    const language =
+      normalizeLanguage(contactProfile?.language);
+
     const siteUrl =
       (
         process.env.NEXT_PUBLIC_SITE_URL ||
@@ -519,7 +560,8 @@ export async function POST(
 
     const documentName =
       documentLabel(
-        documentRequest.document_type
+        documentRequest.document_type,
+        language
       );
 
     const emailResult =
@@ -532,6 +574,7 @@ export async function POST(
               message:
                 documentRequest.message,
               uploadUrl,
+              language,
             })
           : {
               sent: false,
@@ -550,6 +593,7 @@ export async function POST(
               to: phone,
               documentName,
               uploadUrl,
+              language,
             })
           : {
               sent: false,
