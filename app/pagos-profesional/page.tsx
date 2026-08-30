@@ -22,20 +22,6 @@ type ProviderProfile = {
   stripe_payouts_enabled: boolean | null;
 };
 
-type StripeStatus = {
-  success?: boolean;
-  connected?: boolean;
-  stripeAccountId?: string | null;
-  onboardingComplete?: boolean;
-  chargesEnabled?: boolean;
-  payoutsEnabled?: boolean;
-  detailsSubmitted?: boolean;
-  disabledReason?: string | null;
-  currentlyDue?: string[];
-  eventuallyDue?: string[];
-  pastDue?: string[];
-  error?: string;
-};
 
 type PaymentRow = {
   id: string;
@@ -74,14 +60,10 @@ export default function PagosProfesionalPage() {
   const [profile, setProfile] =
     useState<ProviderProfile | null>(null);
 
-  const [email, setEmail] =
-    useState("");
 
   const [loading, setLoading] =
     useState(true);
 
-  const [configurando, setConfigurando] =
-    useState(false);
 
   const [actualizando, setActualizando] =
     useState(false);
@@ -89,8 +71,6 @@ export default function PagosProfesionalPage() {
   const [error, setError] =
     useState("");
 
-  const [stripeStatus, setStripeStatus] =
-    useState<StripeStatus | null>(null);
 
   const [payments, setPayments] =
     useState<PaymentRow[]>([]);
@@ -101,92 +81,6 @@ export default function PagosProfesionalPage() {
   useEffect(() => {
     cargarDatos();
   }, []);
-
-  async function consultarEstadoStripe(
-    providerProfile: ProviderProfile
-  ) {
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (
-        sessionError ||
-        !session?.access_token
-      ) {
-        return providerProfile;
-      }
-
-      if (
-        !providerProfile.stripe_account_id
-      ) {
-        setStripeStatus({
-          connected: false,
-          onboardingComplete: false,
-          chargesEnabled: false,
-          payoutsEnabled: false,
-          detailsSubmitted: false,
-          currentlyDue: [],
-          eventuallyDue: [],
-          pastDue: [],
-        });
-
-        return providerProfile;
-      }
-
-      const response = await fetch(
-        "/api/stripe/connect/status",
-        {
-          method: "GET",
-          headers: {
-            Authorization:
-              `Bearer ${session.access_token}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      const data: StripeStatus =
-        await response.json();
-
-      if (!response.ok) {
-        console.error(
-          "Error consultando Stripe:",
-          data
-        );
-
-        return providerProfile;
-      }
-
-      console.log(
-        "ESTADO REAL DE STRIPE:",
-        data
-      );
-
-      setStripeStatus(data);
-
-      return {
-        ...providerProfile,
-
-        stripe_onboarding_complete:
-          data.onboardingComplete === true,
-
-        stripe_charges_enabled:
-          data.chargesEnabled === true,
-
-        stripe_payouts_enabled:
-          data.payoutsEnabled === true,
-      };
-    } catch (statusError) {
-      console.error(
-        "No pudimos consultar el estado real de Stripe:",
-        statusError
-      );
-
-      return providerProfile;
-    }
-  }
 
   async function cargarPagos(providerId: string) {
     const { data: paymentRows, error: paymentError } =
@@ -282,10 +176,6 @@ export default function PagosProfesionalPage() {
         return;
       }
 
-      setEmail(
-        user.email || ""
-      );
-
       const {
         data: baseProfile,
         error: baseProfileError,
@@ -363,25 +253,6 @@ export default function PagosProfesionalPage() {
       await cargarPagos(
         perfilInicial.user_id
       );
-
-      /*
-        IMPORTANTE:
-        SI YA EXISTE CUENTA STRIPE,
-        CONSULTAMOS EL ESTADO REAL.
-      */
-
-      if (
-        perfilInicial.stripe_account_id
-      ) {
-        const perfilActualizado =
-          await consultarEstadoStripe(
-            perfilInicial
-          );
-
-        setProfile(
-          perfilActualizado
-        );
-      }
     } catch (err) {
       console.error(
         "Error cargando pagos:",
@@ -399,110 +270,22 @@ export default function PagosProfesionalPage() {
   }
 
   async function actualizarEstado() {
-    if (!profile) {
-      return;
-    }
+    if (!profile) return;
 
     setActualizando(true);
     setError("");
 
     try {
-      const perfilActualizado =
-        await consultarEstadoStripe(
-          profile
-        );
-
-      setProfile(
-        perfilActualizado
-      );
-
-      await cargarPagos(
-        profile.user_id
-      );
+      await cargarPagos(profile.user_id);
     } catch (err) {
-      console.error(
-        "Error actualizando estado:",
-        err
-      );
-
+      console.error("Error actualizando pagos:", err);
       setError(
         err instanceof Error
           ? err.message
-          : T("No pudimos actualizar el estado.", "We could not update the status.")
+          : T("No pudimos actualizar los pagos.", "We could not refresh payments.")
       );
     } finally {
       setActualizando(false);
-    }
-  }
-
-  async function configurarMetodoDeposito() {
-    setConfigurando(true);
-    setError("");
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } =
-        await supabase.auth.getSession();
-
-      if (
-        sessionError ||
-        !session?.access_token
-      ) {
-        throw new Error(
-          T("Tu sesión expiró. Inicia sesión nuevamente.", "Your session expired. Please sign in again.")
-        );
-      }
-
-      const response =
-        await fetch(
-          "/api/stripe/connect",
-          {
-            method: "POST",
-
-            headers: {
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok
-      ) {
-        throw new Error(
-          data?.error ||
-            T("No pudimos iniciar la configuración de tu método de depósito.", "We could not start your payout method setup.")
-        );
-      }
-
-      if (
-        !data?.url
-      ) {
-        throw new Error(
-          T("No pudimos obtener el enlace seguro para configurar tu método de depósito.", "We could not get the secure link to configure your payout method.")
-        );
-      }
-
-      window.location.href =
-        data.url;
-    } catch (err) {
-      console.error(
-        "Error configurando método de depósito:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : T("No pudimos configurar tu método de depósito.", "We could not configure your payout method.")
-      );
-    } finally {
-      setConfigurando(false);
     }
   }
 
@@ -591,389 +374,31 @@ export default function PagosProfesionalPage() {
     );
   }
 
-  const estaVerificado =
-    profile.verification_status ===
-      "verified" &&
-    profile.verified === true &&
-    profile.active === true;
-
-  const metodoConfigurado =
-    !!profile.stripe_account_id;
-
-  const depositosHabilitados =
-    profile.stripe_payouts_enabled ===
-    true;
-
-  const onboardingCompleto =
-    profile.stripe_onboarding_complete ===
-    true;
-
-  const pagosListos =
-    onboardingCompleto &&
-    depositosHabilitados;
-
-  const detallesEnviados =
-    stripeStatus?.detailsSubmitted ===
-    true;
-
-  const requisitosPendientes =
-    stripeStatus?.currentlyDue || [];
-
-  const requisitosVencidos =
-    stripeStatus?.pastDue || [];
-
-  const motivoDeshabilitado =
-    stripeStatus?.disabledReason ||
-    null;
-
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 md:py-10">
-
-      <div className="mx-auto max-w-5xl">
-
+      <div className="mx-auto max-w-4xl">
         <button
           type="button"
-          onClick={() =>
-            router.push(
-              "/panel-profesional"
-            )
-          }
+          onClick={() => router.push("/panel-profesional")}
           className="font-bold text-blue-700 hover:underline"
         >
           ← {T("Volver al panel profesional", "Back to professional dashboard")}
         </button>
 
-        <section className="mt-5 overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-xl">
-
-          {/* HEADER */}
-
-          <div className="bg-gradient-to-br from-blue-700 to-indigo-700 p-6 text-white md:p-9">
-
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-100">
-              {T("Pagos y depósitos", "Payments and payouts")}
-            </p>
-
-            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
-              {T("Configura cómo recibirás tu dinero", "Set up how you’ll receive your money")}
-            </h1>
-
-            <p className="mt-3 max-w-xl text-sm leading-6 text-blue-100 md:text-base">
-              Configura de forma segura
-              dónde recibirás el dinero
-              correspondiente a tus
-              trabajos completados.
-            </p>
-
-          </div>
-
-          <div className="p-5 md:p-8">
-
-            {/* PROFESIONAL */}
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-
-              <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-                Profesional
-              </p>
-
-              <p className="mt-2 text-xl font-black text-slate-950">
-                {profile.business_name ||
-                  T("Profesional RELYDO", "RELYDO Professional")}
-              </p>
-
-              <p className="mt-1 break-all text-sm text-slate-500">
-                {email}
-              </p>
-
-            </div>
-
-            {/* ESTADOS */}
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-
-              <EstadoCard
-                titulo={T("Método de depósito", "Payout method")}
-                activo={
-                  metodoConfigurado
-                }
-                textoActivo={T("Configurado", "Configured")}
-                textoInactivo={T("No configurado", "Not configured")}
-              />
-
-              <EstadoCard
-                titulo={T("Depósitos", "Payouts")}
-                activo={
-                  depositosHabilitados
-                }
-                textoActivo={T("Habilitados", "Enabled")}
-                textoInactivo={T("Pendientes", "Pending")}
-              />
-
-            </div>
-
-            {/* ESTADO CONFIGURACION */}
-
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
-
-              <p className="font-black text-slate-900">
-                {T("Estado de configuración", "Setup status")}
-              </p>
-
-              {!estaVerificado ? (
-
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-
-                  <p className="font-bold text-amber-900">
-                    {T("Tu cuenta profesional todavía no está lista para configurar depósitos.", "Your professional account is not ready to configure payouts yet.")}
-                  </p>
-
-                  <p className="mt-1 text-sm text-amber-800">
-                    {T("Primero debes completar la verificación profesional.", "You must complete professional verification first.")}
-                  </p>
-
-                </div>
-
-              ) : pagosListos ? (
-
-                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-
-                  <p className="font-black text-emerald-900">
-                    ✓ {T("Pagos y depósitos habilitados", "Payments and payouts enabled")}
-                  </p>
-
-                  <p className="mt-1 text-sm text-emerald-800">
-                    {T("Tu método de depósito está configurado y tu cuenta está preparada para recibir dinero.", "Your payout method is configured and your account is ready to receive money.")}
-                  </p>
-
-                </div>
-
-              ) : metodoConfigurado ? (
-
-                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
-
-                  <p className="font-black text-blue-900">
-                    {T("Configuración pendiente", "Setup pending")}
-                  </p>
-
-                  <p className="mt-1 text-sm text-blue-800">
-                    {T("Tu método de depósito ya está conectado, pero Stripe todavía no ha habilitado los depósitos.", "Your payout method is connected, but Stripe has not enabled payouts yet.")}
-                  </p>
-
-                  {detallesEnviados && (
-                    <p className="mt-2 text-sm font-bold text-blue-800">
-                      ✓ {T("Información de la cuenta enviada a Stripe.", "Account information submitted to Stripe.")}
-                    </p>
-                  )}
-
-                </div>
-
-              ) : (
-
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                  <p className="font-black text-slate-900">
-                    {T("Aún no has configurado tu método de depósito", "You haven’t configured your payout method yet")}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-600">
-                    {T("Podrás configurar una cuenta bancaria o, cuando sea elegible, una tarjeta de débito compatible para recibir tus depósitos.", "You can configure a bank account or, when eligible, a compatible debit card to receive your payouts.")}
-                  </p>
-
-                </div>
-
-              )}
-
-            </div>
-
-            {/* REQUISITOS PENDIENTES */}
-
-            {metodoConfigurado &&
-              !depositosHabilitados &&
-              requisitosPendientes.length >
-                0 && (
-
-              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-
-                <p className="font-black text-amber-900">
-                  {T("Stripe necesita información adicional", "Stripe needs additional information")}
-                </p>
-
-                <p className="mt-1 text-sm text-amber-800">
-                  {T("Completa los datos pendientes para poder recibir depósitos.", "Complete the pending information to receive payouts.")}
-                </p>
-
-                <div className="mt-3 space-y-2">
-
-                  {requisitosPendientes.map(
-                    (requisito) => (
-                      <div
-                        key={
-                          requisito
-                        }
-                        className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-amber-900"
-                      >
-                        •{" "}
-                        {formatearRequisito(requisito, language)}
-                      </div>
-                    )
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-            {/* PAST DUE */}
-
-            {requisitosVencidos.length >
-              0 && (
-
-              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
-
-                <p className="font-black text-red-900">
-                  {T("Información requerida", "Required information")}
-                </p>
-
-                <p className="mt-1 text-sm text-red-800">
-                  {T("Stripe tiene información vencida que debe actualizarse.", "Stripe has overdue information that must be updated.")}
-                </p>
-
-                <div className="mt-3 space-y-2">
-
-                  {requisitosVencidos.map(
-                    (requisito) => (
-                      <div
-                        key={
-                          requisito
-                        }
-                        className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-red-900"
-                      >
-                        •{" "}
-                        {formatearRequisito(requisito, language)}
-                      </div>
-                    )
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-            {/* DISABLED REASON */}
-
-            {motivoDeshabilitado && (
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-
-                <p className="text-sm font-black text-slate-800">
-                  {T("Estado informado por Stripe", "Status reported by Stripe")}
-                </p>
-
-                <p className="mt-1 break-all text-xs text-slate-600">
-                  {motivoDeshabilitado}
-                </p>
-
-              </div>
-            )}
-
-            {/* ERROR */}
-
-            {error && (
-              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 font-bold text-red-800">
-                {error}
-              </div>
-            )}
-
-            {/* BOTON CONFIGURACION */}
-
-            {estaVerificado &&
-              !pagosListos && (
-
-              <button
-                type="button"
-                onClick={
-                  configurarMetodoDeposito
-                }
-                disabled={
-                  configurando
-                }
-                className="mt-6 w-full rounded-2xl bg-blue-700 px-5 py-4 text-base font-black text-white shadow-lg shadow-blue-700/15 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 md:text-lg"
-              >
-                {configurando
-                  ? T("Abriendo configuración segura...", "Opening secure setup...")
-                  : metodoConfigurado
-                  ? T("Continuar configuración del método de depósito", "Continue payout method setup")
-                  : T("Configurar método de depósito", "Configure payout method")}
-              </button>
-            )}
-
-            {/* ACTUALIZAR ESTADO */}
-
-            {metodoConfigurado && (
-              <button
-                type="button"
-                onClick={
-                  actualizarEstado
-                }
-                disabled={
-                  actualizando
-                }
-                className="mt-3 w-full rounded-2xl border-2 border-blue-700 bg-white px-5 py-4 font-black text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {actualizando
-                  ? T("Consultando Stripe...", "Checking Stripe...")
-                  : T("Actualizar estado", "Update status")}
-              </button>
-            )}
-
-            {/* ADMINISTRAR CUANDO TODO LISTO */}
-
-            {pagosListos && (
-              <button
-                type="button"
-                onClick={
-                  configurarMetodoDeposito
-                }
-                disabled={
-                  configurando
-                }
-                className="mt-3 w-full rounded-2xl bg-slate-900 px-5 py-4 font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {configurando
-                  ? T("Abriendo administración segura...", "Opening secure management...")
-                  : T("Administrar / cambiar método de depósito", "Manage / change payout method")}
-              </button>
-            )}
-
-            {/* SEGURIDAD */}
-
-            <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3">
-
-              <p className="text-center text-xs leading-5 text-slate-500">
-                {T(
-                  "🔒 Tus datos financieros se procesan de forma segura mediante Stripe. RELYDO no necesita mostrar ni almacenar tu número completo de cuenta o tarjeta.",
-                  "🔒 Your financial data is processed securely through Stripe. RELYDO does not need to display or store your full account or card number."
-                )}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-5 shadow-xl md:p-8">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <section className="mt-5 rounded-[26px] border border-slate-200 bg-white p-5 shadow-xl md:p-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                {T("Movimientos", "Transactions")}
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                {T("Pagos", "Payments")}
               </p>
-
-              <h2 className="mt-2 text-2xl font-black text-slate-950 md:text-3xl">
-                {T("Estado de tus pagos", "Your payment status")}
-              </h2>
-
+              <h1 className="mt-2 text-3xl font-black text-slate-950">
+                {T("Tus ganancias", "Your earnings")}
+              </h1>
               <p className="mt-2 text-sm text-slate-600">
-                {T("Aquí puedes ver qué dinero sigue retenido por RELYDO y qué pagos ya fueron enviados.", "Here you can see which funds are still held by RELYDO and which payments have already been sent.")}
+                {T(
+                  "Consulta cuánto ganaste por cada trabajo y el estado de cada pago.",
+                  "See how much you earned from each job and the status of each payment."
+                )}
               </p>
             </div>
 
@@ -981,40 +406,23 @@ export default function PagosProfesionalPage() {
               type="button"
               onClick={actualizarEstado}
               disabled={actualizando}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-800 hover:bg-slate-50 disabled:opacity-60"
             >
-              {actualizando ? T("Actualizando...", "Updating...") : T("Actualizar movimientos", "Refresh transactions")}
+              {actualizando ? T("Actualizando...", "Updating...") : T("Actualizar", "Refresh")}
             </button>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <ResumenPagoCard
-              titulo={T("Retenido", "Held")}
-              valor={formatearDinero(resumen.retenidoTotal)}
-              detalle={language === "es" ? `${resumen.retenidos} pago${resumen.retenidos === 1 ? "" : "s"}` : `${resumen.retenidos} payment${resumen.retenidos === 1 ? "" : "s"}`}
-              tipo="retenido"
-            />
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+              {error}
+            </div>
+          )}
 
-            <ResumenPagoCard
-              titulo={T("Pagado", "Paid")}
-              valor={formatearDinero(resumen.pagadoTotal)}
-              detalle={language === "es" ? `${resumen.pagados} pago${resumen.pagados === 1 ? "" : "s"}` : `${resumen.pagados} payment${resumen.pagados === 1 ? "" : "s"}`}
-              tipo="pagado"
-            />
-
-            <ResumenPagoCard
-              titulo={T("Reembolsos", "Refunds")}
-              valor={String(resumen.reembolsados)}
-              detalle={T("pagos afectados", "affected payments")}
-              tipo="reembolso"
-            />
-          </div>
-
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 space-y-3">
             {payments.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-7 text-center">
                 <p className="font-black text-slate-800">
-                  {T("Todavía no tienes movimientos de pago.", "You don’t have any payment transactions yet.")}
+                  {T("Todavía no tienes pagos registrados.", "You don’t have any payments yet.")}
                 </p>
               </div>
             ) : (
@@ -1025,215 +433,77 @@ export default function PagosProfesionalPage() {
                 return (
                   <article
                     key={payment.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5"
                   >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full px-3 py-1 text-xs font-black ${estado.badgeClass}`}>
                             {estado.label}
                           </span>
-
                           <span className="text-xs font-bold text-slate-400">
                             {T("Trabajo", "Job")} #{payment.request_id.slice(0, 8).toUpperCase()}
                           </span>
                         </div>
 
-                        <h3 className="mt-3 text-lg font-black text-slate-950">
+                        <h2 className="mt-2 truncate text-lg font-black text-slate-950">
                           {request?.title || T("Trabajo RELYDO", "RELYDO Job")}
-                        </h3>
+                        </h2>
 
-                        <p className="mt-1 text-sm text-slate-500">
-                          {estado.descripcion}
-                        </p>
+                        {payment.status === "ready_for_payout" && payment.release_due_at && (
+                          <p className="mt-1 text-xs font-bold text-amber-700">
+                            {language === "es"
+                              ? `Liberación prevista: ${formatearFecha(payment.release_due_at, language)}`
+                              : `Expected release: ${formatearFecha(payment.release_due_at, language)}`}
+                          </p>
+                        )}
+
+                        {payment.status === "paid_out" && payment.released_at && (
+                          <p className="mt-1 text-xs font-bold text-emerald-700">
+                            {language === "es"
+                              ? `Pagado: ${formatearFecha(payment.released_at, language)}`
+                              : `Paid: ${formatearFecha(payment.released_at, language)}`}
+                          </p>
+                        )}
+
+                        {(payment.status === "refunded" || payment.status === "partially_refunded") && (
+                          <p className="mt-1 text-xs font-bold text-blue-700">
+                            {T("Reembolsado al cliente", "Refunded to customer")}:{" "}
+                            {formatearDinero(dinero(payment.refunded_amount))}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="text-left md:text-right">
+                      <div className="shrink-0 sm:text-right">
                         <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                          {T("Neto profesional", "Professional net")}
+                          {T("Ganaste", "You earned")}
                         </p>
-
                         <p className="mt-1 text-2xl font-black text-slate-950">
                           {formatearDinero(dinero(payment.provider_net_amount))}
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <DatoPago
-                        titulo={T("Valor del trabajo", "Job amount")}
-                        valor={formatearDinero(dinero(payment.job_amount))}
-                      />
-                      <DatoPago
-                        titulo={T("Comisión RELYDO", "RELYDO commission")}
-                        valor={formatearDinero(dinero(payment.provider_commission_amount))}
-                      />
-                      <DatoPago
-                        titulo={T("Pagado por cliente", "Paid by customer")}
-                        valor={formatearDinero(dinero(payment.customer_total_amount))}
-                      />
-                      <DatoPago
-                        titulo={T("Moneda", "Currency")}
-                        valor={(payment.currency || "USD").toUpperCase()}
-                      />
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/trabajos/${payment.request_id}`)}
+                        className="text-sm font-black text-blue-700 hover:underline"
+                      >
+                        {T("Ver trabajo →", "View job →")}
+                      </button>
                     </div>
-
-                    {payment.release_due_at && payment.status === "ready_for_payout" && (
-                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                        <p className="text-sm font-black text-amber-900">
-                          ⏳ {T("Pago retenido", "Payment held")}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-amber-800">
-                          {language === "es"
-                            ? `Liberación programada para ${formatearFecha(payment.release_due_at, language)}. Si existe un reclamo activo, el pago permanecerá retenido hasta que RELYDO lo resuelva.`
-                            : `Scheduled for release on ${formatearFecha(payment.release_due_at, language)}. If there is an active claim, the payment will remain held until RELYDO resolves it.`}
-                        </p>
-                      </div>
-                    )}
-
-                    {payment.status === "paid_out" && (
-                      <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <p className="text-sm font-black text-emerald-900">
-                          ✓ {T("Pago enviado", "Payment sent")}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-emerald-800">
-                          {payment.released_at
-                            ? language === "es"
-                              ? `Liberado ${formatearFecha(payment.released_at, language)}.`
-                              : `Released ${formatearFecha(payment.released_at, language)}.`
-                            : T(
-                                "El pago fue liberado al profesional.",
-                                "The payment was released to the professional."
-                              )}
-                        </p>
-                        {payment.stripe_transfer_id && (
-                          <p className="mt-2 break-all text-[11px] font-bold text-emerald-700">
-                            {T("Transferencia Stripe", "Stripe transfer")}: {payment.stripe_transfer_id}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {(payment.status === "refunded" || payment.status === "partially_refunded") && (
-                      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                        <p className="text-sm font-black text-blue-900">
-                          ↩ {T("Resolución con reembolso", "Refund resolution")}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-blue-800">
-                          {T("Reembolsado al cliente", "Refunded to customer")}: {formatearDinero(dinero(payment.refunded_amount))}
-                        </p>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/trabajos/${payment.request_id}`)}
-                      className="mt-4 rounded-xl border-2 border-blue-700 bg-white px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-50"
-                    >
-                      {T("Ver trabajo", "View job")}
-                    </button>
                   </article>
                 );
               })
             )}
           </div>
         </section>
-
       </div>
-
     </main>
   );
 }
 
-function EstadoCard({
-  titulo,
-  activo,
-  textoActivo,
-  textoInactivo,
-}: {
-  titulo: string;
-  activo: boolean;
-  textoActivo: string;
-  textoInactivo: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-      <p className="text-sm font-bold text-slate-500">
-        {titulo}
-      </p>
-
-      <div className="mt-3 flex items-center gap-2">
-
-        <span
-          className={`h-3 w-3 shrink-0 rounded-full ${
-            activo
-              ? "bg-emerald-500"
-              : "bg-amber-400"
-          }`}
-        />
-
-        <p
-          className={`font-black ${
-            activo
-              ? "text-emerald-800"
-              : "text-amber-800"
-          }`}
-        >
-          {activo
-            ? textoActivo
-            : textoInactivo}
-        </p>
-
-      </div>
-
-    </div>
-  );
-}
-
-function ResumenPagoCard({
-  titulo,
-  valor,
-  detalle,
-  tipo,
-}: {
-  titulo: string;
-  valor: string;
-  detalle: string;
-  tipo: "retenido" | "pagado" | "reembolso";
-}) {
-  const clases =
-    tipo === "retenido"
-      ? "border-amber-200 bg-amber-50 text-amber-950"
-      : tipo === "pagado"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-      : "border-blue-200 bg-blue-50 text-blue-950";
-
-  return (
-    <div className={`rounded-2xl border p-5 ${clases}`}>
-      <p className="text-xs font-black uppercase tracking-wide opacity-70">
-        {titulo}
-      </p>
-      <p className="mt-2 text-2xl font-black">{valor}</p>
-      <p className="mt-1 text-xs font-bold opacity-70">{detalle}</p>
-    </div>
-  );
-}
-
-function DatoPago({
-  titulo,
-  valor,
-}: {
-  titulo: string;
-  valor: string;
-}) {
-  return (
-    <div className="rounded-xl bg-slate-50 px-4 py-3">
-      <p className="text-xs font-bold text-slate-500">{titulo}</p>
-      <p className="mt-1 font-black text-slate-950">{valor}</p>
-    </div>
-  );
-}
 
 function obtenerEstadoPago(
   payment: PaymentRow,
@@ -1333,61 +603,4 @@ function formatearFecha(valor: string, language: "es" | "en") {
     dateStyle: "medium",
     timeStyle: "short",
   });
-}
-
-function formatearRequisito(
-  requisito: string,
-  language: "es" | "en"
-) {
-  const traduccionesEs: Record<string, string> = {
-    "individual.first_name": "Nombre legal",
-    "individual.last_name": "Apellido legal",
-    "individual.dob.day": "Día de nacimiento",
-    "individual.dob.month": "Mes de nacimiento",
-    "individual.dob.year": "Año de nacimiento",
-    "individual.address.line1": "Dirección",
-    "individual.address.city": "Ciudad",
-    "individual.address.state": "Estado",
-    "individual.address.postal_code": "Código postal",
-    "individual.ssn_last_4": "Últimos 4 dígitos del SSN",
-    "individual.id_number": "Identificación fiscal",
-    "individual.verification.document": "Documento de identidad",
-    "external_account": "Cuenta bancaria o método de depósito",
-    "business_profile.url": "Sitio web del negocio",
-    "business_profile.mcc": "Tipo de actividad del negocio",
-    "business_profile.product_description": "Descripción de los servicios",
-    "tos_acceptance.date": "Aceptar los términos de Stripe",
-    "tos_acceptance.ip": "Aceptar los términos de Stripe",
-  };
-
-  const traduccionesEn: Record<string, string> = {
-    "individual.first_name": "Legal first name",
-    "individual.last_name": "Legal last name",
-    "individual.dob.day": "Day of birth",
-    "individual.dob.month": "Month of birth",
-    "individual.dob.year": "Year of birth",
-    "individual.address.line1": "Address",
-    "individual.address.city": "City",
-    "individual.address.state": "State",
-    "individual.address.postal_code": "ZIP / postal code",
-    "individual.ssn_last_4": "Last 4 digits of SSN",
-    "individual.id_number": "Tax identification",
-    "individual.verification.document": "Identity document",
-    "external_account": "Bank account or payout method",
-    "business_profile.url": "Business website",
-    "business_profile.mcc": "Business activity type",
-    "business_profile.product_description": "Service description",
-    "tos_acceptance.date": "Accept Stripe terms",
-    "tos_acceptance.ip": "Accept Stripe terms",
-  };
-
-  const traducciones =
-    language === "es" ? traduccionesEs : traduccionesEn;
-
-  return (
-    traducciones[requisito] ||
-    requisito
-      .replaceAll("_", " ")
-      .replaceAll(".", " → ")
-  );
 }
