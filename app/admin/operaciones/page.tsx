@@ -2641,6 +2641,86 @@ export default function AdminPage() {
   }
 
   /*
+    REABRIR VERIFICACIÓN
+  */
+
+  async function reabrirVerificacion(
+    provider: Provider
+  ) {
+    setError("");
+    setMensaje("");
+
+    if (
+      provider.verification_status !==
+      "rejected"
+    ) {
+      setError(
+        "Solo puedes reabrir un expediente que esté rechazado."
+      );
+      return;
+    }
+
+    const nombre =
+      provider.business_name ||
+      "este profesional";
+
+    const confirmar =
+      window.confirm(
+        `¿Reabrir la verificación de ${nombre}? El profesional volverá a estado pendiente y seguirá sin poder operar hasta que sea aprobado nuevamente.`
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setProcesando(
+      provider.user_id
+    );
+
+    try {
+      const { error: profileError } =
+        await supabase
+          .from(
+            "provider_profiles"
+          )
+          .update({
+            verification_status:
+              "pending",
+            verified: false,
+            active: false,
+          })
+          .eq(
+            "user_id",
+            provider.user_id
+          );
+
+      if (profileError) {
+        throw new Error(
+          `No se pudo reabrir la verificación: ${profileError.message}`
+        );
+      }
+
+      // Reabrir el expediente NO borra ni modifica documentos anteriores.
+      // Tampoco aprueba la cuenta: el profesional permanece bloqueado en pending.
+      setMensaje(
+        `Verificación reabierta para ${nombre}. El expediente volvió a estado pendiente.`
+      );
+
+      await cargarDatos(false);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo reabrir la verificación."
+      );
+    } finally {
+      setProcesando(
+        null
+      );
+    }
+  }
+
+  /*
     SUSPENDER / REACTIVAR
   */
 
@@ -4993,6 +5073,45 @@ export default function AdminPage() {
                                 </>
                               );
                             })()}
+                          </div>
+                        )}
+
+                      {/* REABRIR VERIFICACIÓN RECHAZADA */}
+
+                      {provider.verification_status ===
+                        "rejected" && (
+                          <div className="mt-6 border-t border-slate-200 pt-5">
+                            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                              Verificación rechazada
+                            </p>
+
+                            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                              <p className="font-extrabold text-blue-950">
+                                Puedes reabrir este expediente
+                              </p>
+                              <p className="mt-1 text-sm text-blue-900">
+                                El profesional volverá a estado pendiente. Sus documentos e historial se conservarán y seguirá sin poder operar hasta que Admin lo apruebe nuevamente.
+                              </p>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  procesando ===
+                                  provider.user_id
+                                }
+                                onClick={() =>
+                                  reabrirVerificacion(
+                                    provider
+                                  )
+                                }
+                                className="mt-4 w-full rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {procesando ===
+                                provider.user_id
+                                  ? "Procesando..."
+                                  : "↻ Reabrir verificación"}
+                              </button>
+                            </div>
                           </div>
                         )}
 
