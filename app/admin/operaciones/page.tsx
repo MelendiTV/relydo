@@ -1844,131 +1844,309 @@ export default function AdminPage() {
     );
   }
 
-  async function revisarDocumento(doc: DocumentRow, decision: "approved" | "rejected") {
+  async function revisarDocumento(
+    doc: DocumentRow,
+    decision: "approved" | "rejected"
+  ) {
     if (!doc.id) {
-      setError("Este documento no tiene un ID válido.");
+      setError(
+        "Este documento no tiene un ID válido."
+      );
       return;
     }
 
     let motivo = "";
+
     if (decision === "rejected") {
-      const respuesta = window.prompt("Escribe el motivo del rechazo para que el profesional pueda corregirlo:");
-      if (respuesta === null) return;
-      motivo = respuesta.trim();
+      const respuesta =
+        window.prompt(
+          "Escribe el motivo del rechazo para que el profesional pueda corregirlo:"
+        );
+
+      if (respuesta === null) {
+        return;
+      }
+
+      motivo =
+        respuesta.trim();
+
       if (!motivo) {
-        setError("Debes escribir el motivo del rechazo.");
+        setError(
+          "Debes escribir el motivo del rechazo."
+        );
         return;
       }
     }
 
-    const confirmar = window.confirm(
-      decision === "approved"
-        ? `¿Aprobar este documento de ${nombreTipoDocumento(doc.document_type)}? Se convertirá en el documento vigente.`
-        : `¿Rechazar este documento de ${nombreTipoDocumento(doc.document_type)}?`
-    );
-    if (!confirmar) return;
+    const confirmar =
+      window.confirm(
+        decision === "approved"
+          ? `¿Aprobar este documento de ${nombreTipoDocumento(
+              doc.document_type
+            )}? Se convertirá en el documento vigente.`
+          : `¿Rechazar este documento de ${nombreTipoDocumento(
+              doc.document_type
+            )}?`
+      );
 
-    setProcesando(doc.id);
+    if (!confirmar) {
+      return;
+    }
+
+    setProcesando(
+      doc.id
+    );
+
     setError("");
     setMensaje("");
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("No pudimos verificar tu sesión de administrador.");
+      const {
+        data: {
+          user,
+        },
+        error:
+          authError,
+      } =
+        await supabase.auth.getUser();
 
-      const ahora = new Date().toISOString();
-      const { error: docError } = await supabase
-        .from("provider_documents")
-        .update({
-          status: decision,
-          rejection_reason: decision === "rejected" ? motivo : null,
-          reviewed_at: ahora,
-          reviewed_by: user.id,
-          approved_at: decision === "approved" ? ahora : null,
-        })
-        .eq("id", doc.id);
-      if (docError) throw new Error(`No se pudo actualizar el documento: ${docError.message}`);
+      if (
+        authError ||
+        !user
+      ) {
+        throw new Error(
+          "No pudimos verificar tu sesión de administrador."
+        );
+      }
 
-      const solicitudesRelacionadas = solicitudesDocsDelUsuario(doc.user_id).filter(
-        (solicitud) =>
-          (solicitud.status === "submitted" || solicitud.status === "pending") &&
-          (solicitud.document_type === doc.document_type || solicitud.document_type === null)
-      );
+      const ahora =
+        new Date().toISOString();
 
-      if (solicitudesRelacionadas.length > 0) {
-        const solicitud = solicitudesRelacionadas[0];
-        const { error: solicitudError } = await supabase
-          .from("provider_document_requests")
-          .update(
-            decision === "approved"
-              ? { status: "completed", completed_at: ahora, updated_at: ahora }
-              : { status: "pending", submitted_at: null, completed_at: null, updated_at: ahora }
+      const {
+        error:
+          docError,
+      } =
+        await supabase
+          .from(
+            "provider_documents"
           )
-          .eq("id", solicitud.id);
-        if (solicitudError) throw new Error(`El documento cambió, pero no pudimos actualizar la solicitud: ${solicitudError.message}`);
+          .update({
+            status:
+              decision,
+            rejection_reason:
+              decision ===
+              "rejected"
+                ? motivo
+                : null,
+            reviewed_at:
+              ahora,
+            reviewed_by:
+              user.id,
+            approved_at:
+              decision ===
+              "approved"
+                ? ahora
+                : null,
+          })
+          .eq(
+            "id",
+            doc.id
+          );
 
-        if (decision === "rejected") {
-          try {
-            const {
-              data: { session },
-            } = await supabase.auth.getSession();
+      if (docError) {
+        throw new Error(
+          `No se pudo actualizar el documento: ${docError.message}`
+        );
+      }
 
-            if (!session?.access_token) {
-              throw new Error("La sesión de Admin no tiene un token disponible.");
-            }
+      const solicitudesRelacionadas =
+        solicitudesDocsDelUsuario(
+          doc.user_id
+        ).filter(
+          (solicitud) =>
+            (
+              solicitud.status ===
+                "submitted" ||
+              solicitud.status ===
+                "pending"
+            ) &&
+            (
+              solicitud.document_type ===
+                doc.document_type ||
+              solicitud.document_type ===
+                null
+            )
+        );
 
-            const response = await fetch("/api/provider-document-request", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                requestId: solicitud.id,
-                sendEmail: true,
-                sendSms: false,
-                notificationType: "rejection",
-                documentType: doc.document_type,
-                rejectionReason: motivo,
-              }),
-            });
+      let solicitudRelacionada:
+        ProviderDocumentRequest | null =
+        null;
 
-            const resultado = await response.json().catch(() => ({}));
+      if (
+        solicitudesRelacionadas.length >
+        0
+      ) {
+        solicitudRelacionada =
+          solicitudesRelacionadas[0];
 
-            if (!response.ok || !resultado?.email?.sent) {
-              throw new Error(
-                resultado?.email?.error ||
-                  resultado?.error ||
-                  "No se pudo enviar el correo de rechazo."
-              );
-            }
-          } catch (notificationError) {
-            console.error(
-              "Documento rechazado, pero falló la notificación al profesional:",
-              notificationError
+        const {
+          error:
+            solicitudError,
+        } =
+          await supabase
+            .from(
+              "provider_document_requests"
+            )
+            .update(
+              decision ===
+                "approved"
+                ? {
+                    status:
+                      "completed",
+                    completed_at:
+                      ahora,
+                    updated_at:
+                      ahora,
+                  }
+                : {
+                    status:
+                      "pending",
+                    submitted_at:
+                      null,
+                    completed_at:
+                      null,
+                    updated_at:
+                      ahora,
+                  }
+            )
+            .eq(
+              "id",
+              solicitudRelacionada.id
             );
 
-            setError(
-              `El documento fue rechazado correctamente, pero no se pudo enviar el correo al profesional: ${
-                notificationError instanceof Error
-                  ? notificationError.message
-                  : "error de notificación"
-              }`
+        if (solicitudError) {
+          throw new Error(
+            `El documento cambió, pero no pudimos actualizar la solicitud: ${solicitudError.message}`
+          );
+        }
+      }
+
+      let avisoNotificacion =
+        "";
+
+      if (
+        decision === "rejected"
+      ) {
+        try {
+          const {
+            data: {
+              session,
+            },
+          } =
+            await supabase.auth.getSession();
+
+          if (
+            !session?.access_token
+          ) {
+            throw new Error(
+              "La sesión de Admin no tiene un token disponible."
             );
           }
+
+          const response =
+            await fetch(
+              "/api/provider-document-request",
+              {
+                method:
+                  "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                  Authorization:
+                    `Bearer ${session.access_token}`,
+                },
+                body:
+                  JSON.stringify({
+                    requestId:
+                      solicitudRelacionada?.id ||
+                      null,
+                    providerId:
+                      doc.user_id,
+                    sendEmail:
+                      true,
+                    sendSms:
+                      false,
+                    notificationType:
+                      "rejection",
+                    documentType:
+                      doc.document_type,
+                    rejectionReason:
+                      motivo,
+                  }),
+              }
+            );
+
+          const resultado =
+            await response
+              .json()
+              .catch(
+                () => ({})
+              );
+
+          if (
+            !response.ok ||
+            !resultado?.email?.sent
+          ) {
+            throw new Error(
+              resultado?.email?.error ||
+                resultado?.error ||
+                "No se pudo enviar el correo de rechazo."
+            );
+          }
+
+          avisoNotificacion =
+            " Correo de rechazo enviado al profesional.";
+        } catch (
+          notificationError
+        ) {
+          console.error(
+            "Documento rechazado, pero falló la notificación al profesional:",
+            notificationError
+          );
+
+          avisoNotificacion =
+            ` ATENCIÓN: el documento fue rechazado, pero el correo no pudo enviarse: ${
+              notificationError instanceof
+              Error
+                ? notificationError.message
+                : "error de notificación"
+            }`;
         }
       }
 
       setMensaje(
         decision === "approved"
-          ? `${nombreTipoDocumento(doc.document_type)} aprobado. Ya es el documento vigente.`
-          : `${nombreTipoDocumento(doc.document_type)} rechazado. El profesional deberá enviarlo nuevamente.`
+          ? `${nombreTipoDocumento(
+              doc.document_type
+            )} aprobado. Ya es el documento vigente.`
+          : `${nombreTipoDocumento(
+              doc.document_type
+            )} rechazado. El profesional deberá enviarlo nuevamente.${avisoNotificacion}`
       );
-      await cargarDatos(false);
+
+      await cargarDatos(
+        false
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo revisar el documento.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo revisar el documento."
+      );
     } finally {
-      setProcesando(null);
+      setProcesando(
+        null
+      );
     }
   }
 

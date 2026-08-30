@@ -82,7 +82,8 @@ async function sendResendEmail({
   const safeMessage =
     escapeHtml(message).replaceAll("\n", "<br />");
 
-  const isRejection = notificationType === "rejection";
+  const isRejection =
+    notificationType === "rejection";
 
   const copy =
     language === "en"
@@ -435,6 +436,12 @@ export async function POST(
           ""
       ).trim();
 
+    const providerIdFromPayload =
+      String(
+        payload?.providerId ||
+          ""
+      ).trim();
+
     const sendEmail =
       payload?.sendEmail ===
       true;
@@ -444,20 +451,32 @@ export async function POST(
       true;
 
     const notificationType =
-      payload?.notificationType === "rejection"
+      payload?.notificationType ===
+      "rejection"
         ? "rejection"
         : "request";
 
     const rejectionReason =
-      String(payload?.rejectionReason || "").trim();
+      String(
+        payload?.rejectionReason ||
+          ""
+      ).trim();
 
     const rejectedDocumentType =
-      String(payload?.documentType || "").trim();
+      String(
+        payload?.documentType ||
+          ""
+      ).trim();
 
-    if (notificationType === "rejection" && !rejectionReason) {
+    if (
+      notificationType ===
+        "rejection" &&
+      !rejectionReason
+    ) {
       return NextResponse.json(
         {
-          error: "Falta el motivo del rechazo.",
+          error:
+            "Falta el motivo del rechazo.",
         },
         {
           status: 400,
@@ -465,7 +484,11 @@ export async function POST(
       );
     }
 
-    if (!requestId) {
+    if (
+      notificationType ===
+        "request" &&
+      !requestId
+    ) {
       return NextResponse.json(
         {
           error:
@@ -477,56 +500,93 @@ export async function POST(
       );
     }
 
-    const {
-      data:
-        documentRequest,
-      error:
-        documentRequestError,
-    } =
-      await supabase
-        .from(
-          "provider_document_requests"
-        )
-        .select(`
-          id,
-          provider_id,
-          document_type,
-          message,
-          status
-        `)
-        .eq(
-          "id",
-          requestId
-        )
-        .maybeSingle();
-
-    if (
-      documentRequestError ||
-      !documentRequest
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "No encontramos la solicitud de documentación.",
-        },
-        {
-          status: 404,
+    let documentRequest:
+      | {
+          id: string;
+          provider_id: string;
+          document_type: string | null;
+          message: string;
+          status: string;
         }
-      );
+      | null = null;
+
+    if (requestId) {
+      const {
+        data:
+          documentRequestData,
+        error:
+          documentRequestError,
+      } =
+        await supabase
+          .from(
+            "provider_document_requests"
+          )
+          .select(`
+            id,
+            provider_id,
+            document_type,
+            message,
+            status
+          `)
+          .eq(
+            "id",
+            requestId
+          )
+          .maybeSingle();
+
+      if (
+        documentRequestError ||
+        !documentRequestData
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No encontramos la solicitud de documentación.",
+          },
+          {
+            status: 404,
+          }
+        );
+      }
+
+      documentRequest =
+        documentRequestData;
+
+      if (
+        notificationType ===
+          "request" &&
+        documentRequest.status !==
+          "pending"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "La solicitud ya no está pendiente.",
+          },
+          {
+            status: 409,
+          }
+        );
+      }
     }
 
-    if (
-      notificationType === "request" &&
-      documentRequest.status !==
-      "pending"
-    ) {
+    const providerId =
+      notificationType ===
+        "rejection"
+        ? providerIdFromPayload ||
+          documentRequest?.provider_id ||
+          ""
+        : documentRequest?.provider_id ||
+          "";
+
+    if (!providerId) {
       return NextResponse.json(
         {
           error:
-            "La solicitud ya no está pendiente.",
+            "Falta el ID del profesional.",
         },
         {
-          status: 409,
+          status: 400,
         }
       );
     }
@@ -545,7 +605,7 @@ export async function POST(
         `)
         .eq(
           "user_id",
-          documentRequest.provider_id
+          providerId
         )
         .maybeSingle();
 
@@ -566,7 +626,7 @@ export async function POST(
         `)
         .eq(
           "id",
-          documentRequest.provider_id
+          providerId
         )
         .maybeSingle();
 
@@ -613,16 +673,21 @@ export async function POST(
 
     const documentName =
       documentLabel(
-        notificationType === "rejection" && rejectedDocumentType
+        notificationType ===
+          "rejection" &&
+        rejectedDocumentType
           ? rejectedDocumentType
-          : documentRequest.document_type,
+          : documentRequest?.document_type ||
+            null,
         language
       );
 
     const notificationMessage =
-      notificationType === "rejection"
+      notificationType ===
+        "rejection"
         ? rejectionReason
-        : documentRequest.message;
+        : documentRequest?.message ||
+          "";
 
     const emailResult =
       sendEmail
@@ -668,7 +733,9 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      requestId,
+      requestId:
+        requestId || null,
+      providerId,
       email: emailResult,
       sms: smsResult,
       destination: {
