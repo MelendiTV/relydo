@@ -196,38 +196,65 @@ export async function POST(
           body.stage || ""
         ).trim();
 
+      const {
+        data: customerProfile,
+      } = await supabaseAdmin
+        .from("profiles")
+        .select("preferred_language")
+        .eq("id", serviceRequest.customer_id)
+        .maybeSingle();
+
+      const customerLanguage =
+        customerProfile?.preferred_language === "es"
+          ? "es"
+          : "en";
+
       const config:
         Record<
           string,
           {
             type: string;
-            title: string;
-            message: string;
+            titleEs: string;
+            titleEn: string;
+            messageEs: string;
+            messageEn: string;
           }
         > = {
         on_the_way: {
           type:
             "provider_on_the_way",
-          title:
+          titleEs:
             "El profesional va en camino",
-          message:
+          titleEn:
+            "The professional is on the way",
+          messageEs:
             "Tu profesional ya va en camino hacia la dirección del servicio.",
+          messageEn:
+            "Your professional is on the way to the service address.",
         },
         arrived: {
           type:
             "provider_arrived",
-          title:
+          titleEs:
             "El profesional llegó",
-          message:
+          titleEn:
+            "The professional has arrived",
+          messageEs:
             "Tu profesional indicó que ya llegó al lugar del servicio.",
+          messageEn:
+            "Your professional indicated that they have arrived at the service location.",
         },
         working: {
           type:
             "job_started",
-          title:
+          titleEs:
             "El trabajo comenzó",
-          message:
+          titleEn:
+            "The job has started",
+          messageEs:
             "Tu profesional indicó que el trabajo ya comenzó.",
+          messageEn:
+            "Your professional indicated that the job has started.",
         },
       };
 
@@ -261,9 +288,15 @@ export async function POST(
           type:
             selected.type,
           title:
-            selected.title,
+            customerLanguage === "es"
+              ? selected.titleEs
+              : selected.titleEn,
           message:
-            `${jobTitle}: ${selected.message}`,
+            `${jobTitle}: ${
+              customerLanguage === "es"
+                ? selected.messageEs
+                : selected.messageEn
+            }`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,
