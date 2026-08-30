@@ -5120,32 +5120,34 @@ export default function TrabajoDetallePage() {
                   {trabajo.description}
                 </p>
 
-                {trabajo.address_line1 && (
-                  <>
-                    <div className="my-5 border-t border-slate-200" />
+                {trabajo.address_line1 &&
+                  trabajo.preferred_provider_id === providerId &&
+                  trabajo.status !== "open" && (
+                    <>
+                      <div className="my-5 border-t border-slate-200" />
 
-                    <p className="font-black text-slate-900">
-                      {T("Dirección del servicio", "Service address")}
-                    </p>
+                      <p className="font-black text-slate-900">
+                        {T("Dirección del servicio", "Service address")}
+                      </p>
 
-                    <p className="mt-2 text-slate-600">
-                      {
-                        trabajo.address_line1
-                      }
-                      ,{" "}
-                      {
-                        trabajo.city
-                      }
-                      ,{" "}
-                      {
-                        trabajo.state
-                      }{" "}
-                      {
-                        trabajo.zip_code
-                      }
-                    </p>
-                  </>
-                )}
+                      <p className="mt-2 text-slate-600">
+                        {
+                          trabajo.address_line1
+                        }
+                        ,{" "}
+                        {
+                          trabajo.city
+                        }
+                        ,{" "}
+                        {
+                          trabajo.state
+                        }{" "}
+                        {
+                          trabajo.zip_code
+                        }
+                      </p>
+                    </>
+                  )}
               </div>
             </section>
           </div>
