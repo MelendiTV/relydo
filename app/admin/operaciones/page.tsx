@@ -2055,7 +2055,7 @@ export default function AdminPage() {
 
           const response =
             await fetch(
-              "/api/provider-document-request",
+              "/api/provider-document-rejection",
               {
                 method:
                   "POST",

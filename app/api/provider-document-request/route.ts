@@ -50,7 +50,6 @@ async function sendResendEmail({
   message,
   uploadUrl,
   language,
-  notificationType = "request",
 }: {
   to: string;
   businessName: string;
@@ -58,7 +57,6 @@ async function sendResendEmail({
   message: string;
   uploadUrl: string;
   language: NotificationLanguage;
-  notificationType?: "request" | "rejection";
 }) {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -82,61 +80,32 @@ async function sendResendEmail({
   const safeMessage =
     escapeHtml(message).replaceAll("\n", "<br />");
 
-  const isRejection =
-    notificationType === "rejection";
-
   const copy =
     language === "en"
-      ? isRejection
-        ? {
-            subject: `RELYDO: ${documentName} was rejected`,
-            title: "Document rejected",
-            hello: "Hello",
-            intro:
-              "Our verification team reviewed this document and could not approve it. Please correct the issue below and upload a new copy.",
-            requestedDocument: "Rejected document",
-            relydoMessage: "Reason for rejection",
-            uploadDocument: "Upload corrected document",
-            security:
-              "For security, you will need to sign in with your professional account. Your verification will remain pending until the corrected document is reviewed.",
-          }
-        : {
-            subject: "RELYDO needs additional documentation",
-            title: "Documentation required",
-            hello: "Hello",
-            intro:
-              "Our team needs additional documentation to complete the verification of your professional account.",
-            requestedDocument: "Requested document",
-            relydoMessage: "Message from RELYDO",
-            uploadDocument: "Upload document",
-            security:
-              "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
-          }
-      : isRejection
-        ? {
-            subject: `RELYDO: ${documentName} fue rechazado`,
-            title: "Documento rechazado",
-            hello: "Hola",
-            intro:
-              "Nuestro equipo de verificación revisó este documento y no pudo aprobarlo. Corrige el problema indicado a continuación y sube una nueva copia.",
-            requestedDocument: "Documento rechazado",
-            relydoMessage: "Motivo del rechazo",
-            uploadDocument: "Subir documento corregido",
-            security:
-              "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Tu verificación continuará pendiente hasta que revisemos el documento corregido.",
-          }
-        : {
-            subject: "RELYDO necesita documentación adicional",
-            title: "Documentación requerida",
-            hello: "Hola",
-            intro:
-              "Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.",
-            requestedDocument: "Documento solicitado",
-            relydoMessage: "Mensaje de RELYDO",
-            uploadDocument: "Subir documento",
-            security:
-              "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.",
-          };
+      ? {
+          subject: "RELYDO needs additional documentation",
+          title: "Documentation required",
+          hello: "Hello",
+          intro:
+            "Our team needs additional documentation to complete the verification of your professional account.",
+          requestedDocument: "Requested document",
+          relydoMessage: "Message from RELYDO",
+          uploadDocument: "Upload document",
+          security:
+            "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
+        }
+      : {
+          subject: "RELYDO necesita documentación adicional",
+          title: "Documentación requerida",
+          hello: "Hola",
+          intro:
+            "Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.",
+          requestedDocument: "Documento solicitado",
+          relydoMessage: "Mensaje de RELYDO",
+          uploadDocument: "Subir documento",
+          security:
+            "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.",
+        };
 
   const response = await fetch(
     "https://api.resend.com/emails",
@@ -436,12 +405,6 @@ export async function POST(
           ""
       ).trim();
 
-    const providerIdFromPayload =
-      String(
-        payload?.providerId ||
-          ""
-      ).trim();
-
     const sendEmail =
       payload?.sendEmail ===
       true;
@@ -450,45 +413,7 @@ export async function POST(
       payload?.sendSms ===
       true;
 
-    const notificationType =
-      payload?.notificationType ===
-      "rejection"
-        ? "rejection"
-        : "request";
-
-    const rejectionReason =
-      String(
-        payload?.rejectionReason ||
-          ""
-      ).trim();
-
-    const rejectedDocumentType =
-      String(
-        payload?.documentType ||
-          ""
-      ).trim();
-
-    if (
-      notificationType ===
-        "rejection" &&
-      !rejectionReason
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Falta el motivo del rechazo.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (
-      notificationType ===
-        "request" &&
-      !requestId
-    ) {
+    if (!requestId) {
       return NextResponse.json(
         {
           error:
@@ -500,93 +425,55 @@ export async function POST(
       );
     }
 
-    let documentRequest:
-      | {
-          id: string;
-          provider_id: string;
-          document_type: string | null;
-          message: string;
-          status: string;
-        }
-      | null = null;
+    const {
+      data:
+        documentRequest,
+      error:
+        documentRequestError,
+    } =
+      await supabase
+        .from(
+          "provider_document_requests"
+        )
+        .select(`
+          id,
+          provider_id,
+          document_type,
+          message,
+          status
+        `)
+        .eq(
+          "id",
+          requestId
+        )
+        .maybeSingle();
 
-    if (requestId) {
-      const {
-        data:
-          documentRequestData,
-        error:
-          documentRequestError,
-      } =
-        await supabase
-          .from(
-            "provider_document_requests"
-          )
-          .select(`
-            id,
-            provider_id,
-            document_type,
-            message,
-            status
-          `)
-          .eq(
-            "id",
-            requestId
-          )
-          .maybeSingle();
-
-      if (
-        documentRequestError ||
-        !documentRequestData
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "No encontramos la solicitud de documentación.",
-          },
-          {
-            status: 404,
-          }
-        );
-      }
-
-      documentRequest =
-        documentRequestData;
-
-      if (
-        notificationType ===
-          "request" &&
-        documentRequest.status !==
-          "pending"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "La solicitud ya no está pendiente.",
-          },
-          {
-            status: 409,
-          }
-        );
-      }
-    }
-
-    const providerId =
-      notificationType ===
-        "rejection"
-        ? providerIdFromPayload ||
-          documentRequest?.provider_id ||
-          ""
-        : documentRequest?.provider_id ||
-          "";
-
-    if (!providerId) {
+    if (
+      documentRequestError ||
+      !documentRequest
+    ) {
       return NextResponse.json(
         {
           error:
-            "Falta el ID del profesional.",
+            "No encontramos la solicitud de documentación.",
         },
         {
-          status: 400,
+          status: 404,
+        }
+      );
+    }
+
+    if (
+      documentRequest.status !==
+      "pending"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La solicitud ya no está pendiente.",
+        },
+        {
+          status: 409,
         }
       );
     }
@@ -605,7 +492,7 @@ export async function POST(
         `)
         .eq(
           "user_id",
-          providerId
+          documentRequest.provider_id
         )
         .maybeSingle();
 
@@ -626,7 +513,7 @@ export async function POST(
         `)
         .eq(
           "id",
-          providerId
+          documentRequest.provider_id
         )
         .maybeSingle();
 
@@ -673,21 +560,9 @@ export async function POST(
 
     const documentName =
       documentLabel(
-        notificationType ===
-          "rejection" &&
-        rejectedDocumentType
-          ? rejectedDocumentType
-          : documentRequest?.document_type ||
-            null,
+        documentRequest.document_type,
         language
       );
-
-    const notificationMessage =
-      notificationType ===
-        "rejection"
-        ? rejectionReason
-        : documentRequest?.message ||
-          "";
 
     const emailResult =
       sendEmail
@@ -697,10 +572,9 @@ export async function POST(
               businessName,
               documentName,
               message:
-                notificationMessage,
+                documentRequest.message,
               uploadUrl,
               language,
-              notificationType,
             })
           : {
               sent: false,
@@ -733,9 +607,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      requestId:
-        requestId || null,
-      providerId,
+      requestId,
       email: emailResult,
       sms: smsResult,
       destination: {
