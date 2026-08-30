@@ -63,19 +63,20 @@ function nombreOficio(
   trade: string | null,
   language: "es" | "en"
 ) {
+  const key = normalizarTrade(trade);
+
   const oficiosEs: Record<string, string> = {
     plumbing: "Plomería",
     electrical: "Electricidad",
-    hvac: "HVAC / Aire acondicionado",
-    "ac-rental": "Renta de aires acondicionados",
-    carpentry: "Carpintería",
     painting: "Pintura",
     landscaping: "Jardinería",
     cleaning: "Limpieza",
+    hvac: "Aire acondicionado / HVAC",
+    "ac-rental": "Renta de aires acondicionados",
+    carpentry: "Carpintería",
     moving: "Mudanzas",
+    "appliance-repair": "Reparación de electrodomésticos",
     handyman: "Handyman",
-    "appliance-repair":
-      "Reparación de electrodomésticos",
     locksmith: "Cerrajería",
     roofing: "Techado",
     flooring: "Pisos",
@@ -83,87 +84,83 @@ function nombreOficio(
     drywall: "Drywall",
     masonry: "Concreto y albañilería",
     "doors-windows": "Puertas y ventanas",
-    garage: "Garajes",
+    "garage-doors": "Garajes",
     fencing: "Cercas",
-    "pools-spas": "Piscinas y spas",
+    "pool-spa": "Piscinas y spas",
     "pest-control": "Control de plagas",
     "pressure-washing": "Lavado a presión",
     "carpet-cleaning": "Limpieza de alfombras",
     "junk-removal": "Retiro de basura",
     "furniture-assembly": "Montaje de muebles",
-    "tv-smart-home": "TV y hogar inteligente",
-    other: "Otros servicios",
+    "smart-home": "TV y hogar inteligente",
   };
 
   const oficiosEn: Record<string, string> = {
     plumbing: "Plumbing",
     electrical: "Electrical",
-    hvac: "HVAC / Air conditioning",
-    "ac-rental": "Air conditioner rental",
-    carpentry: "Carpentry",
     painting: "Painting",
     landscaping: "Landscaping",
     cleaning: "Cleaning",
+    hvac: "Air conditioning / HVAC",
+    "ac-rental": "Air conditioner rental",
+    carpentry: "Carpentry",
     moving: "Moving",
-    handyman: "Handyman",
     "appliance-repair": "Appliance repair",
+    handyman: "Handyman",
     locksmith: "Locksmith",
     roofing: "Roofing",
     flooring: "Flooring",
-    tile: "Tile and stone",
+    tile: "Tile",
     drywall: "Drywall",
-    masonry: "Concrete and masonry",
-    "doors-windows": "Doors and windows",
-    garage: "Garage doors",
-    fencing: "Fences",
-    "pools-spas": "Pools and spas",
+    masonry: "Concrete & masonry",
+    "doors-windows": "Doors & windows",
+    "garage-doors": "Garage doors",
+    fencing: "Fencing",
+    "pool-spa": "Pools & spas",
     "pest-control": "Pest control",
     "pressure-washing": "Pressure washing",
     "carpet-cleaning": "Carpet cleaning",
     "junk-removal": "Junk removal",
     "furniture-assembly": "Furniture assembly",
-    "tv-smart-home": "TV and smart home",
-    other: "Other services",
+    "smart-home": "TV & smart home",
   };
 
   if (!trade) {
-    return language === "es"
-      ? "Profesional"
-      : "Professional";
+    return language === "es" ? "Profesional" : "Professional";
   }
 
-  const key = normalizarTrade(trade);
-  const oficios =
-    language === "es"
-      ? oficiosEs
-      : oficiosEn;
-
+  const oficios = language === "es" ? oficiosEs : oficiosEn;
   return oficios[key] || trade;
 }
-
 
 const ESPECIALIDADES = [
   "plumbing",
   "electrical",
-  "hvac",
-  "carpentry",
   "painting",
   "landscaping",
   "cleaning",
+  "hvac",
+  "ac_rental",
+  "carpentry",
   "moving",
+  "appliance_repair",
   "handyman",
-  "appliance-repair",
   "locksmith",
   "roofing",
   "flooring",
   "tile",
   "drywall",
   "masonry",
-  "doors-windows",
-  "garage",
+  "doors_windows",
+  "garage_doors",
   "fencing",
-  "pools-spas",
-  "pest-control",
+  "pool_spa",
+  "pest_control",
+  "pressure_washing",
+  "carpet_cleaning",
+  "junk_removal",
+  "furniture_assembly",
+  "smart_home",
 ] as const;
 
 function ProfesionalesContenido() {
@@ -525,16 +522,21 @@ function ProfesionalesContenido() {
     const conteo = new Map<string, number>();
 
     profesionales.forEach((profesional) => {
-      const trade = normalizarTrade(profesional.trade);
-      if (!trade) return;
-      conteo.set(trade, (conteo.get(trade) || 0) + 1);
+      const key = normalizarTrade(profesional.trade);
+      if (!key) return;
+      conteo.set(key, (conteo.get(key) || 0) + 1);
     });
 
-    return ESPECIALIDADES.map((trade) => ({
-      trade,
-      count: conteo.get(trade) || 0,
-      nombre: nombreOficio(trade, language),
-    }));
+    return ESPECIALIDADES.map((trade) => {
+      const key = normalizarTrade(trade);
+
+      return {
+        trade,
+        key,
+        count: conteo.get(key) || 0,
+        nombre: nombreOficio(trade, language),
+      };
+    });
   }, [profesionales, language]);
 
   const profesionalesFiltrados =
@@ -599,23 +601,14 @@ function ProfesionalesContenido() {
   function seleccionarTrade(
     trade: string
   ) {
-    const tradeNormalizado =
-      normalizarTrade(trade);
+    setTradeSeleccionado(trade);
 
-    setTradeSeleccionado(
-      tradeNormalizado
-    );
-
-    if (tradeNormalizado) {
+    if (trade) {
       router.replace(
-        `/profesionales?trade=${encodeURIComponent(
-          tradeNormalizado
-        )}`
+        `/profesionales?trade=${encodeURIComponent(trade)}`
       );
     } else {
-      router.replace(
-        "/profesionales"
-      );
+      router.replace("/profesionales");
     }
   }
 
@@ -626,9 +619,7 @@ function ProfesionalesContenido() {
 
   const professionalsReturnPath =
     tradeSeleccionado
-      ? `/profesionales?trade=${encodeURIComponent(
-          tradeSeleccionado
-        )}`
+      ? `/profesionales?trade=${encodeURIComponent(tradeSeleccionado)}`
       : "/profesionales";
 
   const areaLabel = [
@@ -712,22 +703,7 @@ function ProfesionalesContenido() {
           <>
             {/* 21 ESPECIALIDADES COMPACTAS: 11 ARRIBA / 10 ABAJO EN DESKTOP */}
             <div className="mt-5">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
-                <button
-                  type="button"
-                  onClick={() => seleccionarTrade("")}
-                  className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-extrabold transition ${
-                    !tradeSeleccionado
-                      ? "border-blue-700 bg-blue-700 text-white shadow-sm"
-                      : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400 hover:bg-blue-100"
-                  }`}
-                >
-                  <span>{text.todos}</span>
-                  <span className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
-                    {profesionales.length}
-                  </span>
-                </button>
-
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
                 {categorias.map((categoria, index) => {
                   const tonos = [
                     "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100",
@@ -738,7 +714,7 @@ function ProfesionalesContenido() {
                     "border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100",
                   ];
                   const activo =
-                    normalizarTrade(tradeSeleccionado) === categoria.trade;
+                    normalizarTrade(tradeSeleccionado) === categoria.key;
 
                   return (
                     <button
@@ -746,14 +722,16 @@ function ProfesionalesContenido() {
                       type="button"
                       onClick={() => seleccionarTrade(categoria.trade)}
                       title={categoria.nombre}
-                      className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-extrabold transition ${
+                      className={`flex min-h-[44px] min-w-0 items-center gap-2 overflow-hidden rounded-lg border px-2.5 py-1.5 text-[10px] font-extrabold leading-tight transition ${
                         activo
                           ? "border-blue-700 bg-blue-700 text-white shadow-sm"
                           : tonos[index % tonos.length]
                       }`}
                     >
-                      <span className="whitespace-nowrap">{categoria.nombre}</span>
-                      <span className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
+                      <span className="min-w-0 flex-1 break-words text-left [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                        {categoria.nombre}
+                      </span>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/10 text-[9px] font-black">
                         {categoria.count}
                       </span>
                     </button>
@@ -761,7 +739,18 @@ function ProfesionalesContenido() {
                 })}
               </div>
 
-              <div className="mt-2 flex items-center justify-end">
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => seleccionarTrade("")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
+                    !tradeSeleccionado
+                      ? "border-blue-700 bg-blue-700 text-white"
+                      : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400 hover:bg-blue-100"
+                  }`}
+                >
+                  {text.todos} · {profesionales.length}
+                </button>
 
                 {(tradeSeleccionado || busqueda) && (
                   <button
