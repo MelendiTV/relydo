@@ -2539,7 +2539,7 @@ export default function PanelProfesional() {
           <button
             type="button"
             onClick={() =>
-              router.push("/pagos")
+              router.push("/pagos-profesional")
             }
             className="rounded-xl border-2 px-5 py-3 text-base font-extrabold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-lg"
             style={{
@@ -4792,7 +4792,7 @@ export default function PanelProfesional() {
           <NavMovilItem icono="⌂" texto={T("Resumen", "Summary")} activo={panelActivo === null} onClick={() => { setPanelActivo(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
           <NavMovilItem icono="▣" texto={T("Mis trabajos", "My jobs")} activo={panelActivo === "active"} onClick={() => abrirPanel("active")} />
           <NavMovilItem icono="✉" texto={T("Mensajes", "Messages")} onClick={() => router.push("/mensajes")} />
-          <NavMovilItem icono="▱" texto={T("Pagos", "Payments")} onClick={() => router.push("/pagos")} />
+          <NavMovilItem icono="▱" texto={T("Pagos", "Payments")} onClick={() => router.push("/pagos-profesional")} />
           <NavMovilItem icono="•••" texto={T("Más", "More")} onClick={() => setMenuMovilAbierto(true)} />
         </div>
       </nav>
