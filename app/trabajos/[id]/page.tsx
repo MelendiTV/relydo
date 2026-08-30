@@ -1065,37 +1065,17 @@ export default function TrabajoDetallePage() {
       */
 
       const {
-        data:
-          trabajoData,
-        error:
-          trabajoError,
-      } = await supabase
-        .from(
-          "service_requests"
-        )
-        .select(`
-          id,
-          title,
-          description,
-          address_line1,
-          city,
-          state,
-          zip_code,
-          preferred_date,
-          preferred_time,
-          status,
-          job_stage,
-          customer_name,
-          customer_id,
-          preferred_provider_id,
-          cancellation_reason,
-          completed_at
-        `)
-        .eq(
-          "id",
-          id
-        )
-        .maybeSingle();
+        data: trabajoDataRaw,
+        error: trabajoError,
+      } = await supabase.rpc(
+        "get_provider_request_safe",
+        {
+          p_request_id: id,
+        }
+      );
+
+      const trabajoData =
+        trabajoDataRaw as Trabajo | null;
 
       if (
         trabajoError ||

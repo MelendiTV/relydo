@@ -361,41 +361,9 @@ export default function TrabajosPage() {
       const {
         data,
         error: trabajosError,
-      } = await supabase
-        .from("service_requests")
-        .select(`
-          id,
-          title,
-          description,
-          city,
-          state,
-          zip_code,
-          preferred_date,
-          preferred_time,
-          status,
-          created_at,
-          customer_name,
-          service_id,
-          preferred_provider_id
-        `)
-        .eq(
-          "status",
-          "open"
-        )
-        .eq(
-          "state",
-          providerState
-        )
-        .in(
-          "service_id",
-          serviceIds
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+      } = await supabase.rpc(
+        "get_provider_open_requests_safe"
+      );
 
       if (trabajosError) {
         throw new Error(
@@ -423,9 +391,11 @@ export default function TrabajosPage() {
            NO vuelve a verla.
       */
 
+      const safeJobs = (data || []) as Trabajo[];
+
       const visibles =
-        (data || []).filter(
-          (trabajo) => {
+        safeJobs.filter(
+          (trabajo: Trabajo) => {
             const puedeVerPorPreferencia =
               trabajo.preferred_provider_id === null ||
               trabajo.preferred_provider_id === user.id;
@@ -444,7 +414,7 @@ export default function TrabajosPage() {
 
       const visibleRequestIds =
         visibles.map(
-          (trabajo) => trabajo.id
+          (trabajo: Trabajo) => trabajo.id
         );
 
       let statuses: Record<string, string> = {};

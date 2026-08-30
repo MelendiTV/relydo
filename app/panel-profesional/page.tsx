@@ -1591,25 +1591,9 @@ export default function PanelProfesional() {
           const {
             data: trabajosOfertadosData,
             error: trabajosOfertadosError,
-          } = await supabase
-            .from("service_requests")
-            .select(`
-              id,
-              title,
-              description,
-              city,
-              state,
-              zip_code,
-              preferred_date,
-              preferred_time,
-              status,
-              job_stage,
-              customer_name,
-              cancellation_reason,
-              cancelled_at,
-              created_at
-            `)
-            .in("id", idsSolicitudesOfertadas);
+          } = await supabase.rpc(
+            "get_provider_offer_history_requests_safe"
+          );
 
           if (trabajosOfertadosError) {
             console.error(
@@ -3647,6 +3631,40 @@ export default function PanelProfesional() {
         </section>
 
         <div id="contenido-resumen" className="scroll-mt-6" />
+
+        {/* ALERTA TRABAJO ACTIVO */}
+
+        {estaVerificado && trabajosActivos.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-blue-300 bg-blue-50 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+                  {T("Atención", "Attention")}
+                </p>
+
+                <h2 className="mt-1 text-xl font-extrabold text-blue-950">
+                  {trabajosActivos.length === 1
+                    ? "Tienes un trabajo activo"
+                    : `Tienes ${trabajosActivos.length} trabajos activos`}
+                </h2>
+
+                <p className="mt-1 text-blue-800">
+                  {T("Revisa el estado y mantenlo actualizado para que el cliente pueda seguir el servicio en vivo.", "Review the status and keep it updated so the customer can follow the service live.")}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => abrirPanel("active")}
+                className="shrink-0 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800"
+              >
+                {trabajosActivos.length === 1
+                  ? "Ver trabajo activo"
+                  : `Ver ${trabajosActivos.length} trabajos activos`}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* ESTADO
             Si la cuenta ya está verificada, el estado se muestra de forma
