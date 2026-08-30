@@ -331,6 +331,38 @@ export async function POST(
       unknown = null;
 
     try {
+      const {
+        data: providerLanguageProfile,
+      } = await supabaseAdmin
+        .from("profiles")
+        .select("preferred_language")
+        .eq(
+          "id",
+          updatedOffer.professional_id
+        )
+        .maybeSingle();
+
+      const providerLanguage =
+        providerLanguageProfile?.preferred_language === "es"
+          ? "es"
+          : "en";
+
+      const notificationTitle =
+        providerLanguage === "es"
+          ? "Presupuesto rechazado"
+          : "Quote rejected";
+
+      const jobTitle =
+        serviceRequest.title ||
+        (providerLanguage === "es"
+          ? "Trabajo RELYDO"
+          : "RELYDO job");
+
+      const notificationMessage =
+        providerLanguage === "es"
+          ? `${jobTitle}: el cliente rechazó tu presupuesto. Puedes seguir revisando otros trabajos disponibles.`
+          : `${jobTitle}: the customer rejected your quote. You can continue reviewing other available jobs.`;
+
       notificationResult =
         await sendRelydoNotification({
           userId:
@@ -340,10 +372,10 @@ export async function POST(
             "offer_rejected",
 
           title:
-            "Presupuesto rechazado",
+            notificationTitle,
 
           message:
-            `${serviceRequest.title || "Trabajo RELYDO"}: el cliente rechazó tu presupuesto. Puedes seguir revisando otros trabajos disponibles.`,
+            notificationMessage,
 
           requestId,
 

@@ -4488,7 +4488,7 @@ export default function TrabajoDetallePage() {
                               }
                               className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:opacity-50"
                             >
-                              🚗 Estoy en camino
+                              {T("🚗 Estoy en camino", "🚗 I'm on my way")}
                             </button>
                           )}
 
@@ -5502,7 +5502,7 @@ export default function TrabajoDetallePage() {
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-xs font-semibold text-slate-500">
-                          Tiempo para llegar
+                          {T("Tiempo para llegar", "Arrival time")}
                         </p>
                         <p className="mt-1 font-black text-slate-900">
                           {mostrarMinutos(oferta.arrival_minutes, language)}
@@ -6265,7 +6265,7 @@ export default function TrabajoDetallePage() {
                         min="0.01"
                         step="0.01"
                         required
-                        placeholder="Ej. 150.00"
+                        placeholder={T("Ej. 150.00", "e.g. 150.00")}
                         className="w-full p-4 text-slate-900 outline-none"
                       />
                     </div>
@@ -6273,7 +6273,7 @@ export default function TrabajoDetallePage() {
 
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-800">
-                      Minutos para llegar
+                      {T("Minutos para llegar", "Minutes to arrive")}
                     </label>
 
                     <input
@@ -6282,7 +6282,7 @@ export default function TrabajoDetallePage() {
                       min="0"
                       step="1"
                       required
-                      placeholder="Ej. 30"
+                      placeholder={T("Ej. 30", "e.g. 30")}
                       className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
                     />
                   </div>
@@ -6298,7 +6298,7 @@ export default function TrabajoDetallePage() {
                       min="1"
                       step="1"
                       required
-                      placeholder="Ej. 60"
+                      placeholder={T("Ej. 60", "e.g. 60")}
                       className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
                     />
                   </div>
