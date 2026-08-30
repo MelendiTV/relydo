@@ -1906,6 +1906,57 @@ export default function AdminPage() {
           )
           .eq("id", solicitud.id);
         if (solicitudError) throw new Error(`El documento cambió, pero no pudimos actualizar la solicitud: ${solicitudError.message}`);
+
+        if (decision === "rejected") {
+          try {
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+
+            if (!session?.access_token) {
+              throw new Error("La sesión de Admin no tiene un token disponible.");
+            }
+
+            const response = await fetch("/api/provider-document-request", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                requestId: solicitud.id,
+                sendEmail: true,
+                sendSms: false,
+                notificationType: "rejection",
+                documentType: doc.document_type,
+                rejectionReason: motivo,
+              }),
+            });
+
+            const resultado = await response.json().catch(() => ({}));
+
+            if (!response.ok || !resultado?.email?.sent) {
+              throw new Error(
+                resultado?.email?.error ||
+                  resultado?.error ||
+                  "No se pudo enviar el correo de rechazo."
+              );
+            }
+          } catch (notificationError) {
+            console.error(
+              "Documento rechazado, pero falló la notificación al profesional:",
+              notificationError
+            );
+
+            setError(
+              `El documento fue rechazado correctamente, pero no se pudo enviar el correo al profesional: ${
+                notificationError instanceof Error
+                  ? notificationError.message
+                  : "error de notificación"
+              }`
+            );
+          }
+        }
       }
 
       setMensaje(

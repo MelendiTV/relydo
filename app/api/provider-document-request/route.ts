@@ -50,6 +50,7 @@ async function sendResendEmail({
   message,
   uploadUrl,
   language,
+  notificationType = "request",
 }: {
   to: string;
   businessName: string;
@@ -57,6 +58,7 @@ async function sendResendEmail({
   message: string;
   uploadUrl: string;
   language: NotificationLanguage;
+  notificationType?: "request" | "rejection";
 }) {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -80,32 +82,60 @@ async function sendResendEmail({
   const safeMessage =
     escapeHtml(message).replaceAll("\n", "<br />");
 
+  const isRejection = notificationType === "rejection";
+
   const copy =
     language === "en"
-      ? {
-          subject: "RELYDO needs additional documentation",
-          title: "Documentation required",
-          hello: "Hello",
-          intro:
-            "Our team needs additional documentation to complete the verification of your professional account.",
-          requestedDocument: "Requested document",
-          relydoMessage: "Message from RELYDO",
-          uploadDocument: "Upload document",
-          security:
-            "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
-        }
-      : {
-          subject: "RELYDO necesita documentación adicional",
-          title: "Documentación requerida",
-          hello: "Hola",
-          intro:
-            "Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.",
-          requestedDocument: "Documento solicitado",
-          relydoMessage: "Mensaje de RELYDO",
-          uploadDocument: "Subir documento",
-          security:
-            "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.",
-        };
+      ? isRejection
+        ? {
+            subject: `RELYDO: ${documentName} was rejected`,
+            title: "Document rejected",
+            hello: "Hello",
+            intro:
+              "Our verification team reviewed this document and could not approve it. Please correct the issue below and upload a new copy.",
+            requestedDocument: "Rejected document",
+            relydoMessage: "Reason for rejection",
+            uploadDocument: "Upload corrected document",
+            security:
+              "For security, you will need to sign in with your professional account. Your verification will remain pending until the corrected document is reviewed.",
+          }
+        : {
+            subject: "RELYDO needs additional documentation",
+            title: "Documentation required",
+            hello: "Hello",
+            intro:
+              "Our team needs additional documentation to complete the verification of your professional account.",
+            requestedDocument: "Requested document",
+            relydoMessage: "Message from RELYDO",
+            uploadDocument: "Upload document",
+            security:
+              "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
+          }
+      : isRejection
+        ? {
+            subject: `RELYDO: ${documentName} fue rechazado`,
+            title: "Documento rechazado",
+            hello: "Hola",
+            intro:
+              "Nuestro equipo de verificación revisó este documento y no pudo aprobarlo. Corrige el problema indicado a continuación y sube una nueva copia.",
+            requestedDocument: "Documento rechazado",
+            relydoMessage: "Motivo del rechazo",
+            uploadDocument: "Subir documento corregido",
+            security:
+              "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Tu verificación continuará pendiente hasta que revisemos el documento corregido.",
+          }
+        : {
+            subject: "RELYDO necesita documentación adicional",
+            title: "Documentación requerida",
+            hello: "Hola",
+            intro:
+              "Nuestro equipo necesita documentación adicional para completar la verificación de tu cuenta profesional.",
+            requestedDocument: "Documento solicitado",
+            relydoMessage: "Mensaje de RELYDO",
+            uploadDocument: "Subir documento",
+            security:
+              "Por seguridad tendrás que iniciar sesión con tu cuenta profesional. Aunque tu cuenta continúe en revisión, podrás ver y subir la documentación solicitada.",
+          };
 
   const response = await fetch(
     "https://api.resend.com/emails",
@@ -413,6 +443,28 @@ export async function POST(
       payload?.sendSms ===
       true;
 
+    const notificationType =
+      payload?.notificationType === "rejection"
+        ? "rejection"
+        : "request";
+
+    const rejectionReason =
+      String(payload?.rejectionReason || "").trim();
+
+    const rejectedDocumentType =
+      String(payload?.documentType || "").trim();
+
+    if (notificationType === "rejection" && !rejectionReason) {
+      return NextResponse.json(
+        {
+          error: "Falta el motivo del rechazo.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     if (!requestId) {
       return NextResponse.json(
         {
@@ -464,6 +516,7 @@ export async function POST(
     }
 
     if (
+      notificationType === "request" &&
       documentRequest.status !==
       "pending"
     ) {
@@ -560,9 +613,16 @@ export async function POST(
 
     const documentName =
       documentLabel(
-        documentRequest.document_type,
+        notificationType === "rejection" && rejectedDocumentType
+          ? rejectedDocumentType
+          : documentRequest.document_type,
         language
       );
+
+    const notificationMessage =
+      notificationType === "rejection"
+        ? rejectionReason
+        : documentRequest.message;
 
     const emailResult =
       sendEmail
@@ -572,9 +632,10 @@ export async function POST(
               businessName,
               documentName,
               message:
-                documentRequest.message,
+                notificationMessage,
               uploadUrl,
               language,
+              notificationType,
             })
           : {
               sent: false,
