@@ -5610,9 +5610,6 @@ export default function TrabajoDetallePage() {
                               <p className="text-sm font-semibold text-slate-600">
                                 {T("Tarifa de servicio RELYDO", "RELYDO service fee")}
                               </p>
-                              <p className="mt-1 text-xs text-slate-400">
-                                {Number(pago.provider_commission_percent).toFixed(2)}% del valor del servicio
-                              </p>
                             </div>
                             <p className="font-bold text-slate-700">
                               ${comisionTotalProfesional.toFixed(2)}
