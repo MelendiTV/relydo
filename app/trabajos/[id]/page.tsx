@@ -30,6 +30,9 @@ type Trabajo = {
   preferred_provider_id: string | null;
   cancellation_reason: string | null;
   completed_at: string | null;
+  completion_review_status: "pending" | "approved" | null;
+  submitted_for_review_at: string | null;
+  completion_approved_at: string | null;
 };
 
 type FotoTrabajo = {
@@ -278,6 +281,23 @@ function calcularTiempoRestante(
 }
 
 
+function resolutionNoteText(
+  language: "es" | "en",
+  note: string | null
+) {
+  if (!note || language !== "en") {
+    return note || "";
+  }
+
+  return note
+    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replace(/^Profesional:/gm, "Professional:")
+    .replace(/^Cliente:/gm, "Customer:");
+}
+
 function formatearHoraChat(
   fecha: string,
   language: "es" | "en"
@@ -369,6 +389,14 @@ export default function TrabajoDetallePage() {
     setEnviando,
   ] =
     useState(false);
+
+  const [
+    pagosConfigurados,
+    setPagosConfigurados,
+  ] =
+    useState<boolean | null>(
+      null
+    );
 
   const [
     cambiandoEstado,
@@ -477,6 +505,12 @@ export default function TrabajoDetallePage() {
     useState(false);
 
   const [
+    mostrarConfirmacionInicio,
+    setMostrarConfirmacionInicio,
+  ] =
+    useState(false);
+
+  const [
     enviandoCambioPresupuesto,
     setEnviandoCambioPresupuesto,
   ] =
@@ -542,6 +576,10 @@ export default function TrabajoDetallePage() {
     useRef<HTMLDivElement | null>(
       null
     );
+
+  const ofertaRechazadaPorCliente =
+    oferta?.status === "rejected" &&
+    trabajo?.preferred_provider_id !== providerId;
 
   /*
     CARGA INICIAL
@@ -939,15 +977,103 @@ export default function TrabajoDetallePage() {
       );
 
       /*
-        TRABAJO
+        ESTADO DE PAGOS DEL PROFESIONAL
+
+        El profesional puede ver el trabajo aunque Stripe todavía
+        no esté configurado. Esta comprobación solo decide si puede
+        enviar un presupuesto.
       */
 
       const {
-        data:
-          trabajoDirecto,
-        error:
-          trabajoError,
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        setPagosConfigurados(false);
+      } else {
+        try {
+          const stripeStatusResponse =
+            await fetch(
+              "/api/stripe/connect/status",
+              {
+                method: "GET",
+                headers: {
+                  Authorization:
+                    `Bearer ${sessionData.session.access_token}`,
+                },
+                cache: "no-store",
+              }
+            );
+
+          const stripeStatus =
+            await stripeStatusResponse
+              .json()
+              .catch(() => null);
+
+          const pagosListos =
+            stripeStatusResponse.ok &&
+            stripeStatus?.connected === true &&
+            stripeStatus?.onboardingComplete === true &&
+            stripeStatus?.payoutsEnabled === true &&
+            stripeStatus?.transfersCapability === "active";
+
+          setPagosConfigurados(
+            pagosListos
+          );
+        } catch (stripeError) {
+          console.error(
+            "Error comprobando Stripe Connect:",
+            stripeError
+          );
+
+          // Si no podemos verificar Stripe, no permitimos enviar
+          // presupuestos hasta poder confirmar el estado.
+          setPagosConfigurados(false);
+        }
+      }
+
+      /*
+        ACCESO HISTÓRICO DEL PROFESIONAL
+
+        Antes de cargar el trabajo comprobamos si este profesional
+        ya envió un presupuesto para esta solicitud. Esto permite
+        que un presupuesto rechazado siga abriendo su detalle en
+        modo historial, aunque el trabajo haya sido asignado a otro
+        profesional.
+      */
+
+      const {
+        data: ofertaAcceso,
+        error: ofertaAccesoError,
       } = await supabase
+        .from("offers")
+        .select(`
+          id,
+          status
+        `)
+        .eq("request_id", id)
+        .eq("professional_id", user.id)
+        .maybeSingle();
+
+      if (ofertaAccesoError) {
+        console.error(
+          "Error comprobando acceso histórico del profesional:",
+          ofertaAccesoError
+        );
+      }
+
+      const tieneAccesoHistorico =
+        Boolean(ofertaAcceso);
+
+      /*
+        TRABAJO
+      */
+
+      const resultadoDirecto = await supabase
         .from(
           "service_requests"
         )
@@ -967,7 +1093,10 @@ export default function TrabajoDetallePage() {
           customer_id,
           preferred_provider_id,
           cancellation_reason,
-          completed_at
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
         `)
         .eq(
           "id",
@@ -975,30 +1104,20 @@ export default function TrabajoDetallePage() {
         )
         .maybeSingle();
 
-      if (trabajoError) {
-        console.error(
-          "Error leyendo trabajo directamente:",
-          trabajoError
-        );
-      }
-
       let trabajoData =
-        trabajoDirecto as Trabajo | null;
+        resultadoDirecto.data as Trabajo | null;
 
       /*
-        Un trabajo abierto puede aparecer correctamente en /trabajos
-        mediante get_provider_open_requests_safe y quedar oculto por RLS
-        en una lectura directa de service_requests.
-
-        En ese caso cargamos únicamente los datos públicos mediante la
-        misma RPC segura. No exponemos address_line1 ni customer_id.
+        Un trabajo abierto puede aparecer correctamente en /trabajos mediante
+        get_provider_open_requests_safe y, al mismo tiempo, quedar oculto por
+        RLS en una lectura directa de service_requests. En ese caso usamos la
+        misma RPC segura de la lista para abrir solamente los datos públicos
+        del trabajo. La dirección exacta y el customer_id NO se exponen aquí.
       */
       if (!trabajoData) {
         const {
-          data:
-            trabajosAbiertosSeguros,
-          error:
-            trabajosAbiertosError,
+          data: trabajosAbiertosSeguros,
+          error: trabajosAbiertosError,
         } = await supabase.rpc(
           "get_provider_open_requests_safe"
         );
@@ -1010,53 +1129,160 @@ export default function TrabajoDetallePage() {
           );
         }
 
-        const listaTrabajosSeguros =
-          Array.isArray(
-            trabajosAbiertosSeguros
-          )
-            ? trabajosAbiertosSeguros
-            : [];
+        let trabajosAbiertosNormalizados: Array<Record<string, unknown>> = [];
+
+        if (Array.isArray(trabajosAbiertosSeguros)) {
+          trabajosAbiertosNormalizados =
+            trabajosAbiertosSeguros as Array<Record<string, unknown>>;
+        } else if (typeof trabajosAbiertosSeguros === "string") {
+          try {
+            const parsed = JSON.parse(trabajosAbiertosSeguros);
+
+            if (Array.isArray(parsed)) {
+              trabajosAbiertosNormalizados =
+                parsed as Array<Record<string, unknown>>;
+            }
+          } catch (parseError) {
+            console.error(
+              "Error interpretando respuesta de get_provider_open_requests_safe:",
+              parseError
+            );
+          }
+        } else if (
+          trabajosAbiertosSeguros &&
+          typeof trabajosAbiertosSeguros === "object"
+        ) {
+          trabajosAbiertosNormalizados = [
+            trabajosAbiertosSeguros as Record<string, unknown>,
+          ];
+        }
 
         const trabajoAbiertoSeguro =
-          listaTrabajosSeguros.find(
-            (item: { id?: string }) =>
-              item?.id === id
-          );
+          trabajosAbiertosNormalizados.find(
+            (item) =>
+              String(item.id || "") === String(id)
+          ) as
+            | {
+                id: string;
+                title: string;
+                description: string;
+                city: string;
+                state: string;
+                zip_code: string;
+                preferred_date: string | null;
+                preferred_time: string | null;
+                status: string;
+                customer_name: string | null;
+                preferred_provider_id: string | null;
+              }
+            | undefined;
 
         if (trabajoAbiertoSeguro) {
           trabajoData = {
-            id:
-              trabajoAbiertoSeguro.id,
-            title:
-              trabajoAbiertoSeguro.title,
-            description:
-              trabajoAbiertoSeguro.description,
-            address_line1:
-              null,
-            city:
-              trabajoAbiertoSeguro.city,
-            state:
-              trabajoAbiertoSeguro.state,
-            zip_code:
-              trabajoAbiertoSeguro.zip_code,
-            preferred_date:
-              trabajoAbiertoSeguro.preferred_date,
-            preferred_time:
-              trabajoAbiertoSeguro.preferred_time,
-            status:
-              trabajoAbiertoSeguro.status,
-            job_stage:
-              null,
-            customer_name:
-              trabajoAbiertoSeguro.customer_name,
-            customer_id:
-              "",
+            id: trabajoAbiertoSeguro.id,
+            title: trabajoAbiertoSeguro.title,
+            description: trabajoAbiertoSeguro.description,
+            address_line1: null,
+            city: trabajoAbiertoSeguro.city,
+            state: trabajoAbiertoSeguro.state,
+            zip_code: trabajoAbiertoSeguro.zip_code,
+            preferred_date: trabajoAbiertoSeguro.preferred_date,
+            preferred_time: trabajoAbiertoSeguro.preferred_time,
+            status: trabajoAbiertoSeguro.status,
+            job_stage: null,
+            customer_name: trabajoAbiertoSeguro.customer_name,
+            customer_id: "",
             preferred_provider_id:
               trabajoAbiertoSeguro.preferred_provider_id,
+            cancellation_reason: null,
+            completed_at: null,
+            completion_review_status: null,
+            submitted_for_review_at: null,
+            completion_approved_at: null,
+          };
+        }
+      }
+
+      /*
+        Si RLS oculta un trabajo cancelado, cargamos únicamente
+        su versión histórica segura, sin address_line1 ni customer_id.
+      */
+      if (!trabajoData && tieneAccesoHistorico) {
+        const {
+          data: trabajoHistoricoSeguro,
+          error: trabajoHistoricoError,
+        } = await supabase.rpc(
+          "get_provider_request_history_safe",
+          {
+            p_request_id: id,
+          }
+        );
+
+        if (trabajoHistoricoError) {
+          console.error(
+            "Error cargando historial seguro del trabajo:",
+            trabajoHistoricoError
+          );
+        }
+
+        const historial =
+          trabajoHistoricoSeguro &&
+          typeof trabajoHistoricoSeguro === "object" &&
+          !Array.isArray(trabajoHistoricoSeguro)
+            ? trabajoHistoricoSeguro as Record<string, unknown>
+            : null;
+
+        if (historial?.id) {
+          trabajoData = {
+            id: String(historial.id),
+            title: String(historial.title || ""),
+            description: String(historial.description || ""),
+            address_line1: null,
+            city: String(historial.city || ""),
+            state: String(historial.state || ""),
+            zip_code: String(historial.zip_code || ""),
+            preferred_date:
+              historial.preferred_date
+                ? String(historial.preferred_date)
+                : null,
+            preferred_time:
+              historial.preferred_time
+                ? String(historial.preferred_time)
+                : null,
+            status: String(historial.status || ""),
+            job_stage:
+              historial.job_stage
+                ? String(historial.job_stage)
+                : null,
+            customer_name:
+              historial.customer_name
+                ? String(historial.customer_name)
+                : null,
+            customer_id: "",
+            preferred_provider_id:
+              historial.preferred_provider_id
+                ? String(historial.preferred_provider_id)
+                : null,
             cancellation_reason:
-              null,
+              historial.cancellation_reason
+                ? String(historial.cancellation_reason)
+                : null,
             completed_at:
-              null,
+              historial.completed_at
+                ? String(historial.completed_at)
+                : null,
+            completion_review_status:
+              historial.completion_review_status
+                ? String(historial.completion_review_status)
+                : null,
+            submitted_for_review_at:
+              historial.submitted_for_review_at
+                ? String(historial.submitted_for_review_at)
+                : null,
+            completion_approved_at:
+              historial.completion_approved_at
+                ? String(historial.completion_approved_at)
+                : null,
           } as Trabajo;
         }
       }
@@ -1076,7 +1302,8 @@ export default function TrabajoDetallePage() {
           "open" &&
         trabajoData.preferred_provider_id &&
         trabajoData.preferred_provider_id !==
-          user.id
+          user.id &&
+        !tieneAccesoHistorico
       ) {
         throw new Error(
           T("Este trabajo fue asignado a otro profesional.", "This job was assigned to another professional.")
@@ -1088,7 +1315,8 @@ export default function TrabajoDetallePage() {
           "open" &&
         trabajoData.preferred_provider_id &&
         trabajoData.preferred_provider_id !==
-          user.id
+          user.id &&
+        !tieneAccesoHistorico
       ) {
         throw new Error(
           T("Esta solicitud está dirigida a otro profesional.", "This request is directed to another professional.")
@@ -1585,6 +1813,77 @@ export default function TrabajoDetallePage() {
         );
       }
 
+      /*
+        BARRERA REAL DE STRIPE CONNECT
+
+        Aunque alguien intentara saltarse la interfaz, volvemos a
+        comprobar Stripe justo antes de guardar el presupuesto.
+      */
+
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        throw new Error(
+          T(
+            "No pudimos verificar tu sesión para comprobar tus pagos.",
+            "We could not verify your session to check your payments."
+          )
+        );
+      }
+
+      const stripeStatusResponse =
+        await fetch(
+          "/api/stripe/connect/status",
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${sessionData.session.access_token}`,
+            },
+            cache: "no-store",
+          }
+        );
+
+      const stripeStatus =
+        await stripeStatusResponse
+          .json()
+          .catch(() => null);
+
+      if (!stripeStatusResponse.ok) {
+        throw new Error(
+          stripeStatus?.error ||
+            T(
+              "No pudimos comprobar tu configuración de pagos.",
+              "We could not verify your payment setup."
+            )
+        );
+      }
+
+      const pagosListos =
+        stripeStatus?.connected === true &&
+        stripeStatus?.onboardingComplete === true &&
+        stripeStatus?.payoutsEnabled === true &&
+        stripeStatus?.transfersCapability === "active";
+
+      setPagosConfigurados(
+        pagosListos
+      );
+
+      if (!pagosListos) {
+        throw new Error(
+          T(
+            "Antes de enviar presupuestos debes configurar tus pagos con Stripe Connect desde tu Panel Profesional.",
+            "Before sending quotes, you must set up Stripe Connect payments from your Professional Dashboard."
+          )
+        );
+      }
+
       const {
         data:
           nuevaOferta,
@@ -1973,10 +2272,23 @@ export default function TrabajoDetallePage() {
       return;
     }
 
-    const combinados = [
+    const combinadosSinFiltrar = [
       ...archivosEvidenciaFinal,
       ...nuevos,
     ];
+
+    // Evita seleccionar dos veces el mismo archivo en el mismo lote.
+    const archivosUnicos = new Map<string, File>();
+
+    for (const file of combinadosSinFiltrar) {
+      const clave = `${file.name}-${file.size}-${file.lastModified}-${file.type}`;
+
+      if (!archivosUnicos.has(clave)) {
+        archivosUnicos.set(clave, file);
+      }
+    }
+
+    const combinados = Array.from(archivosUnicos.values());
 
     const fotosSeleccionadas =
       combinados.filter((file) =>
@@ -2141,23 +2453,38 @@ export default function TrabajoDetallePage() {
           );
         }
 
-        guardadas.push(
-          evidenciaData as EvidenciaFinal
+        const evidenciaGuardada =
+          evidenciaData as EvidenciaFinal;
+
+        guardadas.push(evidenciaGuardada);
+
+        // Registrar inmediatamente cada archivo que sí terminó correctamente.
+        // Si un archivo posterior falla, los ya guardados desaparecen de la
+        // cola pendiente y un reintento no vuelve a insertarlos.
+        setEvidenciasFinales((actuales) =>
+          actuales.some(
+            (item) => item.id === evidenciaGuardada.id
+          )
+            ? actuales
+            : [...actuales, evidenciaGuardada]
+        );
+
+        setArchivosEvidenciaFinal((actuales) =>
+          actuales.filter((item) => item !== file)
         );
       }
 
-      setEvidenciasFinales((actuales) => [
-        ...actuales,
-        ...guardadas,
-      ]);
+      // Cada evidencia se añadió al estado inmediatamente después de
+      // confirmarse en la base de datos. Al llegar aquí, la cola pendiente
+      // debe quedar vacía.
       setArchivosEvidenciaFinal([]);
 
       setMensaje(
         guardadas.length === 1
-          ? T("Evidencia final guardada. Ya puedes completar el trabajo.", "Final evidence saved. You can now complete the job.")
+          ? T("Evidencia final guardada. Ya puedes pasar el trabajo a revisión.", "Final evidence saved. You can now submit the job for review.")
           : language === "es"
-            ? `${guardadas.length} archivos de evidencia final guardados. Ya puedes completar el trabajo.`
-            : `${guardadas.length} final evidence files saved. You can now complete the job.`
+            ? `${guardadas.length} archivos de evidencia final guardados. Ya puedes pasar el trabajo a revisión.`
+            : `${guardadas.length} final evidence files saved. You can now submit the job for review.`
       );
 
       return true;
@@ -2181,166 +2508,53 @@ export default function TrabajoDetallePage() {
     COMPLETAR
   */
 
-  async function marcarCompletado() {
-    if (!trabajo || !providerId) {
-      return;
-    }
+  async function pasarARevision() {
+    if (!trabajo || !providerId) return;
 
-    if (
-      reclamo &&
-      (
-        reclamo.status === "open" ||
-        reclamo.status === "reviewing" ||
-        reclamo.status === "in_review"
-      )
-    ) {
-      setError(
-        T("Este trabajo tiene un reclamo activo. No puede marcarse como completado hasta que RELYDO resuelva el reclamo.", "This job has an active claim. It cannot be marked as completed until RELYDO resolves the claim.")
-      );
-      return;
-    }
-
-    if (trabajo.status === "cancelled") {
-      setError(
-        T("Este trabajo fue cancelado. No puede marcarse como completado.", "This job was cancelled. It cannot be marked as completed.")
-      );
+    if (reclamoActivo) {
+      setError(T("Este trabajo tiene un reclamo activo. No puede pasar a revisión.", "This job has an active claim. It cannot be submitted for review."));
       return;
     }
 
     if (
       trabajo.status !== "in_progress" ||
+      trabajo.job_stage !== "working" ||
       trabajo.preferred_provider_id !== providerId
     ) {
-      setError(
-        T("Este trabajo no puede marcarse como completado.", "This job cannot be marked as completed.")
-      );
+      setError(T("Este trabajo no puede pasar a revisión.", "This job cannot be submitted for review."));
       return;
     }
 
-    if (trabajo.job_stage !== "working") {
-      setError(
-        T("Primero debes iniciar el trabajo.", "You must start the job first.")
-      );
-      return;
-    }
+    if (trabajo.completion_review_status === "pending") return;
 
-    const tieneFotoFinal =
-      evidenciasFinales.some(
-        (item) => item.file_type === "image"
-      );
-
+    const tieneFotoFinal = evidenciasFinales.some((item) => item.file_type === "image");
     if (!tieneFotoFinal) {
-      setError(
-        T("Antes de completar el trabajo debes guardar al menos 1 foto como evidencia final.", "Before completing the job, you must save at least 1 photo as final evidence.")
-      );
+      setError(T("Antes de pasar a revisión debes guardar al menos 1 foto como evidencia final.", "Before submitting for review, you must save at least 1 photo as final evidence."));
       return;
     }
 
-    const confirmar = window.confirm(
-      T("¿Confirmas que terminaste completamente este trabajo?", "Do you confirm that you completely finished this job?")
-    );
-
-    if (!confirmar) {
-      return;
-    }
+    if (!window.confirm(T("¿Confirmas que terminaste el trabajo y deseas enviarlo al cliente para revisión?", "Do you confirm the job is finished and want to send it to the customer for review?"))) return;
 
     setCompletando(true);
     setError("");
     setMensaje("");
 
     try {
-      // 1. Comprobar el estado real justo antes de completar.
-      const {
-        data: estadoActual,
-        error: estadoError,
-      } = await supabase
-        .from("service_requests")
-        .select(
-          "status, preferred_provider_id, job_stage"
-        )
-        .eq("id", trabajo.id)
-        .single();
-
-      if (estadoError) {
-        throw new Error(estadoError.message);
-      }
-
-      if (estadoActual.status === "cancelled") {
-        setTrabajo((actual) =>
-          actual
-            ? {
-                ...actual,
-                status: "cancelled",
-              }
-            : actual
-        );
-
-        throw new Error(
-          T("Este trabajo fue cancelado. Ya no puedes completarlo.", "This job was cancelled. You can no longer complete it.")
-        );
-      }
-
-      if (
-        estadoActual.status !== "in_progress" ||
-        estadoActual.preferred_provider_id !== providerId
-      ) {
-        throw new Error(
-          T("Este trabajo ya no está disponible para completar.", "This job is no longer available to complete.")
-        );
-      }
-
-      if (estadoActual.job_stage !== "working") {
-        throw new Error(
-          T("El trabajo debe estar iniciado antes de completarlo.", "The job must be started before it can be completed.")
-        );
-      }
-
-      // 2. Marcar el trabajo como completado.
-      const { error: completeError } =
-        await supabase.rpc("complete_job", {
-          p_request_id: trabajo.id,
-        });
-
-      if (completeError) {
-        throw new Error(completeError.message);
-      }
-
-      setTrabajo((actual) => {
-        if (!actual) {
-          return actual;
-        }
-
-        return {
-          ...actual,
-          status: "completed",
-          job_stage: "completed",
-        };
+      const { error: reviewError } = await supabase.rpc("submit_job_for_completion_review", {
+        p_request_id: trabajo.id,
       });
+      if (reviewError) throw new Error(reviewError.message);
 
-      await notificarEventoTrabajo(
-        "job_completed"
-      );
-
-      // 3. La liberación del pago se procesa automáticamente
-      // en el servidor cuando vence la retención de 36 horas.
+      setTrabajo((actual) => actual ? {
+        ...actual,
+        completion_review_status: "pending",
+        submitted_for_review_at: actual.submitted_for_review_at || new Date().toISOString(),
+      } : actual);
 
       await cargarTodo();
-
-      setMensaje(
-        T("Trabajo completado. El pago permanecerá protegido durante 36 horas.", "Job completed. The payment will remain protected for 36 hours.")
-      );
+      setMensaje(T("Trabajo enviado al cliente para revisión.", "Job sent to the customer for review."));
     } catch (err) {
-      console.error(
-        "Error completando trabajo:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : T("No se pudo completar el trabajo.", "The job could not be completed.")
-      );
-
+      setError(err instanceof Error ? err.message : T("No se pudo pasar el trabajo a revisión.", "The job could not be submitted for review."));
       await cargarTodo();
     } finally {
       setCompletando(false);
@@ -3152,13 +3366,13 @@ export default function TrabajoDetallePage() {
 
     if (
       trabajo.status !== "in_progress" ||
-      trabajo.job_stage !== "working" ||
+      !["arrived", "working"].includes(trabajo.job_stage || "") ||
       trabajo.preferred_provider_id !== providerId
     ) {
       setError(
         T(
-          "Solo puedes solicitar un cambio de presupuesto después de iniciar un trabajo que esté asignado a tu cuenta.",
-          "You can only request a budget change after starting a job assigned to your account."
+          "Solo puedes solicitar un cambio de presupuesto después de llegar al lugar o mientras el trabajo está iniciado.",
+          "You can only request a budget change after arriving at the job site or while the job is in progress."
         )
       );
       return;
@@ -3507,6 +3721,10 @@ export default function TrabajoDetallePage() {
       trabajo?.status ===
       "completed"
     ) {
+      return 6;
+    }
+
+    if (trabajo?.completion_review_status === "pending") {
       return 5;
     }
 
@@ -3544,6 +3762,22 @@ export default function TrabajoDetallePage() {
         )
     );
 
+  /*
+    Si RELYDO ya resolvió el reclamo, el chat NO vuelve a abrirse.
+    La resolución administrativa tiene prioridad sobre la ventana normal
+    de 12 horas que existe después de completar un trabajo sin reclamo.
+  */
+  const reclamoResueltoChat =
+    Boolean(
+      reclamo &&
+        !reclamoActivoChat &&
+        (
+          Boolean(reclamo.resolved_at) ||
+          reclamo.status === "resolved" ||
+          reclamo.status === "closed"
+        )
+    );
+
   const chatDentroDe12Horas =
     Boolean(
       trabajo?.status ===
@@ -3560,6 +3794,7 @@ export default function TrabajoDetallePage() {
     Boolean(
       trabajo &&
         !reclamoActivoChat &&
+        !reclamoResueltoChat &&
         (
           trabajo.status ===
             "in_progress" ||
@@ -3570,6 +3805,10 @@ export default function TrabajoDetallePage() {
   function motivoChatBloqueado() {
     if (reclamoActivoChat) {
       return T("Chat bloqueado porque existe un reclamo activo. RELYDO Admin gestiona el caso desde este momento.", "Chat is blocked because there is an active claim. RELYDO Admin is managing the case from this point forward.");
+    }
+
+    if (reclamoResueltoChat) {
+      return T("Este reclamo ya fue resuelto por RELYDO. La comunicación de este trabajo quedó cerrada permanentemente.", "This claim has already been resolved by RELYDO. Communication for this job is now permanently closed.");
     }
 
     if (
@@ -3864,8 +4103,9 @@ export default function TrabajoDetallePage() {
 
   const puedeSolicitarCambioPresupuesto =
     contratado &&
-    trabajo.job_stage === "working" &&
+    ["arrived", "working"].includes(trabajo.job_stage || "") &&
     !reclamoActivo &&
+    trabajo.completion_review_status !== "pending" &&
     !cambioPresupuestoPendiente;
 
   const reclamoResuelto =
@@ -3938,10 +4178,15 @@ export default function TrabajoDetallePage() {
     },
     {
       numero: 5,
+      icono: "🔎",
+      titulo: T("En revisión", "Under review"),
+      texto: T("Esperando aprobación del cliente", "Waiting for customer approval"),
+    },
+    {
+      numero: 6,
       icono: "✅",
       titulo: T("Completado", "Completed"),
-      texto:
-        T("Trabajo terminado", "Job finished"),
+      texto: T("Trabajo terminado", "Job finished"),
     },
   ];
 
@@ -3988,10 +4233,7 @@ export default function TrabajoDetallePage() {
           type="button"
           onClick={() =>
             router.push(
-              trabajo.status ===
-                "open"
-                ? "/trabajos"
-                : "/panel-profesional"
+              "/panel-profesional"
             )
           }
           className="mb-6 flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
@@ -4153,7 +4395,9 @@ export default function TrabajoDetallePage() {
 
                 <span
                   className={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-wide ${
-                    cancelado
+                    oferta?.status === "rejected"
+                      ? "bg-slate-200 text-slate-700"
+                      : cancelado
                       ? "bg-red-600 text-white"
                       : trabajo.status ===
                         "completed"
@@ -4164,7 +4408,12 @@ export default function TrabajoDetallePage() {
                       : "bg-blue-700 text-white"
                   }`}
                 >
-                  {cancelado
+                  {oferta?.status === "rejected"
+                    ? T(
+                        "Presupuesto rechazado por el cliente",
+                        "Quote rejected by the customer"
+                      )
+                    : cancelado
                     ? T("Cancelado", "Cancelled")
                     : trabajo.status ===
                       "completed"
@@ -4260,7 +4509,9 @@ export default function TrabajoDetallePage() {
 
         {/* GRID PRINCIPAL */}
 
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className={`mt-6 grid grid-cols-1 gap-6 ${
+          trabajo.status === "completed" ? "" : "lg:grid-cols-2"
+        }`}>
 
           {/* IZQUIERDA */}
 
@@ -4269,7 +4520,37 @@ export default function TrabajoDetallePage() {
             {/* SEGUIMIENTO */}
 
             {trabajo.status !==
-              "open" && (
+              "open" &&
+              !ofertaRechazadaPorCliente && (
+                <details open={trabajo.status !== "completed"} className="group">
+                  <summary className={trabajo.status === "completed"
+                    ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                    : "hidden"}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
+                        <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado", "Job completed")}</p>
+                        {(trabajo.submitted_for_review_at || trabajo.completion_approved_at) && (
+                          <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-500">
+                            {trabajo.submitted_for_review_at && (
+                              <p>
+                                {T("Enviado a revisión", "Sent for review")}:{" "}
+                                {formatearFechaHora(trabajo.submitted_for_review_at, language)}
+                              </p>
+                            )}
+                            {trabajo.completion_approved_at && (
+                              <p>
+                                {T("Aprobado por el cliente", "Approved by customer")}:{" "}
+                                {formatearFechaHora(trabajo.completion_approved_at, language)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    </div>
+                  </summary>
+                  <div className={trabajo.status === "completed" ? "mt-3" : ""}>
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -4377,7 +4658,11 @@ export default function TrabajoDetallePage() {
                                 : etapaActual ===
                                   3
                                 ? T("Ya llegaste", "You arrived")
-                                : T("Trabajo iniciado", "Work started")}
+                                : etapaActual === 4
+                                ? T("Trabajo iniciado", "Work started")
+                                : etapaActual === 5
+                                ? T("Trabajo en revisión", "Job under review")
+                                : T("Trabajo completado", "Job completed")}
                             </h3>
 
                             <p className="mt-1 text-sm leading-6 text-blue-900">
@@ -4425,28 +4710,79 @@ export default function TrabajoDetallePage() {
                           )}
 
                           {etapaActual ===
-                            3 && (
+                            3 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" && (
                             <button
                               type="button"
                               disabled={
                                 cambiandoEstado
                               }
-                              onClick={() =>
-                                cambiarEtapa(
-                                  "working"
-                                )
-                              }
+                              onClick={() => {
+                                setMostrarConfirmacionInicio(true);
+                                setError("");
+                                setMensaje("");
+                              }}
                               className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
                             >
                               {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
                             </button>
                           )}
 
+                          {etapaActual === 3 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" &&
+                            mostrarConfirmacionInicio && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-950">
+                                {T(
+                                  "Confirma el alcance antes de comenzar",
+                                  "Confirm the job scope before starting"
+                                )}
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-amber-900">
+                                {T(
+                                  "¿El trabajo que encontraste coincide razonablemente con lo presupuestado?",
+                                  "Does the job you found reasonably match the agreed quote?"
+                                )}
+                              </p>
+
+                              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  disabled={cambiandoEstado}
+                                  onClick={async () => {
+                                    setMostrarConfirmacionInicio(false);
+                                    await cambiarEtapa("working");
+                                  }}
+                                  className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                                >
+                                  {T("Sí, iniciar trabajo", "Yes, start job")}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={!puedeSolicitarCambioPresupuesto}
+                                  onClick={() => {
+                                    setMostrarConfirmacionInicio(false);
+                                    setMostrarCambioPresupuesto(true);
+                                    setError("");
+                                    setMensaje("");
+                                  }}
+                                  className="rounded-xl border-2 border-violet-300 bg-white px-4 py-3 font-extrabold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {T(
+                                    "Necesito ajustar el presupuesto",
+                                    "I need to adjust the quote"
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" && (
                             <div className="sm:col-span-2 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
-                              <div className="grid grid-cols-1 gap-0 md:grid-cols-[1.15fr_0.85fr]">
-                                <div className="p-5 md:p-6">
-                                  <div className="flex items-start gap-4">
+                              <div className="grid min-w-0 grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                                <div className="min-w-0 p-5 md:p-6">
+                                  <div className="flex min-w-0 items-start gap-4">
                                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-2xl">
                                       📷
                                     </div>
@@ -4523,7 +4859,7 @@ export default function TrabajoDetallePage() {
                                   )}
                                 </div>
 
-                                <div className="border-t border-slate-100 bg-slate-50/70 p-5 md:border-l md:border-t-0 md:p-6">
+                                <div className="min-w-0 border-t border-slate-100 bg-slate-50/70 p-5 xl:border-l xl:border-t-0 md:p-6">
                                   <div className="flex items-center gap-3">
                                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xl">🛡️</span>
                                     <h3 className="font-black text-slate-950">{T("Consejo RELYDO", "RELYDO tip")}</h3>
@@ -4536,7 +4872,8 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {etapaActual === 4 && (
+                          {etapaActual === 4 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" && (
                             <button
                               type="button"
                               disabled={!puedeSolicitarCambioPresupuesto}
@@ -4572,7 +4909,7 @@ export default function TrabajoDetallePage() {
                             </button>
                           )}
 
-                          {etapaActual === 4 && (
+                          {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
                             <button
                               type="button"
                               disabled={
@@ -4580,7 +4917,7 @@ export default function TrabajoDetallePage() {
                                 reclamoActivo ||
                                 !evidenciasFinales.some((item) => item.file_type === "image")
                               }
-                              onClick={marcarCompletado}
+                              onClick={pasarARevision}
                               className={`rounded-2xl border-2 px-5 py-4 font-extrabold transition disabled:cursor-not-allowed ${
                                 reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
                                   ? "border-slate-200 bg-slate-200 text-slate-500"
@@ -4590,11 +4927,18 @@ export default function TrabajoDetallePage() {
                               {reclamoActivo
                                 ? T("🔒 Bloqueado por reclamo", "🔒 Blocked by claim")
                                 : !evidenciasFinales.some((item) => item.file_type === "image")
-                                ? T("🔒 Completar trabajo\nSube y guarda al menos 1 foto para habilitar", "🔒 Complete job\nUpload and save at least 1 photo to enable")
+                                ? T("🔒 Pasar a revisión\nSube y guarda al menos 1 foto para habilitar", "🔒 Submit for review\nUpload and save at least 1 photo to enable")
                                 : completando
-                                ? "Completando..."
-                                : T("✓ Completar trabajo", "✓ Complete job")}
+                                ? T("Enviando a revisión...", "Submitting for review...")
+                                : T("✓ Pasar a revisión", "✓ Submit for review")}
                             </button>
+                          )}
+
+                          {trabajo.completion_review_status === "pending" && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-900">{T("⏳ Trabajo en revisión del cliente", "⏳ Job under customer review")}</p>
+                              <p className="mt-1 text-sm text-amber-800">{T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}</p>
+                            </div>
                           )}
 
                           <button
@@ -4625,7 +4969,8 @@ export default function TrabajoDetallePage() {
                           </button>
 
                           {etapaActual <
-                            4 && (
+                            4 &&
+                            !(etapaActual === 3 && ultimoCambioPresupuesto?.status === "rejected") && (
                             <div className="sm:col-span-2 mt-2 rounded-2xl border border-red-200 bg-red-50 p-4">
 
                               <p className="text-sm font-bold text-red-900">
@@ -4739,6 +5084,57 @@ export default function TrabajoDetallePage() {
                               ).toFixed(2)}
                             </p>
 
+                            {ultimoCambioPresupuesto.status === "rejected" &&
+                              etapaActual === 3 && (
+                              <div className="mt-4 border-t border-red-200 pt-4">
+                                <p className="text-sm font-bold text-red-900">
+                                  {T(
+                                    "¿Qué deseas hacer ahora?",
+                                    "What would you like to do now?"
+                                  )}
+                                </p>
+
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      cambiandoEstado ||
+                                      liberandoTrabajo ||
+                                      completando
+                                    }
+                                    onClick={() => cambiarEtapa("working")}
+                                    className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {T(
+                                      "🛠️ Continuar con el presupuesto original",
+                                      "🛠️ Continue with the original quote"
+                                    )}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      liberandoTrabajo ||
+                                      cambiandoEstado ||
+                                      completando
+                                    }
+                                    onClick={liberarTrabajo}
+                                    className="rounded-xl border-2 border-red-600 bg-white px-4 py-3 font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {liberandoTrabajo
+                                      ? T(
+                                          "Liberando trabajo...",
+                                          "Releasing job..."
+                                        )
+                                      : T(
+                                          "⚠️ No puedo continuar con el presupuesto original",
+                                          "⚠️ I can’t continue with the original quote"
+                                        )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             {ultimoCambioPresupuesto.status === "accepted" &&
                               ultimoCambioPresupuesto.payment_status === "paid" && (
                               <p className="mt-2 text-sm font-bold text-emerald-800">
@@ -4760,7 +5156,7 @@ export default function TrabajoDetallePage() {
                         )}
 
                         {mostrarCambioPresupuesto &&
-                          etapaActual === 4 &&
+                          (etapaActual === 3 || etapaActual === 4) &&
                           !cambioPresupuestoPendiente && (
                           <form
                             onSubmit={
@@ -5011,10 +5407,24 @@ export default function TrabajoDetallePage() {
                   </>
                 )}
               </section>
+
+                  </div>
+                </details>
             )}
 
             {/* INFORMACION */}
 
+            <details open={trabajo.status !== "completed"} className="group">
+              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-extrabold text-slate-950">📝 {T("Información del trabajo", "Job information")}</p>
+                    <p className="mt-1 text-sm text-slate-600">{trabajo.city}, {trabajo.state}</p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
               <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5034,7 +5444,7 @@ export default function TrabajoDetallePage() {
                   {trabajo.description}
                 </p>
 
-                {trabajo.address_line1 && (
+                {trabajo.address_line1 && trabajo.status !== "cancelled" && (
                   <>
                     <div className="my-5 border-t border-slate-200" />
 
@@ -5060,8 +5470,31 @@ export default function TrabajoDetallePage() {
                     </p>
                   </>
                 )}
+
+                {trabajo.status === "cancelled" && (
+                  <>
+                    <div className="my-5 border-t border-slate-200" />
+
+                    <p className="font-black text-slate-900">
+                      {T("Ubicación del servicio", "Service location")}
+                    </p>
+
+                    <p className="mt-2 text-slate-600">
+                      {trabajo.city}, {trabajo.state} {trabajo.zip_code}
+                    </p>
+
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      {T(
+                        "La dirección exacta se oculta después de la cancelación.",
+                        "The exact address is hidden after cancellation."
+                      )}
+                    </p>
+                  </>
+                )}
               </div>
             </section>
+              </div>
+            </details>
           </div>
 
           {/* DERECHA */}
@@ -5072,7 +5505,18 @@ export default function TrabajoDetallePage() {
 
             {fotos.length >
               0 && (
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+              <details open={trabajo.status !== "completed"} className="group">
+                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-slate-950">📷 {T("Fotos del problema", "Problem photos")}</p>
+                      <p className="mt-1 text-sm text-slate-600">{fotos.length} {fotos.length === 1 ? T("foto", "photo") : T("fotos", "photos")}</p>
+                    </div>
+                    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                  <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -5137,12 +5581,27 @@ export default function TrabajoDetallePage() {
                   </a>
                 </div>
               </section>
+                </div>
+              </details>
             )}
 
             {/* COMPROBANTE / PRESUPUESTO */}
 
             {oferta && (
-              <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
+              <details open={trabajo.status !== "completed"} className="group">
+                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-800">
+                        {pago ? `$${Number(pago.provider_net_amount).toFixed(2)} ${T("neto a recibir", "net to receive")} · ${T("Pago registrado", "Payment recorded")}` : `$${Number(oferta.price).toFixed(2)}`}
+                      </p>
+                    </div>
+                    <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                  <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
                 <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -5244,7 +5703,7 @@ export default function TrabajoDetallePage() {
                                       {T("Resolución de RELYDO", "RELYDO resolution")}
                                     </p>
                                     <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                      {reclamo.resolution_notes}
+                                      {resolutionNoteText(language, reclamo.resolution_notes)}
                                     </p>
                                   </div>
                                 )}
@@ -5374,8 +5833,29 @@ export default function TrabajoDetallePage() {
                           <p className="text-sm font-semibold text-slate-600">
                             {T("Precio estimado", "Estimated price")}
                           </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {T("Pendiente de aceptación del cliente", "Pending customer acceptance")}
+                          <p
+                            className={`mt-1 text-xs font-bold ${
+                              oferta.status === "rejected"
+                                ? "text-red-600"
+                                : oferta.status === "selected"
+                                ? "text-green-600"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {oferta.status === "rejected"
+                              ? T(
+                                  "Rechazado por el cliente",
+                                  "Rejected by customer"
+                                )
+                              : oferta.status === "selected"
+                              ? T(
+                                  "Aceptado por el cliente",
+                                  "Accepted by customer"
+                                )
+                              : T(
+                                  "Pendiente de aceptación del cliente",
+                                  "Pending customer acceptance"
+                                )}
                           </p>
                         </div>
                         <p className="text-2xl font-black text-slate-950">
@@ -5424,25 +5904,59 @@ export default function TrabajoDetallePage() {
                     <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
                       ❌{" "}
                       {canceladoPorRelydo
-                        ? T("Trabajo cancelado por resolución de RELYDO.", "Job cancelled by RELYDO resolution.")
-                        : T("El cliente canceló este trabajo.", "The customer cancelled this job.")}
+                        ? T(
+                            "Trabajo cancelado por resolución de RELYDO.",
+                            "Job cancelled by RELYDO resolution."
+                          )
+                        : T(
+                            "El cliente canceló este trabajo.",
+                            "The customer cancelled this job."
+                          )}
                     </div>
                   ) : !pago ? (
-                    <div
-                      className={`mt-4 rounded-xl border p-4 text-sm font-bold ${
-                        oferta.status === "selected"
-                          ? "border-green-200 bg-green-50 text-green-800"
-                          : oferta.status === "rejected"
-                          ? "border-slate-200 bg-slate-50 text-slate-600"
-                          : "border-blue-200 bg-blue-50 text-blue-800"
-                      }`}
-                    >
-                      {oferta.status === "selected"
-                        ? T("✅ Presupuesto aceptado por el cliente.", "✅ Quote accepted by the customer.")
-                        : oferta.status === "rejected"
-                        ? T("Este presupuesto no fue seleccionado.", "This quote was not selected.")
-                        : T("✓ Presupuesto enviado. Esperando decisión del cliente.", "✓ Quote sent. Waiting for the customer’s decision.")}
-                    </div>
+                    oferta.status === "rejected" ? (
+                      <div className="mt-4 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-xl">
+                            ❌
+                          </div>
+
+                          <div>
+                            <p className="text-base font-black text-red-900">
+                              {T(
+                                "Presupuesto rechazado",
+                                "Quote rejected"
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-sm font-semibold leading-6 text-red-700">
+                              {T(
+                                "El cliente rechazó tu presupuesto.",
+                                "The customer rejected your quote."
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`mt-4 rounded-xl border p-4 text-sm font-bold ${
+                          oferta.status === "selected"
+                            ? "border-green-200 bg-green-50 text-green-800"
+                            : "border-blue-200 bg-blue-50 text-blue-800"
+                        }`}
+                      >
+                        {oferta.status === "selected"
+                          ? T(
+                              "✅ Presupuesto aceptado por el cliente.",
+                              "✅ Quote accepted by the customer."
+                            )
+                          : T(
+                              "✓ Presupuesto enviado. Esperando decisión del cliente.",
+                              "✓ Quote sent. Waiting for the customer’s decision."
+                            )}
+                      </div>
+                    )
                   ) : null}
 
                   {pago && (
@@ -5452,6 +5966,8 @@ export default function TrabajoDetallePage() {
                   )}
                 </div>
               </section>
+                </div>
+              </details>
             )}
           </div>
         </div>
@@ -5462,6 +5978,17 @@ export default function TrabajoDetallePage() {
           "open" &&
           trabajo.preferred_provider_id ===
             providerId && (
+            <details open={trabajo.status !== "completed"} className="group mt-6">
+              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl" : "hidden"}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">{T("🔒 Comunicación protegida", "🔒 Protected communication")}</p>
+                    <p className="mt-1 text-xl font-black">💬 {T("Chat con", "Chat with")} {trabajo.customer_name || T("el cliente", "the customer")}</p>
+                  </div>
+                  <span className="text-xl text-white transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
             <section
               id="chat-relydo"
               className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
@@ -5655,6 +6182,9 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
             </section>
+
+              </div>
+            </details>
           )}
 
         {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
@@ -5989,7 +6519,15 @@ export default function TrabajoDetallePage() {
                   </p>
 
                   <p className="mt-2 text-sm leading-6 text-green-800">
-                    {T("RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.", "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally.")}
+                    {cancelado
+                      ? T(
+                          "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
+                          "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
+                        )
+                      : T(
+                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
+                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
+                        )}
                   </p>
 
                   {reclamo.resolution_notes && (
@@ -5999,7 +6537,7 @@ export default function TrabajoDetallePage() {
                       </p>
 
                       <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                        {reclamo.resolution_notes}
+                        {resolutionNoteText(language, reclamo.resolution_notes)}
                       </p>
                     </div>
                   )}
@@ -6025,7 +6563,9 @@ export default function TrabajoDetallePage() {
         {/* ENVIAR PRESUPUESTO */}
 
         {trabajo.status ===
-          "open" && (
+          "open" &&
+          oferta?.status !==
+            "rejected" && (
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7">
 
             <h2 className="flex items-center gap-3 text-2xl font-black text-slate-950">
@@ -6045,6 +6585,46 @@ export default function TrabajoDetallePage() {
                 <p className="mt-2 text-green-800">
                   {T("El cliente ya puede comparar tu presupuesto con otras ofertas.", "The customer can now compare your quote with other offers.")}
                 </p>
+              </div>
+            ) : pagosConfigurados === null ? (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="font-black text-slate-800">
+                  {T(
+                    "Comprobando configuración de pagos...",
+                    "Checking payment setup..."
+                  )}
+                </p>
+              </div>
+            ) : !pagosConfigurados ? (
+              <div className="mt-6 rounded-2xl border-2 border-red-300 bg-red-50 p-6">
+                <p className="text-lg font-black text-red-800">
+                  {T(
+                    "🔒 Configura tus pagos para enviar presupuestos",
+                    "🔒 Set up your payments to send quotes"
+                  )}
+                </p>
+
+                <p className="mt-2 leading-7 text-red-700">
+                  {T(
+                    "Puedes revisar todos los detalles de este trabajo, pero antes de enviar un presupuesto debes completar tu configuración de Stripe Connect.",
+                    "You can review all the details of this job, but before sending a quote you must complete your Stripe Connect setup."
+                  )}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/panel-profesional"
+                    )
+                  }
+                  className="mt-5 w-full rounded-xl bg-red-600 px-6 py-4 text-lg font-black text-white shadow-md transition hover:bg-red-700"
+                >
+                  {T(
+                    "Configurar pagos",
+                    "Set up payments"
+                  )}
+                </button>
               </div>
             ) : (
               <form
