@@ -1040,6 +1040,11 @@ export default function MisSolicitudDetallePage() {
     setChatRealtimeConectado,
   ] = useState(false);
 
+  const [
+    chatAbierto,
+    setChatAbierto,
+  ] = useState(false);
+
   const finalChatRef =
     useRef<HTMLDivElement | null>(
       null
@@ -4607,7 +4612,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {!changeOrderPendiente &&
           ultimoChangeOrder &&
           ultimoChangeOrder.status !==
-            "pending" && (
+            "pending" &&
+          solicitud.status !== "completed" && (
           <section
             className={`mt-6 rounded-3xl border-2 p-6 shadow-sm ${
               ultimoChangeOrder.status ===
@@ -6226,8 +6232,29 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* CHAT PRIVADO RELYDO */}
 
         {ofertaSeleccionada &&
-          solicitud.status !==
-            "open" && (
+          solicitud.status !== "open" && (
+            <>
+              {!chatAbierto && (
+                <button
+                  type="button"
+                  onClick={() => setChatAbierto(true)}
+                  className="mt-8 flex w-full items-center justify-between rounded-3xl border border-blue-200 bg-slate-950 px-6 py-5 text-left text-white shadow-xl transition hover:bg-slate-900"
+                >
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
+                      {T("🔒 Comunicación protegida")}
+                    </p>
+                    <p className="mt-1 text-xl font-black">
+                      💬 {T("Chat con")}{" "}
+                      {ofertaSeleccionada.profesional?.business_name ||
+                        T("el profesional")}
+                    </p>
+                  </div>
+                  <span className="text-2xl">›</span>
+                </button>
+              )}
+
+              {chatAbierto && (
             <section
               id="chat-relydo"
               className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
@@ -6251,7 +6278,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
                   </div>
 
-                  <span
+                  <div className="flex items-center gap-2">
+                    <span
                     className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
                       !chatPuedeEnviar
                         ? "bg-amber-100 text-amber-900"
@@ -6266,6 +6294,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       ? T("● En tiempo real")
                       : T("Conectando...")}
                   </span>
+                    <button
+                      type="button"
+                      onClick={() => setChatAbierto(false)}
+                      aria-label={language === "en" ? "Close chat" : "Cerrar chat"}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-lg font-black text-white transition hover:bg-slate-800"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -6426,6 +6463,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 )}
               </div>
             </section>
+              )}
+            </>
           )}
 
       </div>
