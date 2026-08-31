@@ -4376,7 +4376,9 @@ export default function TrabajoDetallePage() {
 
         {/* GRID PRINCIPAL */}
 
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className={`mt-6 grid grid-cols-1 gap-6 ${
+          trabajo.status === "completed" ? "" : "lg:grid-cols-2"
+        }`}>
 
           {/* IZQUIERDA */}
 
@@ -4387,6 +4389,19 @@ export default function TrabajoDetallePage() {
             {trabajo.status !==
               "open" &&
               !ofertaRechazadaPorCliente && (
+                <details open={trabajo.status !== "completed"} className="group">
+                  <summary className={trabajo.status === "completed"
+                    ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                    : "hidden"}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
+                        <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado", "Job completed")}</p>
+                      </div>
+                      <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    </div>
+                  </summary>
+                  <div className={trabajo.status === "completed" ? "mt-3" : ""}>
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5245,8 +5260,22 @@ export default function TrabajoDetallePage() {
               </section>
             )}
 
+                  </div>
+                </details>
+
             {/* INFORMACION */}
 
+            <details open={trabajo.status !== "completed"} className="group">
+              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-extrabold text-slate-950">📝 {T("Información del trabajo", "Job information")}</p>
+                    <p className="mt-1 text-sm text-slate-600">{trabajo.city}, {trabajo.state}</p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
               <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5294,6 +5323,8 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
             </section>
+              </div>
+            </details>
           </div>
 
           {/* DERECHA */}
@@ -5304,7 +5335,18 @@ export default function TrabajoDetallePage() {
 
             {fotos.length >
               0 && (
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+              <details open={trabajo.status !== "completed"} className="group">
+                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-slate-950">📷 {T("Fotos del problema", "Problem photos")}</p>
+                      <p className="mt-1 text-sm text-slate-600">{fotos.length} {fotos.length === 1 ? T("foto", "photo") : T("fotos", "photos")}</p>
+                    </div>
+                    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                  <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -5369,12 +5411,27 @@ export default function TrabajoDetallePage() {
                   </a>
                 </div>
               </section>
+                </div>
+              </details>
             )}
 
             {/* COMPROBANTE / PRESUPUESTO */}
 
             {oferta && (
-              <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
+              <details open={trabajo.status !== "completed"} className="group">
+                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-800">
+                        {pago ? `$${Number(pago.provider_net_amount).toFixed(2)} ${T("neto a recibir", "net to receive")} · ${T("Pago registrado", "Payment recorded")}` : `$${Number(oferta.price).toFixed(2)}`}
+                      </p>
+                    </div>
+                    <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                  <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
                 <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -5739,6 +5796,8 @@ export default function TrabajoDetallePage() {
                   )}
                 </div>
               </section>
+                </div>
+              </details>
             )}
           </div>
         </div>
@@ -5749,6 +5808,17 @@ export default function TrabajoDetallePage() {
           "open" &&
           trabajo.preferred_provider_id ===
             providerId && (
+            <details open={trabajo.status !== "completed"} className="group mt-6">
+              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl" : "hidden"}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">{T("🔒 Comunicación protegida", "🔒 Protected communication")}</p>
+                    <p className="mt-1 text-xl font-black">💬 {T("Chat con", "Chat with")} {trabajo.customer_name || T("el cliente", "the customer")}</p>
+                  </div>
+                  <span className="text-xl text-white transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
             <section
               id="chat-relydo"
               className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
@@ -5943,6 +6013,9 @@ export default function TrabajoDetallePage() {
               </div>
             </section>
           )}
+
+              </div>
+            </details>
 
         {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
 
