@@ -3010,7 +3010,7 @@ export default function PanelProfesional() {
                           ? desactivarPushProfesional()
                           : activarPushProfesional()
                       }
-                      className="w-[96px] shrink-0 rounded-lg px-2 py-2 text-center text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-[96px] shrink-0 translate-y-2 rounded-lg px-2 py-2 text-center text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
                       style={{
                         backgroundColor:
                           pushActivo
