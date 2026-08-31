@@ -37,6 +37,7 @@ type BaseProfile = {
   role: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
 };
 
 const TRADES = [
@@ -77,6 +78,7 @@ export default function ConfiguracionPerfilProfesional() {
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
 
   const [licenseRequired, setLicenseRequired] = useState(false);
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -108,7 +110,7 @@ export default function ConfiguracionPerfilProfesional() {
 
       const { data: baseProfile, error: baseError } = await supabase
         .from("profiles")
-        .select("role, phone, email")
+        .select("role, phone, email, address")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -162,6 +164,7 @@ export default function ConfiguracionPerfilProfesional() {
 
       setEmail(base.email || user.email || "");
       setPhone(base.phone || "");
+      setAddress(base.address || "");
       setBusinessName(profile.business_name || "");
       setBio(profile.bio || "");
       setTrade(profile.trade || "");
@@ -243,6 +246,7 @@ export default function ConfiguracionPerfilProfesional() {
           p_state: state.trim().toUpperCase() || null,
           p_zip_code: zipCode.trim() || null,
           p_phone: phone.trim() || null,
+          p_address: address.trim() || null,
           p_license_required: licenseRequired,
           p_license_number: licenseNumber.trim() || null,
           p_license_state: licenseState.trim().toUpperCase() || null,
@@ -266,8 +270,8 @@ export default function ConfiguracionPerfilProfesional() {
       if (resultado?.requires_reverification) {
         setMensaje(
           T(
-            "Perfil guardado. Cambiaste información que requiere nueva verificación. Te llevaremos a documentos.",
-            "Profile saved. You changed information that requires verification. We will take you to documents."
+            "Perfil guardado. El cambio de seguro o bond requiere nueva verificación. Te llevaremos a documentos.",
+            "Profile saved. Insurance or bond changes require verification again. We will take you to documents."
           )
         );
 
@@ -331,8 +335,8 @@ export default function ConfiguracionPerfilProfesional() {
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
               {T(
-                "Actualiza tus datos de trabajo y servicio. Los cambios de identidad profesional, oficio, licencia, seguro o bond requieren nueva verificación.",
-                "Update your work and service information. Changes to professional identity, trade, license, insurance, or bond require verification again."
+                "Puedes actualizar tus datos de contacto y servicio. El correo nunca se puede editar aquí. El nombre del negocio, oficio y licencia están protegidos y requieren aprobación administrativa. Seguro y bond pueden actualizarse, pero requieren nueva verificación.",
+                "You can update your contact and service information. Email can never be edited here. Business name, trade, and license are protected and require admin approval. Insurance and bond can be updated, but require verification again."
               )}
             </p>
           </div>
@@ -357,11 +361,13 @@ export default function ConfiguracionPerfilProfesional() {
             </h2>
 
             <div className="mt-5 grid gap-5 md:grid-cols-2">
-              <Campo
+              <CampoBloqueado
                 label={T("Nombre del negocio", "Business name")}
                 value={businessName}
-                onChange={setBusinessName}
-                required
+                note={T(
+                  "Requiere aprobación de Admin para cambiarlo.",
+                  "Admin approval is required to change it."
+                )}
               />
 
               <div>
@@ -388,12 +394,11 @@ export default function ConfiguracionPerfilProfesional() {
                 </label>
                 <select
                   value={trade}
-                  onChange={(e) => setTrade(e.target.value)}
-                  required
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-blue-600"
+                  disabled
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-500"
                 >
                   <option value="">
-                    {T("Selecciona un oficio", "Select a trade")}
+                    {T("Sin oficio", "No trade")}
                   </option>
                   {TRADES.map(([value, es, en]) => (
                     <option key={value} value={value}>
@@ -401,6 +406,12 @@ export default function ConfiguracionPerfilProfesional() {
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs font-semibold text-amber-700">
+                  {T(
+                    "Requiere aprobación de Admin para cambiarlo.",
+                    "Admin approval is required to change it."
+                  )}
+                </p>
               </div>
 
               <Campo
@@ -441,7 +452,14 @@ export default function ConfiguracionPerfilProfesional() {
               {T("Área de servicio", "Service area")}
             </h2>
 
-            <div className="mt-5 grid gap-5 md:grid-cols-3">
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Campo
+                  label={T("Dirección", "Address")}
+                  value={address}
+                  onChange={setAddress}
+                />
+              </div>
               <Campo label={T("Ciudad", "City")} value={city} onChange={setCity} />
               <Campo
                 label={T("Estado", "State")}
@@ -456,8 +474,8 @@ export default function ConfiguracionPerfilProfesional() {
           <section className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm md:p-8">
             <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
               {T(
-                "Importante: modificar cualquiera de los datos de esta sección pone la cuenta nuevamente en revisión hasta que RELYDO valide la información.",
-                "Important: changing any information in this section places the account back under review until RELYDO verifies it."
+                "La licencia está bloqueada y solo Admin puede aprobar cambios. El seguro y el bond sí pueden actualizarse, pero cualquier cambio los envía nuevamente a verificación.",
+                "License information is locked and only Admin can approve changes. Insurance and bond can be updated, but any change sends them back for verification."
               )}
             </div>
 
@@ -466,33 +484,35 @@ export default function ConfiguracionPerfilProfesional() {
             </h2>
 
             <div className="mt-5 space-y-5">
-              <Check
+              <CheckBloqueado
                 label={T("Mi trabajo requiere licencia", "My work requires a license")}
                 checked={licenseRequired}
-                onChange={setLicenseRequired}
               />
 
               {licenseRequired && (
                 <div className="grid gap-5 md:grid-cols-3">
-                  <Campo
+                  <CampoBloqueado
                     label={T("Número de licencia", "License number")}
                     value={licenseNumber}
-                    onChange={setLicenseNumber}
                   />
-                  <Campo
+                  <CampoBloqueado
                     label={T("Estado de licencia", "License state")}
                     value={licenseState}
-                    onChange={(valor) => setLicenseState(valor.toUpperCase())}
-                    maxLength={2}
                   />
-                  <Campo
+                  <CampoBloqueado
                     label={T("Vencimiento", "Expiration")}
                     value={licenseExpiration}
-                    onChange={setLicenseExpiration}
                     type="date"
                   />
                 </div>
               )}
+
+              <p className="-mt-2 text-xs font-semibold text-amber-700">
+                {T(
+                  "Los cambios de licencia requieren solicitud y aprobación de Admin.",
+                  "License changes require an Admin request and approval."
+                )}
+              </p>
 
               <Check
                 label={T("Tengo seguro", "I am insured")}
@@ -598,6 +618,54 @@ function Campo({
         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-blue-600"
       />
     </div>
+  );
+}
+
+
+function CampoBloqueado({
+  label,
+  value,
+  note,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-extrabold text-slate-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        disabled
+        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-500"
+      />
+      {note && (
+        <p className="mt-1 text-xs font-semibold text-amber-700">{note}</p>
+      )}
+    </div>
+  );
+}
+
+function CheckBloqueado({
+  label,
+  checked,
+}: {
+  label: string;
+  checked: boolean;
+}) {
+  return (
+    <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-100 p-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled
+        className="h-5 w-5"
+      />
+      <span className="font-extrabold text-slate-600">{label}</span>
+    </label>
   );
 }
 
