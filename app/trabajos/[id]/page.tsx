@@ -4546,7 +4546,8 @@ export default function TrabajoDetallePage() {
                           )}
 
                           {etapaActual ===
-                            3 && (
+                            3 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" && (
                             <button
                               type="button"
                               disabled={
@@ -4563,7 +4564,9 @@ export default function TrabajoDetallePage() {
                             </button>
                           )}
 
-                          {etapaActual === 3 && mostrarConfirmacionInicio && (
+                          {etapaActual === 3 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" &&
+                            mostrarConfirmacionInicio && (
                             <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
                               <p className="font-black text-amber-950">
                                 {T(
@@ -4801,7 +4804,8 @@ export default function TrabajoDetallePage() {
                           </button>
 
                           {etapaActual <
-                            4 && (
+                            4 &&
+                            !(etapaActual === 3 && ultimoCambioPresupuesto?.status === "rejected") && (
                             <div className="sm:col-span-2 mt-2 rounded-2xl border border-red-200 bg-red-50 p-4">
 
                               <p className="text-sm font-bold text-red-900">
@@ -4914,6 +4918,57 @@ export default function TrabajoDetallePage() {
                                 ultimoCambioPresupuesto.new_total_amount
                               ).toFixed(2)}
                             </p>
+
+                            {ultimoCambioPresupuesto.status === "rejected" &&
+                              etapaActual === 3 && (
+                              <div className="mt-4 border-t border-red-200 pt-4">
+                                <p className="text-sm font-bold text-red-900">
+                                  {T(
+                                    "¿Qué deseas hacer ahora?",
+                                    "What would you like to do now?"
+                                  )}
+                                </p>
+
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      cambiandoEstado ||
+                                      liberandoTrabajo ||
+                                      completando
+                                    }
+                                    onClick={() => cambiarEtapa("working")}
+                                    className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {T(
+                                      "🛠️ Continuar con el presupuesto original",
+                                      "🛠️ Continue with the original quote"
+                                    )}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      liberandoTrabajo ||
+                                      cambiandoEstado ||
+                                      completando
+                                    }
+                                    onClick={liberarTrabajo}
+                                    className="rounded-xl border-2 border-red-600 bg-white px-4 py-3 font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {liberandoTrabajo
+                                      ? T(
+                                          "Liberando trabajo...",
+                                          "Releasing job..."
+                                        )
+                                      : T(
+                                          "⚠️ No puedo continuar con el presupuesto original",
+                                          "⚠️ I can’t continue with the original quote"
+                                        )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                             {ultimoCambioPresupuesto.status === "accepted" &&
                               ultimoCambioPresupuesto.payment_status === "paid" && (
