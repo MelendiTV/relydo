@@ -63,6 +63,7 @@ export default function ConfiguracionPerfilProfesional() {
   const T = (es: string, en: string) => (language === "es" ? es : en);
 
   const [loading, setLoading] = useState(true);
+  const [perfilBloqueadoPorTrabajo, setPerfilBloqueadoPorTrabajo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardadoVisual, setGuardadoVisual] = useState(false);
   const [error, setError] = useState("");
@@ -158,6 +159,20 @@ export default function ConfiguracionPerfilProfesional() {
       if (providerError || !providerData) {
         router.replace("/completar-perfil-profesional");
         return;
+      }
+
+      const { count: trabajosActivos, error: trabajosActivosError } = await supabase
+        .from("service_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("preferred_provider_id", user.id)
+        .eq("status", "in_progress");
+
+      if (trabajosActivosError) {
+        throw new Error(trabajosActivosError.message);
+      }
+
+      if ((trabajosActivos || 0) > 0) {
+        setPerfilBloqueadoPorTrabajo(true);
       }
 
       const profile = providerData as ProviderProfile;
@@ -309,6 +324,41 @@ export default function ConfiguracionPerfilProfesional() {
           <p className="font-bold text-slate-600">
             {T("Cargando tu perfil...", "Loading your profile...")}
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (perfilBloqueadoPorTrabajo) {
+    return (
+      <main className="min-h-screen bg-slate-100 px-4 py-6 md:py-10">
+        <div className="mx-auto max-w-3xl">
+          <button
+            type="button"
+            onClick={() => router.push("/panel-profesional")}
+            className="mb-5 font-extrabold text-blue-700 hover:underline"
+          >
+            ← {T("Volver al panel", "Back to dashboard")}
+          </button>
+
+          <section className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm md:p-8">
+            <div className="text-4xl">🔒</div>
+            <h1 className="mt-3 text-2xl font-black text-slate-900">
+              {T("Perfil temporalmente bloqueado", "Profile temporarily locked")}
+            </h1>
+            <p className="mt-3 font-semibold leading-7 text-slate-600">
+              {T(
+                "Tienes uno o más trabajos activos. Por seguridad, no puedes modificar tu perfil profesional hasta finalizar todos tus trabajos activos.",
+                "You have one or more active jobs. For security, you cannot modify your professional profile until all active jobs are completed."
+              )}
+            </p>
+            <p className="mt-3 text-sm font-bold text-amber-700">
+              {T(
+                "Esto evita cambios de verificación, seguro o bond mientras existe un trabajo contratado en curso.",
+                "This prevents verification, insurance, or bond changes while a contracted job is in progress."
+              )}
+            </p>
+          </section>
         </div>
       </main>
     );
