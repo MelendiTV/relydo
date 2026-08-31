@@ -63,6 +63,7 @@ export default function ConfiguracionPerfilProfesional() {
 
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [guardadoVisual, setGuardadoVisual] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [email, setEmail] = useState("");
@@ -225,6 +226,7 @@ export default function ConfiguracionPerfilProfesional() {
     }
 
     setGuardando(true);
+    setGuardadoVisual(false);
     setError("");
     setMensaje("");
 
@@ -281,6 +283,10 @@ export default function ConfiguracionPerfilProfesional() {
           "Profile updated successfully."
         )
       );
+      setGuardadoVisual(true);
+      window.setTimeout(() => {
+        setGuardadoVisual(false);
+      }, 1500);
     } catch (err) {
       setError(
         err instanceof Error
@@ -529,12 +535,28 @@ export default function ConfiguracionPerfilProfesional() {
 
             <button
               type="submit"
-              disabled={guardando}
-              className="rounded-xl bg-blue-700 px-7 py-3 font-extrabold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={guardando || guardadoVisual}
+              className={`min-w-[180px] rounded-xl px-7 py-3 font-extrabold text-white shadow-sm transition-all duration-300 disabled:cursor-not-allowed ${
+                guardadoVisual
+                  ? "scale-[1.02] bg-emerald-600 shadow-emerald-600/20"
+                  : "bg-blue-700 hover:bg-blue-800 disabled:opacity-70"
+              }`}
             >
-              {guardando
-                ? T("Guardando...", "Saving...")
-                : T("Guardar cambios", "Save changes")}
+              <span className="inline-flex items-center justify-center gap-2">
+                {guardando ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    {T("Guardando...", "Saving...")}
+                  </>
+                ) : guardadoVisual ? (
+                  <>
+                    <span className="text-lg">✓</span>
+                    {T("Guardado", "Saved")}
+                  </>
+                ) : (
+                  T("Guardar cambios", "Save changes")
+                )}
+              </span>
             </button>
           </div>
         </form>
