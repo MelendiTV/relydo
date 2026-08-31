@@ -1,0 +1,602 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { useLanguage } from "@/app/components/LanguageProvider";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
+
+type ProviderProfile = {
+  user_id: string;
+  business_name: string | null;
+  bio: string | null;
+  trade: string | null;
+  years_experience: number | null;
+  service_radius_miles: number | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  license_required: boolean | null;
+  license_number: string | null;
+  license_state: string | null;
+  license_expiration: string | null;
+  insured: boolean | null;
+  insurance_company: string | null;
+  insurance_expiration: string | null;
+  bonded: boolean | null;
+  verification_status: string | null;
+  verified: boolean | null;
+  active: boolean | null;
+};
+
+type BaseProfile = {
+  role: string | null;
+  phone: string | null;
+  email: string | null;
+};
+
+const TRADES = [
+  ["plumbing", "Plomería", "Plumbing"],
+  ["electrical", "Electricidad", "Electrical"],
+  ["hvac", "HVAC / Aire acondicionado", "HVAC / Air conditioning"],
+  ["carpentry", "Carpintería", "Carpentry"],
+  ["painting", "Pintura", "Painting"],
+  ["landscaping", "Jardinería", "Landscaping"],
+  ["cleaning", "Limpieza", "Cleaning"],
+  ["moving", "Mudanzas", "Moving"],
+  ["other", "Otros servicios", "Other services"],
+] as const;
+
+function normalizarFecha(valor: string | null | undefined) {
+  if (!valor) return "";
+  return String(valor).slice(0, 10);
+}
+
+export default function ConfiguracionPerfilProfesional() {
+  const router = useRouter();
+  const { language } = useLanguage();
+  const T = (es: string, en: string) => (language === "es" ? es : en);
+
+  const [loading, setLoading] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [email, setEmail] = useState("");
+
+  const [businessName, setBusinessName] = useState("");
+  const [bio, setBio] = useState("");
+  const [trade, setTrade] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("0");
+  const [serviceRadius, setServiceRadius] = useState("25");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const [licenseRequired, setLicenseRequired] = useState(false);
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseState, setLicenseState] = useState("");
+  const [licenseExpiration, setLicenseExpiration] = useState("");
+  const [insured, setInsured] = useState(false);
+  const [insuranceCompany, setInsuranceCompany] = useState("");
+  const [insuranceExpiration, setInsuranceExpiration] = useState("");
+  const [bonded, setBonded] = useState(false);
+
+  useEffect(() => {
+    cargarPerfil();
+  }, []);
+
+  async function cargarPerfil() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        router.replace("/login-profesional");
+        return;
+      }
+
+      const { data: baseProfile, error: baseError } = await supabase
+        .from("profiles")
+        .select("role, phone, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (baseError || !baseProfile) {
+        throw new Error(
+          baseError?.message ||
+            T("No encontramos tu cuenta en RELYDO.", "We could not find your RELYDO account.")
+        );
+      }
+
+      const base = baseProfile as BaseProfile;
+
+      if (base.role !== "provider") {
+        router.replace("/");
+        return;
+      }
+
+      const { data: providerData, error: providerError } = await supabase
+        .from("provider_profiles")
+        .select(`
+          user_id,
+          business_name,
+          bio,
+          trade,
+          years_experience,
+          service_radius_miles,
+          city,
+          state,
+          zip_code,
+          license_required,
+          license_number,
+          license_state,
+          license_expiration,
+          insured,
+          insurance_company,
+          insurance_expiration,
+          bonded,
+          verification_status,
+          verified,
+          active
+        `)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (providerError || !providerData) {
+        router.replace("/completar-perfil-profesional");
+        return;
+      }
+
+      const profile = providerData as ProviderProfile;
+
+      setEmail(base.email || user.email || "");
+      setPhone(base.phone || "");
+      setBusinessName(profile.business_name || "");
+      setBio(profile.bio || "");
+      setTrade(profile.trade || "");
+      setYearsExperience(String(profile.years_experience ?? 0));
+      setServiceRadius(String(profile.service_radius_miles ?? 25));
+      setCity(profile.city || "");
+      setState(profile.state || "");
+      setZipCode(profile.zip_code || "");
+      setLicenseRequired(profile.license_required === true);
+      setLicenseNumber(profile.license_number || "");
+      setLicenseState(profile.license_state || "");
+      setLicenseExpiration(normalizarFecha(profile.license_expiration));
+      setInsured(profile.insured === true);
+      setInsuranceCompany(profile.insurance_company || "");
+      setInsuranceExpiration(normalizarFecha(profile.insurance_expiration));
+      setBonded(profile.bonded === true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No pudimos cargar tu perfil.", "We could not load your profile.")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function guardarPerfil(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const experiencia = Number(yearsExperience);
+    const radio = Number(serviceRadius);
+
+    if (!businessName.trim() || !trade) {
+      setError(
+        T(
+          "El nombre del negocio y el oficio son obligatorios.",
+          "Business name and trade are required."
+        )
+      );
+      return;
+    }
+
+    if (!Number.isFinite(experiencia) || experiencia < 0 || experiencia > 80) {
+      setError(
+        T(
+          "La experiencia debe estar entre 0 y 80 años.",
+          "Experience must be between 0 and 80 years."
+        )
+      );
+      return;
+    }
+
+    if (!Number.isFinite(radio) || radio < 1 || radio > 250) {
+      setError(
+        T(
+          "El radio de servicio debe estar entre 1 y 250 millas.",
+          "Service radius must be between 1 and 250 miles."
+        )
+      );
+      return;
+    }
+
+    setGuardando(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc(
+        "update_provider_profile_settings",
+        {
+          p_business_name: businessName.trim(),
+          p_bio: bio.trim() || null,
+          p_trade: trade,
+          p_years_experience: experiencia,
+          p_service_radius_miles: radio,
+          p_city: city.trim() || null,
+          p_state: state.trim().toUpperCase() || null,
+          p_zip_code: zipCode.trim() || null,
+          p_phone: phone.trim() || null,
+          p_license_required: licenseRequired,
+          p_license_number: licenseNumber.trim() || null,
+          p_license_state: licenseState.trim().toUpperCase() || null,
+          p_license_expiration: licenseExpiration || null,
+          p_insured: insured,
+          p_insurance_company: insuranceCompany.trim() || null,
+          p_insurance_expiration: insuranceExpiration || null,
+          p_bonded: bonded,
+        }
+      );
+
+      if (rpcError) {
+        throw new Error(rpcError.message);
+      }
+
+      const resultado = data as {
+        success?: boolean;
+        requires_reverification?: boolean;
+      } | null;
+
+      if (resultado?.requires_reverification) {
+        setMensaje(
+          T(
+            "Perfil guardado. Cambiaste información que requiere nueva verificación. Te llevaremos a documentos.",
+            "Profile saved. You changed information that requires verification. We will take you to documents."
+          )
+        );
+
+        window.setTimeout(() => {
+          router.push("/completar-verificacion");
+        }, 1200);
+        return;
+      }
+
+      setMensaje(
+        T(
+          "Perfil actualizado correctamente.",
+          "Profile updated successfully."
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No pudimos guardar tu perfil.", "We could not save your profile.")
+      );
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-100 px-4 py-10">
+        <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="font-bold text-slate-600">
+            {T("Cargando tu perfil...", "Loading your profile...")}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-100 px-4 py-6 md:py-10">
+      <div className="mx-auto max-w-5xl">
+        <button
+          type="button"
+          onClick={() => router.push("/panel-profesional")}
+          className="mb-5 font-extrabold text-blue-700 hover:underline"
+        >
+          ← {T("Volver al panel", "Back to dashboard")}
+        </button>
+
+        <section className="overflow-hidden rounded-3xl bg-slate-950 text-white shadow-xl">
+          <div className="px-6 py-7 md:px-8">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-300">
+              {T("Mi perfil", "My profile")}
+            </p>
+            <h1 className="mt-2 text-3xl font-black md:text-4xl">
+              {T("Editar perfil profesional", "Edit professional profile")}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+              {T(
+                "Actualiza tus datos de trabajo y servicio. Los cambios de identidad profesional, oficio, licencia, seguro o bond requieren nueva verificación.",
+                "Update your work and service information. Changes to professional identity, trade, license, insurance, or bond require verification again."
+              )}
+            </p>
+          </div>
+        </section>
+
+        {error && (
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-800">
+            {error}
+          </div>
+        )}
+
+        {mensaje && (
+          <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 px-5 py-4 font-bold text-green-800">
+            {mensaje}
+          </div>
+        )}
+
+        <form onSubmit={guardarPerfil} className="mt-6 space-y-6">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <h2 className="text-xl font-black text-slate-900">
+              {T("Información profesional", "Professional information")}
+            </h2>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <Campo
+                label={T("Nombre del negocio", "Business name")}
+                value={businessName}
+                onChange={setBusinessName}
+                required
+              />
+
+              <div>
+                <label className="text-sm font-extrabold text-slate-700">
+                  {T("Correo", "Email")}
+                </label>
+                <input
+                  value={email}
+                  disabled
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-500"
+                />
+              </div>
+
+              <Campo
+                label={T("Teléfono", "Phone")}
+                value={phone}
+                onChange={setPhone}
+                type="tel"
+              />
+
+              <div>
+                <label className="text-sm font-extrabold text-slate-700">
+                  {T("Oficio / especialidad", "Trade / specialty")}
+                </label>
+                <select
+                  value={trade}
+                  onChange={(e) => setTrade(e.target.value)}
+                  required
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-blue-600"
+                >
+                  <option value="">
+                    {T("Selecciona un oficio", "Select a trade")}
+                  </option>
+                  {TRADES.map(([value, es, en]) => (
+                    <option key={value} value={value}>
+                      {language === "es" ? es : en}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Campo
+                label={T("Años de experiencia", "Years of experience")}
+                value={yearsExperience}
+                onChange={setYearsExperience}
+                type="number"
+                min="0"
+                max="80"
+              />
+
+              <Campo
+                label={T("Radio de servicio (millas)", "Service radius (miles)")}
+                value={serviceRadius}
+                onChange={setServiceRadius}
+                type="number"
+                min="1"
+                max="250"
+              />
+            </div>
+
+            <div className="mt-5">
+              <label className="text-sm font-extrabold text-slate-700">
+                {T("Bio profesional", "Professional bio")}
+              </label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={5}
+                maxLength={1500}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-blue-600"
+              />
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <h2 className="text-xl font-black text-slate-900">
+              {T("Área de servicio", "Service area")}
+            </h2>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-3">
+              <Campo label={T("Ciudad", "City")} value={city} onChange={setCity} />
+              <Campo
+                label={T("Estado", "State")}
+                value={state}
+                onChange={(valor) => setState(valor.toUpperCase())}
+                maxLength={2}
+              />
+              <Campo label="ZIP" value={zipCode} onChange={setZipCode} />
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm md:p-8">
+            <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+              {T(
+                "Importante: modificar cualquiera de los datos de esta sección pone la cuenta nuevamente en revisión hasta que RELYDO valide la información.",
+                "Important: changing any information in this section places the account back under review until RELYDO verifies it."
+              )}
+            </div>
+
+            <h2 className="mt-6 text-xl font-black text-slate-900">
+              {T("Licencia, seguro y bond", "License, insurance and bond")}
+            </h2>
+
+            <div className="mt-5 space-y-5">
+              <Check
+                label={T("Mi trabajo requiere licencia", "My work requires a license")}
+                checked={licenseRequired}
+                onChange={setLicenseRequired}
+              />
+
+              {licenseRequired && (
+                <div className="grid gap-5 md:grid-cols-3">
+                  <Campo
+                    label={T("Número de licencia", "License number")}
+                    value={licenseNumber}
+                    onChange={setLicenseNumber}
+                  />
+                  <Campo
+                    label={T("Estado de licencia", "License state")}
+                    value={licenseState}
+                    onChange={(valor) => setLicenseState(valor.toUpperCase())}
+                    maxLength={2}
+                  />
+                  <Campo
+                    label={T("Vencimiento", "Expiration")}
+                    value={licenseExpiration}
+                    onChange={setLicenseExpiration}
+                    type="date"
+                  />
+                </div>
+              )}
+
+              <Check
+                label={T("Tengo seguro", "I am insured")}
+                checked={insured}
+                onChange={setInsured}
+              />
+
+              {insured && (
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Campo
+                    label={T("Compañía de seguro", "Insurance company")}
+                    value={insuranceCompany}
+                    onChange={setInsuranceCompany}
+                  />
+                  <Campo
+                    label={T("Vencimiento del seguro", "Insurance expiration")}
+                    value={insuranceExpiration}
+                    onChange={setInsuranceExpiration}
+                    type="date"
+                  />
+                </div>
+              )}
+
+              <Check
+                label={T("Tengo bond / fianza", "I am bonded")}
+                checked={bonded}
+                onChange={setBonded}
+              />
+            </div>
+          </section>
+
+          <div className="flex flex-col-reverse gap-3 pb-10 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => router.push("/panel-profesional")}
+              className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-extrabold text-slate-700"
+            >
+              {T("Cancelar", "Cancel")}
+            </button>
+
+            <button
+              type="submit"
+              disabled={guardando}
+              className="rounded-xl bg-blue-700 px-7 py-3 font-extrabold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {guardando
+                ? T("Guardando...", "Saving...")
+                : T("Guardar cambios", "Save changes")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+function Campo({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  min,
+  max,
+  maxLength,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+  min?: string;
+  max?: string;
+  maxLength?: number;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-extrabold text-slate-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        min={min}
+        max={max}
+        maxLength={maxLength}
+        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-blue-600"
+      />
+    </div>
+  );
+}
+
+function Check({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-5 w-5"
+      />
+      <span className="font-extrabold text-slate-800">{label}</span>
+    </label>
+  );
+}
