@@ -4397,6 +4397,22 @@ export default function TrabajoDetallePage() {
                       <div>
                         <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
                         <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado", "Job completed")}</p>
+                        {(trabajo.submitted_for_review_at || trabajo.completion_approved_at) && (
+                          <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-500">
+                            {trabajo.submitted_for_review_at && (
+                              <p>
+                                {T("Enviado a revisión", "Sent for review")}:{" "}
+                                {formatearFechaHora(trabajo.submitted_for_review_at, language)}
+                              </p>
+                            )}
+                            {trabajo.completion_approved_at && (
+                              <p>
+                                {T("Aprobado por el cliente", "Approved by customer")}:{" "}
+                                {formatearFechaHora(trabajo.completion_approved_at, language)}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                     </div>
@@ -5258,6 +5274,7 @@ export default function TrabajoDetallePage() {
                   </>
                 )}
               </section>
+
                   </div>
                 </details>
             )}
@@ -5609,6 +5626,9 @@ export default function TrabajoDetallePage() {
                             <div>
                               <p className="text-sm font-semibold text-slate-600">
                                 {T("Tarifa de servicio RELYDO", "RELYDO service fee")}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {Number(pago.provider_commission_percent).toFixed(2)}% del valor del servicio
                               </p>
                             </div>
                             <p className="font-bold text-slate-700">
@@ -6008,6 +6028,7 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
             </section>
+
               </div>
             </details>
           )}
