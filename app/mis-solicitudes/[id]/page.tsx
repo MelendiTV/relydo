@@ -3960,7 +3960,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* SEGUIMIENTO */}
 
         {mostrarSeguimiento && (
-          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+          <details open={solicitud.status !== "completed"} className="group mt-6">
+<summary className={solicitud.status === "completed"
+  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+  : "hidden"}>
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="text-sm font-black uppercase tracking-wide text-blue-700">{T("Seguimiento en vivo")}</p>
+      <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado")}</p>
+    </div>
+    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+  </div>
+</summary>
+<div className="mt-3">
+<section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
@@ -4093,6 +4106,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
 
           </section>
+</div>
+</details>
         )}
 
         {mensaje && (
@@ -4934,7 +4949,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {solicitud.status === "completed" &&
           evidenciasFinales.length > 0 && (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+            <details className="group mt-6">
+<summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="font-extrabold text-slate-950">{T("📸 Evidencia del trabajo terminado")}</p>
+      <p className="mt-1 text-sm text-slate-600">
+        {evidenciasFinales.filter((item) => item.file_type === "image").length} {language === "en" ? "photos" : "fotos"} · {evidenciasFinales.filter((item) => item.file_type === "video").length} videos
+      </p>
+    </div>
+    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+  </div>
+</summary>
+<div className="mt-3">
+<section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide text-blue-700">
@@ -5019,13 +5047,28 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </p>
               </div>
             </section>
+</div>
+</details>
           )}
 
         {/* PROFESIONAL CONTRATADO - HISTORIAL COMPLETADO */}
 
         {ofertaSeleccionada &&
           solicitud.status === "completed" && (
-          <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
+          <details className="group mt-6">
+<summary className="cursor-pointer list-none rounded-2xl border border-green-300 bg-green-50 px-5 py-4">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="font-extrabold text-green-900">{T("✓ Presupuesto seleccionado")}</p>
+      <p className="mt-1 text-sm font-bold text-green-800">
+        ${Number(ofertaSeleccionada.price).toFixed(2)} · {payment ? T(nombreEstadoPagoCliente(payment.status)) : ""}
+      </p>
+    </div>
+    <span className="text-xl text-green-700 transition group-open:rotate-90">›</span>
+  </div>
+</summary>
+<div className="mt-3">
+<section className="rounded-3xl border-2 border-green-300 bg-green-50 p-7">
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
               {T("✓ Presupuesto seleccionado")}
@@ -5204,6 +5247,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               )}
 
           </section>
+</div>
+</details>
         )}
 
         {/* RESEÑA */}
@@ -5211,7 +5256,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {solicitud.status ===
           "completed" &&
           ofertaSeleccionada && (
-            <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
+            <details open={!review} className="group mt-6">
+<summary className={review
+  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+  : "hidden"}>
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="font-extrabold text-slate-950">⭐ {T("Gracias por tu calificación")}</p>
+      <p className="mt-1 text-sm text-slate-600">{review ? `${review.rating}.0 · ${T("Ya calificaste este trabajo.")}` : ""}</p>
+    </div>
+    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+  </div>
+</summary>
+<div className="mt-3">
+<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
 
               {review ? (
                 <>
@@ -5414,6 +5472,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               )}
 
             </section>
+</div>
+</details>
           )}
 
         {/* RECLAMO / REPORTAR PROBLEMA */}
