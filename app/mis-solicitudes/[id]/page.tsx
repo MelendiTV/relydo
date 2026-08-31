@@ -5023,7 +5023,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {solicitud.status ===
           "completed" &&
           ofertaSeleccionada && (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+            <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
 
               {review ? (
                 <>
@@ -5038,7 +5038,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {T("Gracias por tu calificación")}
                     </h2>
 
-                    <p className="mt-2 text-slate-600">
+                    <p className="mt-1 text-sm text-slate-600">
                       {T("Ya calificaste este trabajo.")}
                     </p>
 
@@ -5110,11 +5110,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {T("Trabajo completado")}
                   </p>
 
-                  <h2 className="mt-2 text-3xl font-extrabold text-slate-900">
+                  <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
                     {T("Calificar profesional")}
                   </h2>
 
-                  <p className="mt-2 text-slate-600">
+                  <p className="mt-1 text-sm text-slate-600">
                     {T("¿Cómo fue tu experiencia con")}{" "}
                     <strong>
                       {ofertaSeleccionada.profesional
@@ -5128,14 +5128,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     onSubmit={
                       enviarResena
                     }
-                    className="mt-7"
+                    className="mt-5"
                   >
 
                     <p className="font-bold text-slate-900">
                       {T("Tu calificación *")}
                     </p>
 
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-2 flex gap-1">
 
                       {[1, 2, 3, 4, 5].map(
                         (
@@ -5151,7 +5151,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                                 estrella
                               )
                             }
-                            className={`text-5xl transition hover:scale-110 ${
+                            className={`text-4xl transition hover:scale-110 ${
                               estrella <=
                               rating
                                 ? "text-yellow-400"
@@ -5177,7 +5177,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           }.`}
                     </p>
 
-                    <div className="mt-7">
+                    <div className="mt-5">
 
                       <label className="mb-2 block font-bold text-slate-900">
                         {T("Comentario")}
@@ -5192,12 +5192,12 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             e.target.value
                           )
                         }
-                        rows={5}
+                        rows={3}
                         maxLength={
                           1000
                         }
                         placeholder={T("Cuéntanos cómo fue el servicio...")}
-                        className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
+                        className="w-full resize-none rounded-xl border border-slate-300 p-3 text-slate-900"
                       />
 
                       <p className="mt-2 text-right text-sm text-slate-500">
@@ -5213,7 +5213,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         enviandoReview ||
                         rating === 0
                       }
-                      className="mt-6 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
+                      className="mt-4 w-full rounded-xl bg-blue-700 px-6 py-3 font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
                     >
                       {enviandoReview
                         ? T("Enviando calificación...")
@@ -5231,7 +5231,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* RECLAMO / REPORTAR PROBLEMA */}
 
         {(
-          solicitud.status === "completed" ||
           (
             solicitud.completion_review_status === "pending" &&
             (Boolean(claim) || mostrarReclamo)
