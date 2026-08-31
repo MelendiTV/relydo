@@ -2956,7 +2956,7 @@ export default function PanelProfesional() {
 
                 <div className="mt-5 space-y-3">
                   <div
-                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    className="flex items-center justify-between gap-2 rounded-xl border p-3.5"
                     style={{
                       borderColor:
                         bordeTarjeta,
@@ -2964,7 +2964,7 @@ export default function PanelProfesional() {
                         fondoTarjeta,
                     }}
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p
                         className="text-sm font-black"
                         style={{
@@ -3010,7 +3010,7 @@ export default function PanelProfesional() {
                           ? desactivarPushProfesional()
                           : activarPushProfesional()
                       }
-                      className="rounded-lg px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-[96px] shrink-0 rounded-lg px-2 py-2 text-center text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
                       style={{
                         backgroundColor:
                           pushActivo
@@ -3036,7 +3036,7 @@ export default function PanelProfesional() {
                   </div>
 
                   <div
-                    className="flex items-center justify-between gap-4 rounded-xl border p-3.5"
+                    className="flex items-center justify-between gap-2 rounded-xl border p-3.5"
                     style={{
                       borderColor:
                         bordeTarjeta,
@@ -3044,7 +3044,7 @@ export default function PanelProfesional() {
                         fondoTarjeta,
                     }}
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p
                         className="text-sm font-black"
                         style={{
@@ -3084,7 +3084,7 @@ export default function PanelProfesional() {
                       onClick={
                         cambiarSonido
                       }
-                      className="rounded-lg px-4 py-2 text-xs font-black text-white"
+                      className="w-[96px] shrink-0 rounded-lg px-2 py-2 text-center text-xs font-black text-white"
                       style={{
                         backgroundColor:
                           sonidoActivo
