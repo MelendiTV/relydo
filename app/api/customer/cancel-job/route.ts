@@ -351,32 +351,44 @@ export async function POST(
       );
     }
 
+    // Política económica RELYDO:
+    // - Pro contratado pero aún no salió: 5% RELYDO.
+    // - En camino: 12.5% total = 5.5% Pro + 7% RELYDO.
+    // - Llegó: 23.5% total = 12% Pro + 11.5% RELYDO.
+    //
+    // Estos porcentajes deben coincidir exactamente con el resumen
+    // mostrado al cliente antes de confirmar la cancelación.
     let penaltyPercent = 0;
+    let providerJobPercent = 0;
+    let relydoStagePercent = 0;
+
+    if (
+      serviceRequest.status ===
+        "in_progress" &&
+      !serviceRequest.job_stage
+    ) {
+      penaltyPercent = 5;
+      providerJobPercent = 0;
+      relydoStagePercent = 5;
+    }
 
     if (
       serviceRequest.job_stage ===
       "on_the_way"
     ) {
-      penaltyPercent =
-        dinero(
-          settings.customer_cancel_on_the_way_percent
-        );
+      penaltyPercent = 12.5;
+      providerJobPercent = 5.5;
+      relydoStagePercent = 7;
     }
 
     if (
       serviceRequest.job_stage ===
       "arrived"
     ) {
-      penaltyPercent =
-        dinero(
-          settings.customer_cancel_arrived_percent
-        );
+      penaltyPercent = 23.5;
+      providerJobPercent = 12;
+      relydoStagePercent = 11.5;
     }
-
-    const providerPercent =
-      dinero(
-        settings.cancellation_provider_percent
-      );
 
     if (
       !Number.isFinite(
@@ -385,10 +397,15 @@ export async function POST(
       penaltyPercent < 0 ||
       penaltyPercent > 100 ||
       !Number.isFinite(
-        providerPercent
+        providerJobPercent
       ) ||
-      providerPercent < 0 ||
-      providerPercent > 100
+      providerJobPercent < 0 ||
+      providerJobPercent > 100 ||
+      !Number.isFinite(
+        relydoStagePercent
+      ) ||
+      relydoStagePercent < 0 ||
+      relydoStagePercent > 100
     ) {
       return NextResponse.json(
         {
@@ -420,6 +437,7 @@ export async function POST(
           customer_id,
           provider_id,
           job_amount,
+          customer_fee_amount,
           customer_total_amount,
           refunded_amount,
           currency,
@@ -536,6 +554,16 @@ export async function POST(
     // 7. CALCULAR DISTRIBUCIÓN
     // ======================================================
 
+    const serviceFeeAmount =
+      dinero(
+        payment.customer_fee_amount ??
+          Math.max(
+            0,
+            customerTotal -
+              jobAmount
+          )
+      );
+
     const penaltyAmount =
       dinero(
         jobAmount *
@@ -547,34 +575,61 @@ export async function POST(
 
     const providerAwardAmount =
       dinero(
-        penaltyAmount *
+        jobAmount *
           (
-            providerPercent /
+            providerJobPercent /
             100
           )
       );
 
-    const relydoCancellationAmount =
+    const relydoStageAmount =
       dinero(
-        penaltyAmount -
-          providerAwardAmount
+        jobAmount *
+          (
+            relydoStagePercent /
+            100
+          )
       );
 
+    // RELYDO conserva el service fee original más su parte
+    // correspondiente del cargo de cancelación.
+    const relydoCancellationAmount =
+      dinero(
+        serviceFeeAmount +
+          relydoStageAmount
+      );
+
+    // IMPORTANTE:
+    // El service fee ya está fuera de jobAmount, por lo que el
+    // reembolso sale del precio del trabajo y nunca del total
+    // cobrado al cliente.
+    //
+    // Ejemplo:
+    // trabajo $50 + service fee $2.50 = total $52.50
+    // cancelación antes de salir: 5% de $50 = $2.50
+    // reembolso Stripe = $50 - $2.50 = $47.50
     const customerRefundAmount =
       dinero(
         Math.max(
           0,
-          customerTotal -
+          jobAmount -
             penaltyAmount
         )
       );
 
     if (
       !Number.isFinite(
+        serviceFeeAmount
+      ) ||
+      serviceFeeAmount < 0 ||
+      !Number.isFinite(
         penaltyAmount
       ) ||
       !Number.isFinite(
         providerAwardAmount
+      ) ||
+      !Number.isFinite(
+        relydoStageAmount
       ) ||
       !Number.isFinite(
         relydoCancellationAmount
@@ -817,6 +872,10 @@ export async function POST(
                 ),
               cancellation_penalty_percent:
                 penaltyPercent.toFixed(
+                  2
+                ),
+              cancellation_provider_percent:
+                providerJobPercent.toFixed(
                   2
                 ),
               cancellation_provider_amount:
