@@ -4415,42 +4415,49 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </section>
         ) : solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" ? (
-          <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
-            <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-              {T("Trabajo iniciado")}
-            </p>
-            <h2 className="mt-2 text-xl font-black text-amber-950">
-              {T("La cancelación automática ya no está disponible")}
-            </h2>
-            <p className="mt-2 leading-7 text-amber-900">
-              {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
-            </p>
+          <section className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 shadow-sm sm:px-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+                    {T("Trabajo iniciado")}
+                  </p>
+                  <span className="hidden text-amber-300 sm:inline">•</span>
+                  <h2 className="text-lg font-black text-amber-950">
+                    {T("La cancelación automática ya no está disponible")}
+                  </h2>
+                </div>
+                <p className="mt-1.5 max-w-4xl text-sm leading-6 text-amber-900">
+                  {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
+                </p>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMostrarReclamo(true);
-                setError("");
-                setMensaje("");
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarReclamo(true);
+                  setError("");
+                  setMensaje("");
 
-                window.setTimeout(() => {
-                  const reclamos =
-                    document.getElementById(
-                      "reclamos-cliente"
-                    );
+                  window.setTimeout(() => {
+                    const reclamos =
+                      document.getElementById(
+                        "reclamos-cliente"
+                      );
 
-                  if (reclamos) {
-                    reclamos.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }
-                }, 50);
-              }}
-              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-5 py-3.5 font-black text-white transition hover:bg-amber-700 sm:w-auto"
-            >
-              {T("⚠️ Iniciar reclamo")}
-            </button>
+                    if (reclamos) {
+                      reclamos.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }
+                  }, 50);
+                }}
+                className="inline-flex w-full shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-amber-700 sm:w-auto"
+              >
+                {T("⚠️ Iniciar reclamo")}
+              </button>
+            </div>
           </section>
         ) : null}
 
@@ -4912,229 +4919,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </section>
         )}
 
-        {/* CHAT PRIVADO RELYDO */}
+        {/* EVIDENCIA FINAL DEL PROFESIONAL - HISTORIAL COMPLETADO */}
 
-        {ofertaSeleccionada &&
-          solicitud.status !==
-            "open" && (
-            <section
-              id="chat-relydo"
-              className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
-            >
-              <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
-                      {T("🔒 Comunicación protegida")}
-                    </p>
-
-                    <h2 className="mt-1 text-2xl font-black">
-                      {T("Chat con")}{" "}
-                      {ofertaSeleccionada.profesional
-                        ?.business_name ||
-                        T("el profesional")}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-300">
-                      {T("Los números de teléfono personales permanecen privados.")}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
-                      !chatPuedeEnviar
-                        ? "bg-amber-100 text-amber-900"
-                        : chatRealtimeConectado
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-700 text-slate-200"
-                    }`}
-                  >
-                    {!chatPuedeEnviar
-                      ? T("🔒 Chat bloqueado")
-                      : chatRealtimeConectado
-                      ? T("● En tiempo real")
-                      : T("Conectando...")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
-                {cargandoChat ? (
-                  <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
-                    {T("Cargando conversación...")}
-                  </div>
-                ) : mensajesChat.length === 0 ? (
-                  <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
-                    <div className="text-4xl">
-                      💬
-                    </div>
-
-                    <p className="mt-3 font-black text-slate-800">
-                      {T("Todavía no hay mensajes")}
-                    </p>
-
-                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
-                      {T("Usa este chat para coordinar el servicio sin compartir tu número personal.")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {mensajesChat.map(
-                      (item) => {
-                        const mio =
-                          item.sender_id ===
-                          usuarioChatId;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`flex ${
-                              mio
-                                ? "justify-end"
-                                : "justify-start"
-                            }`}
-                          >
-                            <div
-                              className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[72%] ${
-                                mio
-                                  ? "rounded-br-md bg-blue-700 text-white"
-                                  : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
-                              }`}
-                            >
-                              <p
-                                className={`text-xs font-black ${
-                                  mio
-                                    ? "text-blue-100"
-                                    : "text-blue-700"
-                                }`}
-                              >
-                                {mio
-                                  ? T("Tú")
-                                  : item.sender_role ===
-                                    "admin"
-                                  ? "RELYDO Admin"
-                                  : ofertaSeleccionada.profesional
-                                      ?.business_name ||
-                                    T("Profesional")}
-                              </p>
-
-                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-                                {item.message}
-                              </p>
-
-                              <p
-                                className={`mt-1 text-right text-[11px] ${
-                                  mio
-                                    ? "text-blue-200"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {formatearHoraChat(
-                                  item.created_at
-                                , language)}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-
-                    <div
-                      ref={finalChatRef}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-slate-200 bg-white p-5">
-                {chatPuedeEnviar ? (
-                  <>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <textarea
-                        value={mensajeChat}
-                        onChange={(e) =>
-                          setMensajeChat(
-                            e.target.value
-                          )
-                        }
-                        onKeyDown={(e) => {
-                          if (
-                            e.key ===
-                              "Enter" &&
-                            !e.shiftKey
-                          ) {
-                            e.preventDefault();
-                            enviarMensajeChat();
-                          }
-                        }}
-                        rows={2}
-                        maxLength={1500}
-                        placeholder={T("Escribe un mensaje...")}
-                        className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
-                      />
-
-                      <button
-                        type="button"
-                        disabled={
-                          enviandoMensajeChat ||
-                          !mensajeChat.trim()
-                        }
-                        onClick={
-                          enviarMensajeChat
-                        }
-                        className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {enviandoMensajeChat
-                          ? "Enviando..."
-                          : T("Enviar")}
-                      </button>
-                    </div>
-
-                    {solicitud.status ===
-                      "completed" &&
-                      solicitud.completed_at && (
-                        <p className="mt-2 text-xs font-bold text-amber-700">
-                          {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
-                        </p>
-                      )}
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
-                    </p>
-                  </>
-                ) : (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="font-black text-amber-950">
-                      {T("🔒 Chat bloqueado")}
-                    </p>
-
-                    <p className="mt-1 text-sm leading-6 text-amber-900">
-                      {motivoChatBloqueado()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-        {solicitud.completion_review_status === "pending" && !claim && (
-          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
-            <p className="text-sm font-black uppercase tracking-wide text-amber-700">{T("Trabajo en revisión")}</p>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">{T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}</h2>
-            <button
-              type="button"
-              disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
-              onClick={aprobarTrabajo}
-              className="mt-5 w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
-            >
-              {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
-            </button>
-          </section>
-        )}
-
-        {/* EVIDENCIA FINAL DEL PROFESIONAL */}
-
-        {(solicitud.status === "completed" || solicitud.completion_review_status === "pending") &&
+        {solicitud.status === "completed" &&
           evidenciasFinales.length > 0 && (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -5153,25 +4940,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </div>
 
                 <div className="w-fit rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
-                  {
-                    evidenciasFinales.filter(
-                      (item) =>
-                        item.file_type === "image"
-                    ).length
-                  }{" "}
+                  {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
                   {language === "en"
                     ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
                       ? "photo"
                       : "photos"
                     : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
                       ? "foto"
-                      : "fotos"} ·{" "}
-                  {
-                    evidenciasFinales.filter(
-                      (item) =>
-                        item.file_type === "video"
-                    ).length
-                  }{" "}
+                      : "fotos"}{" · "}
+                  {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
                   {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
                     ? "video"
                     : "videos"}
@@ -5179,56 +4956,50 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
 
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {evidenciasFinales.map(
-                  (item) => (
-                    <article
-                      key={item.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-                    >
-                      {item.signed_url ? (
-                        item.file_type ===
-                        "video" ? (
-                          <video
-                            src={item.signed_url}
-                            controls
-                            preload="metadata"
-                            className="aspect-video w-full bg-black object-contain"
-                          />
-                        ) : (
-                          <a
-                            href={item.signed_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block"
-                          >
-                            <img
-                              src={item.signed_url}
-                              alt={T("Evidencia del trabajo terminado")}
-                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
-                            />
-                          </a>
-                        )
+                {evidenciasFinales.map((item) => (
+                  <article
+                    key={item.id}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                  >
+                    {item.signed_url ? (
+                      item.file_type === "video" ? (
+                        <video
+                          src={item.signed_url}
+                          controls
+                          preload="metadata"
+                          className="aspect-video w-full bg-black object-contain"
+                        />
                       ) : (
-                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
-                          {T("No pudimos abrir este archivo de evidencia.")}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
-                        <span className="text-sm font-black text-slate-800">
-                          {item.file_type ===
-                          "video"
-                            ? T("🎥 Video")
-                            : T("📷 Foto")}
-                        </span>
-
-                        <span className="text-xs font-semibold text-slate-500">
-                          {T("Registrado")}
-                        </span>
+                        <a
+                          href={item.signed_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={item.signed_url}
+                            alt={T("Evidencia del trabajo terminado")}
+                            className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
+                          />
+                        </a>
+                      )
+                    ) : (
+                      <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
+                        {T("No pudimos abrir este archivo de evidencia.")}
                       </div>
-                    </article>
-                  )
-                )}
+                    )}
+
+                    <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                      <span className="text-sm font-black text-slate-800">
+                        {item.file_type === "video" ? T("🎥 Video") : T("📷 Foto")}
+                      </span>
+
+                      <span className="text-xs font-semibold text-slate-500">
+                        {T("Registrado")}
+                      </span>
+                    </div>
+                  </article>
+                ))}
               </div>
 
               <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
@@ -5453,7 +5224,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {(
           solicitud.status === "completed" ||
-          solicitud.completion_review_status === "pending" ||
+          (
+            solicitud.completion_review_status === "pending" &&
+            (Boolean(claim) || mostrarReclamo)
+          ) ||
           solicitud.status === "cancelled" ||
           (
             solicitud.status === "in_progress" &&
@@ -6136,6 +5910,336 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         </section>
         )}
+
+
+        {/* CHAT PRIVADO RELYDO */}
+
+        {ofertaSeleccionada &&
+          solicitud.status !==
+            "open" && (
+            <section
+              id="chat-relydo"
+              className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
+            >
+              <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
+                      {T("🔒 Comunicación protegida")}
+                    </p>
+
+                    <h2 className="mt-1 text-2xl font-black">
+                      {T("Chat con")}{" "}
+                      {ofertaSeleccionada.profesional
+                        ?.business_name ||
+                        T("el profesional")}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-300">
+                      {T("Los números de teléfono personales permanecen privados.")}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
+                      !chatPuedeEnviar
+                        ? "bg-amber-100 text-amber-900"
+                        : chatRealtimeConectado
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-700 text-slate-200"
+                    }`}
+                  >
+                    {!chatPuedeEnviar
+                      ? T("🔒 Chat bloqueado")
+                      : chatRealtimeConectado
+                      ? T("● En tiempo real")
+                      : T("Conectando...")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
+                {cargandoChat ? (
+                  <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
+                    {T("Cargando conversación...")}
+                  </div>
+                ) : mensajesChat.length === 0 ? (
+                  <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
+                    <div className="text-4xl">
+                      💬
+                    </div>
+
+                    <p className="mt-3 font-black text-slate-800">
+                      {T("Todavía no hay mensajes")}
+                    </p>
+
+                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
+                      {T("Usa este chat para coordinar el servicio sin compartir tu número personal.")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mensajesChat.map(
+                      (item) => {
+                        const mio =
+                          item.sender_id ===
+                          usuarioChatId;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex ${
+                              mio
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[72%] ${
+                                mio
+                                  ? "rounded-br-md bg-blue-700 text-white"
+                                  : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                              }`}
+                            >
+                              <p
+                                className={`text-xs font-black ${
+                                  mio
+                                    ? "text-blue-100"
+                                    : "text-blue-700"
+                                }`}
+                              >
+                                {mio
+                                  ? T("Tú")
+                                  : item.sender_role ===
+                                    "admin"
+                                  ? "RELYDO Admin"
+                                  : ofertaSeleccionada.profesional
+                                      ?.business_name ||
+                                    T("Profesional")}
+                              </p>
+
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                                {item.message}
+                              </p>
+
+                              <p
+                                className={`mt-1 text-right text-[11px] ${
+                                  mio
+                                    ? "text-blue-200"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {formatearHoraChat(
+                                  item.created_at
+                                , language)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
+
+                    <div
+                      ref={finalChatRef}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 bg-white p-5">
+                {chatPuedeEnviar ? (
+                  <>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <textarea
+                        value={mensajeChat}
+                        onChange={(e) =>
+                          setMensajeChat(
+                            e.target.value
+                          )
+                        }
+                        onKeyDown={(e) => {
+                          if (
+                            e.key ===
+                              "Enter" &&
+                            !e.shiftKey
+                          ) {
+                            e.preventDefault();
+                            enviarMensajeChat();
+                          }
+                        }}
+                        rows={2}
+                        maxLength={1500}
+                        placeholder={T("Escribe un mensaje...")}
+                        className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={
+                          enviandoMensajeChat ||
+                          !mensajeChat.trim()
+                        }
+                        onClick={
+                          enviarMensajeChat
+                        }
+                        className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {enviandoMensajeChat
+                          ? "Enviando..."
+                          : T("Enviar")}
+                      </button>
+                    </div>
+
+                    {solicitud.status ===
+                      "completed" &&
+                      solicitud.completed_at && (
+                        <p className="mt-2 text-xs font-bold text-amber-700">
+                          {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
+                        </p>
+                      )}
+
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
+                    </p>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="font-black text-amber-950">
+                      {T("🔒 Chat bloqueado")}
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      {motivoChatBloqueado()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+        {solicitud.completion_review_status === "pending" && !claim && (
+          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+                  {T("Trabajo en revisión")}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black text-slate-950">
+                  {T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}
+                </h2>
+              </div>
+
+              <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-black text-blue-700">
+                {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
+                {language === "en"
+                  ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                    ? "photo"
+                    : "photos"
+                  : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                    ? "foto"
+                    : "fotos"}{" · "}
+                {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
+                {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
+                  ? "video"
+                  : "videos"}
+              </div>
+            </div>
+
+            {evidenciasFinales.length > 0 ? (
+              <>
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {evidenciasFinales.map((item) => (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    >
+                      {item.signed_url ? (
+                        item.file_type === "video" ? (
+                          <video
+                            src={item.signed_url}
+                            controls
+                            preload="metadata"
+                            className="aspect-video w-full bg-black object-contain"
+                          />
+                        ) : (
+                          <a
+                            href={item.signed_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={item.signed_url}
+                              alt={T("Evidencia del trabajo terminado")}
+                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
+                            />
+                          </a>
+                        )
+                      ) : (
+                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
+                          {T("No pudimos abrir este archivo de evidencia.")}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                        <span className="text-sm font-black text-slate-800">
+                          {item.file_type === "video"
+                            ? T("🎥 Video")
+                            : T("📷 Foto")}
+                        </span>
+
+                        <span className="text-xs font-semibold text-slate-500">
+                          {T("Registrado")}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-blue-100 bg-white/80 px-5 py-4">
+                  <p className="text-sm font-bold leading-6 text-blue-900">
+                    {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-white px-5 py-4 text-sm font-bold text-amber-900">
+                {T("No pudimos abrir este archivo de evidencia.")}
+              </div>
+            )}
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
+                onClick={aprobarTrabajo}
+                className="w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
+              >
+                {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarReclamo(true);
+                  setError("");
+                  setMensaje("");
+
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("reclamos-cliente")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
+                className="w-full rounded-xl border-2 border-red-600 bg-white px-6 py-4 text-lg font-extrabold text-red-700 hover:bg-red-50"
+              >
+                {T("⚠️ Reportar problema")}
+              </button>
+            </div>
+          </section>
+        )}
+
 
       </div>
 
