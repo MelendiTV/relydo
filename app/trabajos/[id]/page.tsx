@@ -5258,10 +5258,9 @@ export default function TrabajoDetallePage() {
                   </>
                 )}
               </section>
-            )}
-
                   </div>
                 </details>
+            )}
 
             {/* INFORMACION */}
 
@@ -6012,10 +6011,9 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
             </section>
-          )}
-
               </div>
             </details>
+          )}
 
         {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
 
