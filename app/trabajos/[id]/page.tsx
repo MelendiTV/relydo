@@ -4705,7 +4705,7 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {(etapaActual === 3 || etapaActual === 4) && (
+                          {etapaActual === 4 && (
                             <button
                               type="button"
                               disabled={!puedeSolicitarCambioPresupuesto}
