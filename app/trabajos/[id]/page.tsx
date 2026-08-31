@@ -4708,7 +4708,8 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {etapaActual === 4 && (
+                          {etapaActual === 4 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" && (
                             <button
                               type="button"
                               disabled={!puedeSolicitarCambioPresupuesto}
