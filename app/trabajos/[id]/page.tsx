@@ -505,6 +505,12 @@ export default function TrabajoDetallePage() {
     useState(false);
 
   const [
+    mostrarConfirmacionInicio,
+    setMostrarConfirmacionInicio,
+  ] =
+    useState(false);
+
+  const [
     enviandoCambioPresupuesto,
     setEnviandoCambioPresupuesto,
   ] =
@@ -3254,11 +3260,14 @@ export default function TrabajoDetallePage() {
 
     if (
       trabajo.status !== "in_progress" ||
-      trabajo.job_stage !== "working" ||
+      !["arrived", "working"].includes(trabajo.job_stage || "") ||
       trabajo.preferred_provider_id !== providerId
     ) {
       setError(
-        "Solo puedes solicitar un cambio de presupuesto después de iniciar un trabajo que esté asignado a tu cuenta."
+        T(
+          "Solo puedes solicitar un cambio de presupuesto después de llegar al lugar o mientras el trabajo está iniciado.",
+          "You can only request a budget change after arriving at the job site or while the job is in progress."
+        )
       );
       return;
     }
@@ -3961,7 +3970,7 @@ export default function TrabajoDetallePage() {
 
   const puedeSolicitarCambioPresupuesto =
     contratado &&
-    trabajo.job_stage === "working" &&
+    ["arrived", "working"].includes(trabajo.job_stage || "") &&
     !reclamoActivo &&
     trabajo.completion_review_status !== "pending" &&
     !cambioPresupuestoPendiente;
@@ -4543,15 +4552,63 @@ export default function TrabajoDetallePage() {
                               disabled={
                                 cambiandoEstado
                               }
-                              onClick={() =>
-                                cambiarEtapa(
-                                  "working"
-                                )
-                              }
+                              onClick={() => {
+                                setMostrarConfirmacionInicio(true);
+                                setError("");
+                                setMensaje("");
+                              }}
                               className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
                             >
                               {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
                             </button>
+                          )}
+
+                          {etapaActual === 3 && mostrarConfirmacionInicio && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-950">
+                                {T(
+                                  "Confirma el alcance antes de comenzar",
+                                  "Confirm the job scope before starting"
+                                )}
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-amber-900">
+                                {T(
+                                  "¿El trabajo que encontraste coincide razonablemente con lo presupuestado?",
+                                  "Does the job you found reasonably match the agreed quote?"
+                                )}
+                              </p>
+
+                              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  disabled={cambiandoEstado}
+                                  onClick={async () => {
+                                    setMostrarConfirmacionInicio(false);
+                                    await cambiarEtapa("working");
+                                  }}
+                                  className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                                >
+                                  {T("Sí, iniciar trabajo", "Yes, start job")}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={!puedeSolicitarCambioPresupuesto}
+                                  onClick={() => {
+                                    setMostrarConfirmacionInicio(false);
+                                    setMostrarCambioPresupuesto(true);
+                                    setError("");
+                                    setMensaje("");
+                                  }}
+                                  className="rounded-xl border-2 border-violet-300 bg-white px-4 py-3 font-extrabold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {T(
+                                    "Necesito ajustar el presupuesto",
+                                    "I need to adjust the quote"
+                                  )}
+                                </button>
+                              </div>
+                            </div>
                           )}
 
                           {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" && (
@@ -4648,7 +4705,7 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {etapaActual === 4 && (
+                          {(etapaActual === 3 || etapaActual === 4) && (
                             <button
                               type="button"
                               disabled={!puedeSolicitarCambioPresupuesto}
@@ -4879,7 +4936,7 @@ export default function TrabajoDetallePage() {
                         )}
 
                         {mostrarCambioPresupuesto &&
-                          etapaActual === 4 &&
+                          (etapaActual === 3 || etapaActual === 4) &&
                           !cambioPresupuestoPendiente && (
                           <form
                             onSubmit={
