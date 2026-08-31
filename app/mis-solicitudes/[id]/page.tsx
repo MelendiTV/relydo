@@ -24,6 +24,9 @@ type Solicitud = {
   cancellation_reason: string | null;
   cancelled_at: string | null;
   completed_at: string | null;
+  completion_review_status: "pending" | "approved" | null;
+  submitted_for_review_at: string | null;
+  completion_approved_at: string | null;
 };
 
 type Oferta = {
@@ -161,6 +164,12 @@ type JobMessage = {
 };
 
 const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
+  "Aprobar trabajo": "Approve job",
+  "Aprobando trabajo...": "Approving job...",
+  "Trabajo en revisión": "Job under review",
+  "El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.": "The professional finished the job and submitted final evidence. Review it before approving or reporting a problem.",
+  "¿Confirmas que revisaste la evidencia y apruebas el trabajo como completado?": "Do you confirm that you reviewed the evidence and approve the job as completed?",
+  "Trabajo aprobado correctamente.": "Job approved successfully.",
   "Cargando solicitud...": "Loading request...",
   "No se pudo abrir la solicitud": "Could not open the request",
   "Volver a mis solicitudes": "Back to my requests",
@@ -573,9 +582,14 @@ function mostrarMinutos(
 
 function numeroEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  reviewStatus: string | null = null
 ) {
   if (status === "completed") {
+    return 6;
+  }
+
+  if (reviewStatus === "pending") {
     return 5;
   }
 
@@ -596,10 +610,15 @@ function numeroEtapa(
 
 function tituloEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  reviewStatus: string | null = null
 ) {
   if (status === "completed") {
     return "Trabajo completado";
+  }
+
+  if (reviewStatus === "pending") {
+    return "Trabajo en revisión";
   }
 
   if (jobStage === "working") {
@@ -619,10 +638,15 @@ function tituloEtapa(
 
 function textoEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  reviewStatus: string | null = null
 ) {
   if (status === "completed") {
     return "El profesional marcó el servicio como terminado.";
+  }
+
+  if (reviewStatus === "pending") {
+    return "El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.";
   }
 
   if (jobStage === "working") {
@@ -864,6 +888,8 @@ export default function MisSolicitudDetallePage() {
     setEnviandoReview,
   ] =
     useState(false);
+
+  const [aprobandoTrabajo, setAprobandoTrabajo] = useState(false);
 
   const [
     error,
@@ -1249,6 +1275,21 @@ export default function MisSolicitudDetallePage() {
                     undefined
                       ? nuevo.completed_at
                       : actual.completed_at,
+
+                  completion_review_status:
+                    nuevo.completion_review_status !== undefined
+                      ? nuevo.completion_review_status
+                      : actual.completion_review_status,
+
+                  submitted_for_review_at:
+                    nuevo.submitted_for_review_at !== undefined
+                      ? nuevo.submitted_for_review_at
+                      : actual.submitted_for_review_at,
+
+                  completion_approved_at:
+                    nuevo.completion_approved_at !== undefined
+                      ? nuevo.completion_approved_at
+                      : actual.completion_approved_at,
                 };
               }
             );
@@ -1528,6 +1569,27 @@ export default function MisSolicitudDetallePage() {
     };
   }, [id]);
 
+  async function aprobarTrabajo() {
+    if (!solicitud || solicitud.completion_review_status !== "pending") return;
+    if (!window.confirm(T("¿Confirmas que revisaste la evidencia y apruebas el trabajo como completado?"))) return;
+
+    setAprobandoTrabajo(true);
+    setError("");
+    setMensaje("");
+    try {
+      const { error: approveError } = await supabase.rpc("approve_job_completion", {
+        p_request_id: solicitud.id,
+      });
+      if (approveError) throw new Error(approveError.message);
+      await cargarDetalle(false);
+      setMensaje(T("Trabajo aprobado correctamente."));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : T("Ocurrió un error inesperado."));
+    } finally {
+      setAprobandoTrabajo(false);
+    }
+  }
+
   /*
     CARGAR DETALLE
   */
@@ -1683,7 +1745,10 @@ export default function MisSolicitudDetallePage() {
           job_stage,
           cancellation_reason,
           cancelled_at,
-          completed_at
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
         `)
         .eq(
           "id",
@@ -3196,6 +3261,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       solicitud &&
       (
         solicitud.status === "completed" ||
+        solicitud.completion_review_status === "pending" ||
         (
           solicitud.status === "in_progress" &&
           solicitud.job_stage === "working"
@@ -3666,7 +3732,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   const etapaActual =
     numeroEtapa(
       solicitud.status,
-      solicitud.job_stage
+      solicitud.job_stage,
+      solicitud.completion_review_status
     );
 
   const mostrarSeguimiento =
@@ -3749,10 +3816,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     },
     {
       numero: 5,
+      icono: "🔎",
+      titulo: T("Trabajo en revisión"),
+      descripcion: T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema."),
+    },
+    {
+      numero: 6,
       icono: "✅",
       titulo: T("Completado"),
-      descripcion:
-        T("Trabajo terminado"),
+      descripcion: T("Trabajo terminado"),
     },
   ];
 
@@ -3899,7 +3971,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     tituloEtapa(
                       solicitud.status,
-                      solicitud.job_stage
+                      solicitud.job_stage,
+                      solicitud.completion_review_status
                     )
                   )}
                 </h2>
@@ -3908,7 +3981,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     textoEtapa(
                       solicitud.status,
-                      solicitud.job_stage
+                      solicitud.job_stage,
+                      solicitud.completion_review_status
                     )
                   )}
                 </p>
@@ -5043,9 +5117,24 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </section>
           )}
 
+        {solicitud.completion_review_status === "pending" && !claim && (
+          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
+            <p className="text-sm font-black uppercase tracking-wide text-amber-700">{T("Trabajo en revisión")}</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">{T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}</h2>
+            <button
+              type="button"
+              disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
+              onClick={aprobarTrabajo}
+              className="mt-5 w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
+            >
+              {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
+            </button>
+          </section>
+        )}
+
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
-        {solicitud.status === "completed" &&
+        {(solicitud.status === "completed" || solicitud.completion_review_status === "pending") &&
           evidenciasFinales.length > 0 && (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -5364,6 +5453,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {(
           solicitud.status === "completed" ||
+          solicitud.completion_review_status === "pending" ||
           solicitud.status === "cancelled" ||
           (
             solicitud.status === "in_progress" &&

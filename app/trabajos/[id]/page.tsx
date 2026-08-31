@@ -30,6 +30,9 @@ type Trabajo = {
   preferred_provider_id: string | null;
   cancellation_reason: string | null;
   completed_at: string | null;
+  completion_review_status: "pending" | "approved" | null;
+  submitted_for_review_at: string | null;
+  completion_approved_at: string | null;
 };
 
 type FotoTrabajo = {
@@ -1089,7 +1092,10 @@ export default function TrabajoDetallePage() {
           customer_id,
           preferred_provider_id,
           cancellation_reason,
-          completed_at
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
         `)
         .eq(
           "id",
@@ -2294,10 +2300,10 @@ export default function TrabajoDetallePage() {
 
       setMensaje(
         guardadas.length === 1
-          ? T("Evidencia final guardada. Ya puedes completar el trabajo.", "Final evidence saved. You can now complete the job.")
+          ? T("Evidencia final guardada. Ya puedes pasar el trabajo a revisión.", "Final evidence saved. You can now submit the job for review.")
           : language === "es"
-            ? `${guardadas.length} archivos de evidencia final guardados. Ya puedes completar el trabajo.`
-            : `${guardadas.length} final evidence files saved. You can now complete the job.`
+            ? `${guardadas.length} archivos de evidencia final guardados. Ya puedes pasar el trabajo a revisión.`
+            : `${guardadas.length} final evidence files saved. You can now submit the job for review.`
       );
 
       return true;
@@ -2321,166 +2327,53 @@ export default function TrabajoDetallePage() {
     COMPLETAR
   */
 
-  async function marcarCompletado() {
-    if (!trabajo || !providerId) {
-      return;
-    }
+  async function pasarARevision() {
+    if (!trabajo || !providerId) return;
 
-    if (
-      reclamo &&
-      (
-        reclamo.status === "open" ||
-        reclamo.status === "reviewing" ||
-        reclamo.status === "in_review"
-      )
-    ) {
-      setError(
-        T("Este trabajo tiene un reclamo activo. No puede marcarse como completado hasta que RELYDO resuelva el reclamo.", "This job has an active claim. It cannot be marked as completed until RELYDO resolves the claim.")
-      );
-      return;
-    }
-
-    if (trabajo.status === "cancelled") {
-      setError(
-        T("Este trabajo fue cancelado. No puede marcarse como completado.", "This job was cancelled. It cannot be marked as completed.")
-      );
+    if (reclamoActivo) {
+      setError(T("Este trabajo tiene un reclamo activo. No puede pasar a revisión.", "This job has an active claim. It cannot be submitted for review."));
       return;
     }
 
     if (
       trabajo.status !== "in_progress" ||
+      trabajo.job_stage !== "working" ||
       trabajo.preferred_provider_id !== providerId
     ) {
-      setError(
-        T("Este trabajo no puede marcarse como completado.", "This job cannot be marked as completed.")
-      );
+      setError(T("Este trabajo no puede pasar a revisión.", "This job cannot be submitted for review."));
       return;
     }
 
-    if (trabajo.job_stage !== "working") {
-      setError(
-        T("Primero debes iniciar el trabajo.", "You must start the job first.")
-      );
-      return;
-    }
+    if (trabajo.completion_review_status === "pending") return;
 
-    const tieneFotoFinal =
-      evidenciasFinales.some(
-        (item) => item.file_type === "image"
-      );
-
+    const tieneFotoFinal = evidenciasFinales.some((item) => item.file_type === "image");
     if (!tieneFotoFinal) {
-      setError(
-        T("Antes de completar el trabajo debes guardar al menos 1 foto como evidencia final.", "Before completing the job, you must save at least 1 photo as final evidence.")
-      );
+      setError(T("Antes de pasar a revisión debes guardar al menos 1 foto como evidencia final.", "Before submitting for review, you must save at least 1 photo as final evidence."));
       return;
     }
 
-    const confirmar = window.confirm(
-      T("¿Confirmas que terminaste completamente este trabajo?", "Do you confirm that you completely finished this job?")
-    );
-
-    if (!confirmar) {
-      return;
-    }
+    if (!window.confirm(T("¿Confirmas que terminaste el trabajo y deseas enviarlo al cliente para revisión?", "Do you confirm the job is finished and want to send it to the customer for review?"))) return;
 
     setCompletando(true);
     setError("");
     setMensaje("");
 
     try {
-      // 1. Comprobar el estado real justo antes de completar.
-      const {
-        data: estadoActual,
-        error: estadoError,
-      } = await supabase
-        .from("service_requests")
-        .select(
-          "status, preferred_provider_id, job_stage"
-        )
-        .eq("id", trabajo.id)
-        .single();
-
-      if (estadoError) {
-        throw new Error(estadoError.message);
-      }
-
-      if (estadoActual.status === "cancelled") {
-        setTrabajo((actual) =>
-          actual
-            ? {
-                ...actual,
-                status: "cancelled",
-              }
-            : actual
-        );
-
-        throw new Error(
-          T("Este trabajo fue cancelado. Ya no puedes completarlo.", "This job was cancelled. You can no longer complete it.")
-        );
-      }
-
-      if (
-        estadoActual.status !== "in_progress" ||
-        estadoActual.preferred_provider_id !== providerId
-      ) {
-        throw new Error(
-          T("Este trabajo ya no está disponible para completar.", "This job is no longer available to complete.")
-        );
-      }
-
-      if (estadoActual.job_stage !== "working") {
-        throw new Error(
-          T("El trabajo debe estar iniciado antes de completarlo.", "The job must be started before it can be completed.")
-        );
-      }
-
-      // 2. Marcar el trabajo como completado.
-      const { error: completeError } =
-        await supabase.rpc("complete_job", {
-          p_request_id: trabajo.id,
-        });
-
-      if (completeError) {
-        throw new Error(completeError.message);
-      }
-
-      setTrabajo((actual) => {
-        if (!actual) {
-          return actual;
-        }
-
-        return {
-          ...actual,
-          status: "completed",
-          job_stage: "completed",
-        };
+      const { error: reviewError } = await supabase.rpc("submit_job_for_completion_review", {
+        p_request_id: trabajo.id,
       });
+      if (reviewError) throw new Error(reviewError.message);
 
-      await notificarEventoTrabajo(
-        "job_completed"
-      );
-
-      // 3. La liberación del pago se procesa automáticamente
-      // en el servidor cuando vence la retención de 36 horas.
+      setTrabajo((actual) => actual ? {
+        ...actual,
+        completion_review_status: "pending",
+        submitted_for_review_at: actual.submitted_for_review_at || new Date().toISOString(),
+      } : actual);
 
       await cargarTodo();
-
-      setMensaje(
-        T("Trabajo completado. El pago permanecerá protegido durante 36 horas.", "Job completed. The payment will remain protected for 36 hours.")
-      );
+      setMensaje(T("Trabajo enviado al cliente para revisión.", "Job sent to the customer for review."));
     } catch (err) {
-      console.error(
-        "Error completando trabajo:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : T("No se pudo completar el trabajo.", "The job could not be completed.")
-      );
-
+      setError(err instanceof Error ? err.message : T("No se pudo pasar el trabajo a revisión.", "The job could not be submitted for review."));
       await cargarTodo();
     } finally {
       setCompletando(false);
@@ -3595,6 +3488,10 @@ export default function TrabajoDetallePage() {
       trabajo?.status ===
       "completed"
     ) {
+      return 6;
+    }
+
+    if (trabajo?.completion_review_status === "pending") {
       return 5;
     }
 
@@ -3975,6 +3872,7 @@ export default function TrabajoDetallePage() {
     contratado &&
     trabajo.job_stage === "working" &&
     !reclamoActivo &&
+    trabajo.completion_review_status !== "pending" &&
     !cambioPresupuestoPendiente;
 
   const reclamoResuelto =
@@ -4047,10 +3945,15 @@ export default function TrabajoDetallePage() {
     },
     {
       numero: 5,
+      icono: "🔎",
+      titulo: T("En revisión", "Under review"),
+      texto: T("Esperando aprobación del cliente", "Waiting for customer approval"),
+    },
+    {
+      numero: 6,
       icono: "✅",
       titulo: T("Completado", "Completed"),
-      texto:
-        T("Trabajo terminado", "Job finished"),
+      texto: T("Trabajo terminado", "Job finished"),
     },
   ];
 
@@ -4491,7 +4394,11 @@ export default function TrabajoDetallePage() {
                                 : etapaActual ===
                                   3
                                 ? T("Ya llegaste", "You arrived")
-                                : T("Trabajo iniciado", "Work started")}
+                                : etapaActual === 4
+                                ? T("Trabajo iniciado", "Work started")
+                                : etapaActual === 5
+                                ? T("Trabajo en revisión", "Job under review")
+                                : T("Trabajo completado", "Job completed")}
                             </h3>
 
                             <p className="mt-1 text-sm leading-6 text-blue-900">
@@ -4686,7 +4593,7 @@ export default function TrabajoDetallePage() {
                             </button>
                           )}
 
-                          {etapaActual === 4 && (
+                          {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
                             <button
                               type="button"
                               disabled={
@@ -4694,7 +4601,7 @@ export default function TrabajoDetallePage() {
                                 reclamoActivo ||
                                 !evidenciasFinales.some((item) => item.file_type === "image")
                               }
-                              onClick={marcarCompletado}
+                              onClick={pasarARevision}
                               className={`rounded-2xl border-2 px-5 py-4 font-extrabold transition disabled:cursor-not-allowed ${
                                 reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
                                   ? "border-slate-200 bg-slate-200 text-slate-500"
@@ -4704,11 +4611,18 @@ export default function TrabajoDetallePage() {
                               {reclamoActivo
                                 ? T("🔒 Bloqueado por reclamo", "🔒 Blocked by claim")
                                 : !evidenciasFinales.some((item) => item.file_type === "image")
-                                ? T("🔒 Completar trabajo\nSube y guarda al menos 1 foto para habilitar", "🔒 Complete job\nUpload and save at least 1 photo to enable")
+                                ? T("🔒 Pasar a revisión\nSube y guarda al menos 1 foto para habilitar", "🔒 Submit for review\nUpload and save at least 1 photo to enable")
                                 : completando
-                                ? "Completando..."
-                                : T("✓ Completar trabajo", "✓ Complete job")}
+                                ? T("Enviando a revisión...", "Submitting for review...")
+                                : T("✓ Pasar a revisión", "✓ Submit for review")}
                             </button>
+                          )}
+
+                          {trabajo.completion_review_status === "pending" && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-900">{T("⏳ Trabajo en revisión del cliente", "⏳ Job under customer review")}</p>
+                              <p className="mt-1 text-sm text-amber-800">{T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}</p>
+                            </div>
                           )}
 
                           <button
