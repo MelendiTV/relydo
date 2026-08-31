@@ -1067,12 +1067,7 @@ export default function TrabajoDetallePage() {
         TRABAJO
       */
 
-      const {
-        data:
-          trabajoData,
-        error:
-          trabajoError,
-      } = await supabase
+      const resultadoDirecto = await supabase
         .from(
           "service_requests"
         )
@@ -1103,10 +1098,106 @@ export default function TrabajoDetallePage() {
         )
         .maybeSingle();
 
-      if (
-        trabajoError ||
-        !trabajoData
-      ) {
+      let trabajoData =
+        resultadoDirecto.data as Trabajo | null;
+
+      /*
+        Un trabajo abierto puede aparecer correctamente en /trabajos mediante
+        get_provider_open_requests_safe y, al mismo tiempo, quedar oculto por
+        RLS en una lectura directa de service_requests. En ese caso usamos la
+        misma RPC segura de la lista para abrir solamente los datos públicos
+        del trabajo. La dirección exacta y el customer_id NO se exponen aquí.
+      */
+      if (!trabajoData) {
+        const {
+          data: trabajosAbiertosSeguros,
+          error: trabajosAbiertosError,
+        } = await supabase.rpc(
+          "get_provider_open_requests_safe"
+        );
+
+        if (trabajosAbiertosError) {
+          console.error(
+            "Error cargando trabajo abierto mediante RPC segura:",
+            trabajosAbiertosError
+          );
+        }
+
+        let trabajosAbiertosNormalizados: Array<Record<string, unknown>> = [];
+
+        if (Array.isArray(trabajosAbiertosSeguros)) {
+          trabajosAbiertosNormalizados =
+            trabajosAbiertosSeguros as Array<Record<string, unknown>>;
+        } else if (typeof trabajosAbiertosSeguros === "string") {
+          try {
+            const parsed = JSON.parse(trabajosAbiertosSeguros);
+
+            if (Array.isArray(parsed)) {
+              trabajosAbiertosNormalizados =
+                parsed as Array<Record<string, unknown>>;
+            }
+          } catch (parseError) {
+            console.error(
+              "Error interpretando respuesta de get_provider_open_requests_safe:",
+              parseError
+            );
+          }
+        } else if (
+          trabajosAbiertosSeguros &&
+          typeof trabajosAbiertosSeguros === "object"
+        ) {
+          trabajosAbiertosNormalizados = [
+            trabajosAbiertosSeguros as Record<string, unknown>,
+          ];
+        }
+
+        const trabajoAbiertoSeguro =
+          trabajosAbiertosNormalizados.find(
+            (item) =>
+              String(item.id || "") === String(id)
+          ) as
+            | {
+                id: string;
+                title: string;
+                description: string;
+                city: string;
+                state: string;
+                zip_code: string;
+                preferred_date: string | null;
+                preferred_time: string | null;
+                status: string;
+                customer_name: string | null;
+                preferred_provider_id: string | null;
+              }
+            | undefined;
+
+        if (trabajoAbiertoSeguro) {
+          trabajoData = {
+            id: trabajoAbiertoSeguro.id,
+            title: trabajoAbiertoSeguro.title,
+            description: trabajoAbiertoSeguro.description,
+            address_line1: null,
+            city: trabajoAbiertoSeguro.city,
+            state: trabajoAbiertoSeguro.state,
+            zip_code: trabajoAbiertoSeguro.zip_code,
+            preferred_date: trabajoAbiertoSeguro.preferred_date,
+            preferred_time: trabajoAbiertoSeguro.preferred_time,
+            status: trabajoAbiertoSeguro.status,
+            job_stage: null,
+            customer_name: trabajoAbiertoSeguro.customer_name,
+            customer_id: "",
+            preferred_provider_id:
+              trabajoAbiertoSeguro.preferred_provider_id,
+            cancellation_reason: null,
+            completed_at: null,
+            completion_review_status: null,
+            submitted_for_review_at: null,
+            completion_approved_at: null,
+          };
+        }
+      }
+
+      if (!trabajoData) {
         throw new Error(
           T("Este trabajo no existe o no tienes permiso para verlo.", "This job does not exist or you do not have permission to view it.")
         );
