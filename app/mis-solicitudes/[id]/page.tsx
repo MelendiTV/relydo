@@ -453,7 +453,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.": "You can only attach JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.",
   "Cada foto o video debe pesar 50 MB o menos.": "Each photo or video must be 50 MB or less.",
   "Explica brevemente qué muestran las fotos o videos que adjuntaste.": "Briefly explain what the photos or videos you attached show.",
-  "Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar el monto adicional más la tarifa de servicio correspondiente.": "If you accept, RELYDO will take you to Stripe’s secure checkout to pay the additional amount plus the applicable service fee.",
+  "Al aceptar, pagarás el monto adicional + la tarifa de servicio de RELYDO.": "By accepting, you’ll pay the additional amount + the RELYDO service fee.",
   "Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.": "Additional payment confirmed. The payment summary now includes the budget change.",
   "Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.": "Stripe confirmed the additional payment. This amount is already included in the job’s total summary.",
   "💳 Pagar adicional": "💳 Pay additional amount",
@@ -4547,7 +4547,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-900">
-                  {T("Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar el monto adicional más la tarifa de servicio correspondiente.")} {language === "en" ? "Additional amount:" : "Monto adicional:"} ${Number(
+                  {T("Al aceptar, pagarás el monto adicional + la tarifa de servicio de RELYDO.")} {language === "en" ? "Additional amount:" : "Monto adicional:"} ${Number(
                     changeOrderPendiente.additional_amount
                   ).toFixed(2)}.
                 </p>
