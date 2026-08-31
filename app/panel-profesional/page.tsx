@@ -2472,6 +2472,14 @@ export default function PanelProfesional() {
                   <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
                     {profile.completed_jobs ?? 0} {T("trabajos completados", "completed jobs")}
                   </span>
+
+                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
+                    {profile.years_experience ?? 0} {T("años de experiencia", "years experience")}
+                  </span>
+
+                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
+                    {profile.service_radius_miles ?? 0} {T("mi de radio", "mi radius")}
+                  </span>
                 </div>
               </div>
 
@@ -2518,7 +2526,7 @@ export default function PanelProfesional() {
 
         {/* ACCIONES RÁPIDAS / AJUSTES */}
 
-        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={() =>
@@ -2552,24 +2560,6 @@ export default function PanelProfesional() {
             }}
           >
             {T("Pagos", "Payments")}
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/perfil-profesional/configuracion")
-            }
-            className="rounded-xl border px-5 py-3 text-base font-extrabold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-lg"
-            style={{
-              borderColor:
-                bordeTarjeta,
-              backgroundColor:
-                fondoTarjeta,
-              color:
-                textoPrincipal,
-            }}
-          >
-            👤 {T("Mi perfil", "My profile")}
           </button>
 
           <button
@@ -4788,7 +4778,6 @@ export default function PanelProfesional() {
               <MenuMovilItem icono="★" texto={T("Reputación", "Reputation")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("rating"); }} />
               <MenuMovilItem icono="▤" texto={T("Documentos", "Documents")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("documents"); }} />
               <MenuMovilItem icono="↺" texto={T("Historial", "History")} onClick={() => { setMenuMovilAbierto(false); abrirPanel("history"); }} />
-              <MenuMovilItem icono="👤" texto={T("Mi perfil", "My profile")} onClick={() => { setMenuMovilAbierto(false); router.push("/perfil-profesional/configuracion"); }} />
               <MenuMovilItem
                 icono="⚙"
                 texto={T("Ajustes", "Settings")}
