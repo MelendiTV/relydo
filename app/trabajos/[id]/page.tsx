@@ -4510,7 +4510,7 @@ export default function TrabajoDetallePage() {
         {/* GRID PRINCIPAL */}
 
         <div className={`mt-6 grid grid-cols-1 gap-6 ${
-          trabajo.status === "completed" ? "" : "lg:grid-cols-2"
+          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "lg:grid-cols-2"
         }`}>
 
           {/* IZQUIERDA */}
@@ -4522,8 +4522,8 @@ export default function TrabajoDetallePage() {
             {trabajo.status !==
               "open" &&
               !ofertaRechazadaPorCliente && (
-                <details open={trabajo.status !== "completed"} className="group">
-                  <summary className={trabajo.status === "completed"
+                <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+                  <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled")
                     ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                     : "hidden"}>
                     <div className="flex items-center justify-between gap-4">
@@ -4550,7 +4550,7 @@ export default function TrabajoDetallePage() {
                       <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                     </div>
                   </summary>
-                  <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                  <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5414,8 +5414,8 @@ export default function TrabajoDetallePage() {
 
             {/* INFORMACION */}
 
-            <details open={trabajo.status !== "completed"} className="group">
-              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+            <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+              <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-extrabold text-slate-950">📝 {T("Información del trabajo", "Job information")}</p>
@@ -5424,7 +5424,7 @@ export default function TrabajoDetallePage() {
                   <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                 </div>
               </summary>
-              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+              <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
               <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5505,8 +5505,8 @@ export default function TrabajoDetallePage() {
 
             {fotos.length >
               0 && (
-              <details open={trabajo.status !== "completed"} className="group">
-                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+                <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-extrabold text-slate-950">📷 {T("Fotos del problema", "Problem photos")}</p>
@@ -5515,7 +5515,7 @@ export default function TrabajoDetallePage() {
                     <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                   </div>
                 </summary>
-                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
                   <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5588,8 +5588,8 @@ export default function TrabajoDetallePage() {
             {/* COMPROBANTE / PRESUPUESTO */}
 
             {oferta && (
-              <details open={trabajo.status !== "completed"} className="group">
-                <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
+              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+                <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
@@ -5600,7 +5600,7 @@ export default function TrabajoDetallePage() {
                     <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
                   </div>
                 </summary>
-                <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+                <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
                   <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
                 <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -5978,8 +5978,8 @@ export default function TrabajoDetallePage() {
           "open" &&
           trabajo.preferred_provider_id ===
             providerId && (
-            <details open={trabajo.status !== "completed"} className="group mt-6">
-              <summary className={trabajo.status === "completed" ? "cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl" : "hidden"}>
+            <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group mt-6">
+              <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl" : "hidden"}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-blue-300">{T("🔒 Comunicación protegida", "🔒 Protected communication")}</p>
@@ -5988,7 +5988,7 @@ export default function TrabajoDetallePage() {
                   <span className="text-xl text-white transition group-open:rotate-90">›</span>
                 </div>
               </summary>
-              <div className={trabajo.status === "completed" ? "mt-3" : ""}>
+              <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
             <section
               id="chat-relydo"
               className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
