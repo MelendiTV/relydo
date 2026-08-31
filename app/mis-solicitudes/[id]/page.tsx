@@ -664,7 +664,6 @@ function textoEtapa(
   return "Has contratado a un profesional para realizar este trabajo.";
 }
 
-
 function redondearDinero(
   valor: number
 ) {
@@ -807,7 +806,6 @@ function calcularCancelacionCliente(
     reembolso,
   };
 }
-
 
 function formatearHoraChat(
   fecha: string,
@@ -1593,7 +1591,6 @@ export default function MisSolicitudDetallePage() {
   /*
     CARGAR DETALLE
   */
-
 
   async function notificarEventoTrabajo(
     event: string,
@@ -4738,6 +4735,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* PROFESIONAL CONTRATADO */}
 
         {ofertaSeleccionada &&
+          solicitud.status !== "completed" &&
           !(
             solicitud.status === "in_progress" &&
             (
@@ -4831,7 +4829,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       </strong>
                     </div>
                   )}
-
 
                   {payment.status === "refunded" && (
                     <p className="mt-3 text-xs leading-5 text-emerald-700">
@@ -5017,6 +5014,191 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
             </section>
           )}
+
+        {/* PROFESIONAL CONTRATADO - HISTORIAL COMPLETADO */}
+
+        {ofertaSeleccionada &&
+          solicitud.status === "completed" && (
+          <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
+
+            <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
+              {T("✓ Presupuesto seleccionado")}
+            </p>
+
+            <h2 className="mt-2 text-2xl font-extrabold text-green-900">
+              {ofertaSeleccionada.profesional
+                ?.business_name ||
+                T("Profesional RELYDO")}
+            </h2>
+
+            <p className="mt-2 text-green-800">
+              {T("Has seleccionado este presupuesto por")}{" "}
+              <strong>
+                $
+                {Number(
+                  ofertaSeleccionada.price
+                ).toFixed(
+                  2
+                )}
+              </strong>
+              .
+            </p>
+
+            {payment && (
+              <div className="mt-5 rounded-2xl border border-green-200 bg-white p-5">
+                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">{T("Resumen de pago")}</p>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-600">{T("Presupuesto del profesional")}</span>
+                    <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")}</span>
+                    <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
+                  </div>
+                  <div className="border-t border-slate-200 pt-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-extrabold text-slate-900">{T("Total del cliente")}</span>
+                      <strong className="text-xl text-green-800">${totalClientePagado.toFixed(2)}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {changeOrdersPagados.length > 0 && (
+                  <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold leading-6 text-emerald-800">
+                    {language === "en"
+                      ? `This summary includes ${changeOrdersPagados.length} paid budget change${changeOrdersPagados.length === 1 ? "" : "s"} for an additional total of $${totalesAdicionalesPagados.toFixed(2)}.`
+                      : `Este resumen incluye ${changeOrdersPagados.length} cambio${changeOrdersPagados.length === 1 ? "" : "s"} de presupuesto pagado${changeOrdersPagados.length === 1 ? "" : "s"} por un total adicional de $${totalesAdicionalesPagados.toFixed(2)}.`}
+                  </div>
+                )}
+
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-sm font-bold text-slate-600">
+                      {T("Estado del pago")}
+                    </span>
+
+                    <span
+                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${
+                        payment.status === "refunded"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : payment.status === "partially_refunded"
+                          ? "bg-violet-100 text-violet-800"
+                          : payment.status === "ready_for_payout" ||
+                            payment.status === "paid_out" ||
+                            payment.status === "paid"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {T(nombreEstadoPagoCliente(payment.status))}
+                    </span>
+                  </div>
+
+                  {Number(payment.refunded_amount || 0) > 0 && (
+                    <div className="mt-3 flex items-center justify-between gap-4 rounded-xl bg-emerald-50 px-4 py-3">
+                      <span className="font-bold text-emerald-800">
+                        {T("Reembolso al cliente")}
+                      </span>
+                      <strong className="text-lg text-emerald-800">
+                        ${Number(payment.refunded_amount || 0).toFixed(2)}
+                      </strong>
+                    </div>
+                  )}
+
+                  {payment.status === "refunded" && (
+                    <p className="mt-3 text-xs leading-5 text-emerald-700">
+                      {T("RELYDO procesó el reembolso correspondiente a este trabajo.")}
+                    </p>
+                  )}
+
+                  {payment.status === "partially_refunded" && (
+                    <p className="mt-3 text-xs leading-5 text-violet-700">
+                      {T("RELYDO procesó un reembolso parcial para este trabajo.")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+              <div className="rounded-xl bg-white p-4">
+                <p className="text-sm text-green-700">
+                  {T("Llegada estimada")}
+                </p>
+
+                <p className="mt-1 font-extrabold text-green-900">
+                  {mostrarMinutos(
+                    ofertaSeleccionada.arrival_minutes,
+                    language
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white p-4">
+                <p className="text-sm text-green-700">
+                  {T("Duración estimada")}
+                </p>
+
+                <p className="mt-1 font-extrabold text-green-900">
+                  {mostrarMinutos(
+                    ofertaSeleccionada.estimated_job_minutes,
+                    language
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white p-4">
+                <p className="text-sm text-green-700">
+                  {T("Valoración")}
+                </p>
+
+                <p className="mt-1 font-extrabold text-green-900">
+                  ⭐{" "}
+                  {Number(
+                    ofertaSeleccionada.profesional
+                      ?.average_rating ||
+                      0
+                  ).toFixed(
+                    1
+                  )}
+                </p>
+              </div>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/profesionales/${ofertaSeleccionada.professional_id}?returnTo=${encodeURIComponent(
+                    `/mis-solicitudes/${solicitud.id}`
+                  )}`
+                )
+              }
+              className="mt-5 rounded-xl border-2 border-green-700 px-5 py-3 font-extrabold text-green-800 hover:bg-green-100"
+            >
+              {T("Ver perfil del profesional")}
+            </button>
+
+            {solicitud.status ===
+              "completed" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/solicitar-trabajo?profesional=${ofertaSeleccionada.professional_id}`
+                    )
+                  }
+                  className="ml-0 mt-3 rounded-xl bg-green-700 px-5 py-3 font-extrabold text-white hover:bg-green-800 sm:ml-3"
+                >
+                  {T("🔁 Contratar de nuevo")}
+                </button>
+              )}
+
+          </section>
+        )}
 
         {/* RESEÑA */}
 
@@ -5918,7 +6100,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         </section>
         )}
 
-
         {solicitud.completion_review_status === "pending" && !claim && (
           <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -6041,7 +6222,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
           </section>
         )}
-
 
         {/* CHAT PRIVADO RELYDO */}
 
