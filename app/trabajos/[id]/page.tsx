@@ -944,7 +944,7 @@ export default function TrabajoDetallePage() {
 
       const {
         data:
-          trabajoData,
+          trabajoDirecto,
         error:
           trabajoError,
       } = await supabase
@@ -975,10 +975,93 @@ export default function TrabajoDetallePage() {
         )
         .maybeSingle();
 
-      if (
-        trabajoError ||
-        !trabajoData
-      ) {
+      if (trabajoError) {
+        console.error(
+          "Error leyendo trabajo directamente:",
+          trabajoError
+        );
+      }
+
+      let trabajoData =
+        trabajoDirecto as Trabajo | null;
+
+      /*
+        Un trabajo abierto puede aparecer correctamente en /trabajos
+        mediante get_provider_open_requests_safe y quedar oculto por RLS
+        en una lectura directa de service_requests.
+
+        En ese caso cargamos únicamente los datos públicos mediante la
+        misma RPC segura. No exponemos address_line1 ni customer_id.
+      */
+      if (!trabajoData) {
+        const {
+          data:
+            trabajosAbiertosSeguros,
+          error:
+            trabajosAbiertosError,
+        } = await supabase.rpc(
+          "get_provider_open_requests_safe"
+        );
+
+        if (trabajosAbiertosError) {
+          console.error(
+            "Error cargando trabajo abierto mediante RPC segura:",
+            trabajosAbiertosError
+          );
+        }
+
+        const listaTrabajosSeguros =
+          Array.isArray(
+            trabajosAbiertosSeguros
+          )
+            ? trabajosAbiertosSeguros
+            : [];
+
+        const trabajoAbiertoSeguro =
+          listaTrabajosSeguros.find(
+            (item: { id?: string }) =>
+              item?.id === id
+          );
+
+        if (trabajoAbiertoSeguro) {
+          trabajoData = {
+            id:
+              trabajoAbiertoSeguro.id,
+            title:
+              trabajoAbiertoSeguro.title,
+            description:
+              trabajoAbiertoSeguro.description,
+            address_line1:
+              null,
+            city:
+              trabajoAbiertoSeguro.city,
+            state:
+              trabajoAbiertoSeguro.state,
+            zip_code:
+              trabajoAbiertoSeguro.zip_code,
+            preferred_date:
+              trabajoAbiertoSeguro.preferred_date,
+            preferred_time:
+              trabajoAbiertoSeguro.preferred_time,
+            status:
+              trabajoAbiertoSeguro.status,
+            job_stage:
+              null,
+            customer_name:
+              trabajoAbiertoSeguro.customer_name,
+            customer_id:
+              "",
+            preferred_provider_id:
+              trabajoAbiertoSeguro.preferred_provider_id,
+            cancellation_reason:
+              null,
+            completed_at:
+              null,
+          } as Trabajo;
+        }
+      }
+
+      if (!trabajoData) {
         throw new Error(
           T("Este trabajo no existe o no tienes permiso para verlo.", "This job does not exist or you do not have permission to view it.")
         );
