@@ -4414,7 +4414,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </section>
         ) : solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" ? (
+            solicitud.job_stage === "working" &&
+            solicitud.completion_review_status !== "pending" ? (
           <section className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 shadow-sm sm:px-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -4736,7 +4737,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* PROFESIONAL CONTRATADO */}
 
-        {ofertaSeleccionada && (
+        {ofertaSeleccionada &&
+          !(
+            solicitud.status === "in_progress" &&
+            (
+              solicitud.job_stage === "working" ||
+              solicitud.completion_review_status === "pending"
+            )
+          ) && (
           <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
@@ -5912,6 +5920,130 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         )}
 
 
+        {solicitud.completion_review_status === "pending" && !claim && (
+          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+                  {T("Trabajo en revisión")}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black text-slate-950">
+                  {T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}
+                </h2>
+              </div>
+
+              <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-black text-blue-700">
+                {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
+                {language === "en"
+                  ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                    ? "photo"
+                    : "photos"
+                  : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
+                    ? "foto"
+                    : "fotos"}{" · "}
+                {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
+                {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
+                  ? "video"
+                  : "videos"}
+              </div>
+            </div>
+
+            {evidenciasFinales.length > 0 ? (
+              <>
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {evidenciasFinales.map((item) => (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    >
+                      {item.signed_url ? (
+                        item.file_type === "video" ? (
+                          <video
+                            src={item.signed_url}
+                            controls
+                            preload="metadata"
+                            className="aspect-video w-full bg-black object-contain"
+                          />
+                        ) : (
+                          <a
+                            href={item.signed_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={item.signed_url}
+                              alt={T("Evidencia del trabajo terminado")}
+                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
+                            />
+                          </a>
+                        )
+                      ) : (
+                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
+                          {T("No pudimos abrir este archivo de evidencia.")}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                        <span className="text-sm font-black text-slate-800">
+                          {item.file_type === "video"
+                            ? T("🎥 Video")
+                            : T("📷 Foto")}
+                        </span>
+
+                        <span className="text-xs font-semibold text-slate-500">
+                          {T("Registrado")}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-blue-100 bg-white/80 px-5 py-4">
+                  <p className="text-sm font-bold leading-6 text-blue-900">
+                    {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-white px-5 py-4 text-sm font-bold text-amber-900">
+                {T("No pudimos abrir este archivo de evidencia.")}
+              </div>
+            )}
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
+                onClick={aprobarTrabajo}
+                className="w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
+              >
+                {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarReclamo(true);
+                  setError("");
+                  setMensaje("");
+
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("reclamos-cliente")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
+                className="w-full rounded-xl border-2 border-red-600 bg-white px-6 py-4 text-lg font-extrabold text-red-700 hover:bg-red-50"
+              >
+                {T("⚠️ Iniciar reclamo")}
+              </button>
+            </div>
+          </section>
+        )}
+
+
         {/* CHAT PRIVADO RELYDO */}
 
         {ofertaSeleccionada &&
@@ -6116,130 +6248,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
             </section>
           )}
-
-        {solicitud.completion_review_status === "pending" && !claim && (
-          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-                  {T("Trabajo en revisión")}
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black text-slate-950">
-                  {T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}
-                </h2>
-              </div>
-
-              <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-black text-blue-700">
-                {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
-                {language === "en"
-                  ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                    ? "photo"
-                    : "photos"
-                  : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                    ? "foto"
-                    : "fotos"}{" · "}
-                {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
-                {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
-                  ? "video"
-                  : "videos"}
-              </div>
-            </div>
-
-            {evidenciasFinales.length > 0 ? (
-              <>
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {evidenciasFinales.map((item) => (
-                    <article
-                      key={item.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                    >
-                      {item.signed_url ? (
-                        item.file_type === "video" ? (
-                          <video
-                            src={item.signed_url}
-                            controls
-                            preload="metadata"
-                            className="aspect-video w-full bg-black object-contain"
-                          />
-                        ) : (
-                          <a
-                            href={item.signed_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block"
-                          >
-                            <img
-                              src={item.signed_url}
-                              alt={T("Evidencia del trabajo terminado")}
-                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
-                            />
-                          </a>
-                        )
-                      ) : (
-                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
-                          {T("No pudimos abrir este archivo de evidencia.")}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
-                        <span className="text-sm font-black text-slate-800">
-                          {item.file_type === "video"
-                            ? T("🎥 Video")
-                            : T("📷 Foto")}
-                        </span>
-
-                        <span className="text-xs font-semibold text-slate-500">
-                          {T("Registrado")}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-blue-100 bg-white/80 px-5 py-4">
-                  <p className="text-sm font-bold leading-6 text-blue-900">
-                    {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-amber-200 bg-white px-5 py-4 text-sm font-bold text-amber-900">
-                {T("No pudimos abrir este archivo de evidencia.")}
-              </div>
-            )}
-
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
-                onClick={aprobarTrabajo}
-                className="w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
-              >
-                {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMostrarReclamo(true);
-                  setError("");
-                  setMensaje("");
-
-                  window.setTimeout(() => {
-                    document
-                      .getElementById("reclamos-cliente")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 50);
-                }}
-                className="w-full rounded-xl border-2 border-red-600 bg-white px-6 py-4 text-lg font-extrabold text-red-700 hover:bg-red-50"
-              >
-                {T("⚠️ Reportar problema")}
-              </button>
-            </div>
-          </section>
-        )}
-
 
       </div>
 
