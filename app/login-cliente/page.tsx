@@ -94,9 +94,6 @@ function LoginClienteContenido() {
           credencialesInvalidas:
             "El correo electrónico o la contraseña son incorrectos.",
 
-          correoNoVerificado:
-            "Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada o solicita un nuevo correo de verificación.",
-
           errorGoogle:
             "No se pudo iniciar sesión con Google.",
 
@@ -154,9 +151,6 @@ function LoginClienteContenido() {
 
           credencialesInvalidas:
             "The email address or password is incorrect.",
-
-          correoNoVerificado:
-            "You must verify your email address before signing in. Check your inbox or request a new verification email.",
 
           errorGoogle:
             "Unable to sign in with Google.",
@@ -251,11 +245,7 @@ function LoginClienteContenido() {
         err
       );
 
-      setError(
-        err instanceof Error
-          ? `${text.errorGoogle} ${err.message}`
-          : text.errorGoogle
-      );
+      setError(text.errorGoogle);
 
       setGoogleLoading(false);
     }
@@ -304,34 +294,20 @@ function LoginClienteContenido() {
           el mensaje técnico de Supabase.
         */
 
-        const mensajeLogin =
-          loginError.message.toLowerCase();
-
         if (
-          mensajeLogin.includes(
-            "invalid login credentials"
-          )
+          loginError.message
+            .toLowerCase()
+            .includes(
+              "invalid login credentials"
+            )
         ) {
           throw new Error(
             text.credencialesInvalidas
           );
         }
 
-        if (
-          mensajeLogin.includes(
-            "email not confirmed"
-          ) ||
-          mensajeLogin.includes(
-            "email not verified"
-          )
-        ) {
-          throw new Error(
-            text.correoNoVerificado
-          );
-        }
-
         throw new Error(
-          text.errorInesperado
+          loginError.message
         );
       }
 

@@ -41,16 +41,13 @@ function RecuperarContrasenaContenido() {
   const tipoParam =
     searchParams.get("tipo");
 
-  const tipoInicial: TipoCuenta =
+  const tipo: TipoCuenta =
     tipoParam === "profesional"
       ? "profesional"
       : "cliente";
 
-  const [tipoCuenta, setTipoCuenta] =
-    useState<TipoCuenta>(tipoInicial);
-
   const loginDestino =
-    tipoCuenta === "profesional"
+    tipo === "profesional"
       ? "/login-profesional"
       : "/login-cliente";
 
@@ -298,7 +295,7 @@ function RecuperarContrasenaContenido() {
           window.history.replaceState(
             {},
             document.title,
-            `/recuperar-contrasena?tipo=${tipoInicial}`
+            `/recuperar-contrasena?tipo=${tipo}`
           );
         }
 
@@ -327,7 +324,7 @@ function RecuperarContrasenaContenido() {
           window.history.replaceState(
             {},
             document.title,
-            `/recuperar-contrasena?tipo=${tipoInicial}`
+            `/recuperar-contrasena?tipo=${tipo}`
           );
         }
 
@@ -382,7 +379,7 @@ function RecuperarContrasenaContenido() {
             window.history.replaceState(
               {},
               document.title,
-              `/recuperar-contrasena?tipo=${tipoInicial}`
+              `/recuperar-contrasena?tipo=${tipo}`
             );
           }
         }
@@ -429,40 +426,7 @@ function RecuperarContrasenaContenido() {
           );
         }
 
-        /*
-          DETECTAR EL TIPO REAL DE CUENTA
-
-          No dependemos solamente de ?tipo=...
-          porque algunos enlaces de recuperación de Supabase
-          pueden llegar sin ese parámetro.
-
-          Si el usuario es provider, al terminar debe volver
-          siempre a /login-profesional.
-        */
-
-        const {
-          data: profileData,
-          error: profileError,
-        } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error(
-            "No se pudo detectar el rol durante la recuperación:",
-            profileError
-          );
-        }
-
-        const tipoDetectado: TipoCuenta =
-          profileData?.role === "provider"
-            ? "profesional"
-            : "cliente";
-
         if (mounted) {
-          setTipoCuenta(tipoDetectado);
           setModo("reset");
           setError("");
         }
@@ -493,7 +457,7 @@ function RecuperarContrasenaContenido() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [tipoInicial, language]);
+  }, [tipo, language]);
 
   async function solicitarRecuperacion(
     e: React.FormEvent<HTMLFormElement>
@@ -522,7 +486,7 @@ function RecuperarContrasenaContenido() {
 
     try {
       const redirectTo =
-        `https://relydo.co/recuperar-contrasena?tipo=${tipoInicial}`;
+        `https://relydo.co/recuperar-contrasena?tipo=${tipo}`;
 
       const {
         error:
@@ -546,11 +510,17 @@ function RecuperarContrasenaContenido() {
         text.correoEnviado
       );
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? `${text.correoNoEnviado}: ${err.message}`
-          : text.correoNoEnviado
+      console.error(
+        "Error solicitando recuperación de contraseña:",
+        err
       );
+
+      /*
+        Mensaje deliberadamente genérico:
+        no exponemos detalles internos de Supabase
+        ni información que permita inferir si el correo existe.
+      */
+      setError(text.correoNoEnviado);
     } finally {
       setLoading(false);
     }
