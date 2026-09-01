@@ -202,6 +202,9 @@ function RegistroClienteContenido() {
           ubicacionRequerida:
             "Completa ciudad, estado y código postal.",
 
+          zipInvalido:
+            "Escribe un código postal válido de 5 dígitos o ZIP+4.",
+
           usuarioNoCreado:
             "No se pudo crear el usuario.",
 
@@ -338,6 +341,9 @@ function RegistroClienteContenido() {
           ubicacionRequerida:
             "Complete city, state, and ZIP code.",
 
+          zipInvalido:
+            "Enter a valid 5-digit ZIP code or ZIP+4.",
+
           usuarioNoCreado:
             "Unable to create the user.",
 
@@ -472,6 +478,15 @@ function RegistroClienteContenido() {
       !zipLimpio
     ) {
       setError(text.ubicacionRequerida);
+      return;
+    }
+
+    if (
+      !/^\d{5}(-\d{4})?$/.test(
+        zipLimpio
+      )
+    ) {
+      setError(text.zipInvalido);
       return;
     }
 
@@ -1000,6 +1015,12 @@ function RegistroClienteContenido() {
                       )
                     }
                     required
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{5}(-[0-9]{4})?"
+                    title={
+                      text.zipInvalido
+                    }
                     disabled={loading}
                     autoComplete="postal-code"
                     placeholder={
