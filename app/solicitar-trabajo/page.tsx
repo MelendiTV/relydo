@@ -3,6 +3,7 @@
 import {
   Suspense,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -38,8 +39,94 @@ type FotoSubida = {
 type FotoSeleccionada = {
   id: string;
   file: File;
-  preview: string;
 };
+
+const TIPOS_IMAGEN_PERMITIDOS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+function VistaPreviaFoto({
+  file,
+  alt,
+}: {
+  file: File;
+  alt: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    let bitmap: ImageBitmap | null = null;
+
+    async function dibujar() {
+      try {
+        bitmap = await createImageBitmap(file);
+
+        if (cancelado || !canvasRef.current) {
+          return;
+        }
+
+        const canvas = canvasRef.current;
+        const contexto = canvas.getContext("2d");
+
+        if (!contexto) {
+          return;
+        }
+
+        const ancho = 480;
+        const alto = 320;
+
+        canvas.width = ancho;
+        canvas.height = alto;
+
+        const escala = Math.max(
+          ancho / bitmap.width,
+          alto / bitmap.height
+        );
+
+        const anchoDibujo = bitmap.width * escala;
+        const altoDibujo = bitmap.height * escala;
+        const x = (ancho - anchoDibujo) / 2;
+        const y = (alto - altoDibujo) / 2;
+
+        contexto.clearRect(0, 0, ancho, alto);
+        contexto.drawImage(
+          bitmap,
+          x,
+          y,
+          anchoDibujo,
+          altoDibujo
+        );
+      } catch (error) {
+        console.warn(
+          "No se pudo generar la vista previa de la imagen:",
+          error
+        );
+      } finally {
+        bitmap?.close();
+        bitmap = null;
+      }
+    }
+
+    void dibujar();
+
+    return () => {
+      cancelado = true;
+      bitmap?.close();
+    };
+  }, [file]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      role="img"
+      aria-label={alt}
+      className="h-36 w-full object-cover"
+    />
+  );
+}
 
 function nombreOficio(
   trade: string | null,
@@ -418,22 +505,6 @@ function SolicitarTrabajoContenido() {
     }
   }, [profesionalId]);
 
-  /*
-    LIMPIAR PREVIEWS AL SALIR
-  */
-
-  useEffect(() => {
-    return () => {
-      fotosSeleccionadas.forEach(
-        (foto) => {
-          URL.revokeObjectURL(
-            foto.preview
-          );
-        }
-      );
-    };
-  }, []);
-
   async function cargarProfesional(
     userId: string
   ) {
@@ -510,8 +581,9 @@ function SolicitarTrabajoContenido() {
       10 * 1024 * 1024;
 
     if (
-      !file.type.startsWith(
-        "image/"
+      !Object.prototype.hasOwnProperty.call(
+        TIPOS_IMAGEN_PERMITIDOS,
+        file.type
       )
     ) {
       throw new Error(
@@ -538,7 +610,7 @@ function SolicitarTrabajoContenido() {
     - máximo 5
   */
 
-  function agregarFotos(
+  async function agregarFotos(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
     const nuevas =
@@ -557,6 +629,21 @@ function SolicitarTrabajoContenido() {
     try {
       nuevas.forEach(
         validarFoto
+      );
+
+      await Promise.all(
+        nuevas.map(async (file) => {
+          try {
+            const bitmap =
+              await createImageBitmap(file);
+
+            bitmap.close();
+          } catch {
+            throw new Error(
+              `"${file.name}" ${text.noImagen}`
+            );
+          }
+        })
       );
 
       setFotosSeleccionadas(
@@ -596,22 +683,18 @@ function SolicitarTrabajoContenido() {
             );
           }
 
-          const nuevasConPreview =
+          const nuevasSeleccionadas =
             permitidas.map(
               (file) => ({
                 id:
                   crypto.randomUUID(),
                 file,
-                preview:
-                  URL.createObjectURL(
-                    file
-                  ),
               })
             );
 
           return [
             ...actuales,
-            ...nuevasConPreview,
+            ...nuevasSeleccionadas,
           ];
         }
       );
@@ -637,41 +720,16 @@ function SolicitarTrabajoContenido() {
     id: string
   ) {
     setFotosSeleccionadas(
-      (actuales) => {
-        const foto =
-          actuales.find(
-            (item) =>
-              item.id === id
-          );
-
-        if (foto) {
-          URL.revokeObjectURL(
-            foto.preview
-          );
-        }
-
-        return actuales.filter(
+      (actuales) =>
+        actuales.filter(
           (item) =>
             item.id !== id
-        );
-      }
+        )
     );
   }
 
   function limpiarFotos() {
-    setFotosSeleccionadas(
-      (actuales) => {
-        actuales.forEach(
-          (foto) => {
-            URL.revokeObjectURL(
-              foto.preview
-            );
-          }
-        );
-
-        return [];
-      }
-    );
+    setFotosSeleccionadas([]);
   }
 
   function validarFotos(
@@ -712,11 +770,15 @@ function SolicitarTrabajoContenido() {
     try {
       for (const file of files) {
         const extension =
-          file.name
-            .split(".")
-            .pop()
-            ?.toLowerCase() ||
-          "jpg";
+          TIPOS_IMAGEN_PERMITIDOS[
+            file.type
+          ];
+
+        if (!extension) {
+          throw new Error(
+            `"${file.name}" ${text.noImagen}`
+          );
+        }
 
         const nombreArchivo =
           `${crypto.randomUUID()}.${extension}`;
@@ -1590,7 +1652,7 @@ function SolicitarTrabajoContenido() {
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     disabled={
                       fotosSeleccionadas.length >= 5
                     }
@@ -1614,14 +1676,11 @@ function SolicitarTrabajoContenido() {
                           }
                           className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
                         >
-                          <img
-                            src={
-                              foto.preview
-                            }
+                          <VistaPreviaFoto
+                            file={foto.file}
                             alt={`${text.foto} ${
                               index + 1
                             }`}
-                            className="h-36 w-full object-cover"
                           />
 
                           <div className="absolute inset-x-0 bottom-0 bg-slate-950/70 px-3 py-2 text-xs font-bold text-white">

@@ -14,6 +14,45 @@ const supabaseAdmin = createClient(
   }
 );
 
+function esEmailValido(email: string) {
+  if (email.length > 254) {
+    return false;
+  }
+
+  if (
+    email.length === 0 ||
+    email.includes(" ") ||
+    email.includes("\t") ||
+    email.includes("\n") ||
+    email.includes("\r")
+  ) {
+    return false;
+  }
+
+  const primerArroba = email.indexOf("@");
+  const ultimoArroba = email.lastIndexOf("@");
+
+  if (
+    primerArroba <= 0 ||
+    primerArroba !== ultimoArroba ||
+    primerArroba === email.length - 1
+  ) {
+    return false;
+  }
+
+  const dominio = email.slice(primerArroba + 1);
+  const primerPunto = dominio.indexOf(".");
+
+  if (
+    primerPunto <= 0 ||
+    primerPunto === dominio.length - 1
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -25,9 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (!email) {
       return NextResponse.json(
-        {
-          error: "Email is required.",
-        },
+        { error: "Email is required." },
         {
           status: 400,
           headers: {
@@ -37,14 +74,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const emailValido =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-    if (!emailValido) {
+    if (!esEmailValido(email)) {
       return NextResponse.json(
-        {
-          error: "Invalid email.",
-        },
+        { error: "Invalid email." },
         {
           status: 400,
           headers: {
@@ -53,27 +85,17 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    /*
-      IMPORTANTE:
-      Esta búsqueda ocurre solamente en el servidor.
-
-      SUPABASE_SECRET_KEY jamás debe utilizarse
-      dentro de un componente con "use client".
-    */
 
     const perPage = 1000;
     let page = 1;
     let encontrado = false;
 
     while (true) {
-      const {
-        data,
-        error,
-      } = await supabaseAdmin.auth.admin.listUsers({
-        page,
-        perPage,
-      });
+      const { data, error } =
+        await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage,
+        });
 
       if (error) {
         console.error(
@@ -82,10 +104,7 @@ export async function POST(request: NextRequest) {
         );
 
         return NextResponse.json(
-          {
-            error:
-              "Unable to verify the email.",
-          },
+          { error: "Unable to verify the email." },
           {
             status: 500,
             headers: {
@@ -113,9 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        exists: encontrado,
-      },
+      { exists: encontrado },
       {
         status: 200,
         headers: {
@@ -130,10 +147,7 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(
-      {
-        error:
-          "Unable to verify the email.",
-      },
+      { error: "Unable to verify the email." },
       {
         status: 500,
         headers: {

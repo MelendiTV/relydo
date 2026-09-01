@@ -53,7 +53,8 @@ async function coordenadasZip(
     return { lat, lon };
   } catch (error) {
     console.error(
-      `No se pudo geocodificar ZIP ${zip}:`,
+      "No se pudo geocodificar ZIP:",
+      zip,
       error
     );
     return null;
