@@ -553,6 +553,16 @@ export default function LoginProfesional() {
           );
 
       if (requestError) {
+        await supabase
+          .from("provider_documents")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("file_path", ruta);
+
+        await supabase.storage
+          .from("provider-documents")
+          .remove([ruta]);
+
         throw new Error(
           `${
             language === "es"
@@ -750,16 +760,14 @@ export default function LoginProfesional() {
 
       /*
         ADMIN
+        El acceso administrativo debe realizarse exclusivamente
+        desde /login-admin. Cerramos esta sesión para evitar
+        accesos cruzados entre portales.
       */
 
-      if (
-        profile.role === "admin"
-      ) {
-        router.replace(
-          "/admin"
-        );
-
-        return;
+      if (profile.role === "admin") {
+        await supabase.auth.signOut();
+        throw new Error(text.sinAcceso);
       }
 
       /*

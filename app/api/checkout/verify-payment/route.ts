@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
+import { getAuthenticatedUser } from "../../../lib/serverAuth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -16,29 +17,82 @@ const supabaseAdmin = createClient(
   }
 );
 
-function redondearDinero(valor: number) {
-  return Math.round((valor + Number.EPSILON) * 100) / 100;
+function money(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+async function refundUnexpectedPayment(
+  paymentIntentId: string,
+  sessionId: string
+) {
+  try {
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+      },
+      {
+        idempotencyKey: `relydo-auto-refund-${sessionId}`,
+      }
+    );
+
+    return {
+      ok: true as const,
+      refundId: refund.id,
+    };
+  } catch (error) {
+    console.error(
+      "RELYDO: no pudimos reembolsar automáticamente un pago que ya no podía aplicarse:",
+      error
+    );
+
+    return {
+      ok: false as const,
+      refundId: null,
+    };
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const internalSecret = request.headers.get(
+      "x-relydo-internal-stripe"
+    );
+
+    const isStripeWebhook = Boolean(
+      process.env.STRIPE_WEBHOOK_SECRET &&
+        internalSecret === process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+    const auth = isStripeWebhook
+      ? { user: null }
+      : await getAuthenticatedUser(request);
+
+    if (!isStripeWebhook && !auth.user) {
+      return NextResponse.json(
+        {
+          error:
+            "Debes iniciar sesión como cliente para verificar este pago.",
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const sessionId = body.sessionId;
+    const sessionId = String(body?.sessionId || "").trim();
 
     if (!sessionId) {
       return NextResponse.json(
-        {
-          error: "Falta el ID de la sesión de Stripe.",
-        },
+        { error: "Falta el ID de la sesión de Stripe." },
         { status: 400 }
       );
     }
 
-    // ======================================================
-    // 1. CONFIRMAR EL PAGO DIRECTAMENTE CON STRIPE
-    // ======================================================
-
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(
+      sessionId,
+      {
+        expand: ["payment_intent"],
+      }
+    );
 
     if (session.payment_status !== "paid") {
       return NextResponse.json(
@@ -50,10 +104,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      session.metadata?.payment_type &&
+      session.metadata.payment_type !== "initial_job"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta sesión de Stripe no corresponde al pago inicial de un trabajo.",
+        },
+        { status: 400 }
+      );
+    }
+
     const requestId = session.metadata?.request_id;
     const offerId = session.metadata?.offer_id;
+    const metadataCustomerId = session.metadata?.customer_id;
+    const metadataProfessionalId =
+      session.metadata?.professional_id;
 
-    if (!requestId || !offerId) {
+    if (
+      !requestId ||
+      !offerId ||
+      !metadataCustomerId ||
+      !metadataProfessionalId
+    ) {
       return NextResponse.json(
         {
           error:
@@ -63,26 +138,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ======================================================
-    // 2. BUSCAR LA OFERTA PAGADA
-    // ======================================================
+    if (
+      !isStripeWebhook &&
+      metadataCustomerId !== auth.user!.id
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta sesión de pago no pertenece a tu cuenta.",
+        },
+        { status: 403 }
+      );
+    }
 
-    const { data: offer, error: offerError } = await supabaseAdmin
-      .from("offers")
-      .select(`
-        id,
-        request_id,
-        professional_id,
-        price,
-        status
-      `)
-      .eq("id", offerId)
-      .eq("request_id", requestId)
-      .maybeSingle();
+    const paymentIntent = session.payment_intent;
+    const paymentIntentId =
+      typeof paymentIntent === "string"
+        ? paymentIntent
+        : paymentIntent?.id || null;
+
+    if (!paymentIntentId) {
+      return NextResponse.json(
+        {
+          error:
+            "Stripe confirmó el pago, pero no encontramos el PaymentIntent.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const { data: offer, error: offerError } =
+      await supabaseAdmin
+        .from("offers")
+        .select(
+          "id, request_id, professional_id, price, status"
+        )
+        .eq("id", offerId)
+        .eq("request_id", requestId)
+        .maybeSingle();
 
     if (offerError) {
-      console.error("Error buscando oferta:", offerError);
-
       return NextResponse.json(
         {
           error: `Error buscando la oferta: ${offerError.message}`,
@@ -94,32 +189,33 @@ export async function POST(request: NextRequest) {
     if (!offer) {
       return NextResponse.json(
         {
-          error: "No encontramos la oferta correspondiente al pago.",
+          error:
+            "No encontramos la oferta correspondiente al pago.",
         },
         { status: 404 }
       );
     }
 
-    // ======================================================
-    // 3. BUSCAR LA SOLICITUD
-    // ======================================================
+    if (offer.professional_id !== metadataProfessionalId) {
+      return NextResponse.json(
+        {
+          error:
+            "El profesional de la sesión de Stripe no coincide con la oferta.",
+        },
+        { status: 400 }
+      );
+    }
 
     const { data: serviceRequest, error: requestError } =
       await supabaseAdmin
         .from("service_requests")
-        .select(`
-          id,
-          title,
-          customer_id,
-          status,
-          preferred_provider_id
-        `)
+        .select(
+          "id, title, customer_id, status, preferred_provider_id"
+        )
         .eq("id", requestId)
         .maybeSingle();
 
     if (requestError) {
-      console.error("Error buscando solicitud:", requestError);
-
       return NextResponse.json(
         {
           error: `Error buscando la solicitud: ${requestError.message}`,
@@ -137,201 +233,114 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ======================================================
-    // 4. CARGAR CONFIGURACIÓN DE PAGOS
-    // ======================================================
-
-    const { data: paymentSettings, error: settingsError } =
-      await supabaseAdmin
-        .from("payment_settings")
-        .select(`
-          id,
-          provider_commission_percent,
-          customer_service_fee_percent,
-          currency,
-          active
-        `)
-        .eq("active", true)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (settingsError) {
-      console.error(
-        "Error cargando configuración de pagos:",
-        settingsError
-      );
-
-      return NextResponse.json(
-        {
-          error: `No pudimos cargar la configuración de pagos: ${settingsError.message}`,
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!paymentSettings) {
+    if (
+      serviceRequest.customer_id !== metadataCustomerId ||
+      (!isStripeWebhook &&
+        serviceRequest.customer_id !== auth.user!.id)
+    ) {
       return NextResponse.json(
         {
           error:
-            "No existe una configuración de pagos activa en RELYDO.",
+            "Este pago no corresponde a una solicitud de tu cuenta.",
         },
-        { status: 500 }
+        { status: 403 }
       );
     }
 
-    // ======================================================
-    // 5. CALCULAR LOS MONTOS
-    // ======================================================
+    // Los importes quedan congelados dentro de la Checkout Session.
+    // No releemos payment_settings después de que Stripe ya cobró.
+    const jobAmount = money(
+      Number(session.metadata?.professional_price || 0)
+    );
+    const customerFeePercent = money(
+      Number(session.metadata?.customer_fee_percent || 0)
+    );
+    const customerFeeAmount = money(
+      Number(
+        session.metadata?.customer_fee_amount ||
+          session.metadata?.service_fee ||
+          0
+      )
+    );
+    const customerTotalAmount = money(
+      Number(session.metadata?.customer_total || 0)
+    );
+    const providerCommissionPercent = money(
+      Number(
+        session.metadata?.provider_commission_percent || 0
+      )
+    );
+    const providerCommissionAmount = money(
+      Number(
+        session.metadata?.provider_commission_amount || 0
+      )
+    );
+    const providerNetAmount = money(
+      Number(session.metadata?.provider_net_amount || 0)
+    );
+    const platformRevenueAmount = money(
+      Number(
+        session.metadata?.platform_revenue_amount || 0
+      )
+    );
+    const currency = String(
+      session.metadata?.currency || session.currency || "usd"
+    ).toUpperCase();
 
-    const jobAmount = redondearDinero(Number(offer.price));
+    const frozenValues = [
+      jobAmount,
+      customerFeePercent,
+      customerFeeAmount,
+      customerTotalAmount,
+      providerCommissionPercent,
+      providerCommissionAmount,
+      providerNetAmount,
+      platformRevenueAmount,
+    ];
 
-    if (!Number.isFinite(jobAmount) || jobAmount <= 0) {
+    if (
+      frozenValues.some(
+        (value) => !Number.isFinite(value)
+      ) ||
+      jobAmount <= 0 ||
+      customerTotalAmount <= 0
+    ) {
       return NextResponse.json(
         {
-          error: "El precio de la oferta no es válido.",
+          error:
+            "La sesión de Stripe no contiene montos válidos de RELYDO.",
         },
         { status: 400 }
       );
     }
 
-    const customerFeePercent = Number(
-      paymentSettings.customer_service_fee_percent || 0
-    );
-
-    const providerCommissionPercent = Number(
-      paymentSettings.provider_commission_percent || 0
-    );
-
-    const customerFeeAmount = redondearDinero(
-      jobAmount * (customerFeePercent / 100)
-    );
-
-    const customerTotalAmount = redondearDinero(
-      jobAmount + customerFeeAmount
-    );
-
-    const providerCommissionAmount = redondearDinero(
-      jobAmount * (providerCommissionPercent / 100)
-    );
-
-    const providerNetAmount = redondearDinero(
-      jobAmount - providerCommissionAmount
-    );
-
-    const platformRevenueAmount = redondearDinero(
-      customerFeeAmount + providerCommissionAmount
-    );
-
     const stripeTotal =
       typeof session.amount_total === "number"
-        ? redondearDinero(session.amount_total / 100)
+        ? money(session.amount_total / 100)
         : null;
 
     if (
-      stripeTotal !== null &&
+      stripeTotal === null ||
       Math.abs(stripeTotal - customerTotalAmount) > 0.01
     ) {
       return NextResponse.json(
         {
           error:
-            "El importe confirmado por Stripe no coincide con el total calculado por RELYDO.",
+            "El importe confirmado por Stripe no coincide con el checkout original de RELYDO.",
         },
         { status: 400 }
       );
     }
 
-    // ======================================================
-    // 6. OBTENER PAYMENT INTENT
-    // ======================================================
-
-    if (!session.payment_intent) {
-      return NextResponse.json(
-        {
-          error:
-            "Stripe confirmó el pago, pero no encontramos el PaymentIntent.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const paymentIntentId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : session.payment_intent.id;
-
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      paymentIntentId
-    );
-
-    const stripePaymentId = paymentIntent.id;
-
-    const stripeCustomerId =
-      typeof session.customer === "string"
-        ? session.customer
-        : null;
-
-    // ======================================================
-    // 7. REGISTRAR EL PAGO
-    //
-    // IMPORTANTE:
-    // EL DINERO YA FUE COBRADO AL CLIENTE,
-    // PERO TODAVÍA NO SE ENVÍA AL PROFESIONAL.
-    // ======================================================
-
-    const paymentData = {
-      request_id: requestId,
-      offer_id: offerId,
-      customer_id: serviceRequest.customer_id,
-      provider_id: offer.professional_id,
-
-      job_amount: jobAmount,
-
-      customer_fee_percent: customerFeePercent,
-      customer_fee_amount: customerFeeAmount,
-      customer_total_amount: customerTotalAmount,
-
-      provider_commission_percent: providerCommissionPercent,
-      provider_commission_amount: providerCommissionAmount,
-      provider_net_amount: providerNetAmount,
-
-      platform_revenue_amount: platformRevenueAmount,
-
-      currency: (
-        paymentSettings.currency || "usd"
-      ).toUpperCase(),
-
-      // El pago está recibido, pero todavía retenido
-      // dentro del flujo de RELYDO.
-      status: "ready_for_payout",
-
-      payment_provider: "stripe",
-      provider_payment_id: stripePaymentId,
-      provider_customer_id: stripeCustomerId,
-
-      refunded_amount: 0,
-
-      paid_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const {
-      data: existingPayments,
-      error: existingPaymentError,
-    } = await supabaseAdmin
-      .from("payments")
-      .select("id")
-      .eq("offer_id", offerId)
-      .limit(1);
+    const { data: existingPayment, error: existingPaymentError } =
+      await supabaseAdmin
+        .from("payments")
+        .select("id, status, provider_payment_id")
+        .eq("offer_id", offerId)
+        .limit(1)
+        .maybeSingle();
 
     if (existingPaymentError) {
-      console.error(
-        "Error buscando payment existente:",
-        existingPaymentError
-      );
-
       return NextResponse.json(
         {
           error: `No pudimos comprobar el registro del pago: ${existingPaymentError.message}`,
@@ -340,71 +349,210 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingPayment =
-      existingPayments && existingPayments.length > 0
-        ? existingPayments[0]
-        : null;
+    if (
+      existingPayment?.provider_payment_id &&
+      existingPayment.provider_payment_id !== paymentIntentId
+    ) {
+      const refund = await refundUnexpectedPayment(
+        paymentIntentId,
+        session.id
+      );
 
-    const paymentAlreadyExisted =
-      Boolean(existingPayment);
+      return NextResponse.json(
+        {
+          error: refund.ok
+            ? "Esta oferta ya tenía otro pago. El cobro duplicado fue reembolsado automáticamente."
+            : "Esta oferta ya tenía otro pago y no pudimos reembolsar automáticamente el cobro duplicado. Requiere revisión administrativa.",
+          duplicatePayment: true,
+          refunded: refund.ok,
+          refundId: refund.refundId,
+        },
+        { status: refund.ok ? 409 : 500 }
+      );
+    }
 
-    if (existingPayment) {
-      const { error: updatePaymentError } =
-        await supabaseAdmin
-          .from("payments")
-          .update(paymentData)
-          .eq("id", existingPayment.id);
+    const paymentAlreadyRecorded =
+      existingPayment?.provider_payment_id === paymentIntentId;
 
-      if (updatePaymentError) {
-        console.error(
-          "Error actualizando payment:",
-          updatePaymentError
+    const jobAlreadyMatchesPayment =
+      serviceRequest.preferred_provider_id ===
+        offer.professional_id &&
+      offer.status === "selected";
+
+    const canClaimOpenRequest =
+      serviceRequest.status === "open" &&
+      (
+        !serviceRequest.preferred_provider_id ||
+        serviceRequest.preferred_provider_id ===
+          offer.professional_id
+      ) &&
+      offer.status === "pending";
+
+    if (
+      !canClaimOpenRequest &&
+      !jobAlreadyMatchesPayment
+    ) {
+      if (!paymentAlreadyRecorded) {
+        const refund = await refundUnexpectedPayment(
+          paymentIntentId,
+          session.id
         );
 
         return NextResponse.json(
           {
-            error: `Stripe confirmó el pago, pero RELYDO no pudo actualizar payments: ${updatePaymentError.message}`,
+            error: refund.ok
+              ? "La solicitud cambió antes de finalizar el pago. Stripe reembolsó automáticamente el cobro."
+              : "La solicitud cambió antes de finalizar el pago y el reembolso automático falló. Requiere revisión administrativa.",
+            refunded: refund.ok,
+            refundId: refund.refundId,
+          },
+          { status: refund.ok ? 409 : 500 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            "El pago ya está registrado, pero el estado actual del trabajo requiere revisión administrativa.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Primero reclamamos la solicitud de forma condicional. Así dos
+    // checkouts pagados al mismo tiempo no pueden contratar dos Pros.
+    if (canClaimOpenRequest) {
+      let claimQuery = supabaseAdmin
+        .from("service_requests")
+        .update({
+          status: "in_progress",
+          preferred_provider_id: offer.professional_id,
+        })
+        .eq("id", requestId)
+        .eq("status", "open");
+
+      claimQuery = serviceRequest.preferred_provider_id
+        ? claimQuery.eq(
+            "preferred_provider_id",
+            offer.professional_id
+          )
+        : claimQuery.is("preferred_provider_id", null);
+
+      const { data: claimedRequest, error: claimError } =
+        await claimQuery
+          .select("id")
+          .maybeSingle();
+
+      if (claimError) {
+        return NextResponse.json(
+          {
+            error: `Stripe confirmó el pago, pero no pudimos reservar el trabajo: ${claimError.message}`,
           },
           { status: 500 }
         );
       }
-    } else {
-      const { error: insertPaymentError } =
-        await supabaseAdmin
-          .from("payments")
-          .insert(paymentData);
+
+      if (!claimedRequest) {
+        const { data: currentRequest } = await supabaseAdmin
+          .from("service_requests")
+          .select("status, preferred_provider_id")
+          .eq("id", requestId)
+          .maybeSingle();
+
+        const anotherRetryWon =
+          currentRequest?.preferred_provider_id ===
+          offer.professional_id;
+
+        if (!anotherRetryWon) {
+          const refund = await refundUnexpectedPayment(
+            paymentIntentId,
+            session.id
+          );
+
+          return NextResponse.json(
+            {
+              error: refund.ok
+                ? "Otra contratación se confirmó antes. El cobro de esta sesión fue reembolsado automáticamente."
+                : "Otra contratación se confirmó antes y el reembolso automático falló. Requiere revisión administrativa.",
+              refunded: refund.ok,
+              refundId: refund.refundId,
+            },
+            { status: refund.ok ? 409 : 500 }
+          );
+        }
+      }
+    }
+
+    // Estas dos operaciones son recuperables: si una falla después de
+    // reservar la solicitud, el webhook de Stripe volverá a intentarlas.
+    const { error: selectedOfferError } = await supabaseAdmin
+      .from("offers")
+      .update({ status: "selected" })
+      .eq("id", offerId)
+      .in("status", ["pending", "selected"]);
+
+    if (selectedOfferError) {
+      return NextResponse.json(
+        {
+          error: `Stripe confirmó el pago, pero no pudimos seleccionar la oferta: ${selectedOfferError.message}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const { error: rejectedOffersError } = await supabaseAdmin
+      .from("offers")
+      .update({ status: "rejected" })
+      .eq("request_id", requestId)
+      .eq("status", "pending")
+      .neq("id", offerId);
+
+    if (rejectedOffersError) {
+      console.warn(
+        "RELYDO: no pudimos rechazar todas las ofertas restantes; el webhook volverá a intentarlo:",
+        rejectedOffersError
+      );
+    }
+
+    const stripeCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : null;
+
+    const paymentData = {
+      request_id: requestId,
+      offer_id: offerId,
+      customer_id: serviceRequest.customer_id,
+      provider_id: offer.professional_id,
+      job_amount: jobAmount,
+      customer_fee_percent: customerFeePercent,
+      customer_fee_amount: customerFeeAmount,
+      customer_total_amount: customerTotalAmount,
+      provider_commission_percent:
+        providerCommissionPercent,
+      provider_commission_amount:
+        providerCommissionAmount,
+      provider_net_amount: providerNetAmount,
+      platform_revenue_amount: platformRevenueAmount,
+      currency,
+      status: "ready_for_payout",
+      payment_provider: "stripe",
+      provider_payment_id: paymentIntentId,
+      provider_customer_id: stripeCustomerId,
+      refunded_amount: 0,
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let paymentCreatedNow = false;
+
+    if (!existingPayment) {
+      const { error: insertPaymentError } = await supabaseAdmin
+        .from("payments")
+        .insert(paymentData);
 
       if (insertPaymentError) {
-        if (insertPaymentError.code === "23505") {
-          console.log(
-            "Payment creado simultáneamente. Actualizando registro existente..."
-          );
-
-          const { error: retryUpdateError } =
-            await supabaseAdmin
-              .from("payments")
-              .update(paymentData)
-              .eq("offer_id", offerId);
-
-          if (retryUpdateError) {
-            console.error(
-              "Error actualizando payment después del duplicado:",
-              retryUpdateError
-            );
-
-            return NextResponse.json(
-              {
-                error: `Stripe confirmó el pago, pero RELYDO no pudo actualizar el payment existente: ${retryUpdateError.message}`,
-              },
-              { status: 500 }
-            );
-          }
-        } else {
-          console.error(
-            "Error creando payment:",
-            insertPaymentError
-          );
-
+        if (insertPaymentError.code !== "23505") {
           return NextResponse.json(
             {
               error: `Stripe confirmó el pago, pero RELYDO no pudo crear payments: ${insertPaymentError.message}`,
@@ -412,146 +560,101 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
+
+        const { data: concurrentPayment, error: concurrentError } =
+          await supabaseAdmin
+            .from("payments")
+            .select("id, provider_payment_id")
+            .eq("offer_id", offerId)
+            .maybeSingle();
+
+        if (concurrentError || !concurrentPayment) {
+          return NextResponse.json(
+            {
+              error:
+                "Se detectó un pago concurrente y no pudimos verificarlo con seguridad.",
+            },
+            { status: 500 }
+          );
+        }
+
+        if (
+          concurrentPayment.provider_payment_id &&
+          concurrentPayment.provider_payment_id !== paymentIntentId
+        ) {
+          const refund = await refundUnexpectedPayment(
+            paymentIntentId,
+            session.id
+          );
+
+          return NextResponse.json(
+            {
+              error: refund.ok
+                ? "Se detectó un segundo cobro y fue reembolsado automáticamente."
+                : "Se detectó un segundo cobro y el reembolso automático falló. Requiere revisión administrativa.",
+              refunded: refund.ok,
+              refundId: refund.refundId,
+            },
+            { status: refund.ok ? 409 : 500 }
+          );
+        }
+      } else {
+        paymentCreatedNow = true;
       }
+    } else if (!paymentAlreadyRecorded) {
+      const { error: updatePaymentError } = await supabaseAdmin
+        .from("payments")
+        .update(paymentData)
+        .eq("id", existingPayment.id)
+        .or(
+          `provider_payment_id.is.null,provider_payment_id.eq.${paymentIntentId}`
+        );
+
+      if (updatePaymentError) {
+        return NextResponse.json(
+          {
+            error: `Stripe confirmó el pago, pero RELYDO no pudo completar payments: ${updatePaymentError.message}`,
+          },
+          { status: 500 }
+        );
+      }
+
+      paymentCreatedNow = true;
     }
 
-    // ======================================================
-    // 8. SELECCIONAR LA OFERTA PAGADA
-    // ======================================================
-
-    const { error: selectedOfferError } =
-      await supabaseAdmin
-        .from("offers")
-        .update({
-          status: "selected",
-        })
-        .eq("id", offerId);
-
-    if (selectedOfferError) {
-      console.error(
-        "Error seleccionando oferta:",
-        selectedOfferError
-      );
-
-      return NextResponse.json(
-        {
-          error: `No pudimos seleccionar la oferta: ${selectedOfferError.message}`,
-        },
-        { status: 500 }
-      );
-    }
-
-    // ======================================================
-    // 9. RECHAZAR LAS OTRAS OFERTAS
-    // ======================================================
-
-    const { error: rejectedOffersError } =
-      await supabaseAdmin
-        .from("offers")
-        .update({
-          status: "rejected",
-        })
-        .eq("request_id", requestId)
-        .neq("id", offerId);
-
-    if (rejectedOffersError) {
-      console.error(
-        "Error rechazando otras ofertas:",
-        rejectedOffersError
-      );
-    }
-
-    // ======================================================
-    // 10. PONER EL TRABAJO EN PROGRESO
-    // ======================================================
-
-    const { error: updateRequestError } =
-      await supabaseAdmin
-        .from("service_requests")
-        .update({
-          status: "in_progress",
-          preferred_provider_id:
-            offer.professional_id,
-        })
-        .eq("id", requestId);
-
-    if (updateRequestError) {
-      console.error(
-        "Error actualizando solicitud:",
-        updateRequestError
-      );
-
-      return NextResponse.json(
-        {
-          error: `Stripe confirmó el pago, pero no pudimos actualizar el trabajo: ${updateRequestError.message}`,
-        },
-        { status: 500 }
-      );
-    }
-
-    // ======================================================
-    // 11. NOTIFICAR AL PROFESIONAL
-    //
-    // Solo en la primera confirmación exitosa del pago.
-    // Si el cliente refresca la página y verify-payment
-    // vuelve a ejecutarse, no enviamos el mismo aviso otra vez.
-    // ======================================================
-
-    if (!paymentAlreadyExisted) {
+    if (paymentCreatedNow) {
       try {
         await sendRelydoNotification({
-          userId:
-            offer.professional_id,
-          type:
-            "provider_hired",
-          title:
-            "¡Has sido contratado!",
-          message:
-            `${serviceRequest.title || "Trabajo RELYDO"}: el cliente confirmó el pago y te contrató para realizar este trabajo.`,
+          userId: offer.professional_id,
+          type: "provider_hired",
+          title: "¡Has sido contratado!",
+          titleEn: "You have been hired!",
+          message: `${
+            serviceRequest.title || "Trabajo RELYDO"
+          }: el cliente confirmó el pago y te contrató para realizar este trabajo.`,
+          messageEn: `${
+            serviceRequest.title || "RELYDO job"
+          }: the customer confirmed payment and hired you for this job.`,
           requestId,
-          url:
-            `/trabajos/${requestId}`,
+          url: `/trabajos/${requestId}`,
         });
-      } catch (
-        notificationError
-      ) {
+      } catch (notificationError) {
         console.warn(
-          "El pago quedó confirmado y el profesional fue contratado, pero no pudimos enviar la notificación:",
+          "El pago quedó confirmado, pero no pudimos notificar al profesional:",
           notificationError
         );
       }
     }
 
-    // ======================================================
-    // 12. TODO CORRECTO
-    //
-    // IMPORTANTE:
-    // AQUÍ YA NO EXISTE stripe.transfers.create().
-    // ======================================================
-
-    console.log("======================================");
-    console.log("PAGO CONFIRMADO Y RETENIDO EN RELYDO");
-    console.log("Request:", requestId);
-    console.log("Offer:", offerId);
-    console.log("Cliente pagó:", customerTotalAmount);
-    console.log("Neto futuro del profesional:", providerNetAmount);
-    console.log("NO SE HA CREADO TRANSFERENCIA AL PROFESIONAL");
-    console.log("======================================");
-
     return NextResponse.json({
       success: true,
       paymentConfirmed: true,
+      alreadyProcessed: paymentAlreadyRecorded,
       fundsReleasedToProvider: false,
-
       requestId,
       offerId,
-
-      professionalId:
-        offer.professional_id,
-
-      paymentStatus:
-        session.payment_status,
-
+      professionalId: offer.professional_id,
+      paymentStatus: session.payment_status,
       amounts: {
         jobAmount,
         customerFeeAmount,
@@ -562,10 +665,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error(
-      "Error verificando pago:",
-      error
-    );
+    console.error("Error verificando pago:", error);
 
     return NextResponse.json(
       {

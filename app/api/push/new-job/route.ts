@@ -37,6 +37,45 @@ type Body = {
   requestId?: string;
 };
 
+type Coordinates = { lat: number; lon: number };
+
+function normalizeZip(value: unknown) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(\d{5})(?:-\d{4})?$/);
+  return match ? match[1] : "";
+}
+
+async function zipCoordinates(zip: string): Promise<Coordinates | null> {
+  try {
+    const response = await fetch(
+      `https://api.zippopotam.us/us/${encodeURIComponent(zip)}`,
+      { headers: { Accept: "application/json" }, cache: "force-cache" }
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    const place = data?.places?.[0];
+    const lat = Number(place?.latitude);
+    const lon = Number(place?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+function milesBetween(a: Coordinates, b: Coordinates) {
+  const earthMiles = 3958.7613;
+  const rad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const lat1 = rad(a.lat);
+  const lat2 = rad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthMiles * Math.asin(Math.sqrt(h));
+}
+
 export async function POST(
   request: NextRequest
 ) {
@@ -179,6 +218,7 @@ export async function POST(
         title,
         city,
         state,
+        zip_code,
         service_id,
         status
       `)
@@ -277,7 +317,7 @@ export async function POST(
         data: proPreferido,
       } = await supabaseAdmin
         .from("provider_profiles")
-        .select("user_id")
+        .select("user_id, zip_code, service_radius_miles, city, state")
         .eq(
           "user_id",
           trabajo.preferred_provider_id
@@ -297,9 +337,34 @@ export async function POST(
         .maybeSingle();
 
       if (proPreferido) {
-        providerIds = [
-          proPreferido.user_id,
-        ];
+        const customerZip = normalizeZip(trabajo.zip_code);
+        const providerZip = normalizeZip(proPreferido.zip_code);
+        const radius = Number(proPreferido.service_radius_miles || 0);
+
+        let servesArea = false;
+
+        if (customerZip && providerZip && Number.isFinite(radius) && radius > 0) {
+          const [customerCoords, providerCoords] = await Promise.all([
+            zipCoordinates(customerZip),
+            zipCoordinates(providerZip),
+          ]);
+
+          if (customerCoords && providerCoords) {
+            servesArea = milesBetween(customerCoords, providerCoords) <= radius;
+          }
+        }
+
+        if (!servesArea) {
+          servesArea =
+            String(proPreferido.city || "").trim().toLowerCase() ===
+              String(trabajo.city || "").trim().toLowerCase() &&
+            String(proPreferido.state || "").trim().toLowerCase() ===
+              String(trabajo.state || "").trim().toLowerCase();
+        }
+
+        if (servesArea) {
+          providerIds = [proPreferido.user_id];
+        }
       }
     } else {
       const {
@@ -308,7 +373,7 @@ export async function POST(
           profesionalesError,
       } = await supabaseAdmin
         .from("provider_profiles")
-        .select("user_id")
+        .select("user_id, zip_code, service_radius_miles, city, state")
         .eq(
           "trade",
           servicio.slug
@@ -338,13 +403,53 @@ export async function POST(
         );
       }
 
-      providerIds =
-        (
-          profesionales || []
-        ).map(
-          (item) =>
-            item.user_id
-        );
+      const candidates = profesionales || [];
+      const customerZip = normalizeZip(trabajo.zip_code);
+
+      if (customerZip) {
+        const customerCoords = await zipCoordinates(customerZip);
+
+        if (customerCoords) {
+          const uniqueProviderZips: string[] = [
+            ...new Set<string>(
+              candidates
+                .map((item) => normalizeZip(item.zip_code))
+                .filter(Boolean)
+            ),
+          ];
+
+          const coordsByZip = new Map<string, Coordinates | null>();
+          await Promise.all(
+            uniqueProviderZips.map(async (zip) => {
+              coordsByZip.set(zip, await zipCoordinates(zip));
+            })
+          );
+
+          providerIds = candidates
+            .filter((item) => {
+              const providerZip = normalizeZip(item.zip_code);
+              const providerCoords = providerZip ? coordsByZip.get(providerZip) : null;
+              const radius = Number(item.service_radius_miles || 0);
+              if (!providerCoords || !Number.isFinite(radius) || radius <= 0) return false;
+              return milesBetween(customerCoords, providerCoords) <= radius;
+            })
+            .map((item) => item.user_id);
+        } else {
+          providerIds = candidates
+            .filter((item) =>
+              String(item.city || "").trim().toLowerCase() === String(trabajo.city || "").trim().toLowerCase() &&
+              String(item.state || "").trim().toLowerCase() === String(trabajo.state || "").trim().toLowerCase()
+            )
+            .map((item) => item.user_id);
+        }
+      } else {
+        providerIds = candidates
+          .filter((item) =>
+            String(item.city || "").trim().toLowerCase() === String(trabajo.city || "").trim().toLowerCase() &&
+            String(item.state || "").trim().toLowerCase() === String(trabajo.state || "").trim().toLowerCase()
+          )
+          .map((item) => item.user_id);
+      }
     }
 
     if (
@@ -375,6 +480,18 @@ export async function POST(
     const notificationType =
       "new_job_available";
 
+    const { data: languageProfiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, preferred_language")
+      .in("id", providerIds);
+
+    const languageByProvider = new Map(
+      (languageProfiles || []).map((profile) => [
+        profile.id,
+        profile.preferred_language === "en" ? "en" : "es",
+      ])
+    );
+
     /*
       8. RESERVAR LA NOTIFICACIÓN Y EVITAR DUPLICADOS
 
@@ -400,40 +517,56 @@ export async function POST(
       const providerId
       of providerIds
     ) {
-      const { error: notificationError } =
+      const providerLanguage = languageByProvider.get(providerId) || "es";
+      const providerTitle = providerLanguage === "en"
+        ? (trabajo.preferred_provider_id ? "🆕 New request for you" : "🆕 New job available")
+        : titulo;
+      const providerMessage = providerLanguage === "en"
+        ? `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`
+        : mensaje;
+
+      const { data: existingNotification, error: existingNotificationError } =
         await supabaseAdmin
           .from("notifications")
-          .insert({
-            user_id: providerId,
-            type: notificationType,
-            title: titulo,
-            message: mensaje,
-            request_id: trabajo.id,
-            read: false,
-          });
+          .select("id")
+          .eq("user_id", providerId)
+          .eq("type", notificationType)
+          .eq("request_id", trabajo.id)
+          .limit(1)
+          .maybeSingle();
+
+      if (existingNotificationError) {
+        return NextResponse.json(
+          { error: existingNotificationError.message },
+          { status: 500 }
+        );
+      }
+
+      if (existingNotification) {
+        duplicadosOmitidos += 1;
+        continue;
+      }
+
+      const { error: notificationError } = await supabaseAdmin
+        .from("notifications")
+        .insert({
+          user_id: providerId,
+          type: notificationType,
+          title: providerTitle,
+          message: providerMessage,
+          request_id: trabajo.id,
+          read: false,
+        });
 
       if (notificationError) {
-        if (
-          notificationError.code ===
-          "23505"
-        ) {
+        if (notificationError.code === "23505") {
           duplicadosOmitidos += 1;
           continue;
         }
 
-        console.error(
-          "Error guardando notificación de nuevo trabajo:",
-          notificationError
-        );
-
         return NextResponse.json(
-          {
-            error:
-              notificationError.message,
-          },
-          {
-            status: 500,
-          }
+          { error: notificationError.message },
+          { status: 500 }
         );
       }
 
@@ -512,14 +645,6 @@ export async function POST(
       });
     }
 
-    const payload =
-      JSON.stringify({
-        title: titulo,
-        body: mensaje,
-        url:
-          `/trabajos/${trabajo.id}`,
-      });
-
     /*
       10. ENVIAR A TODOS LOS DISPOSITIVOS
     */
@@ -532,6 +657,17 @@ export async function POST(
       const subscription
       of subscriptions
     ) {
+      const providerLanguage = languageByProvider.get(subscription.user_id) || "es";
+      const pushTitle = providerLanguage === "en"
+        ? (trabajo.preferred_provider_id ? "🆕 New request for you" : "🆕 New job available")
+        : titulo;
+      const pushMessage = `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
+      const payload = JSON.stringify({
+        title: pushTitle,
+        body: pushMessage,
+        url: `/trabajos/${trabajo.id}`,
+      });
+
       try {
         await webpush.sendNotification(
           {

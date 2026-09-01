@@ -364,12 +364,20 @@ export default function CheckoutPage() {
     setMensaje("");
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(text.pagoNoVerificado);
+      }
+
       const response = await fetch(
         "/api/checkout/verify-payment",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             sessionId,
@@ -613,6 +621,13 @@ export default function CheckoutPage() {
         settings
       );
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(text.errorInesperado);
+      }
+
       const response = await fetch(
         "/api/checkout",
         {
@@ -621,6 +636,7 @@ export default function CheckoutPage() {
           headers: {
             "Content-Type":
               "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
 
           body: JSON.stringify({

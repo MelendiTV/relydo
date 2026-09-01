@@ -635,9 +635,13 @@ export default function PanelProfesional() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
     cargarPanel();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let mounted = true;
 
     const channel = supabase
       .channel("panel-profesional-service-requests")
@@ -647,6 +651,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "service_requests",
+          filter: `preferred_provider_id=eq.${userId}`,
         },
         async (payload) => {
           console.log("Cambio detectado en service_requests:", payload);
@@ -662,6 +667,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "payments",
+          filter: `provider_id=eq.${userId}`,
         },
         async (payload) => {
           console.log("Cambio detectado en payments:", payload);
@@ -677,6 +683,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "offers",
+          filter: `professional_id=eq.${userId}`,
         },
         async (payload) => {
           console.log("Cambio detectado en offers:", payload);
@@ -692,6 +699,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "job_claims",
+          filter: `provider_id=eq.${userId}`,
         },
         async (payload) => {
           console.log("Cambio detectado en job_claims:", payload);
@@ -707,6 +715,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "provider_documents",
+          filter: `user_id=eq.${userId}`,
         },
         async () => {
           if (mounted) await cargarPanel(false);
@@ -718,6 +727,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "provider_document_requests",
+          filter: `provider_id=eq.${userId}`,
         },
         async () => {
           if (mounted) await cargarPanel(false);
@@ -729,6 +739,7 @@ export default function PanelProfesional() {
           event: "*",
           schema: "public",
           table: "job_reassignment_history",
+          filter: `provider_id=eq.${userId}`,
         },
         async () => {
           if (mounted) await cargarPanel(false);
@@ -742,7 +753,7 @@ export default function PanelProfesional() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   function guardarTemaProfesional(
     tema: TemaProfesional
@@ -1782,6 +1793,8 @@ export default function PanelProfesional() {
         .eq("user_id", user.id);
 
       if (updateError) {
+        await supabase.storage.from("provider-logos").remove([ruta]);
+
         throw new Error(
           `${T("El logo subió, pero no se pudo guardar en el perfil", "The logo was uploaded, but it could not be saved to your profile")}: ${updateError.message}`
         );
@@ -2012,6 +2025,14 @@ export default function PanelProfesional() {
         .eq("provider_id", user.id);
 
       if (requestError) {
+        await supabase
+          .from("provider_documents")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("file_path", ruta);
+
+        await supabase.storage.from("provider-documents").remove([ruta]);
+
         throw new Error(
           `${T("El documento se guardó, pero no se pudo actualizar la solicitud", "The document was saved, but the request could not be updated")}: ${requestError.message}`
         );

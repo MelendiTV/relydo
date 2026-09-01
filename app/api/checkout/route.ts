@@ -1,356 +1,248 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUser } from "../../lib/serverAuth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SECRET_KEY!,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  }
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-function redondearDinero(valor: number) {
-  return Math.round((valor + Number.EPSILON) * 100) / 100;
+function money(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth.user) {
+      return NextResponse.json(
+        { error: "Debes iniciar sesión como cliente para realizar este pago." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-
-    const {
-      requestId,
-      offerId,
-      serviceTitle,
-      professionalName,
-    } = body;
-
-    // ======================================================
-    // 1. VALIDAR DATOS BÁSICOS
-    // ======================================================
+    const requestId = String(body?.requestId || "").trim();
+    const offerId = String(body?.offerId || "").trim();
 
     if (!requestId || !offerId) {
       return NextResponse.json(
-        {
-          error: "Faltan datos de la solicitud o de la oferta.",
-        },
+        { error: "Faltan datos de la solicitud o de la oferta." },
         { status: 400 }
       );
     }
 
-    // ======================================================
-    // 2. BUSCAR LA OFERTA REAL EN SUPABASE
-    // ======================================================
+    const { data: serviceRequest, error: serviceRequestError } =
+      await supabaseAdmin
+        .from("service_requests")
+        .select("id, title, customer_id, status, preferred_provider_id")
+        .eq("id", requestId)
+        .eq("customer_id", auth.user.id)
+        .maybeSingle();
+
+    if (serviceRequestError) {
+      return NextResponse.json(
+        { error: `No pudimos consultar la solicitud: ${serviceRequestError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!serviceRequest) {
+      return NextResponse.json(
+        { error: "No encontramos la solicitud o no pertenece a tu cuenta." },
+        { status: 404 }
+      );
+    }
+
+    if (serviceRequest.status !== "open") {
+      return NextResponse.json(
+        { error: "Esta solicitud ya no acepta nuevas contrataciones." },
+        { status: 409 }
+      );
+    }
 
     const { data: offer, error: offerError } = await supabaseAdmin
       .from("offers")
-      .select(`
-        id,
-        request_id,
-        professional_id,
-        price,
-        status
-      `)
+      .select("id, request_id, professional_id, price, status")
       .eq("id", offerId)
       .eq("request_id", requestId)
       .maybeSingle();
 
     if (offerError) {
-      console.error("Error buscando oferta:", offerError);
-
       return NextResponse.json(
-        {
-          error: `Error buscando la oferta: ${offerError.message}`,
-        },
+        { error: `Error buscando la oferta: ${offerError.message}` },
         { status: 500 }
       );
     }
 
     if (!offer) {
       return NextResponse.json(
-        {
-          error: "No encontramos la oferta seleccionada.",
-        },
+        { error: "No encontramos la oferta seleccionada." },
         { status: 404 }
       );
     }
 
-    // ======================================================
-    // 3. VALIDAR PRECIO DE LA OFERTA
-    // ======================================================
-
-    const professionalPrice = redondearDinero(
-      Number(offer.price)
-    );
-
-    if (
-      !Number.isFinite(professionalPrice) ||
-      professionalPrice <= 0
-    ) {
+    if (offer.status !== "pending") {
       return NextResponse.json(
-        {
-          error: "El precio de la oferta no es válido.",
-        },
-        { status: 400 }
+        { error: "Esta oferta ya no está disponible para pago." },
+        { status: 409 }
       );
     }
 
-    // ======================================================
-    // 4. BUSCAR CONFIGURACIÓN ACTIVA DE PAGOS
-    // ======================================================
+    if (
+      serviceRequest.preferred_provider_id &&
+      serviceRequest.preferred_provider_id !== offer.professional_id
+    ) {
+      return NextResponse.json(
+        { error: "Esta solicitud está dirigida a otro profesional." },
+        { status: 409 }
+      );
+    }
 
-    const { data: paymentSettings, error: settingsError } =
+    const { data: existingPayment, error: existingPaymentError } =
       await supabaseAdmin
-        .from("payment_settings")
-        .select(`
-          id,
-          provider_commission_percent,
-          customer_service_fee_percent,
-          currency,
-          active
-        `)
-        .eq("active", true)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
+        .from("payments")
+        .select("id, status, provider_payment_id")
+        .eq("offer_id", offerId)
         .maybeSingle();
 
-    if (settingsError) {
-      console.error(
-        "Error cargando configuración de pagos:",
-        settingsError
-      );
-
+    if (existingPaymentError) {
       return NextResponse.json(
-        {
-          error:
-            `No pudimos cargar la configuración de pagos: ${settingsError.message}`,
-        },
+        { error: `No pudimos comprobar pagos anteriores: ${existingPaymentError.message}` },
         { status: 500 }
       );
     }
 
-    if (!paymentSettings) {
+    if (existingPayment?.provider_payment_id) {
       return NextResponse.json(
-        {
-          error:
-            "No existe una configuración de pagos activa en RELYDO.",
-        },
+        { error: "Esta oferta ya tiene un pago registrado." },
+        { status: 409 }
+      );
+    }
+
+    const professionalPrice = money(Number(offer.price));
+    if (!Number.isFinite(professionalPrice) || professionalPrice <= 0) {
+      return NextResponse.json({ error: "El precio de la oferta no es válido." }, { status: 400 });
+    }
+
+    const { data: paymentSettings, error: settingsError } = await supabaseAdmin
+      .from("payment_settings")
+      .select("id, provider_commission_percent, customer_service_fee_percent, currency, active")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (settingsError || !paymentSettings) {
+      return NextResponse.json(
+        { error: settingsError?.message || "No existe una configuración de pagos activa en RELYDO." },
         { status: 500 }
       );
     }
 
-    // ======================================================
-    // 5. CALCULAR COMISIONES EN EL SERVIDOR
-    // ======================================================
-
-    const customerFeePercent = Number(
-      paymentSettings.customer_service_fee_percent || 0
-    );
-
-    const providerCommissionPercent = Number(
-      paymentSettings.provider_commission_percent || 0
-    );
+    const customerFeePercent = Number(paymentSettings.customer_service_fee_percent || 0);
+    const providerCommissionPercent = Number(paymentSettings.provider_commission_percent || 0);
 
     if (
-      !Number.isFinite(customerFeePercent) ||
-      customerFeePercent < 0 ||
-      !Number.isFinite(providerCommissionPercent) ||
-      providerCommissionPercent < 0
+      !Number.isFinite(customerFeePercent) || customerFeePercent < 0 ||
+      !Number.isFinite(providerCommissionPercent) || providerCommissionPercent < 0
     ) {
       return NextResponse.json(
-        {
-          error:
-            "La configuración de comisiones de RELYDO no es válida.",
-        },
+        { error: "La configuración de comisiones de RELYDO no es válida." },
         { status: 500 }
       );
     }
 
-    // Comisión que paga el CLIENTE
-    const serviceFee = redondearDinero(
-      professionalPrice * (customerFeePercent / 100)
-    );
+    const customerFeeAmount = money(professionalPrice * (customerFeePercent / 100));
+    const customerTotalAmount = money(professionalPrice + customerFeeAmount);
+    const providerCommissionAmount = money(professionalPrice * (providerCommissionPercent / 100));
+    const providerNetAmount = money(professionalPrice - providerCommissionAmount);
+    const platformRevenueAmount = money(customerFeeAmount + providerCommissionAmount);
+    const amountInCents = Math.round(customerTotalAmount * 100);
 
-    // Total que paga el CLIENTE
-    const total = redondearDinero(
-      professionalPrice + serviceFee
-    );
+    const { data: providerProfile } = await supabaseAdmin
+      .from("provider_profiles")
+      .select("business_name")
+      .eq("user_id", offer.professional_id)
+      .maybeSingle();
 
-    // Comisión que se descontará al PROFESIONAL
-    const providerCommissionAmount = redondearDinero(
-      professionalPrice *
-        (providerCommissionPercent / 100)
-    );
+    const configuredOrigin =
+      process.env.RELYDO_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+    const origin = configuredOrigin.replace(/\/$/, "") || request.nextUrl.origin;
 
-    // Neto futuro del profesional
-    const providerNetAmount = redondearDinero(
-      professionalPrice - providerCommissionAmount
-    );
-
-    // Ganancia total de RELYDO
-    const platformRevenueAmount = redondearDinero(
-      serviceFee + providerCommissionAmount
-    );
-
-    // ======================================================
-    // 6. CONVERTIR TOTAL A CENTAVOS PARA STRIPE
-    // ======================================================
-
-    const amountInCents = Math.round(total * 100);
-
-    if (amountInCents <= 0) {
-      return NextResponse.json(
-        {
-          error: "El importe final del pago no es válido.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // ======================================================
-    // 7. DETERMINAR URL DE REGRESO
-    // ======================================================
-
-    const origin =
-      request.headers.get("origin") ||
-      "http://localhost:3000";
-
-    // ======================================================
-    // 8. CREAR CHECKOUT SESSION EN STRIPE
-    // ======================================================
-
-    const session =
-      await stripe.checkout.sessions.create({
+    const session = await stripe.checkout.sessions.create(
+      {
         mode: "payment",
-
         payment_method_types: ["card"],
-
+        client_reference_id: requestId,
         line_items: [
           {
             price_data: {
-              currency:
-                paymentSettings.currency?.toLowerCase() ||
-                "usd",
-
+              currency: String(paymentSettings.currency || "usd").toLowerCase(),
               product_data: {
-                name:
-                  serviceTitle ||
-                  "Servicio RELYDO",
-
-                description: professionalName
-                  ? `Servicio realizado por ${professionalName}`
+                name: serviceRequest.title || "Servicio RELYDO",
+                description: providerProfile?.business_name
+                  ? `Servicio realizado por ${providerProfile.business_name}`
                   : "Servicio contratado mediante RELYDO",
               },
-
               unit_amount: amountInCents,
             },
-
             quantity: 1,
           },
         ],
-
         metadata: {
-          request_id: String(requestId),
-
-          offer_id: String(offerId),
-
-          professional_id: String(
-            offer.professional_id
-          ),
-
-          professional_price:
-            professionalPrice.toFixed(2),
-
-          customer_fee_percent:
-            customerFeePercent.toFixed(2),
-
-          service_fee:
-            serviceFee.toFixed(2),
-
-          customer_total:
-            total.toFixed(2),
-
-          provider_commission_percent:
-            providerCommissionPercent.toFixed(2),
-
-          provider_commission_amount:
-            providerCommissionAmount.toFixed(2),
-
-          provider_net_amount:
-            providerNetAmount.toFixed(2),
-
-          platform_revenue_amount:
-            platformRevenueAmount.toFixed(2),
+          payment_type: "initial_job",
+          request_id: requestId,
+          offer_id: offerId,
+          customer_id: auth.user.id,
+          professional_id: String(offer.professional_id),
+          payment_settings_id: String(paymentSettings.id),
+          professional_price: professionalPrice.toFixed(2),
+          customer_fee_percent: customerFeePercent.toFixed(2),
+          customer_fee_amount: customerFeeAmount.toFixed(2),
+          customer_total: customerTotalAmount.toFixed(2),
+          provider_commission_percent: providerCommissionPercent.toFixed(2),
+          provider_commission_amount: providerCommissionAmount.toFixed(2),
+          provider_net_amount: providerNetAmount.toFixed(2),
+          platform_revenue_amount: platformRevenueAmount.toFixed(2),
+          currency: String(paymentSettings.currency || "usd").toUpperCase(),
         },
-
         success_url:
-          `${origin}/checkout/${requestId}` +
-          `?offer=${offerId}` +
-          `&payment=success` +
-          `&session_id={CHECKOUT_SESSION_ID}`,
-
+          `${origin}/checkout/${requestId}?offer=${offerId}&payment=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:
-          `${origin}/checkout/${requestId}` +
-          `?offer=${offerId}` +
-          `&payment=cancelled`,
-      });
-
-    // ======================================================
-    // 9. CONFIRMAR QUE STRIPE DEVOLVIÓ URL
-    // ======================================================
+          `${origin}/checkout/${requestId}?offer=${offerId}&payment=cancelled`,
+      },
+      {
+        idempotencyKey: `relydo-checkout-${requestId}-${offerId}`,
+      }
+    );
 
     if (!session.url) {
-      return NextResponse.json(
-        {
-          error:
-            "Stripe no devolvió una URL de pago.",
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Stripe no devolvió una URL de pago." }, { status: 500 });
     }
-
-    // ======================================================
-    // 10. RESPUESTA AL FRONTEND
-    // ======================================================
 
     return NextResponse.json({
       success: true,
-
       url: session.url,
-
       amounts: {
         professionalPrice,
         customerFeePercent,
-        serviceFee,
-        total,
-
+        serviceFee: customerFeeAmount,
+        total: customerTotalAmount,
         providerCommissionPercent,
         providerCommissionAmount,
         providerNetAmount,
-
         platformRevenueAmount,
       },
     });
   } catch (error) {
-    console.error(
-      "Error creando Stripe Checkout:",
-      error
-    );
-
+    console.error("Error creando Stripe Checkout:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo crear la sesión de pago.",
-      },
+      { error: error instanceof Error ? error.message : "No se pudo crear la sesión de pago." },
       { status: 500 }
     );
   }

@@ -1104,14 +1104,18 @@ export async function POST(
             serviceRequest.preferred_provider_id,
           type:
             "job_cancelled_by_customer",
-          title:
-            "Trabajo cancelado por el cliente",
-          message:
-            `${serviceRequest.title || "Trabajo RELYDO"}: el cliente canceló el trabajo.${
-              providerAwardAmount > 0
-                ? ` Compensación por cancelación: $${providerAwardAmount.toFixed(2)}.`
-                : ""
-            }`,
+          title: "Trabajo cancelado por el cliente",
+          titleEn: "Job cancelled by the customer",
+          message: `${serviceRequest.title || "Trabajo RELYDO"}: el cliente canceló el trabajo.${
+            providerAwardAmount > 0
+              ? ` Compensación por cancelación: $${providerAwardAmount.toFixed(2)}.`
+              : ""
+          }`,
+          messageEn: `${serviceRequest.title || "RELYDO job"}: the customer cancelled the job.${
+            providerAwardAmount > 0
+              ? ` Cancellation compensation: $${providerAwardAmount.toFixed(2)}.`
+              : ""
+          }`,
           requestId,
           url:
             `/trabajos/${requestId}`,

@@ -3024,144 +3024,231 @@ export default function TrabajoDetallePage() {
         );
       }
 
-      const {
-        error: respuestaError,
-      } = await supabase
-        .from("job_claims")
-        .update({
-          provider_response:
-            explicacionEvidencia.trim(),
-          provider_responded_at:
-            new Date().toISOString(),
-        })
-        .eq("id", reclamo.id)
-        .eq(
-          "provider_id",
-          providerId
-        );
-
-      if (
-        respuestaError
-      ) {
-        throw new Error(
-          `${T("No pudimos guardar tu explicación", "We could not save your explanation")}: ${respuestaError.message}`
-        );
-      }
-
       const nuevasEvidencias:
         EvidenciaReclamo[] =
         [];
 
-      for (
-        const [
-          index,
-          file,
-        ] of archivosReclamo.entries()
-      ) {
-        const nombreSeguro =
-          file.name
-            .replace(
-              /[^a-zA-Z0-9._-]/g,
-              "-"
-            )
-            .slice(
-              0,
-              80
-            );
+      const rutasSubidas:
+        string[] =
+        [];
 
-        const ruta =
-          `${reclamo.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
-
-        const {
-          error:
-            uploadError,
-        } =
-          await supabase.storage
-            .from(
-              "claim-evidence"
-            )
-            .upload(
-              ruta,
-              file,
-              {
-                cacheControl:
-                  "3600",
-                upsert: false,
-                contentType:
-                  file.type,
-              }
-            );
-
-        if (
-          uploadError
+      try {
+        for (
+          const [
+            index,
+            file,
+          ] of archivosReclamo.entries()
         ) {
-          throw new Error(
-            `${T("No pudimos subir", "We could not upload")} "${file.name}": ${uploadError.message}`
+          const nombreSeguro =
+            file.name
+              .replace(
+                /[^a-zA-Z0-9._-]/g,
+                "-"
+              )
+              .slice(
+                0,
+                80
+              );
+
+          const ruta =
+            `${reclamo.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
+
+          const {
+            error:
+              uploadError,
+          } =
+            await supabase.storage
+              .from(
+                "claim-evidence"
+              )
+              .upload(
+                ruta,
+                file,
+                {
+                  cacheControl:
+                    "3600",
+                  upsert: false,
+                  contentType:
+                    file.type,
+                }
+              );
+
+          if (
+            uploadError
+          ) {
+            throw new Error(
+              `${T("No pudimos subir", "We could not upload")} "${file.name}": ${uploadError.message}`
+            );
+          }
+
+          rutasSubidas.push(
+            ruta
+          );
+
+          const fileType:
+            "image" | "video" =
+            file.type.startsWith(
+              "video/"
+            )
+              ? "video"
+              : "image";
+
+          const {
+            data:
+              evidenciaData,
+            error:
+              evidenciaError,
+          } =
+            await supabase
+              .from(
+                "claim_evidence"
+              )
+              .insert({
+                claim_id:
+                  reclamo.id,
+                uploaded_by:
+                  providerId,
+                uploaded_by_role:
+                  "provider",
+                file_type:
+                  fileType,
+                file_url:
+                  ruta,
+                file_path:
+                  ruta,
+              })
+              .select(`
+                id,
+                claim_id,
+                uploaded_by,
+                uploaded_by_role,
+                file_type,
+                file_path,
+                created_at
+              `)
+              .single();
+
+          if (
+            evidenciaError
+          ) {
+            throw new Error(
+              `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+            );
+          }
+
+          nuevasEvidencias.push(
+            evidenciaData as EvidenciaReclamo
           );
         }
 
-        const fileType:
-          "image" | "video" =
-          file.type.startsWith(
-            "video/"
-          )
-            ? "video"
-            : "image";
-
+        /*
+          Marcamos la respuesta como enviada SOLO después de que
+          toda la evidencia quedó guardada. Así una subida fallida
+          no bloquea el reintento del profesional.
+        */
         const {
           data:
-            evidenciaData,
+            respuestaGuardada,
           error:
-            evidenciaError,
-        } =
-          await supabase
+            respuestaError,
+        } = await supabase
+          .from("job_claims")
+          .update({
+            provider_response:
+              explicacionEvidencia.trim(),
+            provider_responded_at:
+              new Date().toISOString(),
+          })
+          .eq("id", reclamo.id)
+          .eq(
+            "provider_id",
+            providerId
+          )
+          .is(
+            "provider_responded_at",
+            null
+          )
+          .select("id")
+          .maybeSingle();
+
+        if (
+          respuestaError ||
+          !respuestaGuardada
+        ) {
+          throw new Error(
+            respuestaError
+              ? `${T("No pudimos guardar tu explicación", "We could not save your explanation")}: ${respuestaError.message}`
+              : T(
+                  "El reclamo cambió mientras enviabas la evidencia. Intenta actualizar la página.",
+                  "The claim changed while you were submitting evidence. Refresh the page and try again."
+                )
+          );
+        }
+      } catch (
+        evidenciaSubmitError
+      ) {
+        /*
+          Rollback compensatorio:
+          si cualquier paso falla, eliminamos los registros y archivos
+          creados por este intento para que el profesional pueda reintentar.
+        */
+        if (
+          nuevasEvidencias.length > 0
+        ) {
+          const ids =
+            nuevasEvidencias.map(
+              (item) =>
+                item.id
+            );
+
+          const {
+            error:
+              cleanupDbError,
+          } = await supabase
             .from(
               "claim_evidence"
             )
-            .insert({
-              claim_id:
-                reclamo.id,
-              uploaded_by:
-                providerId,
-              uploaded_by_role:
-                "provider",
-              file_type:
-                fileType,
-              file_url:
-                ruta,
-              file_path:
-                ruta,
-            })
-            .select(`
-              id,
-              claim_id,
-              uploaded_by,
-              uploaded_by_role,
-              file_type,
-              file_path,
-              created_at
-            `)
-            .single();
+            .delete()
+            .in(
+              "id",
+              ids
+            );
+
+          if (
+            cleanupDbError
+          ) {
+            console.error(
+              "No pudimos revertir claim_evidence después de un fallo:",
+              cleanupDbError
+            );
+          }
+        }
 
         if (
-          evidenciaError
+          rutasSubidas.length > 0
         ) {
-          await supabase.storage
+          const {
+            error:
+              cleanupStorageError,
+          } = await supabase.storage
             .from(
               "claim-evidence"
             )
-            .remove([
-              ruta,
-            ]);
+            .remove(
+              rutasSubidas
+            );
 
-          throw new Error(
-            `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
-          );
+          if (
+            cleanupStorageError
+          ) {
+            console.error(
+              "No pudimos revertir archivos de claim-evidence después de un fallo:",
+              cleanupStorageError
+            );
+          }
         }
 
-        nuevasEvidencias.push(
-          evidenciaData as EvidenciaReclamo
-        );
+        throw evidenciaSubmitError;
       }
 
       setEvidenciasReclamo(
@@ -3534,86 +3621,181 @@ export default function TrabajoDetallePage() {
       const cambio =
         nuevoCambio as ChangeOrder;
 
-      for (
-        const [
-          index,
-          file,
-        ] of archivosCambioPresupuesto.entries()
-      ) {
-        const nombreSeguro =
-          file.name
-            .replace(
-              /[^a-zA-Z0-9._-]/g,
-              "-"
+      const rutasCambioSubidas:
+        string[] =
+        [];
+
+      try {
+        for (
+          const [
+            index,
+            file,
+          ] of archivosCambioPresupuesto.entries()
+        ) {
+          const nombreSeguro =
+            file.name
+              .replace(
+                /[^a-zA-Z0-9._-]/g,
+                "-"
+              )
+              .slice(0, 80);
+
+          const ruta =
+            `${cambio.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
+
+          const {
+            error: uploadError,
+          } =
+            await supabase.storage
+              .from(
+                "change-order-evidence"
+              )
+              .upload(
+                ruta,
+                file,
+                {
+                  cacheControl:
+                    "3600",
+                  upsert: false,
+                  contentType:
+                    file.type,
+                }
+              );
+
+          if (uploadError) {
+            throw new Error(
+              `${T(
+                "No pudimos subir la evidencia del cambio de presupuesto",
+                "We could not upload the budget-change evidence"
+              )} "${file.name}": ${uploadError.message}`
+            );
+          }
+
+          rutasCambioSubidas.push(
+            ruta
+          );
+
+          const fileType:
+            "image" | "video" =
+            file.type.startsWith(
+              "video/"
             )
-            .slice(0, 80);
+              ? "video"
+              : "image";
 
-        const ruta =
-          `${cambio.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
+          const {
+            error: evidenciaError,
+          } =
+            await supabase
+              .from(
+                "change_order_evidence"
+              )
+              .insert({
+                change_order_id:
+                  cambio.id,
+                uploaded_by:
+                  providerId,
+                uploaded_by_role:
+                  "provider",
+                file_type:
+                  fileType,
+                file_path:
+                  ruta,
+                file_url:
+                  ruta,
+              });
 
+          if (evidenciaError) {
+            throw new Error(
+              `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+            );
+          }
+        }
+      } catch (
+        evidenciaCambioError
+      ) {
+        /*
+          El Change Order y su evidencia deben comportarse como una sola
+          operación. Si una evidencia falla, revertimos este intento para
+          que no quede un cambio parcial que el profesional no pueda reintentar.
+        */
         const {
-          error: uploadError,
-        } =
-          await supabase.storage
+          error:
+            cleanupEvidenceDbError,
+        } = await supabase
+          .from(
+            "change_order_evidence"
+          )
+          .delete()
+          .eq(
+            "change_order_id",
+            cambio.id
+          );
+
+        if (
+          cleanupEvidenceDbError
+        ) {
+          console.error(
+            "No pudimos revertir change_order_evidence:",
+            cleanupEvidenceDbError
+          );
+        }
+
+        if (
+          rutasCambioSubidas.length > 0
+        ) {
+          const {
+            error:
+              cleanupStorageError,
+          } = await supabase.storage
             .from(
               "change-order-evidence"
             )
-            .upload(
-              ruta,
-              file,
-              {
-                cacheControl:
-                  "3600",
-                upsert: false,
-                contentType:
-                  file.type,
-              }
+            .remove(
+              rutasCambioSubidas
             );
 
-        if (uploadError) {
-          throw new Error(
-            `${T(
-              "El cambio de presupuesto fue creado, pero no pudimos subir",
-              "The budget change was created, but we could not upload"
-            )} "${file.name}": ${uploadError.message}`
-          );
+          if (
+            cleanupStorageError
+          ) {
+            console.error(
+              "No pudimos revertir archivos de change-order-evidence:",
+              cleanupStorageError
+            );
+          }
         }
-
-        const fileType:
-          "image" | "video" =
-          file.type.startsWith(
-            "video/"
-          )
-            ? "video"
-            : "image";
 
         const {
-          error: evidenciaError,
-        } =
-          await supabase
-            .from(
-              "change_order_evidence"
-            )
-            .insert({
-              change_order_id:
-                cambio.id,
-              uploaded_by:
-                providerId,
-              uploaded_by_role:
-                "provider",
-              file_type:
-                fileType,
-              file_path:
-                ruta,
-              file_url:
-                ruta,
-            });
+          error:
+            cleanupChangeOrderError,
+        } = await supabase
+          .from(
+            "change_orders"
+          )
+          .delete()
+          .eq(
+            "id",
+            cambio.id
+          )
+          .eq(
+            "provider_id",
+            providerId
+          )
+          .eq(
+            "status",
+            "pending"
+          );
 
-        if (evidenciaError) {
-          throw new Error(
-            `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+        if (
+          cleanupChangeOrderError
+        ) {
+          console.error(
+            "No pudimos revertir el Change Order parcial:",
+            cleanupChangeOrderError
           );
         }
+
+        throw evidenciaCambioError;
       }
 
       setCambiosPresupuesto(
@@ -6019,8 +6201,8 @@ export default function TrabajoDetallePage() {
                     }`}
                   >
                     {chatRealtimeConectado
-                      ? "● En tiempo real"
-                      : "Conectando..."}
+                      ? T("● En tiempo real", "● Live")
+                      : T("Conectando...", "Connecting...")}
                   </span>
                 </div>
               </div>

@@ -339,10 +339,10 @@ export async function POST(
             serviceRequest.customer_id,
           type:
             "job_completed",
-          title:
-            "Trabajo completado",
-          message:
-            `${jobTitle}: el profesional marcó el servicio como terminado.`,
+          title: "Trabajo completado",
+          titleEn: "Job completed",
+          message: `${jobTitle}: el profesional marcó el servicio como terminado.`,
+          messageEn: `${jobTitle}: the professional marked the service as completed.`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,
@@ -406,10 +406,10 @@ export async function POST(
             serviceRequest.customer_id,
           type:
             "provider_released_job",
-          title:
-            "Buscando un nuevo profesional",
-          message:
-            `${jobTitle}: el profesional anterior ya no está disponible. Tu solicitud volvió a quedar abierta.`,
+          title: "Buscando un nuevo profesional",
+          titleEn: "Looking for a new professional",
+          message: `${jobTitle}: el profesional anterior ya no está disponible. Tu solicitud volvió a quedar abierta.`,
+          messageEn: `${jobTitle}: the previous professional is no longer available. Your request is open again.`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,
@@ -500,18 +500,10 @@ export async function POST(
             changeOrder.customer_id,
           type:
             "change_order_requested",
-          title:
-            "Cambio de presupuesto solicitado",
-          message:
-            `${jobTitle}: el profesional solicita $${Number(
-              changeOrder.additional_amount || 0
-            ).toFixed(
-              2
-            )} adicionales. Nuevo total: $${Number(
-              changeOrder.new_total_amount || 0
-            ).toFixed(
-              2
-            )}.`,
+          title: "Cambio de presupuesto solicitado",
+          titleEn: "Budget change requested",
+          message: `${jobTitle}: el profesional solicita $${Number(changeOrder.additional_amount || 0).toFixed(2)} adicionales. Nuevo total: $${Number(changeOrder.new_total_amount || 0).toFixed(2)}.`,
+          messageEn: `${jobTitle}: the professional is requesting an additional $${Number(changeOrder.additional_amount || 0).toFixed(2)}. New total: $${Number(changeOrder.new_total_amount || 0).toFixed(2)}.`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,
@@ -611,18 +603,18 @@ export async function POST(
             accepted
               ? "change_order_accepted"
               : "change_order_rejected",
-          title:
-            accepted
-              ? "Cambio de presupuesto aceptado"
-              : "Cambio de presupuesto rechazado",
-          message:
-            accepted
-              ? `${jobTitle}: el cliente aceptó el cambio de presupuesto de $${Number(
-                  changeOrder.additional_amount || 0
-                ).toFixed(2)}. El pago adicional queda pendiente de confirmación.`
-              : `${jobTitle}: el cliente rechazó el cambio de presupuesto de $${Number(
-                  changeOrder.additional_amount || 0
-                ).toFixed(2)}.`,
+          title: accepted
+            ? "Cambio de presupuesto aceptado"
+            : "Cambio de presupuesto rechazado",
+          titleEn: accepted
+            ? "Budget change accepted"
+            : "Budget change rejected",
+          message: accepted
+            ? `${jobTitle}: el cliente aceptó el cambio de presupuesto de $${Number(changeOrder.additional_amount || 0).toFixed(2)}. El pago adicional queda pendiente de confirmación.`
+            : `${jobTitle}: el cliente rechazó el cambio de presupuesto de $${Number(changeOrder.additional_amount || 0).toFixed(2)}.`,
+          messageEn: accepted
+            ? `${jobTitle}: the customer accepted the $${Number(changeOrder.additional_amount || 0).toFixed(2)} budget change. Additional payment is pending confirmation.`
+            : `${jobTitle}: the customer rejected the $${Number(changeOrder.additional_amount || 0).toFixed(2)} budget change.`,
           requestId,
           url:
             `/trabajos/${requestId}`,
@@ -716,10 +708,10 @@ export async function POST(
             claim.provider_id,
           type:
             "claim_opened",
-          title:
-            "Nuevo reclamo del cliente",
-          message:
-            `${jobTitle}: el cliente abrió un reclamo. Revisa el caso y envía tu respuesta dentro del plazo disponible.`,
+          title: "Nuevo reclamo del cliente",
+          titleEn: "New customer claim",
+          message: `${jobTitle}: el cliente abrió un reclamo. Revisa el caso y envía tu respuesta dentro del plazo disponible.`,
+          messageEn: `${jobTitle}: the customer opened a claim. Review the case and send your response within the available deadline.`,
           requestId,
           url:
             `/trabajos/${requestId}`,
@@ -809,10 +801,10 @@ export async function POST(
             claim.customer_id,
           type:
             "claim_provider_responded",
-          title:
-            "El profesional respondió al reclamo",
-          message:
-            `${jobTitle}: el profesional envió su respuesta y evidencia para revisión de RELYDO.`,
+          title: "El profesional respondió al reclamo",
+          titleEn: "The professional responded to the claim",
+          message: `${jobTitle}: el profesional envió su respuesta y evidencia para revisión de RELYDO.`,
+          messageEn: `${jobTitle}: the professional submitted a response and evidence for RELYDO review.`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,

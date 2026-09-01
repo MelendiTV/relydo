@@ -659,6 +659,10 @@ export default function CompletarVerificacion() {
       .single();
 
     if (documentError) {
+      await supabase.storage
+        .from("provider-documents")
+        .remove([filePath]);
+
       throw new Error(
         `${text.errorRegistroArchivo}: ${documentError.message}`
       );

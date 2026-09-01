@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../../lib/serverNotifications";
+import { hasAdminPermission, isAdminRole } from "../../../../lib/adminPermissions";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -16,7 +17,6 @@ const supabaseAdmin = createClient(
   }
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type ResolutionAction =
   | "pay_provider"
@@ -64,12 +64,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { data: adminProfile, error: adminProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("role, admin_role")
+      .eq("id", user.id)
+      .maybeSingle();
+
     if (
-      user.email.toLowerCase() !==
-      ADMIN_EMAIL.toLowerCase()
+      adminProfileError ||
+      !adminProfile ||
+      adminProfile.role !== "admin" ||
+      !isAdminRole(adminProfile.admin_role) ||
+      !hasAdminPermission(adminProfile.admin_role, "claims")
     ) {
       return NextResponse.json(
-        { error: "No tienes permiso de administrador." },
+        { error: "No tienes permiso para resolver reclamos." },
         { status: 403 }
       );
     }
@@ -493,7 +502,9 @@ export async function POST(request: NextRequest) {
               userId: claim.customer_id,
               type: "claim_resolved",
               title: "Reclamo resuelto",
+              titleEn: "Claim resolved",
               message: `RELYDO resolvió el reclamo a favor del profesional. El trabajo continuará. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              messageEn: `RELYDO resolved the claim in favor of the professional. The job will continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/mis-solicitudes/${claim.request_id}`,
             }),
@@ -501,7 +512,9 @@ export async function POST(request: NextRequest) {
               userId: claim.provider_id,
               type: "claim_resolved",
               title: "Reclamo resuelto",
+              titleEn: "Claim resolved",
               message: `RELYDO resolvió el reclamo a tu favor. El trabajo fue desbloqueado y puedes continuar. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              messageEn: `RELYDO resolved the claim in your favor. The job was unlocked and you may continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/trabajos/${claim.request_id}`,
             }),
@@ -732,7 +745,9 @@ export async function POST(request: NextRequest) {
             userId: claim.customer_id,
             type: "claim_resolved",
             title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
             message: `RELYDO resolvió el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO resolved the claim in favor of the professional. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/mis-solicitudes/${claim.request_id}`,
           }),
@@ -740,7 +755,9 @@ export async function POST(request: NextRequest) {
             userId: claim.provider_id,
             type: "claim_resolved",
             title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
             message: `RELYDO resolvió el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO resolved the claim in your favor. $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
           }),
@@ -920,7 +937,9 @@ export async function POST(request: NextRequest) {
             userId: claim.customer_id,
             type: "claim_resolved",
             title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
             message: `RELYDO resolvió el reclamo a tu favor. Se procesó un reembolso de $${totalRefunded.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO resolved the claim in your favor. A $${totalRefunded.toFixed(2)} refund was processed. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/mis-solicitudes/${claim.request_id}`,
           }),
@@ -928,7 +947,9 @@ export async function POST(request: NextRequest) {
             userId: claim.provider_id,
             type: "claim_resolved",
             title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
             message: `RELYDO resolvió el reclamo a favor del cliente. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO resolved the claim in favor of the customer. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
           }),
@@ -1635,12 +1656,10 @@ export async function POST(request: NextRequest) {
             claim.customer_id,
           type:
             "claim_resolved",
-          title:
-            "Reclamo resuelto",
-          message:
-            `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(
-              2
-            )}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          title: "Reclamo resuelto",
+          titleEn: "Claim resolved",
+          message: `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          messageEn: `RELYDO partially resolved the claim. Refund for you: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
           url:
@@ -1652,12 +1671,10 @@ export async function POST(request: NextRequest) {
             claim.provider_id,
           type:
             "claim_resolved",
-          title:
-            "Reclamo resuelto",
-          message:
-            `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(
-              2
-            )}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          title: "Reclamo resuelto",
+          titleEn: "Claim resolved",
+          message: `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          messageEn: `RELYDO partially resolved the claim. Compensation for you: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
           url:

@@ -572,45 +572,23 @@ function RegistroClienteContenido() {
     try {
       /*
         PRIMERO:
-        COMPROBAR EN EL SERVIDOR SI EL CORREO YA EXISTE.
-
-        La ruta /api/auth/check-email utiliza la clave secreta
-        solamente del lado del servidor.
+        COMPROBAR SI EL CORREO YA EXISTE MEDIANTE LA RPC SEGURA.
       */
 
-      const checkEmailResponse = await fetch(
-        "/api/auth/check-email",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: correoLimpio,
-          }),
-        }
-      );
+      const { data: emailExiste, error: emailCheckError } =
+        await supabase.rpc("relydo_email_exists", {
+          check_email: correoLimpio,
+        });
 
-      if (!checkEmailResponse.ok) {
-        console.error(
-          "Error verificando correo:",
-          await checkEmailResponse.text()
-        );
-
-        setError(
-          text.errorVerificandoCorreo
-        );
+      if (emailCheckError) {
+        console.error("Error verificando correo:", emailCheckError);
+        setError(text.errorVerificandoCorreo);
         setLoading(false);
         return;
       }
 
-      const checkEmailData =
-        await checkEmailResponse.json();
-
-      if (checkEmailData?.exists === true) {
-        setError(
-          text.correoYaRegistrado
-        );
+      if (emailExiste === true) {
+        setError(text.correoYaRegistrado);
         setLoading(false);
         return;
       }
