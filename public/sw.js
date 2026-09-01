@@ -17,32 +17,20 @@ self.addEventListener("push", function (event) {
   const options = {
     body: data.body || "Tienes una nueva notificación.",
 
-    // Icono principal
     icon: "/icons/notification-icon.png",
-
-    // Badge pequeño
     badge: "/icons/notification-icon.png",
 
-    // Guardamos el destino recibido desde el servidor
     data: {
       url: data.url || "/",
     },
 
     vibrate: [200, 100, 200],
 
-    // Cada notificación puede traer su propio tag.
-    // Los nuevos trabajos usan: new-job-<requestId>
     tag: data.tag || `relydo-${Date.now()}`,
 
-    // Si vuelve a llegar el mismo tag, vuelve a avisar.
     renotify: true,
-
-    // La notificación no debe ser silenciosa.
     silent: false,
-
-    // Mantener visible cuando navegador/SO lo permita.
     requireInteraction: true,
-
     timestamp: Date.now(),
   };
 
@@ -57,55 +45,108 @@ self.addEventListener("push", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 
-  const rawUrl =
-    event.notification.data?.url || "/";
+  const rawUrl = event.notification.data?.url || "/";
 
-  // Convierte siempre rutas como:
-  // /trabajos/123
-  //
-  // en una URL absoluta del dominio donde vive este Service Worker:
-  // https://www.relydo.co/trabajos/123
-  const targetUrl = new URL(
-    rawUrl,
-    self.location.origin
-  ).href;
+  let targetUrl;
+
+  try {
+    targetUrl = new URL(
+      rawUrl,
+      self.location.origin
+    ).href;
+  } catch (error) {
+    console.error(
+      "RELYDO invalid notification URL:",
+      error
+    );
+
+    targetUrl = self.location.origin + "/";
+  }
 
   event.waitUntil(
     (async function () {
-      const clientList = await clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
+      try {
+        /*
+          IMPORTANTE:
 
-      // Si RELYDO ya está abierto, usamos esa ventana.
-      for (const client of clientList) {
-        try {
-          const clientUrl = new URL(client.url);
+          Abrimos directamente el destino de la
+          notificación.
 
-          // Solo usamos ventanas del mismo dominio.
-          if (clientUrl.origin === self.location.origin) {
-            if ("navigate" in client) {
-              await client.navigate(targetUrl);
-            }
+          Esto evita depender de client.navigate(),
+          que puede comportarse diferente entre
+          Chrome, Edge y una PWA instalada en iPhone.
 
-            if ("focus" in client) {
-              await client.focus();
-            }
+          Si /trabajos/[id] detecta que no existe
+          sesión profesional, esa página enviará a:
 
-            return;
+          /login-profesional?redirect=/trabajos/[id]
+
+          y el login conservará ese destino.
+        */
+
+        if (clients.openWindow) {
+          const openedClient =
+            await clients.openWindow(targetUrl);
+
+          if (
+            openedClient &&
+            "focus" in openedClient
+          ) {
+            await openedClient.focus();
           }
-        } catch (error) {
-          console.error(
-            "RELYDO notification navigation error:",
-            error
-          );
-        }
-      }
 
-      // Si RELYDO no está abierto, abrimos directamente
-      // la página específica del trabajo.
-      if (clients.openWindow) {
-        await clients.openWindow(targetUrl);
+          return;
+        }
+
+        /*
+          FALLBACK:
+
+          Algunos navegadores podrían no permitir
+          openWindow en una situación determinada.
+
+          En ese caso buscamos una ventana RELYDO
+          existente y tratamos de navegarla.
+        */
+
+        const clientList =
+          await clients.matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          });
+
+        for (const client of clientList) {
+          try {
+            const clientUrl =
+              new URL(client.url);
+
+            if (
+              clientUrl.origin ===
+              self.location.origin
+            ) {
+              if ("navigate" in client) {
+                await client.navigate(
+                  targetUrl
+                );
+              }
+
+              if ("focus" in client) {
+                await client.focus();
+              }
+
+              return;
+            }
+          } catch (error) {
+            console.error(
+              "RELYDO notification client error:",
+              error
+            );
+          }
+        }
+      } catch (error) {
+        console.error(
+          "RELYDO notification click error:",
+          error
+        );
       }
     })()
   );

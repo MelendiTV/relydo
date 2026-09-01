@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
 const supabase = createClient(
@@ -23,7 +23,18 @@ type SolicitudDocumentoPendiente = {
 
 export default function LoginProfesional() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { language } = useLanguage();
+
+  const redirectParam = searchParams.get("redirect");
+
+  const redirectProfesional =
+    redirectParam &&
+    redirectParam.startsWith("/") &&
+    !redirectParam.startsWith("//") &&
+    !redirectParam.startsWith("/login-profesional")
+      ? redirectParam
+      : "/panel-profesional";
 
   const text =
     language === "es"
@@ -626,7 +637,7 @@ export default function LoginProfesional() {
     try {
       window.localStorage.setItem(
         "relydo_provider_oauth_redirect",
-        "/panel-profesional"
+        redirectProfesional
       );
 
       const redirectTo =
@@ -925,7 +936,7 @@ export default function LoginProfesional() {
         */
 
         router.replace(
-          "/panel-profesional"
+          redirectProfesional
         );
 
         router.refresh();
