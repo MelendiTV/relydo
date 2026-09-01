@@ -542,6 +542,12 @@ export async function POST(
         );
       }
 
+      // El Push externo NO debe depender de que la notificación interna
+      // sea nueva. Si la campana ya tenía el evento pero el Web Push
+      // falló o no se entregó, este profesional debe seguir entrando
+      // en la fase de envío a sus dispositivos.
+      providerIdsToNotify.push(providerId);
+
       if (existingNotification) {
         duplicadosOmitidos += 1;
         continue;
@@ -570,9 +576,6 @@ export async function POST(
         );
       }
 
-      providerIdsToNotify.push(
-        providerId
-      );
     }
 
     if (
@@ -593,7 +596,10 @@ export async function POST(
 
     /*
       9. BUSCAR DISPOSITIVOS PUSH
-      SOLO DE LOS PROS QUE AÚN NO HABÍAN SIDO NOTIFICADOS
+      DE TODOS LOS PROS COMPATIBLES
+
+      La deduplicación de la campana interna NO debe bloquear
+      el intento de Web Push.
     */
 
     const {
@@ -687,6 +693,20 @@ export async function POST(
         );
 
         enviados += 1;
+
+        try {
+          const endpointHost = new URL(subscription.endpoint).host;
+          console.log(
+            "Push nuevo trabajo enviado:",
+            {
+              providerId: subscription.user_id,
+              endpointHost,
+              requestId: trabajo.id,
+            }
+          );
+        } catch {
+          // No bloqueamos el flujo solo por no poder parsear el endpoint.
+        }
       } catch (error: unknown) {
         fallidos += 1;
 
