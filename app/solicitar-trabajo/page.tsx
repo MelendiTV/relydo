@@ -706,78 +706,127 @@ function SolicitarTrabajoContenido() {
     const fotosParaGuardar:
       FotoSubida[] = [];
 
-    for (const file of files) {
-      const extension =
-        file.name
-          .split(".")
-          .pop()
-          ?.toLowerCase() ||
-        "jpg";
+    const archivosSubidos:
+      string[] = [];
 
-      const nombreArchivo =
-        `${crypto.randomUUID()}.${extension}`;
+    try {
+      for (const file of files) {
+        const extension =
+          file.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() ||
+          "jpg";
 
-      const filePath =
-        `${requestId}/${nombreArchivo}`;
+        const nombreArchivo =
+          `${crypto.randomUUID()}.${extension}`;
 
-      const {
-        error: uploadError,
-      } =
-        await supabase.storage
-          .from("request-photos")
-          .upload(
-            filePath,
-            file,
-            {
-              cacheControl:
-                "3600",
+        const filePath =
+          `${requestId}/${nombreArchivo}`;
 
-              upsert: false,
+        const {
+          error: uploadError,
+        } =
+          await supabase.storage
+            .from("request-photos")
+            .upload(
+              filePath,
+              file,
+              {
+                cacheControl:
+                  "3600",
 
-              contentType:
-                file.type,
-            }
+                upsert: false,
+
+                contentType:
+                  file.type,
+              }
+            );
+
+        if (uploadError) {
+          console.error(
+            "Error subiendo foto de solicitud:",
+            uploadError
           );
 
-      if (uploadError) {
-        throw new Error(
-          `${text.solicitudFotoUploadError} "${file.name}": ${uploadError.message}`
+          throw new Error(
+            `${text.solicitudFotoUploadError} "${file.name}".`
+          );
+        }
+
+        archivosSubidos.push(
+          filePath
+        );
+
+        const {
+          data:
+            publicUrlData,
+        } =
+          supabase.storage
+            .from("request-photos")
+            .getPublicUrl(
+              filePath
+            );
+
+        fotosParaGuardar.push(
+          {
+            request_id:
+              requestId,
+
+            file_url:
+              publicUrlData.publicUrl,
+          }
         );
       }
 
       const {
-        data:
-          publicUrlData,
-      } =
-        supabase.storage
-          .from("request-photos")
-          .getPublicUrl(
-            filePath
+        error: photosError,
+      } = await supabase
+        .from("request_photos")
+        .insert(
+          fotosParaGuardar
+        );
+
+      if (photosError) {
+        console.error(
+          "Error asociando fotos a la solicitud:",
+          photosError
+        );
+
+        throw new Error(
+          text.fotosAsociarError
+        );
+      }
+    } catch (error) {
+      /*
+        Si falla cualquier upload posterior o falla
+        la asociación en request_photos, eliminamos
+        del bucket todos los objetos que sí alcanzaron
+        a subirse en este intento. Así no quedan
+        archivos huérfanos.
+      */
+      if (
+        archivosSubidos.length >
+        0
+      ) {
+        const {
+          error: cleanupError,
+        } =
+          await supabase.storage
+            .from("request-photos")
+            .remove(
+              archivosSubidos
+            );
+
+        if (cleanupError) {
+          console.error(
+            "Error limpiando fotos huérfanas:",
+            cleanupError
           );
-
-      fotosParaGuardar.push(
-        {
-          request_id:
-            requestId,
-
-          file_url:
-            publicUrlData.publicUrl,
         }
-      );
-    }
+      }
 
-    const {
-      error: photosError,
-    } = await supabase
-      .from("request_photos")
-      .insert(
-        fotosParaGuardar
-      );
-
-    if (photosError) {
-      throw new Error(
-        `${text.fotosAsociarError}: ${photosError.message}`
-      );
+      throw error;
     }
   }
 
