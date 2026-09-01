@@ -63,19 +63,20 @@ function nombreOficio(
   trade: string | null,
   language: "es" | "en"
 ) {
+  const key = normalizarTrade(trade);
+
   const oficiosEs: Record<string, string> = {
     plumbing: "Plomería",
     electrical: "Electricidad",
-    hvac: "HVAC / Aire acondicionado",
-    "ac-rental": "Renta de aires acondicionados",
-    carpentry: "Carpintería",
     painting: "Pintura",
     landscaping: "Jardinería",
     cleaning: "Limpieza",
+    hvac: "A/C y HVAC",
+    "ac-rental": "Renta de A/C",
+    carpentry: "Carpintería",
     moving: "Mudanzas",
+    "appliance-repair": "Reparación de electrodomésticos",
     handyman: "Handyman",
-    "appliance-repair":
-      "Reparación de electrodomésticos",
     locksmith: "Cerrajería",
     roofing: "Techado",
     flooring: "Pisos",
@@ -83,63 +84,84 @@ function nombreOficio(
     drywall: "Drywall",
     masonry: "Concreto y albañilería",
     "doors-windows": "Puertas y ventanas",
-    garage: "Garajes",
+    "garage-doors": "Garajes",
     fencing: "Cercas",
-    "pools-spas": "Piscinas y spas",
+    "pool-spa": "Piscinas y spas",
     "pest-control": "Control de plagas",
     "pressure-washing": "Lavado a presión",
     "carpet-cleaning": "Limpieza de alfombras",
     "junk-removal": "Retiro de basura",
     "furniture-assembly": "Montaje de muebles",
-    "tv-smart-home": "TV y hogar inteligente",
-    other: "Otros servicios",
+    "smart-home": "TV y hogar inteligente",
   };
 
   const oficiosEn: Record<string, string> = {
     plumbing: "Plumbing",
     electrical: "Electrical",
-    hvac: "HVAC / Air conditioning",
-    "ac-rental": "Air conditioner rental",
-    carpentry: "Carpentry",
     painting: "Painting",
     landscaping: "Landscaping",
     cleaning: "Cleaning",
+    hvac: "A/C & HVAC",
+    "ac-rental": "A/C Rental",
+    carpentry: "Carpentry",
     moving: "Moving",
-    handyman: "Handyman",
     "appliance-repair": "Appliance repair",
+    handyman: "Handyman",
     locksmith: "Locksmith",
     roofing: "Roofing",
     flooring: "Flooring",
-    tile: "Tile and stone",
+    tile: "Tile",
     drywall: "Drywall",
-    masonry: "Concrete and masonry",
-    "doors-windows": "Doors and windows",
-    garage: "Garage doors",
-    fencing: "Fences",
-    "pools-spas": "Pools and spas",
+    masonry: "Concrete & masonry",
+    "doors-windows": "Doors & windows",
+    "garage-doors": "Garage doors",
+    fencing: "Fencing",
+    "pool-spa": "Pools & spas",
     "pest-control": "Pest control",
     "pressure-washing": "Pressure washing",
     "carpet-cleaning": "Carpet cleaning",
     "junk-removal": "Junk removal",
     "furniture-assembly": "Furniture assembly",
-    "tv-smart-home": "TV and smart home",
-    other: "Other services",
+    "smart-home": "TV & smart home",
   };
 
   if (!trade) {
-    return language === "es"
-      ? "Profesional"
-      : "Professional";
+    return language === "es" ? "Profesional" : "Professional";
   }
 
-  const key = normalizarTrade(trade);
-  const oficios =
-    language === "es"
-      ? oficiosEs
-      : oficiosEn;
-
+  const oficios = language === "es" ? oficiosEs : oficiosEn;
   return oficios[key] || trade;
 }
+
+const ESPECIALIDADES = [
+  "plumbing",
+  "electrical",
+  "painting",
+  "landscaping",
+  "cleaning",
+  "hvac",
+  "ac_rental",
+  "carpentry",
+  "moving",
+  "appliance_repair",
+  "handyman",
+  "locksmith",
+  "roofing",
+  "flooring",
+  "tile",
+  "drywall",
+  "masonry",
+  "doors_windows",
+  "garage_doors",
+  "fencing",
+  "pool_spa",
+  "pest_control",
+  "pressure_washing",
+  "carpet_cleaning",
+  "junk_removal",
+  "furniture_assembly",
+  "smart_home",
+] as const;
 
 function ProfesionalesContenido() {
   const router = useRouter();
@@ -575,47 +597,24 @@ function ProfesionalesContenido() {
   }
 
   const categorias = useMemo(() => {
-    const conteo = new Map<
-      string,
-      number
-    >();
+    const conteo = new Map<string, number>();
 
-    profesionales.forEach(
-      (profesional) => {
-        const trade =
-          normalizarTrade(
-            profesional.trade
-          );
+    profesionales.forEach((profesional) => {
+      const key = normalizarTrade(profesional.trade);
+      if (!key) return;
+      conteo.set(key, (conteo.get(key) || 0) + 1);
+    });
 
-        if (!trade) return;
+    return ESPECIALIDADES.map((trade) => {
+      const key = normalizarTrade(trade);
 
-        conteo.set(
-          trade,
-          (conteo.get(trade) || 0) + 1
-        );
-      }
-    );
-
-    return Array.from(
-      conteo.entries()
-    )
-      .map(([trade, count]) => ({
+      return {
         trade,
-        count,
-        nombre: nombreOficio(
-          trade,
-          language
-        ),
-      }))
-      .sort((a, b) => {
-        if (b.count !== a.count) {
-          return b.count - a.count;
-        }
-
-        return a.nombre.localeCompare(
-          b.nombre
-        );
-      });
+        key,
+        count: conteo.get(key) || 0,
+        nombre: nombreOficio(trade, language),
+      };
+    });
   }, [profesionales, language]);
 
   const profesionalesFiltrados =
@@ -735,415 +734,125 @@ function ProfesionalesContenido() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10">
       <div className="mx-auto max-w-6xl">
+        {/* BUSCADOR ARRIBA */}
+        {!error && (
+          <div className="relative mb-5">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">
+              🔍
+            </span>
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(event) => setBusqueda(event.target.value)}
+              placeholder={text.buscarPlaceholder}
+              className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
+          </div>
+        )}
+
         {/* HEADER */}
-        <div>
-          <button
-            type="button"
-            onClick={() =>
-              router.back()
-            }
-            aria-label={
-              language === "es"
-                ? "Volver a la página anterior"
-                : "Go back to previous page"
-            }
-            title={
-              language === "es"
-                ? "Volver"
-                : "Back"
-            }
-            className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:-translate-x-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md active:scale-95"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-              aria-hidden="true"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label={
+                language === "es"
+                  ? "Volver a la página anterior"
+                  : "Go back to previous page"
+              }
+              title={language === "es" ? "Volver" : "Back"}
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
             >
-              <path d="M19 12H5" />
-              <path d="M12 19l-7-7 7-7" />
-            </svg>
-          </button>
+              ←
+            </button>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-4xl font-extrabold text-slate-900">
-                {text.titulo}
-              </h1>
+            <h1 className="text-4xl font-extrabold text-slate-900">
+              {text.titulo}
+            </h1>
+            <p className="mt-1 text-base text-slate-600">
+              {text.descripcion}
+            </p>
+          </div>
 
-              <p className="mt-2 text-lg text-slate-600">
-                {text.descripcion}
-              </p>
-            </div>
-
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
-              <span>📍</span>
-              <span>
-                {areaLabel ||
-                  text.ubicacionNoDisponible}
-              </span>
-            </div>
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
+            <span>📍</span>
+            <span>{areaLabel || text.ubicacionNoDisponible}</span>
           </div>
         </div>
 
         {/* ERROR */}
         {error && (
-          <div className="mt-7 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
+          <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
             {error}
           </div>
         )}
 
         {!error && (
           <>
-            {/* BUSCADOR */}
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl">
-                  🔍
-                </span>
+            {/* 21 ESPECIALIDADES COMPACTAS: 11 ARRIBA / 10 ABAJO EN DESKTOP */}
+            <div className="mt-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {categorias.map((categoria, index) => {
+                  const tonos = [
+                    "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100",
+                    "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+                    "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100",
+                    "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                    "border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100",
+                    "border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100",
+                  ];
+                  const activo =
+                    normalizarTrade(tradeSeleccionado) === categoria.key;
 
-                <input
-                  type="search"
-                  value={busqueda}
-                  onChange={(event) =>
-                    setBusqueda(
-                      event.target.value
-                    )
-                  }
-                  placeholder={
-                    text.buscarPlaceholder
-                  }
-                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-4 pl-12 pr-4 text-base font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-
-              {/* ESPECIALIDADES */}
-              <div className="mt-6">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="font-extrabold text-slate-900">
-                      {
-                        text.especialidadesZona
-                      }
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      {
-                        profesionales.length
-                      }{" "}
-                      {profesionales.length ===
-                      1
-                        ? text.resultado
-                        : text.resultados}
-                    </p>
-                  </div>
-
-                  {(tradeSeleccionado ||
-                    busqueda) && (
+                  return (
                     <button
+                      key={categoria.trade}
                       type="button"
-                      onClick={
-                        limpiarFiltros
-                      }
-                      className="mt-2 w-fit text-sm font-bold text-blue-700 hover:text-blue-900 sm:mt-0"
+                      onClick={() => seleccionarTrade(categoria.trade)}
+                      title={categoria.nombre}
+                      className={`flex min-h-[64px] min-w-0 items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-sm font-extrabold leading-tight shadow-sm transition ${
+                        activo
+                          ? "border-blue-700 bg-blue-700 text-white shadow-sm"
+                          : tonos[index % tonos.length]
+                      }`}
                     >
-                      {text.limpiar}
+                      <span className="min-w-0 flex-1 break-words text-left [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                        {categoria.nombre}
+                      </span>
+                      <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-black/10 px-2 text-xs font-black">
+                        {categoria.count}
+                      </span>
                     </button>
-                  )}
-                </div>
+                  );
+                })}
+              </div>
 
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible">
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => seleccionarTrade("")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
+                    !tradeSeleccionado
+                      ? "border-blue-700 bg-blue-700 text-white"
+                      : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400 hover:bg-blue-100"
+                  }`}
+                >
+                  {text.todos} · {profesionales.length}
+                </button>
+
+                {(tradeSeleccionado || busqueda) && (
                   <button
                     type="button"
-                    onClick={() =>
-                      seleccionarTrade(
-                        ""
-                      )
-                    }
-                    className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-extrabold transition ${
-                      !tradeSeleccionado
-                        ? "border-blue-700 bg-blue-700 text-white shadow-md"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                    }`}
-                  >
-                    {text.todos}{" "}
-                    <span className="ml-1 rounded-full bg-black/10 px-2 py-0.5 text-xs">
-                      {
-                        profesionales.length
-                      }
-                    </span>
-                  </button>
-
-                  {categorias.map(
-                    (categoria) => (
-                      <button
-                        key={
-                          categoria.trade
-                        }
-                        type="button"
-                        onClick={() =>
-                          seleccionarTrade(
-                            categoria.trade
-                          )
-                        }
-                        className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-extrabold transition ${
-                          normalizarTrade(
-                            tradeSeleccionado
-                          ) ===
-                          categoria.trade
-                            ? "border-blue-700 bg-blue-700 text-white shadow-md"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                        }`}
-                      >
-                        {
-                          categoria.nombre
-                        }{" "}
-                        <span className="ml-1 rounded-full bg-black/10 px-2 py-0.5 text-xs">
-                          {
-                            categoria.count
-                          }
-                        </span>
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* TITULO RESULTADOS */}
-            <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
-                  {text.zona}
-                </p>
-                <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                  {
-                    text.profesionalesZona
-                  }
-                </h2>
-              </div>
-
-              <p className="text-sm font-bold text-slate-500">
-                {
-                  profesionalesFiltrados.length
-                }{" "}
-                {profesionalesFiltrados.length ===
-                1
-                  ? text.resultado
-                  : text.resultados}
-              </p>
-            </div>
-
-            {/* SIN PROFESIONALES EN EL AREA */}
-            {profesionales.length ===
-              0 && (
-              <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
-                <div className="text-5xl">
-                  👷
-                </div>
-
-                <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
-                  {
-                    text.sinProfesionales
-                  }
-                </h2>
-
-                <p className="mt-2 text-slate-600">
-                  {
-                    text.sinProfesionalesDescripcion
-                  }
-                </p>
-              </div>
-            )}
-
-            {/* SIN COINCIDENCIAS DE BUSQUEDA/FILTRO */}
-            {profesionales.length >
-              0 &&
-              profesionalesFiltrados.length ===
-                0 && (
-                <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
-                  <div className="text-5xl">
-                    🔎
-                  </div>
-
-                  <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
-                    {
-                      text.sinCoincidencias
-                    }
-                  </h2>
-
-                  <p className="mt-2 text-slate-600">
-                    {
-                      text.sinCoincidenciasDescripcion
-                    }
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={
-                      limpiarFiltros
-                    }
-                    className="mt-5 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
+                    onClick={limpiarFiltros}
+                    className="text-xs font-bold text-blue-700 hover:text-blue-900"
                   >
                     {text.limpiar}
                   </button>
-                </div>
-              )}
-
-            {/* LISTA */}
-            {profesionalesFiltrados.length >
-              0 && (
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                {profesionalesFiltrados.map(
-                  (
-                    profesional
-                  ) => (
-                    <article
-                      key={
-                        profesional.user_id
-                      }
-                      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
-                    >
-                      {/* CABECERA */}
-                      <div className="bg-blue-700 p-6 text-white">
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl">
-                            👷
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
-                              ✓{" "}
-                              {
-                                text.verificado
-                              }
-                            </span>
-
-                            <h2 className="mt-3 break-words text-2xl font-extrabold">
-                              {profesional.business_name ||
-                                profesional.full_name ||
-                                text.profesionalRelydo}
-                            </h2>
-
-                            {profesional.full_name &&
-                              profesional.business_name && (
-                                <p className="mt-1 text-sm font-medium text-blue-100">
-                                  {
-                                    profesional.full_name
-                                  }
-                                </p>
-                              )}
-
-                            <p className="mt-1 font-semibold text-blue-100">
-                              {nombreOficio(
-                                profesional.trade,
-                                language
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CONTENIDO */}
-                      <div className="p-6">
-                        {profesional.bio && (
-                          <p className="line-clamp-3 leading-7 text-slate-600">
-                            {
-                              profesional.bio
-                            }
-                          </p>
-                        )}
-
-                        <div className="mt-5 grid grid-cols-3 gap-3">
-                          <div className="rounded-xl bg-slate-50 p-3 text-center">
-                            <p className="text-xs text-slate-500">
-                              {
-                                text.calificacion
-                              }
-                            </p>
-
-                            <p className="mt-1 font-extrabold text-slate-900">
-                              ⭐{" "}
-                              {Number(
-                                profesional.average_rating ??
-                                  0
-                              ).toFixed(
-                                1
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl bg-slate-50 p-3 text-center">
-                            <p className="text-xs text-slate-500">
-                              {
-                                text.trabajos
-                              }
-                            </p>
-
-                            <p className="mt-1 font-extrabold text-slate-900">
-                              {profesional.completed_jobs ??
-                                0}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl bg-slate-50 p-3 text-center">
-                            <p className="text-xs text-slate-500">
-                              {
-                                text.experiencia
-                              }
-                            </p>
-
-                            <p className="mt-1 font-extrabold text-slate-900">
-                              {profesional.years_experience ??
-                                0}{" "}
-                              {
-                                text.anos
-                              }
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(
-                                `/profesionales/${profesional.user_id}?returnTo=${encodeURIComponent(
-                                  professionalsReturnPath
-                                )}`
-                              )
-                            }
-                            className="rounded-xl border-2 border-blue-700 px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
-                          >
-                            {
-                              text.verPerfil
-                            }
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(
-                                `/solicitar-trabajo?profesional=${profesional.user_id}`
-                              )
-                            }
-                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
-                          >
-                            {
-                              text.solicitarTrabajo
-                            }
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  )
                 )}
               </div>
-            )}
+            </div>
+
           </>
         )}
       </div>
