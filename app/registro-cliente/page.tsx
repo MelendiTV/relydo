@@ -187,6 +187,9 @@ function RegistroClienteContenido() {
           passwordCorta:
             "La contraseña debe tener al menos 8 caracteres.",
 
+          passwordInsegura:
+            "La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un carácter especial.",
+
           nombreRequerido:
             "Escribe tu nombre completo.",
 
@@ -325,6 +328,9 @@ function RegistroClienteContenido() {
 
           passwordCorta:
             "Password must be at least 8 characters.",
+
+          passwordInsegura:
+            "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character.",
 
           nombreRequerido:
             "Enter your full name.",
@@ -492,6 +498,16 @@ function RegistroClienteContenido() {
 
     if (password.length < 8) {
       setError(text.passwordCorta);
+      return;
+    }
+
+    const passwordSegura =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(
+        password
+      );
+
+    if (!passwordSegura) {
+      setError(text.passwordInsegura);
       return;
     }
 
@@ -1056,6 +1072,10 @@ function RegistroClienteContenido() {
                     disabled={loading}
                     autoComplete="new-password"
                     minLength={8}
+                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                    title={
+                      text.passwordInsegura
+                    }
                     placeholder={
                       text.passwordPlaceholder
                     }
@@ -1111,6 +1131,10 @@ function RegistroClienteContenido() {
                     disabled={loading}
                     autoComplete="new-password"
                     minLength={8}
+                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                    title={
+                      text.passwordInsegura
+                    }
                     placeholder={
                       text.confirmPasswordPlaceholder
                     }
