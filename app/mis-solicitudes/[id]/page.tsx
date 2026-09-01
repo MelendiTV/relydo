@@ -19,14 +19,12 @@ type Solicitud = {
   zip_code: string;
   preferred_date: string | null;
   preferred_time: string | null;
+  preferred_provider_id: string | null;
   status: string;
   job_stage: string | null;
   cancellation_reason: string | null;
   cancelled_at: string | null;
   completed_at: string | null;
-  completion_review_status: "pending" | "approved" | null;
-  submitted_for_review_at: string | null;
-  completion_approved_at: string | null;
 };
 
 type Oferta = {
@@ -153,6 +151,21 @@ type CompletionEvidence = {
   signed_url: string | null;
 };
 
+type RequestPhoto = {
+  id: string;
+  request_id: string;
+  file_url: string;
+  created_at: string;
+  signed_url: string | null;
+};
+
+type PreferredProvider = {
+  user_id: string;
+  business_name: string | null;
+  trade: string | null;
+  verified: boolean | null;
+};
+
 type JobMessage = {
   id: string;
   request_id: string;
@@ -164,12 +177,6 @@ type JobMessage = {
 };
 
 const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
-  "Aprobar trabajo": "Approve job",
-  "Aprobando trabajo...": "Approving job...",
-  "Trabajo en revisión": "Job under review",
-  "El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.": "The professional finished the job and submitted final evidence. Review it before approving or reporting a problem.",
-  "¿Confirmas que revisaste la evidencia y apruebas el trabajo como completado?": "Do you confirm that you reviewed the evidence and approve the job as completed?",
-  "Trabajo aprobado correctamente.": "Job approved successfully.",
   "Cargando solicitud...": "Loading request...",
   "No se pudo abrir la solicitud": "Could not open the request",
   "Volver a mis solicitudes": "Back to my requests",
@@ -177,6 +184,12 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "📍 Ubicación": "📍 Location",
   "📅 Fecha preferida": "📅 Preferred date",
   "🕐 Hora preferida": "🕐 Preferred time",
+  "📷 Fotos de la solicitud": "📷 Request photos",
+  "Fotos que adjuntaste al crear esta solicitud.": "Photos you attached when creating this request.",
+  "Foto de la solicitud": "Request photo",
+  "⭐ Profesional preferido": "⭐ Preferred professional",
+  "Esta solicitud fue creada con este profesional como preferido.": "This request was created with this professional as preferred.",
+  "Profesional verificado": "Verified professional",
   "Buscando un nuevo profesional": "Looking for a new professional",
   "El profesional anterior ya no está disponible": "The previous professional is no longer available",
   "Tu solicitud volvió a publicarse automáticamente para que otros profesionales puedan enviarte nuevos presupuestos. No necesitas crear otra solicitud.": "Your request was automatically republished so other professionals can send you new offers. You do not need to create another request.",
@@ -202,12 +215,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Cancelación sin penalidad": "Cancellation without penalty",
   "Esta solicitud todavía no tiene un trabajo pagado en progreso.": "This request does not yet have a paid job in progress.",
   "Total pagado": "Total paid",
-  "Fee de servicio RELYDO (no reembolsable)": "RELYDO service fee (non-refundable)",
-  "Cargo por cancelación": "Cancellation fee",
-  "Total de tarifas RELYDO": "Total RELYDO fees",
-  "Chat con": "Chat with",
-  "● En tiempo real": "● Live",
-  "Conectando...": "Connecting...",
   "No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.": "We could not find the payment for this job. Refresh the page before cancelling.",
   "Volver": "Back",
   "Trabajo iniciado": "Job started",
@@ -225,11 +232,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "✓ Cambio pagado": "✓ Change paid",
   "Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.": "Your approval was recorded. To complete the change, pay the additional amount through Stripe now.",
   "El cambio fue rechazado. El presupuesto anterior permanece sin cambios.": "The change was rejected. The previous budget remains unchanged.",
-  "✓ Presupuesto seleccionado": "✓ Selected offer",
-  "Contratado": "Hired",
-  "En camino": "On the way",
-  "Has seleccionado este presupuesto por": "You selected this offer for",
-  "Tarifa de servicio RELYDO": "RELYDO service fee",
+  "✓ Profesional contratado": "✓ Professional hired",
   "Resumen de pago": "Payment summary",
   "Presupuesto del profesional": "Professional's price",
   "Total del cliente": "Customer total",
@@ -287,7 +290,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Conducta del profesional": "Professional conduct",
   "Otro problema": "Other problem",
   "Explica el problema *": "Explain the problem *",
-  "Describe qué ocurrió y qué parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
   "Fotos o videos": "Photos or videos",
   "Opcional. Puedes adjuntar hasta 10 fotos y 2 videos como evidencia.": "Optional. You can attach up to 10 photos and 2 videos as evidence.",
   "📎 Adjuntar archivos": "📎 Attach files",
@@ -314,11 +316,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Mensaje del profesional": "Professional's message",
   "Sin mensaje adicional.": "No additional message.",
   "Contratando profesional...": "Hiring professional...",
-  "Rechazar presupuesto": "Reject offer",
-  "Rechazando presupuesto...": "Rejecting offer...",
-  "¿Confirmas que deseas rechazar este presupuesto? Tu solicitud continuará abierta y podrás revisar otros presupuestos.": "Are you sure you want to reject this offer? Your request will remain open and you can review other offers.",
-  "Presupuesto rechazado. Tu solicitud continúa abierta y puedes elegir otro presupuesto.": "Offer rejected. Your request remains open and you can choose another offer.",
-  "No se pudo rechazar el presupuesto.": "The offer could not be rejected.",
   "Tú": "You",
   "Escribe un mensaje...": "Write a message...",
   "Enviar": "Send",
@@ -335,9 +332,11 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Completada": "Completed",
   "Cancelada": "Cancelled",
   "No indicado": "Not specified",
-  "Pagado": "Paid",
+  "Pago retenido por RELYDO": "Payment held by RELYDO",
+  "Pago completado": "Payment completed",
   "Reembolsado": "Refunded",
   "Reembolso parcial": "Partial refund",
+  "Pago confirmado": "Payment confirmed",
   "Pago cancelado": "Payment cancelled",
   "El profesional inició el trabajo": "The professional started the job",
   "El profesional ya llegó": "The professional has arrived",
@@ -417,9 +416,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tu reporte fue registrado correctamente.": "Your report was submitted successfully.",
   "No se pudo enviar el reclamo.": "We could not submit the claim.",
   "Chat bloqueado porque existe un reclamo activo. A partir de este momento RELYDO Admin gestiona el caso.": "Chat is locked because there is an active claim. From this point on, RELYDO Admin manages the case.",
-  "Este trabajo tuvo un reclamo. El chat quedó cerrado permanentemente y el historial permanece disponible.": "This job had a claim. The chat is permanently closed and the history remains available.",
-  "Calificación cerrada": "Rating closed",
-  "Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.": "This job had a claim handled by RELYDO. To protect both parties, ratings are not allowed for this order.",
   "El trabajo está completado y el chat ya está cerrado.": "The job is completed and the chat is now closed.",
   "El período de 12 horas después de completar el trabajo terminó. El historial permanece disponible.": "The 12-hour period after job completion has ended. The chat history remains available.",
   "Este trabajo fue cancelado. El chat está cerrado.": "This job was cancelled. The chat is closed.",
@@ -441,62 +437,12 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...": "Example: These photos show the part of the job that was left incomplete and the damage I found after the service...",
   "presupuesto disponible": "offer available",
   "presupuestos disponibles": "offers available",
-  "Reclamo resuelto parcialmente por RELYDO.": "Claim partially resolved by RELYDO.",
-  "Reclamo resuelto a favor del cliente por RELYDO.": "Claim resolved in favor of the customer by RELYDO.",
-  "Reclamo resuelto a favor del profesional por RELYDO.": "Claim resolved in favor of the professional by RELYDO.",
-  "Reclamo resuelto por RELYDO.": "Claim resolved by RELYDO.",
-  "Se necesitan materiales adicionales": "Additional materials are needed",
-  "Procesando...": "Processing...",
-  "Enviando...": "Sending...",
-  "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
-  "Selecciona una calificación de 1 a 5 estrellas.": "Select a rating from 1 to 5 stars.",
-  "Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.": "You can only attach JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.",
-  "Cada foto o video debe pesar 50 MB o menos.": "Each photo or video must be 50 MB or less.",
-  "Explica brevemente qué muestran las fotos o videos que adjuntaste.": "Briefly explain what the photos or videos you attached show.",
-  "Al aceptar, pagarás el monto adicional + la tarifa de servicio de RELYDO.": "By accepting, you’ll pay the additional amount + the RELYDO service fee.",
-  "Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.": "Additional payment confirmed. The payment summary now includes the budget change.",
-  "Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.": "Stripe confirmed the additional payment. This amount is already included in the job’s total summary.",
-  "💳 Pagar adicional": "💳 Pay additional amount",
-  "✓ Aceptar": "✓ Accept",
-  "¿Cómo fue tu experiencia con": "How was your experience with",
-  "tarifa RELYDO": "RELYDO fee",
-  "Total": "Total",
-  "año": "year",
-  "años": "years",
-  "Revisar y continuar": "Review and continue",
-  "Contratar por": "Hire for",
-  "Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.": "Budget change accepted. We will now take you to Stripe’s secure checkout to charge only the additional amount and the applicable service fee.",
-  "¿Confirmas que aceptas el cambio de presupuesto?": "Do you confirm that you accept the budget change?",
-
-  "Adicional": "Additional",
-  "Nuevo total": "New total",
-  "Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.": "By accepting, you will continue to Stripe’s secure checkout to pay the additional amount and the RELYDO service fee.",
-  "¿Confirmas que deseas rechazar este cambio de presupuesto por": "Are you sure you want to reject this budget change for",
-  "adicionales?": "additional?",
-  "Flexible": "Flexible",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
   return language === "en"
     ? DETAIL_TRANSLATIONS_EN[spanish] || spanish
     : spanish;
-}
-
-function resolutionNoteText(
-  language: "es" | "en",
-  note: string | null
-) {
-  if (!note || language !== "en") {
-    return note || "";
-  }
-
-  return note
-    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
-    .replace(/^Profesional:/gm, "Professional:")
-    .replace(/^Cliente:/gm, "Customer:");
 }
 
 function nombreOficio(
@@ -582,14 +528,9 @@ function mostrarMinutos(
 
 function numeroEtapa(
   status: string,
-  jobStage: string | null,
-  reviewStatus: string | null = null
+  jobStage: string | null
 ) {
   if (status === "completed") {
-    return 6;
-  }
-
-  if (reviewStatus === "pending") {
     return 5;
   }
 
@@ -610,15 +551,10 @@ function numeroEtapa(
 
 function tituloEtapa(
   status: string,
-  jobStage: string | null,
-  reviewStatus: string | null = null
+  jobStage: string | null
 ) {
   if (status === "completed") {
     return "Trabajo completado";
-  }
-
-  if (reviewStatus === "pending") {
-    return "Trabajo en revisión";
   }
 
   if (jobStage === "working") {
@@ -638,15 +574,10 @@ function tituloEtapa(
 
 function textoEtapa(
   status: string,
-  jobStage: string | null,
-  reviewStatus: string | null = null
+  jobStage: string | null
 ) {
   if (status === "completed") {
     return "El profesional marcó el servicio como terminado.";
-  }
-
-  if (reviewStatus === "pending") {
-    return "El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.";
   }
 
   if (jobStage === "working") {
@@ -663,6 +594,7 @@ function textoEtapa(
 
   return "Has contratado a un profesional para realizar este trabajo.";
 }
+
 
 function redondearDinero(
   valor: number
@@ -694,12 +626,12 @@ function calcularMontosPago(
 function nombreEstadoPagoCliente(
   status: string
 ) {
-  if (
-    status === "ready_for_payout" ||
-    status === "paid_out" ||
-    status === "paid"
-  ) {
-    return "Pagado";
+  if (status === "ready_for_payout") {
+    return "Pago retenido por RELYDO";
+  }
+
+  if (status === "paid_out") {
+    return "Pago completado";
   }
 
   if (status === "refunded") {
@@ -708,6 +640,10 @@ function nombreEstadoPagoCliente(
 
   if (status === "partially_refunded") {
     return "Reembolso parcial";
+  }
+
+  if (status === "paid") {
+    return "Pago confirmado";
   }
 
   if (status === "cancelled") {
@@ -730,82 +666,57 @@ function calcularCancelacionCliente(
     Number(payment?.job_amount || 0)
   );
 
-  // El fee de servicio cobrado al cliente no se reembolsa
-  // una vez que el trabajo fue pagado/contratado.
-  const serviceFee = redondearDinero(
-    Number(payment?.customer_fee_amount || 0)
-  );
-
   let penalidadPercent = 0;
-  let profesionalPercent = 0;
-  let relydoEtapaPercent = 0;
-
-  // Pagado / profesional contratado, pero todavía no ha salido.
-  // Cargo de cancelación: 5% del valor del servicio para RELYDO.
-  if (
-    solicitud.status === "in_progress" &&
-    !solicitud.job_stage &&
-    payment
-  ) {
-    penalidadPercent = 5;
-    profesionalPercent = 0;
-    relydoEtapaPercent = 5;
-  }
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "on_the_way"
   ) {
-    penalidadPercent = 12.5;
-    profesionalPercent = 5.5;
-    relydoEtapaPercent = 7;
+    penalidadPercent = Number(
+      settings?.customer_cancel_on_the_way_percent || 0
+    );
   }
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "arrived"
   ) {
-    penalidadPercent = 23.5;
-    profesionalPercent = 12;
-    relydoEtapaPercent = 11.5;
+    penalidadPercent = Number(
+      settings?.customer_cancel_arrived_percent || 0
+    );
   }
 
   const penalidad = redondearDinero(
     precioTrabajo * (penalidadPercent / 100)
   );
 
-  const profesional = redondearDinero(
-    precioTrabajo * (profesionalPercent / 100)
+  const porcentajePro = Number(
+    settings?.cancellation_provider_percent || 0
   );
 
-  const relydoEtapa = redondearDinero(
-    precioTrabajo * (relydoEtapaPercent / 100)
+  const profesional = redondearDinero(
+    penalidad * (porcentajePro / 100)
   );
 
   const relydo = redondearDinero(
-    serviceFee + relydoEtapa
+    penalidad - profesional
   );
 
-  // Se devuelve el precio del servicio menos el cargo de la etapa.
-  // El fee de servicio original queda retenido por RELYDO.
   const reembolso = redondearDinero(
-    Math.max(0, precioTrabajo - penalidad)
+    Math.max(0, totalPagado - penalidad)
   );
 
   return {
     totalPagado,
     precioTrabajo,
-    serviceFee,
     penalidadPercent,
     penalidad,
-    profesionalPercent,
     profesional,
-    relydoEtapaPercent,
-    relydoEtapa,
     relydo,
     reembolso,
   };
 }
+
 
 function formatearHoraChat(
   fecha: string,
@@ -887,8 +798,6 @@ export default function MisSolicitudDetallePage() {
   ] =
     useState(false);
 
-  const [aprobandoTrabajo, setAprobandoTrabajo] = useState(false);
-
   const [
     error,
     setError,
@@ -904,14 +813,6 @@ export default function MisSolicitudDetallePage() {
   const [
     aceptandoId,
     setAceptandoId,
-  ] =
-    useState<string | null>(
-      null
-    );
-
-  const [
-    rechazandoId,
-    setRechazandoId,
   ] =
     useState<string | null>(
       null
@@ -1011,6 +912,16 @@ export default function MisSolicitudDetallePage() {
   ] = useState<CompletionEvidence[]>([]);
 
   const [
+    fotosSolicitud,
+    setFotosSolicitud,
+  ] = useState<RequestPhoto[]>([]);
+
+  const [
+    profesionalPreferido,
+    setProfesionalPreferido,
+  ] = useState<PreferredProvider | null>(null);
+
+  const [
     usuarioChatId,
     setUsuarioChatId,
   ] = useState<string | null>(null);
@@ -1038,11 +949,6 @@ export default function MisSolicitudDetallePage() {
   const [
     chatRealtimeConectado,
     setChatRealtimeConectado,
-  ] = useState(false);
-
-  const [
-    chatAbierto,
-    setChatAbierto,
   ] = useState(false);
 
   const finalChatRef =
@@ -1278,21 +1184,6 @@ export default function MisSolicitudDetallePage() {
                     undefined
                       ? nuevo.completed_at
                       : actual.completed_at,
-
-                  completion_review_status:
-                    nuevo.completion_review_status !== undefined
-                      ? nuevo.completion_review_status
-                      : actual.completion_review_status,
-
-                  submitted_for_review_at:
-                    nuevo.submitted_for_review_at !== undefined
-                      ? nuevo.submitted_for_review_at
-                      : actual.submitted_for_review_at,
-
-                  completion_approved_at:
-                    nuevo.completion_approved_at !== undefined
-                      ? nuevo.completion_approved_at
-                      : actual.completion_approved_at,
                 };
               }
             );
@@ -1533,7 +1424,11 @@ export default function MisSolicitudDetallePage() {
         );
 
         setMensaje(
-          T("Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto.")
+          `Pago adicional confirmado${
+            changeOrderId
+              ? ""
+              : ""
+          }. El resumen de pago ya incluye el cambio de presupuesto.`
         );
 
         window.history.replaceState(
@@ -1572,30 +1467,10 @@ export default function MisSolicitudDetallePage() {
     };
   }, [id]);
 
-  async function aprobarTrabajo() {
-    if (!solicitud || solicitud.completion_review_status !== "pending") return;
-    if (!window.confirm(T("¿Confirmas que revisaste la evidencia y apruebas el trabajo como completado?"))) return;
-
-    setAprobandoTrabajo(true);
-    setError("");
-    setMensaje("");
-    try {
-      const { error: approveError } = await supabase.rpc("approve_job_completion", {
-        p_request_id: solicitud.id,
-      });
-      if (approveError) throw new Error(approveError.message);
-      await cargarDetalle(false);
-      setMensaje(T("Trabajo aprobado correctamente."));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : T("Ocurrió un error inesperado."));
-    } finally {
-      setAprobandoTrabajo(false);
-    }
-  }
-
   /*
     CARGAR DETALLE
   */
+
 
   async function notificarEventoTrabajo(
     event: string,
@@ -1743,14 +1618,12 @@ export default function MisSolicitudDetallePage() {
           zip_code,
           preferred_date,
           preferred_time,
+          preferred_provider_id,
           status,
           job_stage,
           cancellation_reason,
           cancelled_at,
-          completed_at,
-          completion_review_status,
-          submitted_for_review_at,
-          completion_approved_at
+          completed_at
         `)
         .eq(
           "id",
@@ -1774,6 +1647,133 @@ export default function MisSolicitudDetallePage() {
       setSolicitud(
         solicitudData as Solicitud
       );
+
+      /*
+        PROFESIONAL PREFERIDO
+        Solo se consulta cuando la solicitud fue creada
+        dirigida a un profesional específico.
+      */
+      if (solicitudData.preferred_provider_id) {
+        const {
+          data: preferredProviderData,
+          error: preferredProviderError,
+        } = await supabase
+          .from("provider_profiles")
+          .select(`
+            user_id,
+            business_name,
+            trade,
+            verified
+          `)
+          .eq(
+            "user_id",
+            solicitudData.preferred_provider_id
+          )
+          .maybeSingle();
+
+        if (preferredProviderError) {
+          console.error(
+            "Error cargando profesional preferido:",
+            preferredProviderError
+          );
+          setProfesionalPreferido(null);
+        } else {
+          setProfesionalPreferido(
+            preferredProviderData
+              ? preferredProviderData as PreferredProvider
+              : null
+          );
+        }
+      } else {
+        setProfesionalPreferido(null);
+      }
+
+      /*
+        FOTOS ORIGINALES DE LA SOLICITUD
+        La solicitud ya fue validada arriba con customer_id = user.id.
+        El bucket request-photos es privado, por lo que generamos URLs
+        firmadas temporales en vez de depender de una URL pública.
+      */
+      const {
+        data: requestPhotosData,
+        error: requestPhotosError,
+      } = await supabase
+        .from("request_photos")
+        .select(`
+          id,
+          request_id,
+          file_url,
+          created_at
+        `)
+        .eq("request_id", id)
+        .order("created_at", {
+          ascending: true,
+        });
+
+      if (requestPhotosError) {
+        console.error(
+          "Error cargando fotos originales de la solicitud:",
+          requestPhotosError
+        );
+        setFotosSolicitud([]);
+      } else {
+        const fotosConUrls = await Promise.all(
+          (requestPhotosData || []).map(
+            async (foto) => {
+              const marker = "/request-photos/";
+              const markerIndex = foto.file_url.indexOf(marker);
+
+              const rawPath =
+                markerIndex >= 0
+                  ? foto.file_url.slice(
+                      markerIndex + marker.length
+                    )
+                  : foto.file_url;
+
+              let filePath = rawPath;
+
+              try {
+                filePath = decodeURIComponent(rawPath);
+              } catch {
+                filePath = rawPath;
+              }
+
+              const {
+                data: signedData,
+                error: signedError,
+              } = await supabase.storage
+                .from("request-photos")
+                .createSignedUrl(
+                  filePath,
+                  60 * 60
+                );
+
+              if (signedError) {
+                console.error(
+                  "Error creando URL segura para foto de solicitud:",
+                  signedError
+                );
+
+                return {
+                  ...foto,
+                  signed_url: null,
+                } as RequestPhoto;
+              }
+
+              return {
+                ...foto,
+                signed_url:
+                  signedData?.signedUrl ||
+                  null,
+              } as RequestPhoto;
+            }
+          )
+        );
+
+        setFotosSolicitud(
+          fotosConUrls
+        );
+      }
 
       const {
         data: paymentSettingsData,
@@ -2237,142 +2237,6 @@ export default function MisSolicitudDetallePage() {
   }
 
   /*
-    RECHAZAR OFERTA
-
-    Solo rechazamos este presupuesto.
-    La solicitud permanece abierta y el cliente
-    puede seguir revisando otras ofertas.
-  */
-
-  async function rechazarOferta(
-    oferta: OfertaConProfesional
-  ) {
-    if (!solicitud) {
-      return;
-    }
-
-    if (solicitud.status !== "open") {
-      setError(
-        T("Esta solicitud ya tiene un profesional contratado.")
-      );
-      return;
-    }
-
-    if (oferta.status !== "pending") {
-      setError(
-        T("Este presupuesto ya no está disponible.")
-      );
-      return;
-    }
-
-    const confirmar =
-      window.confirm(
-        T(
-          "¿Confirmas que deseas rechazar este presupuesto? Tu solicitud continuará abierta y podrás revisar otros presupuestos."
-        )
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setRechazandoId(
-      oferta.id
-    );
-    setError("");
-    setMensaje("");
-
-    try {
-      const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (
-        sessionError ||
-        !sessionData.session
-      ) {
-        throw new Error(
-          T(
-            "No pudimos verificar tu sesión de cliente."
-          )
-        );
-      }
-
-      const response =
-        await fetch(
-          "/api/customer/reject-offer",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${sessionData.session.access_token}`,
-            },
-            body: JSON.stringify({
-              requestId:
-                solicitud.id,
-              offerId:
-                oferta.id,
-            }),
-          }
-        );
-
-      const result =
-        await response
-          .json()
-          .catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error ||
-            T(
-              "No se pudo rechazar el presupuesto."
-            )
-        );
-      }
-
-      // Quitamos inmediatamente de la pantalla el presupuesto rechazado.
-      // La solicitud sigue abierta y las demás ofertas permanecen visibles.
-      setOfertas(
-        (actuales) =>
-          actuales.filter(
-            (item) =>
-              item.id !== oferta.id
-          )
-      );
-
-      setMensaje(
-        T(
-          "Presupuesto rechazado. Tu solicitud continúa abierta y puedes elegir otro presupuesto."
-        )
-      );
-    } catch (err) {
-      console.error(
-        "Error rechazando presupuesto:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : T(
-              "No se pudo rechazar el presupuesto."
-            )
-      );
-
-      await cargarDetalle(
-        false
-      );
-    } finally {
-      setRechazandoId(
-        null
-      );
-    }
-  }
-
-  /*
     PAGAR CAMBIO DE PRESUPUESTO
   */
 
@@ -2496,22 +2360,22 @@ export default function MisSolicitudDetallePage() {
     const confirmar =
       window.confirm(
         decision === "accepted"
-          ? `${T("¿Confirmas que aceptas el cambio de presupuesto?")}
+          ? `¿Confirmas que aceptas el cambio de presupuesto?
 
-${T("Total anterior")}: $${Number(
+Total anterior: $${Number(
               changeOrder.original_amount
             ).toFixed(2)}
-${T("Adicional")}: $${Number(
+Adicional: $${Number(
               changeOrder.additional_amount
             ).toFixed(2)}
-${T("Nuevo total")}: $${Number(
+Nuevo total: $${Number(
               changeOrder.new_total_amount
             ).toFixed(2)}
 
-${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.")}`
-          : `${T("¿Confirmas que deseas rechazar este cambio de presupuesto por")} $${Number(
+Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.`
+          : `¿Confirmas que deseas rechazar este cambio de presupuesto por $${Number(
               changeOrder.additional_amount
-            ).toFixed(2)} ${T("adicionales?")}`
+            ).toFixed(2)} adicionales?`
       );
 
     if (!confirmar) {
@@ -2616,7 +2480,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         decision === "accepted"
       ) {
         setMensaje(
-          T("Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.")
+          `Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.`
         );
 
         await pagarCambioPresupuesto(
@@ -2698,21 +2562,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       payment
     ) {
       textoConfirmacion =
-        language === "en"
-          ? `Confirm cancellation?\n\n` +
-            `Total paid: $${resumen.totalPagado.toFixed(2)}\n` +
-            `RELYDO service fee: $${resumen.serviceFee.toFixed(2)}\n` +
-            `Cancellation fee: $${resumen.penalidad.toFixed(2)}\n` +
-            `Professional compensation: $${resumen.profesional.toFixed(2)}\n` +
-            `Customer refund: $${resumen.reembolso.toFixed(2)}\n\n` +
-            `This action cannot be undone.`
-          : `¿Confirmas la cancelación?\n\n` +
-            `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
-            `Tarifa de servicio RELYDO: $${resumen.serviceFee.toFixed(2)}\n` +
-            `Cargo por cancelación: $${resumen.penalidad.toFixed(2)}\n` +
-            `Compensación al profesional: $${resumen.profesional.toFixed(2)}\n` +
-            `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
-            `Esta acción no se puede deshacer.`;
+        `¿Confirmas la cancelación?\n\n` +
+        `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
+        `Penalidad: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+        `Profesional: $${resumen.profesional.toFixed(2)}\n` +
+        `RELYDO: $${resumen.relydo.toFixed(2)}\n` +
+        `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
+        `Esta acción no se puede deshacer.`;
     }
 
     const confirmar =
@@ -2781,13 +2637,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         Number(data.providerAwardAmount || 0) > 0
       ) {
         setMensaje(
-          language === "en"
-            ? `Request cancelled successfully. A refund of $${Number(
-                data.customerRefundAmount || 0
-              ).toFixed(2)} was processed.`
-            : `Solicitud cancelada correctamente. Se procesó un reembolso de $${Number(
-                data.customerRefundAmount || 0
-              ).toFixed(2)}.`
+          `Solicitud cancelada correctamente. Se procesó un reembolso de $${Number(
+            data.customerRefundAmount || 0
+          ).toFixed(2)}.`
         );
       } else {
         setMensaje(
@@ -2833,14 +2685,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       return;
     }
 
-    if (claim) {
-      setError(
-        T("Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.")
-      );
-
-      return;
-    }
-
     if (review) {
       setError(
         T("Ya calificaste este trabajo.")
@@ -2871,7 +2715,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       rating > 5
     ) {
       setError(
-        T("Selecciona una calificación de 1 a 5 estrellas.")
+        "Selecciona una calificación de 1 a 5 estrellas."
       );
 
       return;
@@ -3048,7 +2892,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       invalidos.length > 0
     ) {
       setError(
-        T("Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.")
+        "Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV."
       );
       event.target.value = "";
       return;
@@ -3065,7 +2909,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       demasiadoGrandes.length > 0
     ) {
       setError(
-        T("Cada foto o video debe pesar 50 MB o menos.")
+        "Cada foto o video debe pesar 50 MB o menos."
       );
       event.target.value = "";
       return;
@@ -3263,7 +3107,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       solicitud &&
       (
         solicitud.status === "completed" ||
-        solicitud.completion_review_status === "pending" ||
         (
           solicitud.status === "in_progress" &&
           solicitud.job_stage === "working"
@@ -3306,7 +3149,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       explicacionEvidenciaCliente.trim().length < 5
     ) {
       setError(
-        T("Explica brevemente qué muestran las fotos o videos que adjuntaste.")
+        "Explica brevemente qué muestran las fotos o videos que adjuntaste."
       );
       return;
     }
@@ -3397,13 +3240,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       setEvidenciasReclamo([]);
       setMensaje(
         evidenciasReclamo.length > 0
-          ? language === "en"
-            ? `Your claim was submitted successfully with ${evidenciasReclamo.length} evidence file${
-                evidenciasReclamo.length === 1 ? "" : "s"
-              }.`
-            : `Tu reporte fue registrado correctamente con ${evidenciasReclamo.length} archivo${
-                evidenciasReclamo.length === 1 ? "" : "s"
-              } de evidencia.`
+          ? `Tu reporte fue registrado correctamente con ${evidenciasReclamo.length} archivo${
+              evidenciasReclamo.length === 1
+                ? ""
+                : "s"
+            } de evidencia.`
           : T("Tu reporte fue registrado correctamente.")
       );
     } catch (err) {
@@ -3428,11 +3269,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         )
     );
 
-  // Una vez que existe un reclamo en la orden, el chat no vuelve a abrirse.
-  // El historial continúa visible, pero queda en modo solo lectura.
-  const reclamoCierraChatPermanentemente =
-    Boolean(claim);
-
   const chatDentroDe12Horas =
     Boolean(
       solicitud?.status ===
@@ -3448,7 +3284,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   const chatPuedeEnviar =
     Boolean(
       solicitud &&
-        !reclamoCierraChatPermanentemente &&
+        !reclamoActivoChat &&
         (
           solicitud.status ===
             "in_progress" ||
@@ -3459,10 +3295,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   function motivoChatBloqueado() {
     if (reclamoActivoChat) {
       return T("Chat bloqueado porque existe un reclamo activo. A partir de este momento RELYDO Admin gestiona el caso.");
-    }
-
-    if (claim) {
-      return T("Este trabajo tuvo un reclamo. El chat quedó cerrado permanentemente y el historial permanece disponible.");
     }
 
     if (
@@ -3711,19 +3543,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         "pending"
     ).length;
 
-  // Las ofertas rechazadas se conservan en la base de datos como historial,
-  // pero el cliente no debe seguir viéndolas en Presupuestos recibidos.
-  const ofertasVisibles =
-    ofertas.filter(
-      (oferta) =>
-        oferta.status !==
-        "rejected"
-    );
-
   const profesionalLiberoTrabajo =
     solicitud.status ===
       "open" &&
-    Boolean(payment) &&
     !ofertaSeleccionada &&
     ofertas.some(
       (oferta) =>
@@ -3734,8 +3556,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   const etapaActual =
     numeroEtapa(
       solicitud.status,
-      solicitud.job_stage,
-      solicitud.completion_review_status
+      solicitud.job_stage
     );
 
   const mostrarSeguimiento =
@@ -3790,14 +3611,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     {
       numero: 1,
       icono: "🤝",
-      titulo: T("Contratado"),
+      titulo: "Contratado",
       descripcion:
         T("Profesional contratado"),
     },
     {
       numero: 2,
       icono: "🚗",
-      titulo: T("En camino"),
+      titulo: "En camino",
       descripcion:
         T("Va rumbo a tu ubicación"),
     },
@@ -3818,15 +3639,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     },
     {
       numero: 5,
-      icono: "🔎",
-      titulo: T("Trabajo en revisión"),
-      descripcion: T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema."),
-    },
-    {
-      numero: 6,
       icono: "✅",
       titulo: T("Completado"),
-      descripcion: T("Trabajo terminado"),
+      descripcion:
+        T("Trabajo terminado"),
     },
   ];
 
@@ -3911,6 +3727,72 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         </section>
 
+        {profesionalPreferido && (
+          <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm md:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+                  {T("⭐ Profesional preferido")}
+                </p>
+
+                <h2 className="mt-1 text-xl font-extrabold text-slate-900">
+                  {profesionalPreferido.business_name ||
+                    T("Profesional")}
+                </h2>
+
+                {profesionalPreferido.trade && (
+                  <p className="mt-1 text-sm font-semibold text-slate-600">
+                    {profesionalPreferido.trade}
+                  </p>
+                )}
+
+                <p className="mt-2 text-sm text-slate-600">
+                  {T("Esta solicitud fue creada con este profesional como preferido.")}
+                </p>
+              </div>
+
+              {profesionalPreferido.verified === true && (
+                <span className="w-fit rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
+                  ✓ {T("Profesional verificado")}
+                </span>
+              )}
+            </div>
+          </section>
+        )}
+
+        {fotosSolicitud.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <h2 className="text-xl font-extrabold text-slate-900">
+              {T("📷 Fotos de la solicitud")}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-600">
+              {T("Fotos que adjuntaste al crear esta solicitud.")}
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {fotosSolicitud.map(
+                (foto, index) =>
+                  foto.signed_url ? (
+                    <a
+                      key={foto.id}
+                      href={foto.signed_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                    >
+                      <img
+                        src={foto.signed_url}
+                        alt={`${T("Foto de la solicitud")} ${index + 1}`}
+                        className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
+                      />
+                    </a>
+                  ) : null
+              )}
+            </div>
+          </section>
+        )}
+
         {/* AVISO SOLO MIENTRAS NO HAYA OFERTAS NUEVAS */}
 
         {profesionalLiberoTrabajo &&
@@ -3960,20 +3842,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* SEGUIMIENTO */}
 
         {mostrarSeguimiento && (
-          <details open={solicitud.status !== "completed"} className="group mt-6">
-<summary className={solicitud.status === "completed"
-  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-  : "hidden"}>
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <p className="text-sm font-black uppercase tracking-wide text-blue-700">{T("Seguimiento en vivo")}</p>
-      <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado")}</p>
-    </div>
-    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-  </div>
-</summary>
-<div className="mt-3">
-<section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
@@ -3986,8 +3855,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     tituloEtapa(
                       solicitud.status,
-                      solicitud.job_stage,
-                      solicitud.completion_review_status
+                      solicitud.job_stage
                     )
                   )}
                 </h2>
@@ -3996,8 +3864,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     textoEtapa(
                       solicitud.status,
-                      solicitud.job_stage,
-                      solicitud.completion_review_status
+                      solicitud.job_stage
                     )
                   )}
                 </p>
@@ -4022,7 +3889,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                   {realtimeConectado
                     ? T("Actualizando en vivo")
-                    : T("Conectando...")}
+                    : "Conectando..."}
                 </div>
               )}
 
@@ -4106,8 +3973,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
 
           </section>
-</div>
-</details>
         )}
 
         {mensaje && (
@@ -4144,7 +4009,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <h2 className="mt-2 text-2xl font-extrabold text-red-900">
                   {canceladoPorRelydo
-                    ? T("Trabajo cancelado por resolución de RELYDO")
+                    ? "Trabajo cancelado por resolución de RELYDO"
                     : T("Este trabajo fue cancelado")}
                 </h2>
 
@@ -4164,7 +4029,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
 
                     <p className="mt-2 font-semibold text-slate-800">
-                      {T(solicitud.cancellation_reason)}
+                      {solicitud.cancellation_reason}
                     </p>
 
                   </div>
@@ -4203,7 +4068,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             {T("Nota de resolución")}
                           </p>
                           <p className="mt-2 whitespace-pre-wrap font-semibold leading-6 text-slate-800">
-                            {resolutionNoteText(language, claim.resolution_notes)}
+                            {claim.resolution_notes}
                           </p>
                         </div>
                       )}
@@ -4337,7 +4202,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   ) : payment ? (
                     <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total pagado")}</span>
+                        <span className="text-slate-600">Total pagado</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.totalPagado.toFixed(2)}
                         </strong>
@@ -4345,28 +4210,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Tarifa de servicio RELYDO")}
-                        </span>
-                        <strong className="text-slate-900">
-                          ${resumenCancelacion.serviceFee.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">
-                          {T("Cargo por cancelación")}
+                          Penalidad ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
-                          ${resumenCancelacion.penalidad.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">
-                          {T("Compensación al profesional")}
-                        </span>
-                        <strong className="text-slate-900">
-                          ${resumenCancelacion.profesional.toFixed(2)}
+                          -${resumenCancelacion.penalidad.toFixed(2)}
                         </strong>
                       </div>
 
@@ -4420,8 +4267,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {cancelando
-                      ? T("Cancelando solicitud...")
-                      : T("Confirmar cancelación")}
+                      ? "Cancelando solicitud..."
+                      : "Confirmar cancelación"}
                   </button>
 
                 </div>
@@ -4431,51 +4278,43 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </section>
         ) : solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" &&
-            solicitud.completion_review_status !== "pending" ? (
-          <section className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 shadow-sm sm:px-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                    {T("Trabajo iniciado")}
-                  </p>
-                  <span className="hidden text-amber-300 sm:inline">•</span>
-                  <h2 className="text-lg font-black text-amber-950">
-                    {T("La cancelación automática ya no está disponible")}
-                  </h2>
-                </div>
-                <p className="mt-1.5 max-w-4xl text-sm leading-6 text-amber-900">
-                  {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
-                </p>
-              </div>
+            solicitud.job_stage === "working" ? (
+          <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
+            <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+              {T("Trabajo iniciado")}
+            </p>
+            <h2 className="mt-2 text-xl font-black text-amber-950">
+              {T("La cancelación automática ya no está disponible")}
+            </h2>
+            <p className="mt-2 leading-7 text-amber-900">
+              {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
+            </p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMostrarReclamo(true);
-                  setError("");
-                  setMensaje("");
+            <button
+              type="button"
+              onClick={() => {
+                setMostrarReclamo(true);
+                setError("");
+                setMensaje("");
 
-                  window.setTimeout(() => {
-                    const reclamos =
-                      document.getElementById(
-                        "reclamos-cliente"
-                      );
+                window.setTimeout(() => {
+                  const reclamos =
+                    document.getElementById(
+                      "reclamos-cliente"
+                    );
 
-                    if (reclamos) {
-                      reclamos.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }
-                  }, 50);
-                }}
-                className="inline-flex w-full shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-amber-700 sm:w-auto"
-              >
-                {T("⚠️ Iniciar reclamo")}
-              </button>
-            </div>
+                  if (reclamos) {
+                    reclamos.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }
+                }, 50);
+              }}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-5 py-3.5 font-black text-white transition hover:bg-amber-700 sm:w-auto"
+            >
+              {T("⚠️ Iniciar reclamo")}
+            </button>
           </section>
         ) : null}
 
@@ -4544,7 +4383,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     : changeOrderPendiente.reason === "trabajo_adicional"
                     ? T("Se necesita trabajo adicional")
                     : changeOrderPendiente.reason === "materiales_adicionales"
-                    ? T("Se necesitan materiales adicionales")
+                    ? "Se necesitan materiales adicionales"
                     : changeOrderPendiente.reason === "otro"
                     ? T("Otro motivo")
                     : changeOrderPendiente.reason}
@@ -4567,9 +4406,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-900">
-                  {T("Al aceptar, pagarás el monto adicional + la tarifa de servicio de RELYDO.")} {language === "en" ? "Additional amount:" : "Monto adicional:"} ${Number(
+                  Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los ${Number(
                     changeOrderPendiente.additional_amount
-                  ).toFixed(2)}.
+                  ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.
                 </p>
               </div>
 
@@ -4592,7 +4431,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? T("Procesando...")
+                    ? "Procesando..."
                     : T("✕ Rechazar cambio")}
                 </button>
 
@@ -4614,8 +4453,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? T("Procesando...")
-                    : `${T("✓ Aceptar")} +$${Number(
+                    ? "Procesando..."
+                    : `✓ Aceptar +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
                 </button>
@@ -4627,8 +4466,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {!changeOrderPendiente &&
           ultimoChangeOrder &&
           ultimoChangeOrder.status !==
-            "pending" &&
-          solicitud.status !== "completed" && (
+            "pending" && (
           <section
             className={`mt-6 rounded-3xl border-2 p-6 shadow-sm ${
               ultimoChangeOrder.status ===
@@ -4693,10 +4531,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {T("✓ Cambio pagado")}
                   </p>
                   <p className="mt-1 text-sm font-bold leading-6 text-emerald-800">
-                    {T("Stripe confirmó el pago adicional. Este monto ya está incluido en el resumen total del trabajo.")} {language === "en" ? "Amount paid:" : "Monto pagado:"} ${Number(
+                    Stripe confirmó el pago adicional de $
+                    {Number(
                       ultimoChangeOrder.additional_customer_total_amount ||
                         0
-                    ).toFixed(2)}.
+                    ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.
                   </p>
                 </div>
               )}
@@ -4727,7 +4566,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {pagandoChangeOrderId ===
                   ultimoChangeOrder.id
                     ? T("Abriendo pago seguro...")
-                    : `${T("💳 Pagar adicional")} · $${redondearDinero(
+                    : `💳 Pagar adicional · $${redondearDinero(
                         Number(
                           ultimoChangeOrder.additional_amount
                         ) +
@@ -4755,19 +4594,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* PROFESIONAL CONTRATADO */}
 
-        {ofertaSeleccionada &&
-          solicitud.status !== "completed" &&
-          !(
-            solicitud.status === "in_progress" &&
-            (
-              solicitud.job_stage === "working" ||
-              solicitud.completion_review_status === "pending"
-            )
-          ) && (
+        {ofertaSeleccionada && (
           <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
-              {T("✓ Presupuesto seleccionado")}
+              {T("✓ Profesional contratado")}
             </p>
 
             <h2 className="mt-2 text-2xl font-extrabold text-green-900">
@@ -4777,7 +4608,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </h2>
 
             <p className="mt-2 text-green-800">
-              {T("Has seleccionado este presupuesto por")}{" "}
+              Has seleccionado este presupuesto por{" "}
               <strong>
                 $
                 {Number(
@@ -4791,19 +4622,19 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             {payment && (
               <div className="mt-5 rounded-2xl border border-green-200 bg-white p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">{T("Resumen de pago")}</p>
+                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">Resumen de pago</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">{T("Presupuesto del profesional")}</span>
+                    <span className="text-slate-600">Presupuesto del profesional</span>
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")}</span>
+                    <span className="text-slate-600">Tarifa de servicio RELYDO ({Number(payment.customer_fee_percent).toFixed(2)}%)</span>
                     <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
                   </div>
                   <div className="border-t border-slate-200 pt-3">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-extrabold text-slate-900">{T("Total del cliente")}</span>
+                      <span className="font-extrabold text-slate-900">Total del cliente</span>
                       <strong className="text-xl text-green-800">${totalClientePagado.toFixed(2)}</strong>
                     </div>
                   </div>
@@ -4829,10 +4660,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           ? "bg-emerald-100 text-emerald-800"
                           : payment.status === "partially_refunded"
                           ? "bg-violet-100 text-violet-800"
-                          : payment.status === "ready_for_payout" ||
-                            payment.status === "paid_out" ||
-                            payment.status === "paid"
-                          ? "bg-emerald-100 text-emerald-800"
+                          : payment.status === "paid_out"
+                          ? "bg-blue-100 text-blue-800"
+                          : payment.status === "ready_for_payout"
+                          ? "bg-amber-100 text-amber-800"
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
@@ -4849,6 +4680,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         ${Number(payment.refunded_amount || 0).toFixed(2)}
                       </strong>
                     </div>
+                  )}
+
+                  {payment.status === "ready_for_payout" && (
+                    <p className="mt-3 text-xs leading-5 text-amber-700">
+                      {T("El pago está protegido por RELYDO y todavía no ha sido liberado al profesional.")}
+                    </p>
+                  )}
+
+                  {payment.status === "paid_out" && (
+                    <p className="mt-3 text-xs leading-5 text-blue-700">
+                      {T("El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.")}
+                    </p>
                   )}
 
                   {payment.status === "refunded" && (
@@ -4875,8 +4718,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <p className="mt-1 font-extrabold text-green-900">
                   {mostrarMinutos(
-                    ofertaSeleccionada.arrival_minutes,
-                    language
+                    ofertaSeleccionada.arrival_minutes
                   )}
                 </p>
               </div>
@@ -4888,8 +4730,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <p className="mt-1 font-extrabold text-green-900">
                   {mostrarMinutos(
-                    ofertaSeleccionada.estimated_job_minutes,
-                    language
+                    ofertaSeleccionada.estimated_job_minutes
                   )}
                 </p>
               </div>
@@ -4942,1379 +4783,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </button>
               )}
 
-          </section>
-        )}
-
-        {/* EVIDENCIA FINAL DEL PROFESIONAL - HISTORIAL COMPLETADO */}
-
-        {solicitud.status === "completed" &&
-          evidenciasFinales.length > 0 && (
-            <details className="group mt-6">
-<summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <p className="font-extrabold text-slate-950">{T("📸 Evidencia del trabajo terminado")}</p>
-      <p className="mt-1 text-sm text-slate-600">
-        {evidenciasFinales.filter((item) => item.file_type === "image").length} {language === "en" ? "photos" : "fotos"} · {evidenciasFinales.filter((item) => item.file_type === "video").length} videos
-      </p>
-    </div>
-    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-  </div>
-</summary>
-<div className="mt-3">
-<section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide text-blue-700">
-                    {T("📸 Evidencia del trabajo terminado")}
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">
-                    {T("Fotos y videos registrados por el profesional")}
-                  </h2>
-
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.")}
-                  </p>
-                </div>
-
-                <div className="w-fit rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
-                  {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
-                  {language === "en"
-                    ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                      ? "photo"
-                      : "photos"
-                    : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                      ? "foto"
-                      : "fotos"}{" · "}
-                  {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
-                  {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
-                    ? "video"
-                    : "videos"}
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {evidenciasFinales.map((item) => (
-                  <article
-                    key={item.id}
-                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-                  >
-                    {item.signed_url ? (
-                      item.file_type === "video" ? (
-                        <video
-                          src={item.signed_url}
-                          controls
-                          preload="metadata"
-                          className="aspect-video w-full bg-black object-contain"
-                        />
-                      ) : (
-                        <a
-                          href={item.signed_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block"
-                        >
-                          <img
-                            src={item.signed_url}
-                            alt={T("Evidencia del trabajo terminado")}
-                            className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
-                          />
-                        </a>
-                      )
-                    ) : (
-                      <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
-                        {T("No pudimos abrir este archivo de evidencia.")}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
-                      <span className="text-sm font-black text-slate-800">
-                        {item.file_type === "video" ? T("🎥 Video") : T("📷 Foto")}
-                      </span>
-
-                      <span className="text-xs font-semibold text-slate-500">
-                        {T("Registrado")}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <p className="text-sm font-bold leading-6 text-blue-900">
-                  {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
-                </p>
-              </div>
-            </section>
-</div>
-</details>
-          )}
-
-        {/* PROFESIONAL CONTRATADO - HISTORIAL COMPLETADO */}
-
-        {ofertaSeleccionada &&
-          solicitud.status === "completed" && (
-          <details className="group mt-6">
-<summary className="cursor-pointer list-none rounded-2xl border border-green-300 bg-green-50 px-5 py-4">
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <p className="font-extrabold text-green-900">{T("✓ Presupuesto seleccionado")}</p>
-      <p className="mt-1 text-sm font-bold text-green-800">
-        ${Number(ofertaSeleccionada.price).toFixed(2)} · {payment ? T(nombreEstadoPagoCliente(payment.status)) : ""}
-      </p>
-    </div>
-    <span className="text-xl text-green-700 transition group-open:rotate-90">›</span>
-  </div>
-</summary>
-<div className="mt-3">
-<section className="rounded-3xl border-2 border-green-300 bg-green-50 p-7">
-
-            <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
-              {T("✓ Presupuesto seleccionado")}
-            </p>
-
-            <h2 className="mt-2 text-2xl font-extrabold text-green-900">
-              {ofertaSeleccionada.profesional
-                ?.business_name ||
-                T("Profesional RELYDO")}
-            </h2>
-
-            <p className="mt-2 text-green-800">
-              {T("Has seleccionado este presupuesto por")}{" "}
-              <strong>
-                $
-                {Number(
-                  ofertaSeleccionada.price
-                ).toFixed(
-                  2
-                )}
-              </strong>
-              .
-            </p>
-
-            {payment && (
-              <div className="mt-5 rounded-2xl border border-green-200 bg-white p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">{T("Resumen de pago")}</p>
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">{T("Presupuesto del profesional")}</span>
-                    <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")}</span>
-                    <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
-                  </div>
-                  <div className="border-t border-slate-200 pt-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="font-extrabold text-slate-900">{T("Total del cliente")}</span>
-                      <strong className="text-xl text-green-800">${totalClientePagado.toFixed(2)}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                {changeOrdersPagados.length > 0 && (
-                  <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold leading-6 text-emerald-800">
-                    {language === "en"
-                      ? `This summary includes ${changeOrdersPagados.length} paid budget change${changeOrdersPagados.length === 1 ? "" : "s"} for an additional total of $${totalesAdicionalesPagados.toFixed(2)}.`
-                      : `Este resumen incluye ${changeOrdersPagados.length} cambio${changeOrdersPagados.length === 1 ? "" : "s"} de presupuesto pagado${changeOrdersPagados.length === 1 ? "" : "s"} por un total adicional de $${totalesAdicionalesPagados.toFixed(2)}.`}
-                  </div>
-                )}
-
-                <div className="mt-4 border-t border-slate-200 pt-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-sm font-bold text-slate-600">
-                      {T("Estado del pago")}
-                    </span>
-
-                    <span
-                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${
-                        payment.status === "refunded"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : payment.status === "partially_refunded"
-                          ? "bg-violet-100 text-violet-800"
-                          : payment.status === "ready_for_payout" ||
-                            payment.status === "paid_out" ||
-                            payment.status === "paid"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {T(nombreEstadoPagoCliente(payment.status))}
-                    </span>
-                  </div>
-
-                  {Number(payment.refunded_amount || 0) > 0 && (
-                    <div className="mt-3 flex items-center justify-between gap-4 rounded-xl bg-emerald-50 px-4 py-3">
-                      <span className="font-bold text-emerald-800">
-                        {T("Reembolso al cliente")}
-                      </span>
-                      <strong className="text-lg text-emerald-800">
-                        ${Number(payment.refunded_amount || 0).toFixed(2)}
-                      </strong>
-                    </div>
-                  )}
-
-                  {payment.status === "refunded" && (
-                    <p className="mt-3 text-xs leading-5 text-emerald-700">
-                      {T("RELYDO procesó el reembolso correspondiente a este trabajo.")}
-                    </p>
-                  )}
-
-                  {payment.status === "partially_refunded" && (
-                    <p className="mt-3 text-xs leading-5 text-violet-700">
-                      {T("RELYDO procesó un reembolso parcial para este trabajo.")}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-              <div className="rounded-xl bg-white p-4">
-                <p className="text-sm text-green-700">
-                  {T("Llegada estimada")}
-                </p>
-
-                <p className="mt-1 font-extrabold text-green-900">
-                  {mostrarMinutos(
-                    ofertaSeleccionada.arrival_minutes,
-                    language
-                  )}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-4">
-                <p className="text-sm text-green-700">
-                  {T("Duración estimada")}
-                </p>
-
-                <p className="mt-1 font-extrabold text-green-900">
-                  {mostrarMinutos(
-                    ofertaSeleccionada.estimated_job_minutes,
-                    language
-                  )}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-4">
-                <p className="text-sm text-green-700">
-                  {T("Valoración")}
-                </p>
-
-                <p className="mt-1 font-extrabold text-green-900">
-                  ⭐{" "}
-                  {Number(
-                    ofertaSeleccionada.profesional
-                      ?.average_rating ||
-                      0
-                  ).toFixed(
-                    1
-                  )}
-                </p>
-              </div>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  `/profesionales/${ofertaSeleccionada.professional_id}?returnTo=${encodeURIComponent(
-                    `/mis-solicitudes/${solicitud.id}`
-                  )}`
-                )
-              }
-              className="mt-5 rounded-xl border-2 border-green-700 px-5 py-3 font-extrabold text-green-800 hover:bg-green-100"
-            >
-              {T("Ver perfil del profesional")}
-            </button>
-
-            {solicitud.status ===
-              "completed" && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      `/solicitar-trabajo?profesional=${ofertaSeleccionada.professional_id}`
-                    )
-                  }
-                  className="ml-0 mt-3 rounded-xl bg-green-700 px-5 py-3 font-extrabold text-white hover:bg-green-800 sm:ml-3"
-                >
-                  {T("🔁 Contratar de nuevo")}
-                </button>
-              )}
-
-          </section>
-</div>
-</details>
-        )}
-
-        {/* RESEÑA */}
-
-        {solicitud.status ===
-          "completed" &&
-          ofertaSeleccionada && (
-            <details open={!review} className="group mt-6">
-<summary className={review
-  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-  : "hidden"}>
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <p className="font-extrabold text-slate-950">⭐ {T("Gracias por tu calificación")}</p>
-      <p className="mt-1 text-sm text-slate-600">{review ? `${review.rating}.0 · ${T("Ya calificaste este trabajo.")}` : ""}</p>
-    </div>
-    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-  </div>
-</summary>
-<div className="mt-3">
-<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
-
-              {review ? (
-                <>
-
-                  <div className="text-center">
-
-                    <div className="text-5xl">
-                      ✅
-                    </div>
-
-                    <h2 className="mt-3 text-2xl font-extrabold text-slate-900">
-                      {T("Gracias por tu calificación")}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-600">
-                      {T("Ya calificaste este trabajo.")}
-                    </p>
-
-                  </div>
-
-                  <div className="mt-6 rounded-2xl bg-slate-50 p-6">
-
-                    <p className="text-sm font-bold text-slate-500">
-                      {T("Tu calificación")}
-                    </p>
-
-                    <div className="mt-2 text-3xl">
-
-                      {[1, 2, 3, 4, 5].map(
-                        (
-                          estrella
-                        ) => (
-                          <span
-                            key={
-                              estrella
-                            }
-                            className={
-                              estrella <=
-                              review.rating
-                                ? "text-yellow-500"
-                                : "text-slate-300"
-                            }
-                          >
-                            ★
-                          </span>
-                        )
-                      )}
-
-                    </div>
-
-                    {review.comment && (
-                      <>
-                        <p className="mt-5 text-sm font-bold text-slate-500">
-                          {T("Tu comentario")}
-                        </p>
-
-                        <p className="mt-2 leading-7 text-slate-700">
-                          {review.comment}
-                        </p>
-                      </>
-                    )}
-
-                  </div>
-
-                </>
-              ) : claim ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-                  <p className="text-sm font-black uppercase tracking-wide text-amber-800">
-                    🔒 RELYDO
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
-                    {T("Calificación cerrada")}
-                  </h2>
-
-                  <p className="mt-2 leading-7 text-amber-950">
-                    {T("Este trabajo tuvo un reclamo gestionado por RELYDO. Para proteger a ambas partes, no se permiten calificaciones en esta orden.")}
-                  </p>
-                </div>
-              ) : (
-                <>
-
-                  <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-                    {T("Trabajo completado")}
-                  </p>
-
-                  <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                    {T("Calificar profesional")}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-600">
-                    {T("¿Cómo fue tu experiencia con")}{" "}
-                    <strong>
-                      {ofertaSeleccionada.profesional
-                        ?.business_name ||
-                        T("este profesional")}
-                    </strong>
-                    ?
-                  </p>
-
-                  <form
-                    onSubmit={
-                      enviarResena
-                    }
-                    className="mt-5"
-                  >
-
-                    <p className="font-bold text-slate-900">
-                      {T("Tu calificación *")}
-                    </p>
-
-                    <div className="mt-2 flex gap-1">
-
-                      {[1, 2, 3, 4, 5].map(
-                        (
-                          estrella
-                        ) => (
-                          <button
-                            key={
-                              estrella
-                            }
-                            type="button"
-                            onClick={() =>
-                              setRating(
-                                estrella
-                              )
-                            }
-                            className={`text-4xl transition hover:scale-110 ${
-                              estrella <=
-                              rating
-                                ? "text-yellow-400"
-                                : "text-slate-300"
-                            }`}
-                          >
-                            ★
-                          </button>
-                        )
-                      )}
-
-                    </div>
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      {rating === 0
-                        ? T("Selecciona de 1 a 5 estrellas.")
-                        : language === "en"
-                        ? `You selected ${rating} ${rating === 1 ? "star" : "stars"}.`
-                        : `Has seleccionado ${rating} ${
-                            rating === 1
-                              ? "estrella"
-                              : "estrellas"
-                          }.`}
-                    </p>
-
-                    <div className="mt-5">
-
-                      <label className="mb-2 block font-bold text-slate-900">
-                        {T("Comentario")}
-                      </label>
-
-                      <textarea
-                        value={
-                          comentario
-                        }
-                        onChange={(e) =>
-                          setComentario(
-                            e.target.value
-                          )
-                        }
-                        rows={3}
-                        maxLength={
-                          1000
-                        }
-                        placeholder={T("Cuéntanos cómo fue el servicio...")}
-                        className="w-full resize-none rounded-xl border border-slate-300 p-3 text-slate-900"
-                      />
-
-                      <p className="mt-2 text-right text-sm text-slate-500">
-                        {comentario.length}
-                        /1000
-                      </p>
-
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={
-                        enviandoReview ||
-                        rating === 0
-                      }
-                      className="mt-4 w-full rounded-xl bg-blue-700 px-6 py-3 font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
-                    >
-                      {enviandoReview
-                        ? T("Enviando calificación...")
-                        : T("Enviar reseña")}
-                    </button>
-
-                  </form>
-
-                </>
-              )}
-
-            </section>
-</div>
-</details>
-          )}
-
-        {/* RECLAMO / REPORTAR PROBLEMA */}
-
-        {(
-          (
-            solicitud.completion_review_status === "pending" &&
-            (Boolean(claim) || mostrarReclamo)
-          ) ||
-          solicitud.status === "cancelled" ||
-          (
-            solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" &&
-            (Boolean(claim) || mostrarReclamo)
-          )
-        ) &&
-          ofertaSeleccionada && (
-          <section
-            id="reclamos-cliente"
-            className="mt-8 scroll-mt-6 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
-          >
-            {claim ? (
-              <>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                      {T("⚠️ Problema reportado")}
-                    </p>
-                    <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
-                      {T("Tu reclamo quedó registrado")}
-                    </h2>
-                    <p className="mt-2 text-slate-600">
-                      {T("RELYDO conserva este reporte asociado al trabajo.")}
-                    </p>
-                  </div>
-
-                  <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-black uppercase text-amber-800">
-                    {claim.status === "open"
-                      ? language === "en" ? "Open" : "Abierto"
-                      : claim.status === "reviewing"
-                      ? T("En revisión")
-                      : claim.status === "resolved"
-                      ? language === "en" ? "Resolved" : "Resuelto"
-                      : language === "en" ? "Rejected" : "Rechazado"}
-                  </span>
-                </div>
-
-                <div className="mt-6 rounded-2xl bg-red-50 p-6">
-                  <p className="text-sm font-bold text-red-700">{T("Motivo")}</p>
-                  <p className="mt-2 font-extrabold text-slate-900">
-                    {T(claim.reason)}
-                  </p>
-
-                  {claim.description && (
-                    <>
-                      <p className="mt-5 text-sm font-bold text-red-700">
-                        {T("Descripción")}
-                      </p>
-                      <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
-                        {claim.description}
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                {claim.status === "resolved" && (
-                  <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-6">
-                    <p className="text-sm font-black uppercase tracking-wide text-green-700">
-                      {T("✅ Reclamo resuelto")}
-                    </p>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-sm font-bold text-slate-500">
-                          {T("Reembolso al cliente")}
-                        </p>
-                        <p className="mt-1 text-xl font-black text-green-800">
-                          ${Number(
-                            claim.customer_refund_amount || 0
-                          ).toFixed(2)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-sm font-bold text-slate-500">
-                          {T("Compensación al profesional")}
-                        </p>
-                        <p className="mt-1 text-xl font-black text-slate-900">
-                          ${Number(
-                            claim.provider_award_amount || 0
-                          ).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {claim.resolution_notes && (
-                      <div className="mt-4 rounded-xl bg-white p-4">
-                        <p className="text-sm font-bold text-slate-500">
-                          {T("Resolución de RELYDO")}
-                        </p>
-                        <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
-                          {resolutionNoteText(language, claim.resolution_notes)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : solicitud.status === "cancelled" ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                <p className="font-extrabold text-slate-900">
-                  {T("Este trabajo está cerrado.")}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {T("No se pueden abrir nuevos reclamos después de que el trabajo ha sido cancelado.")}
-                </p>
-              </div>
-            ) : !mostrarReclamo ? (
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                    {T("¿Hubo un problema con el servicio?")}
-                  </p>
-                  <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
-                    {T("Reportar un problema")}
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-slate-600">
-                    {T("Usa esta opción si el trabajo quedó incompleto, hubo daños, un cobro adicional u otro problema importante.")}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarReclamo(true);
-                    setError("");
-                    setMensaje("");
-                  }}
-                  className="shrink-0 rounded-xl border-2 border-red-600 bg-white px-6 py-3 font-extrabold text-red-700 hover:bg-red-50"
-                >
-                  {T("⚠️ Reportar problema")}
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={enviarReclamo} className="space-y-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                      {T("Abrir reclamo")}
-                    </p>
-                    <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                      {T("Cuéntanos qué ocurrió")}
-                    </h2>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMostrarReclamo(false);
-                      setMotivoReclamo("");
-                      setDescripcionReclamo("");
-                      setExplicacionEvidenciaCliente("");
-                      setEvidenciasReclamo([]);
-                      setError("");
-                    }}
-                    className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div>
-                  <label className="mb-2 block font-bold text-slate-900">
-                    {T("Motivo del reclamo *")}
-                  </label>
-                  <select
-                    value={motivoReclamo}
-                    onChange={(e) => setMotivoReclamo(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
-                  >
-                    <option value="">{T("Selecciona un motivo")}</option>
-                    <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
-                    <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
-                    <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
-                    <option value="Cobro adicional no acordado">{T("Cobro adicional no acordado")}</option>
-                    <option value="Conducta del profesional">{T("Conducta del profesional")}</option>
-                    <option value="Otro problema">{T("Otro problema")}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block font-bold text-slate-900">
-                    {T("Explica el problema *")}
-                  </label>
-                  <textarea
-                    value={descripcionReclamo}
-                    onChange={(e) => setDescripcionReclamo(e.target.value)}
-                    rows={5}
-                    maxLength={1500}
-                    placeholder={T("Describe qué ocurrió y qué parte del servicio tuvo el problema...")}
-                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
-                  />
-                  <p className="mt-2 text-right text-sm text-slate-500">
-                    {descripcionReclamo.length}/1500
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-extrabold text-slate-900">
-                        {T("Fotos o videos")}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {T("Opcional. Puedes adjuntar hasta 10 fotos y 2 videos como evidencia.")}
-                      </p>
-                    </div>
-
-                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
-                      {T("📎 Adjuntar archivos")}
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                        onChange={seleccionarEvidenciaReclamo}
-                        disabled={enviandoReclamo}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
-                  <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                    <p className="font-bold">
-                      {T("Formatos permitidos")}
-                    </p>
-                    <p className="mt-1">
-                      {T("Fotos: JPG, PNG, WEBP · Videos: MP4, WEBM, MOV · Máximo 50 MB por archivo.")}
-                    </p>
-                  </div>
-
-                  {evidenciasReclamo.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      {evidenciasReclamo.map(
-                        (file, index) => (
-                          <div
-                            key={`${file.name}-${file.size}-${index}`}
-                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate font-bold text-slate-900">
-                                {file.type.startsWith("video/")
-                                  ? "🎥"
-                                  : "🖼️"}{" "}
-                                {file.name}
-                              </p>
-
-                              <p className="mt-1 text-xs text-slate-500">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={enviandoReclamo}
-                              onClick={() =>
-                                eliminarEvidenciaReclamo(
-                                  index
-                                )
-                              }
-                              className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                            >
-                              {T("Quitar")}
-                            </button>
-                          </div>
-                        )
-                      )}
-
-                      <p className="text-right text-sm font-bold text-slate-600">
-                        {evidenciasReclamo.filter(
-                          (file) =>
-                            file.type.startsWith("image/")
-                        ).length}{" "}
-                        {language === "en"
-                          ? evidenciasReclamo.filter((file) => file.type.startsWith("image/")).length === 1
-                            ? "photo"
-                            : "photos"
-                          : evidenciasReclamo.filter((file) => file.type.startsWith("image/")).length === 1
-                            ? "foto"
-                            : "fotos"} ·{" "}
-                        {evidenciasReclamo.filter(
-                          (file) =>
-                            file.type.startsWith("video/")
-                        ).length}{" "}
-                        {evidenciasReclamo.filter((file) => file.type.startsWith("video/")).length === 1
-                          ? "video"
-                          : "videos"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {evidenciasReclamo.length > 0 && (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-                    <label className="mb-2 block font-extrabold text-slate-900">
-                      {T("Explicación de la evidencia *")}
-                    </label>
-
-                    <p className="mb-3 text-sm text-slate-600">
-                      {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar tu reclamo.")}
-                    </p>
-
-                    <textarea
-                      value={explicacionEvidenciaCliente}
-                      onChange={(e) =>
-                        setExplicacionEvidenciaCliente(e.target.value)
-                      }
-                      rows={5}
-                      maxLength={1500}
-                      disabled={enviandoReclamo}
-                      placeholder={T("Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...")}
-                      className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                    />
-
-                    <p className="mt-2 text-right text-sm text-slate-500">
-                      {explicacionEvidenciaCliente.length}/1500
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    disabled={enviandoReclamo}
-                    onClick={() => {
-                      setMostrarReclamo(false);
-                      setMotivoReclamo("");
-                      setDescripcionReclamo("");
-                      setEvidenciasReclamo([]);
-                      setError("");
-                    }}
-                    className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-extrabold text-slate-700 disabled:opacity-50"
-                  >
-                    {T("Cancelar")}
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={
-                      enviandoReclamo ||
-                      !motivoReclamo ||
-                      descripcionReclamo.trim().length < 5 ||
-                      (evidenciasReclamo.length > 0 &&
-                        explicacionEvidenciaCliente.trim().length < 5)
-                    }
-                    className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {enviandoReclamo
-                      ? T("Enviando reclamo...")
-                      : T("Enviar reclamo")}
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
-        )}
-
-        {/* PRESUPUESTOS: solo se muestran mientras la solicitud siga abierta y no exista un profesional seleccionado */}
-
-        {solicitud.status === "open" && !ofertaSeleccionada && (
-<section className="mt-8">
-
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-
-            <div>
-
-              <h2 className="text-3xl font-extrabold text-slate-900">
-                {T("Presupuestos recibidos")}
-              </h2>
-
-              <p className="mt-2 text-slate-600">
-                {T("Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.")}
-              </p>
-
-            </div>
-
-            {solicitud.status ===
-              "open" &&
-              ofertasPendientes >
-                0 && (
-                <div className="rounded-full bg-blue-100 px-4 py-2 font-extrabold text-blue-800">
-                  {ofertasPendientes}{" "}
-                  {T(
-                    ofertasPendientes === 1
-                      ? "presupuesto disponible"
-                      : "presupuestos disponibles"
-                  )}
-                </div>
-              )}
-
-          </div>
-
-          {ofertasVisibles.length ===
-          0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
-
-              <div className="text-5xl">
-                ⏳
-              </div>
-
-              <h3 className="mt-4 text-2xl font-extrabold text-slate-900">
-                {T("Todavía no tienes presupuestos")}
-              </h3>
-
-              <p className="mt-2 text-slate-600">
-                {T("Cuando un profesional envíe un presupuesto aparecerá aquí.")}
-              </p>
-
-            </div>
-          ) : (
-            <div className="space-y-5">
-
-              {ofertasVisibles.map(
-                (
-                  oferta
-                ) => {
-                  const seleccionada =
-                    oferta.status ===
-                    "selected";
-
-                  const rechazada =
-                    oferta.status ===
-                    "rejected";
-
-                  return (
-                    <article
-                      key={
-                        oferta.id
-                      }
-                      className={`rounded-3xl border bg-white p-7 shadow-lg ${
-                        seleccionada
-                          ? "border-green-400 ring-2 ring-green-100"
-                          : rechazada
-                          ? "border-slate-200 opacity-70"
-                          : "border-slate-200"
-                      }`}
-                    >
-
-                      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-
-                        <div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-
-                            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-                              {T("Profesional")}
-                            </p>
-
-                            {seleccionada && (
-                              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
-                                {T("✓ Contratado")}
-                              </span>
-                            )}
-
-                            {rechazada && (
-                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                                {T("No seleccionada")}
-                              </span>
-                            )}
-
-                            {oferta.profesional?.verified && (
-                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-                                {T("✓ Verificado")}
-                              </span>
-                            )}
-
-                          </div>
-
-                          <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
-                            {oferta.profesional?.business_name ||
-                              T("Profesional RELYDO")}
-                          </h3>
-
-                          <p className="mt-1 font-semibold text-blue-700">
-                            {T(
-                              nombreOficio(
-                                oferta.profesional?.trade ||
-                                  null
-                              )
-                            )}
-                          </p>
-
-                        </div>
-
-                        <div className="rounded-2xl bg-green-50 px-6 py-4 text-center">
-
-                          <p className="text-sm font-bold text-green-700">
-                            {T("Presupuesto")}
-                          </p>
-
-                          <p className="mt-1 text-3xl font-extrabold text-green-900">
-                            $
-                            {Number(
-                              oferta.price
-                            ).toFixed(
-                              2
-                            )}
-                          </p>
-
-                          {paymentSettings && (
-                            <>
-                              <p className="mt-2 text-xs font-semibold text-green-700">
-                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} {T("tarifa RELYDO")}
-                              </p>
-                              <p className="mt-1 text-sm font-black text-green-950">
-                                {T("Total")}: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
-                              </p>
-                            </>
-                          )}
-
-                        </div>
-
-                      </div>
-
-                      <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-
-                        <div className="rounded-xl bg-slate-50 p-4">
-                          <p className="text-sm text-slate-500">
-                            {T("🚗 Puede llegar")}
-                          </p>
-
-                          <p className="mt-1 font-extrabold text-slate-900">
-                            {mostrarMinutos(
-                              oferta.arrival_minutes,
-                              language
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-4">
-                          <p className="text-sm text-slate-500">
-                            {T("⏱️ Duración")}
-                          </p>
-
-                          <p className="mt-1 font-extrabold text-slate-900">
-                            {mostrarMinutos(
-                              oferta.estimated_job_minutes,
-                              language
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-4">
-                          <p className="text-sm text-slate-500">
-                            {T("⭐ Valoración")}
-                          </p>
-
-                          <p className="mt-1 font-extrabold text-slate-900">
-                            {Number(
-                              oferta.profesional?.average_rating ||
-                                0
-                            ).toFixed(
-                              1
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-4">
-                          <p className="text-sm text-slate-500">
-                            {T("🛠️ Experiencia")}
-                          </p>
-
-                          <p className="mt-1 font-extrabold text-slate-900">
-                            {oferta.profesional?.years_experience ?? 0}{" "}
-                            {T(
-                              Number(oferta.profesional?.years_experience ?? 0) === 1
-                                ? "año"
-                                : "años"
-                            )}
-                          </p>
-                        </div>
-
-                      </div>
-
-                      <div className="mt-4 rounded-xl bg-slate-50 p-4">
-
-                        <p className="text-sm text-slate-500">
-                          {T("Trabajos completados en RELYDO")}
-                        </p>
-
-                        <p className="mt-1 font-extrabold text-slate-900">
-                          {oferta.profesional?.completed_jobs ??
-                            0}
-                        </p>
-
-                      </div>
-
-                      <div className="mt-5 rounded-2xl border border-slate-200 p-5">
-
-                        <p className="text-sm font-bold text-slate-500">
-                          {T("Mensaje del profesional")}
-                        </p>
-
-                        <p className="mt-2 leading-7 text-slate-700">
-                          {oferta.message ||
-                            T("Sin mensaje adicional.")}
-                        </p>
-
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          router.push(
-                            `/profesionales/${oferta.professional_id}?returnTo=${encodeURIComponent(
-                              `/mis-solicitudes/${solicitud.id}`
-                            )}`
-                          )
-                        }
-                        className="mt-5 w-full rounded-xl border-2 border-blue-700 px-6 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
-                      >
-                        {T("Ver perfil del profesional")}
-                      </button>
-
-                      {solicitud.status ===
-                        "open" &&
-                        oferta.status ===
-                          "pending" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                aceptarOferta(
-                                  oferta
-                                )
-                              }
-                              disabled={
-                                aceptandoId !==
-                                  null ||
-                                rechazandoId !==
-                                  null
-                              }
-                              className="mt-3 w-full rounded-xl bg-green-600 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {aceptandoId ===
-                              oferta.id
-                                ? T("Contratando profesional...")
-                                : paymentSettings
-                                ? `${T("Revisar y continuar")} · ${T("Total")} $${calcularMontosPago(
-                                    oferta.price,
-                                    paymentSettings
-                                  ).customerTotalAmount.toFixed(2)}`
-                                : `${T("Contratar por")} $${Number(
-                                    oferta.price
-                                  ).toFixed(
-                                    2
-                                  )}`}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                rechazarOferta(
-                                  oferta
-                                )
-                              }
-                              disabled={
-                                aceptandoId !==
-                                  null ||
-                                rechazandoId !==
-                                  null
-                              }
-                              className="mt-3 w-full rounded-xl border-2 border-red-200 bg-white px-6 py-3.5 font-extrabold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {rechazandoId ===
-                              oferta.id
-                                ? T("Rechazando presupuesto...")
-                                : T("Rechazar presupuesto")}
-                            </button>
-                          </>
-                        )}
-
-                    </article>
-                  );
-                }
-              )}
-
-            </div>
-          )}
-
-        </section>
-        )}
-
-        {solicitud.completion_review_status === "pending" && !claim && (
-          <section className="mt-8 rounded-3xl border-2 border-amber-200 bg-amber-50 p-7 shadow-xl">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-                  {T("Trabajo en revisión")}
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black text-slate-950">
-                  {T("El profesional terminó el trabajo y envió la evidencia final. Revísala antes de aprobar o reportar un problema.")}
-                </h2>
-              </div>
-
-              <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-black text-blue-700">
-                {evidenciasFinales.filter((item) => item.file_type === "image").length}{" "}
-                {language === "en"
-                  ? evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                    ? "photo"
-                    : "photos"
-                  : evidenciasFinales.filter((item) => item.file_type === "image").length === 1
-                    ? "foto"
-                    : "fotos"}{" · "}
-                {evidenciasFinales.filter((item) => item.file_type === "video").length}{" "}
-                {evidenciasFinales.filter((item) => item.file_type === "video").length === 1
-                  ? "video"
-                  : "videos"}
-              </div>
-            </div>
-
-            {evidenciasFinales.length > 0 ? (
-              <>
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {evidenciasFinales.map((item) => (
-                    <article
-                      key={item.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                    >
-                      {item.signed_url ? (
-                        item.file_type === "video" ? (
-                          <video
-                            src={item.signed_url}
-                            controls
-                            preload="metadata"
-                            className="aspect-video w-full bg-black object-contain"
-                          />
-                        ) : (
-                          <a
-                            href={item.signed_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block"
-                          >
-                            <img
-                              src={item.signed_url}
-                              alt={T("Evidencia del trabajo terminado")}
-                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
-                            />
-                          </a>
-                        )
-                      ) : (
-                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
-                          {T("No pudimos abrir este archivo de evidencia.")}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
-                        <span className="text-sm font-black text-slate-800">
-                          {item.file_type === "video"
-                            ? T("🎥 Video")
-                            : T("📷 Foto")}
-                        </span>
-
-                        <span className="text-xs font-semibold text-slate-500">
-                          {T("Registrado")}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-blue-100 bg-white/80 px-5 py-4">
-                  <p className="text-sm font-bold leading-6 text-blue-900">
-                    {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-amber-200 bg-white px-5 py-4 text-sm font-bold text-amber-900">
-                {T("No pudimos abrir este archivo de evidencia.")}
-              </div>
-            )}
-
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                disabled={aprobandoTrabajo || evidenciasFinales.length === 0}
-                onClick={aprobarTrabajo}
-                className="w-full rounded-xl bg-green-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-800 disabled:opacity-50"
-              >
-                {aprobandoTrabajo ? T("Aprobando trabajo...") : T("Aprobar trabajo")}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMostrarReclamo(true);
-                  setError("");
-                  setMensaje("");
-
-                  window.setTimeout(() => {
-                    document
-                      .getElementById("reclamos-cliente")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 50);
-                }}
-                className="w-full rounded-xl border-2 border-red-600 bg-white px-6 py-4 text-lg font-extrabold text-red-700 hover:bg-red-50"
-              >
-                {T("⚠️ Iniciar reclamo")}
-              </button>
-            </div>
           </section>
         )}
 
         {/* CHAT PRIVADO RELYDO */}
 
         {ofertaSeleccionada &&
-          solicitud.status !== "open" && (
-            <>
-              {!chatAbierto && (
-                <button
-                  type="button"
-                  onClick={() => setChatAbierto(true)}
-                  className="mt-8 flex w-full items-center justify-between rounded-3xl border border-blue-200 bg-slate-950 px-6 py-5 text-left text-white shadow-xl transition hover:bg-slate-900"
-                >
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
-                      {T("🔒 Comunicación protegida")}
-                    </p>
-                    <p className="mt-1 text-xl font-black">
-                      💬 {T("Chat con")}{" "}
-                      {ofertaSeleccionada.profesional?.business_name ||
-                        T("el profesional")}
-                    </p>
-                  </div>
-                  <span className="text-2xl">›</span>
-                </button>
-              )}
-
-              {chatAbierto && (
+          solicitud.status !==
+            "open" && (
             <section
               id="chat-relydo"
               className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
@@ -6327,7 +4803,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
-                      {T("Chat con")}{" "}
+                      Chat con{" "}
                       {ofertaSeleccionada.profesional
                         ?.business_name ||
                         T("el profesional")}
@@ -6338,31 +4814,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span
+                  <span
                     className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
-                      !chatPuedeEnviar
-                        ? "bg-amber-100 text-amber-900"
-                        : chatRealtimeConectado
+                      chatRealtimeConectado
                         ? "bg-emerald-100 text-emerald-800"
                         : "bg-slate-700 text-slate-200"
                     }`}
                   >
-                    {!chatPuedeEnviar
-                      ? T("🔒 Chat bloqueado")
-                      : chatRealtimeConectado
-                      ? T("● En tiempo real")
-                      : T("Conectando...")}
+                    {chatRealtimeConectado
+                      ? "● En tiempo real"
+                      : "Conectando..."}
                   </span>
-                    <button
-                      type="button"
-                      onClick={() => setChatAbierto(false)}
-                      aria-label={language === "en" ? "Close chat" : "Cerrar chat"}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-lg font-black text-white transition hover:bg-slate-800"
-                    >
-                      ✕
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -6523,9 +4985,943 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 )}
               </div>
             </section>
-              )}
-            </>
           )}
+
+        {/* EVIDENCIA FINAL DEL PROFESIONAL */}
+
+        {solicitud.status === "completed" &&
+          evidenciasFinales.length > 0 && (
+            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+                    {T("📸 Evidencia del trabajo terminado")}
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">
+                    {T("Fotos y videos registrados por el profesional")}
+                  </h2>
+
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.")}
+                  </p>
+                </div>
+
+                <div className="w-fit rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
+                  {
+                    evidenciasFinales.filter(
+                      (item) =>
+                        item.file_type === "image"
+                    ).length
+                  }{" "}
+                  foto(s) ·{" "}
+                  {
+                    evidenciasFinales.filter(
+                      (item) =>
+                        item.file_type === "video"
+                    ).length
+                  }{" "}
+                  video(s)
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {evidenciasFinales.map(
+                  (item) => (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                    >
+                      {item.signed_url ? (
+                        item.file_type ===
+                        "video" ? (
+                          <video
+                            src={item.signed_url}
+                            controls
+                            preload="metadata"
+                            className="aspect-video w-full bg-black object-contain"
+                          />
+                        ) : (
+                          <a
+                            href={item.signed_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={item.signed_url}
+                              alt={T("Evidencia del trabajo terminado")}
+                              className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
+                            />
+                          </a>
+                        )
+                      ) : (
+                        <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
+                          {T("No pudimos abrir este archivo de evidencia.")}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                        <span className="text-sm font-black text-slate-800">
+                          {item.file_type ===
+                          "video"
+                            ? T("🎥 Video")
+                            : T("📷 Foto")}
+                        </span>
+
+                        <span className="text-xs font-semibold text-slate-500">
+                          {T("Registrado")}
+                        </span>
+                      </div>
+                    </article>
+                  )
+                )}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                <p className="text-sm font-bold leading-6 text-blue-900">
+                  {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
+                </p>
+              </div>
+            </section>
+          )}
+
+        {/* RESEÑA */}
+
+        {solicitud.status ===
+          "completed" &&
+          ofertaSeleccionada && (
+            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+
+              {review ? (
+                <>
+
+                  <div className="text-center">
+
+                    <div className="text-5xl">
+                      ✅
+                    </div>
+
+                    <h2 className="mt-3 text-2xl font-extrabold text-slate-900">
+                      {T("Gracias por tu calificación")}
+                    </h2>
+
+                    <p className="mt-2 text-slate-600">
+                      {T("Ya calificaste este trabajo.")}
+                    </p>
+
+                  </div>
+
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-6">
+
+                    <p className="text-sm font-bold text-slate-500">
+                      {T("Tu calificación")}
+                    </p>
+
+                    <div className="mt-2 text-3xl">
+
+                      {[1, 2, 3, 4, 5].map(
+                        (
+                          estrella
+                        ) => (
+                          <span
+                            key={
+                              estrella
+                            }
+                            className={
+                              estrella <=
+                              review.rating
+                                ? "text-yellow-500"
+                                : "text-slate-300"
+                            }
+                          >
+                            ★
+                          </span>
+                        )
+                      )}
+
+                    </div>
+
+                    {review.comment && (
+                      <>
+                        <p className="mt-5 text-sm font-bold text-slate-500">
+                          {T("Tu comentario")}
+                        </p>
+
+                        <p className="mt-2 leading-7 text-slate-700">
+                          {review.comment}
+                        </p>
+                      </>
+                    )}
+
+                  </div>
+
+                </>
+              ) : (
+                <>
+
+                  <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+                    {T("Trabajo completado")}
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-extrabold text-slate-900">
+                    {T("Calificar profesional")}
+                  </h2>
+
+                  <p className="mt-2 text-slate-600">
+                    ¿Cómo fue tu experiencia con{" "}
+                    <strong>
+                      {ofertaSeleccionada.profesional
+                        ?.business_name ||
+                        T("este profesional")}
+                    </strong>
+                    ?
+                  </p>
+
+                  <form
+                    onSubmit={
+                      enviarResena
+                    }
+                    className="mt-7"
+                  >
+
+                    <p className="font-bold text-slate-900">
+                      {T("Tu calificación *")}
+                    </p>
+
+                    <div className="mt-3 flex gap-2">
+
+                      {[1, 2, 3, 4, 5].map(
+                        (
+                          estrella
+                        ) => (
+                          <button
+                            key={
+                              estrella
+                            }
+                            type="button"
+                            onClick={() =>
+                              setRating(
+                                estrella
+                              )
+                            }
+                            className={`text-5xl transition hover:scale-110 ${
+                              estrella <=
+                              rating
+                                ? "text-yellow-400"
+                                : "text-slate-300"
+                            }`}
+                          >
+                            ★
+                          </button>
+                        )
+                      )}
+
+                    </div>
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      {rating === 0
+                        ? "Selecciona de 1 a 5 estrellas."
+                        : `Has seleccionado ${rating} ${
+                            rating === 1
+                              ? "estrella"
+                              : "estrellas"
+                          }.`}
+                    </p>
+
+                    <div className="mt-7">
+
+                      <label className="mb-2 block font-bold text-slate-900">
+                        {T("Comentario")}
+                      </label>
+
+                      <textarea
+                        value={
+                          comentario
+                        }
+                        onChange={(e) =>
+                          setComentario(
+                            e.target.value
+                          )
+                        }
+                        rows={5}
+                        maxLength={
+                          1000
+                        }
+                        placeholder={T("Cuéntanos cómo fue el servicio...")}
+                        className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
+                      />
+
+                      <p className="mt-2 text-right text-sm text-slate-500">
+                        {comentario.length}
+                        /1000
+                      </p>
+
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        enviandoReview ||
+                        rating === 0
+                      }
+                      className="mt-6 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
+                    >
+                      {enviandoReview
+                        ? T("Enviando calificación...")
+                        : T("Enviar reseña")}
+                    </button>
+
+                  </form>
+
+                </>
+              )}
+
+            </section>
+          )}
+
+        {/* RECLAMO / REPORTAR PROBLEMA */}
+
+        {(
+          solicitud.status === "completed" ||
+          solicitud.status === "cancelled" ||
+          (
+            solicitud.status === "in_progress" &&
+            solicitud.job_stage === "working"
+          )
+        ) &&
+          ofertaSeleccionada && (
+          <section
+            id="reclamos-cliente"
+            className="mt-8 scroll-mt-6 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
+          >
+            {claim ? (
+              <>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-wide text-red-700">
+                      {T("⚠️ Problema reportado")}
+                    </p>
+                    <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+                      {T("Tu reclamo quedó registrado")}
+                    </h2>
+                    <p className="mt-2 text-slate-600">
+                      {T("RELYDO conserva este reporte asociado al trabajo.")}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-black uppercase text-amber-800">
+                    {claim.status === "open"
+                      ? "Abierto"
+                      : claim.status === "reviewing"
+                      ? T("En revisión")
+                      : claim.status === "resolved"
+                      ? "Resuelto"
+                      : "Rechazado"}
+                  </span>
+                </div>
+
+                <div className="mt-6 rounded-2xl bg-red-50 p-6">
+                  <p className="text-sm font-bold text-red-700">Motivo</p>
+                  <p className="mt-2 font-extrabold text-slate-900">
+                    {claim.reason}
+                  </p>
+
+                  {claim.description && (
+                    <>
+                      <p className="mt-5 text-sm font-bold text-red-700">
+                        {T("Descripción")}
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
+                        {claim.description}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {claim.status === "resolved" && (
+                  <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-6">
+                    <p className="text-sm font-black uppercase tracking-wide text-green-700">
+                      {T("✅ Reclamo resuelto")}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl bg-white p-4">
+                        <p className="text-sm font-bold text-slate-500">
+                          {T("Reembolso al cliente")}
+                        </p>
+                        <p className="mt-1 text-xl font-black text-green-800">
+                          ${Number(
+                            claim.customer_refund_amount || 0
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-white p-4">
+                        <p className="text-sm font-bold text-slate-500">
+                          {T("Compensación al profesional")}
+                        </p>
+                        <p className="mt-1 text-xl font-black text-slate-900">
+                          ${Number(
+                            claim.provider_award_amount || 0
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {claim.resolution_notes && (
+                      <div className="mt-4 rounded-xl bg-white p-4">
+                        <p className="text-sm font-bold text-slate-500">
+                          {T("Resolución de RELYDO")}
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
+                          {claim.resolution_notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : solicitud.status === "cancelled" ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="font-extrabold text-slate-900">
+                  {T("Este trabajo está cerrado.")}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {T("No se pueden abrir nuevos reclamos después de que el trabajo ha sido cancelado.")}
+                </p>
+              </div>
+            ) : !mostrarReclamo ? (
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-wide text-red-700">
+                    {T("¿Hubo un problema con el servicio?")}
+                  </p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+                    {T("Reportar un problema")}
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-slate-600">
+                    {T("Usa esta opción si el trabajo quedó incompleto, hubo daños, un cobro adicional u otro problema importante.")}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarReclamo(true);
+                    setError("");
+                    setMensaje("");
+                  }}
+                  className="shrink-0 rounded-xl border-2 border-red-600 bg-white px-6 py-3 font-extrabold text-red-700 hover:bg-red-50"
+                >
+                  {T("⚠️ Reportar problema")}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={enviarReclamo} className="space-y-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-wide text-red-700">
+                      {T("Abrir reclamo")}
+                    </p>
+                    <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
+                      {T("Cuéntanos qué ocurrió")}
+                    </h2>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarReclamo(false);
+                      setMotivoReclamo("");
+                      setDescripcionReclamo("");
+                      setExplicacionEvidenciaCliente("");
+                      setEvidenciasReclamo([]);
+                      setError("");
+                    }}
+                    className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-bold text-slate-900">
+                    {T("Motivo del reclamo *")}
+                  </label>
+                  <select
+                    value={motivoReclamo}
+                    onChange={(e) => setMotivoReclamo(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
+                  >
+                    <option value="">Selecciona un motivo</option>
+                    <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
+                    <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
+                    <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
+                    <option value="Cobro adicional no acordado">{T("Cobro adicional no acordado")}</option>
+                    <option value="Conducta del profesional">{T("Conducta del profesional")}</option>
+                    <option value="Otro problema">{T("Otro problema")}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-bold text-slate-900">
+                    {T("Explica el problema *")}
+                  </label>
+                  <textarea
+                    value={descripcionReclamo}
+                    onChange={(e) => setDescripcionReclamo(e.target.value)}
+                    rows={5}
+                    maxLength={1500}
+                    placeholder="Describe qué ocurrió y qué parte del servicio tuvo el problema..."
+                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
+                  />
+                  <p className="mt-2 text-right text-sm text-slate-500">
+                    {descripcionReclamo.length}/1500
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-extrabold text-slate-900">
+                        {T("Fotos o videos")}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {T("Opcional. Puedes adjuntar hasta 10 fotos y 2 videos como evidencia.")}
+                      </p>
+                    </div>
+
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
+                      {T("📎 Adjuntar archivos")}
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                        onChange={seleccionarEvidenciaReclamo}
+                        disabled={enviandoReclamo}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                    <p className="font-bold">
+                      {T("Formatos permitidos")}
+                    </p>
+                    <p className="mt-1">
+                      {T("Fotos: JPG, PNG, WEBP · Videos: MP4, WEBM, MOV · Máximo 50 MB por archivo.")}
+                    </p>
+                  </div>
+
+                  {evidenciasReclamo.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {evidenciasReclamo.map(
+                        (file, index) => (
+                          <div
+                            key={`${file.name}-${file.size}-${index}`}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-900">
+                                {file.type.startsWith("video/")
+                                  ? "🎥"
+                                  : "🖼️"}{" "}
+                                {file.name}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={enviandoReclamo}
+                              onClick={() =>
+                                eliminarEvidenciaReclamo(
+                                  index
+                                )
+                              }
+                              className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {T("Quitar")}
+                            </button>
+                          </div>
+                        )
+                      )}
+
+                      <p className="text-right text-sm font-bold text-slate-600">
+                        {evidenciasReclamo.filter(
+                          (file) =>
+                            file.type.startsWith("image/")
+                        ).length}{" "}
+                        foto(s) ·{" "}
+                        {evidenciasReclamo.filter(
+                          (file) =>
+                            file.type.startsWith("video/")
+                        ).length}{" "}
+                        video(s)
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {evidenciasReclamo.length > 0 && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+                    <label className="mb-2 block font-extrabold text-slate-900">
+                      {T("Explicación de la evidencia *")}
+                    </label>
+
+                    <p className="mb-3 text-sm text-slate-600">
+                      {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar tu reclamo.")}
+                    </p>
+
+                    <textarea
+                      value={explicacionEvidenciaCliente}
+                      onChange={(e) =>
+                        setExplicacionEvidenciaCliente(e.target.value)
+                      }
+                      rows={5}
+                      maxLength={1500}
+                      disabled={enviandoReclamo}
+                      placeholder={T("Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...")}
+                      className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    />
+
+                    <p className="mt-2 text-right text-sm text-slate-500">
+                      {explicacionEvidenciaCliente.length}/1500
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={enviandoReclamo}
+                    onClick={() => {
+                      setMostrarReclamo(false);
+                      setMotivoReclamo("");
+                      setDescripcionReclamo("");
+                      setEvidenciasReclamo([]);
+                      setError("");
+                    }}
+                    className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-extrabold text-slate-700 disabled:opacity-50"
+                  >
+                    {T("Cancelar")}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      enviandoReclamo ||
+                      !motivoReclamo ||
+                      descripcionReclamo.trim().length < 5 ||
+                      (evidenciasReclamo.length > 0 &&
+                        explicacionEvidenciaCliente.trim().length < 5)
+                    }
+                    className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {enviandoReclamo
+                      ? T("Enviando reclamo...")
+                      : T("Enviar reclamo")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* PRESUPUESTOS */}
+
+        <section className="mt-8">
+
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+
+            <div>
+
+              <h2 className="text-3xl font-extrabold text-slate-900">
+                {T("Presupuestos recibidos")}
+              </h2>
+
+              <p className="mt-2 text-slate-600">
+                {T("Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.")}
+              </p>
+
+            </div>
+
+            {solicitud.status ===
+              "open" &&
+              ofertasPendientes >
+                0 && (
+                <div className="rounded-full bg-blue-100 px-4 py-2 font-extrabold text-blue-800">
+                  {ofertasPendientes}{" "}
+                  {ofertasPendientes ===
+                  1
+                    ? "presupuesto disponible"
+                    : "presupuestos disponibles"}
+                </div>
+              )}
+
+          </div>
+
+          {ofertas.length ===
+          0 ? (
+            <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
+
+              <div className="text-5xl">
+                ⏳
+              </div>
+
+              <h3 className="mt-4 text-2xl font-extrabold text-slate-900">
+                {T("Todavía no tienes presupuestos")}
+              </h3>
+
+              <p className="mt-2 text-slate-600">
+                {T("Cuando un profesional envíe un presupuesto aparecerá aquí.")}
+              </p>
+
+            </div>
+          ) : (
+            <div className="space-y-5">
+
+              {ofertas.map(
+                (
+                  oferta
+                ) => {
+                  const seleccionada =
+                    oferta.status ===
+                    "selected";
+
+                  const rechazada =
+                    oferta.status ===
+                    "rejected";
+
+                  return (
+                    <article
+                      key={
+                        oferta.id
+                      }
+                      className={`rounded-3xl border bg-white p-7 shadow-lg ${
+                        seleccionada
+                          ? "border-green-400 ring-2 ring-green-100"
+                          : rechazada
+                          ? "border-slate-200 opacity-70"
+                          : "border-slate-200"
+                      }`}
+                    >
+
+                      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+
+                        <div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+
+                            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+                              {T("Profesional")}
+                            </p>
+
+                            {seleccionada && (
+                              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
+                                {T("✓ Contratado")}
+                              </span>
+                            )}
+
+                            {rechazada && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                {T("No seleccionada")}
+                              </span>
+                            )}
+
+                            {oferta.profesional?.verified && (
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
+                                {T("✓ Verificado")}
+                              </span>
+                            )}
+
+                          </div>
+
+                          <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
+                            {oferta.profesional?.business_name ||
+                              T("Profesional RELYDO")}
+                          </h3>
+
+                          <p className="mt-1 font-semibold text-blue-700">
+                            {nombreOficio(
+                              oferta.profesional?.trade ||
+                                null
+                            )}
+                          </p>
+
+                        </div>
+
+                        <div className="rounded-2xl bg-green-50 px-6 py-4 text-center">
+
+                          <p className="text-sm font-bold text-green-700">
+                            {T("Presupuesto")}
+                          </p>
+
+                          <p className="mt-1 text-3xl font-extrabold text-green-900">
+                            $
+                            {Number(
+                              oferta.price
+                            ).toFixed(
+                              2
+                            )}
+                          </p>
+
+                          {paymentSettings && (
+                            <>
+                              <p className="mt-2 text-xs font-semibold text-green-700">
+                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} tarifa RELYDO
+                              </p>
+                              <p className="mt-1 text-sm font-black text-green-950">
+                                Total: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
+                              </p>
+                            </>
+                          )}
+
+                        </div>
+
+                      </div>
+
+                      <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+
+                        <div className="rounded-xl bg-slate-50 p-4">
+                          <p className="text-sm text-slate-500">
+                            {T("🚗 Puede llegar")}
+                          </p>
+
+                          <p className="mt-1 font-extrabold text-slate-900">
+                            {mostrarMinutos(
+                              oferta.arrival_minutes
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 p-4">
+                          <p className="text-sm text-slate-500">
+                            {T("⏱️ Duración")}
+                          </p>
+
+                          <p className="mt-1 font-extrabold text-slate-900">
+                            {mostrarMinutos(
+                              oferta.estimated_job_minutes
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 p-4">
+                          <p className="text-sm text-slate-500">
+                            {T("⭐ Valoración")}
+                          </p>
+
+                          <p className="mt-1 font-extrabold text-slate-900">
+                            {Number(
+                              oferta.profesional?.average_rating ||
+                                0
+                            ).toFixed(
+                              1
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 p-4">
+                          <p className="text-sm text-slate-500">
+                            {T("🛠️ Experiencia")}
+                          </p>
+
+                          <p className="mt-1 font-extrabold text-slate-900">
+                            {oferta.profesional?.years_experience ??
+                              0}{" "}
+                            años
+                          </p>
+                        </div>
+
+                      </div>
+
+                      <div className="mt-4 rounded-xl bg-slate-50 p-4">
+
+                        <p className="text-sm text-slate-500">
+                          {T("Trabajos completados en RELYDO")}
+                        </p>
+
+                        <p className="mt-1 font-extrabold text-slate-900">
+                          {oferta.profesional?.completed_jobs ??
+                            0}
+                        </p>
+
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-slate-200 p-5">
+
+                        <p className="text-sm font-bold text-slate-500">
+                          {T("Mensaje del profesional")}
+                        </p>
+
+                        <p className="mt-2 leading-7 text-slate-700">
+                          {oferta.message ||
+                            T("Sin mensaje adicional.")}
+                        </p>
+
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            `/profesionales/${oferta.professional_id}?returnTo=${encodeURIComponent(
+                              `/mis-solicitudes/${solicitud.id}`
+                            )}`
+                          )
+                        }
+                        className="mt-5 w-full rounded-xl border-2 border-blue-700 px-6 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
+                      >
+                        {T("Ver perfil del profesional")}
+                      </button>
+
+                      {solicitud.status ===
+                        "open" &&
+                        oferta.status ===
+                          "pending" && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              aceptarOferta(
+                                oferta
+                              )
+                            }
+                            disabled={
+                              aceptandoId !==
+                              null
+                            }
+                            className="mt-3 w-full rounded-xl bg-green-600 px-6 py-4 text-lg font-extrabold text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {aceptandoId ===
+                            oferta.id
+                              ? T("Contratando profesional...")
+                              : paymentSettings
+                              ? `Revisar y continuar · Total $${calcularMontosPago(
+                                  oferta.price,
+                                  paymentSettings
+                                ).customerTotalAmount.toFixed(2)}`
+                              : `Contratar por $${Number(
+                                  oferta.price
+                                ).toFixed(
+                                  2
+                                )}`}
+                          </button>
+                        )}
+
+                    </article>
+                  );
+                }
+              )}
+
+            </div>
+          )}
+
+        </section>
 
       </div>
 
