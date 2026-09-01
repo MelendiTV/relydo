@@ -825,7 +825,25 @@ export default function PanelProfesional() {
   }
 
   async function comprobarPushProfesional() {
+    if (
+      !userId ||
+      !pushDisponible
+    ) {
+      setPushActivo(false);
+      return;
+    }
+
     try {
+      const publicKey =
+        process.env
+          .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        throw new Error(
+          "Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY."
+        );
+      }
+
       const registration =
         await navigator.serviceWorker.register(
           "/sw.js"
@@ -834,23 +852,189 @@ export default function PanelProfesional() {
       const ready =
         await navigator.serviceWorker.ready;
 
-      const subscription =
+      let subscription =
         await ready.pushManager.getSubscription();
 
-      setPushActivo(
-        Boolean(subscription)
-      );
-
       if (
-        registration &&
         Notification.permission ===
           "denied"
       ) {
         setPushActivo(false);
+        return;
       }
+
+      /*
+        IMPORTANTE:
+
+        Antes solamente comprobábamos si el navegador
+        tenía una suscripción local y, si existía,
+        marcábamos Push como activo.
+
+        Eso podía dejar el navegador "activo" aunque
+        la suscripción ya no existiera en Supabase para
+        el profesional que había iniciado sesión.
+
+        Ahora, si existe una suscripción local, la
+        sincronizamos nuevamente con push_subscriptions.
+      */
+
+      if (subscription) {
+        const json =
+          subscription.toJSON();
+
+        const endpoint =
+          subscription.endpoint;
+
+        const p256dh =
+          json.keys?.p256dh;
+
+        const auth =
+          json.keys?.auth;
+
+        if (
+          endpoint &&
+          p256dh &&
+          auth
+        ) {
+          const {
+            error:
+              syncError,
+          } = await supabase
+            .from(
+              "push_subscriptions"
+            )
+            .upsert(
+              {
+                user_id:
+                  userId,
+                endpoint,
+                p256dh,
+                auth,
+                user_agent:
+                  navigator.userAgent,
+                updated_at:
+                  new Date().toISOString(),
+              },
+              {
+                onConflict:
+                  "endpoint",
+              }
+            );
+
+          if (!syncError) {
+            setPushActivo(true);
+            return;
+          }
+
+          console.warn(
+            "No se pudo resincronizar la suscripción Push existente. Se intentará crear una nueva:",
+            syncError
+          );
+
+          /*
+            Si el endpoint viejo quedó registrado con
+            otra cuenta y RLS impide reasignarlo,
+            eliminamos solamente la suscripción LOCAL
+            de este navegador y creamos una nueva.
+          */
+
+          try {
+            await subscription.unsubscribe();
+          } catch (unsubscribeError) {
+            console.warn(
+              "No se pudo eliminar la suscripción Push local anterior:",
+              unsubscribeError
+            );
+          }
+
+          subscription = null;
+        }
+      }
+
+      /*
+        Si el usuario ya concedió permiso pero no existe
+        una suscripción local válida, la recreamos y la
+        guardamos automáticamente.
+      */
+
+      if (
+        !subscription &&
+        Notification.permission ===
+          "granted"
+      ) {
+        subscription =
+          await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              urlBase64AUint8Array(
+                publicKey
+              ),
+          });
+
+        const json =
+          subscription.toJSON();
+
+        const endpoint =
+          subscription.endpoint;
+
+        const p256dh =
+          json.keys?.p256dh;
+
+        const auth =
+          json.keys?.auth;
+
+        if (
+          !endpoint ||
+          !p256dh ||
+          !auth
+        ) {
+          throw new Error(
+            T(
+              "La suscripción Push no devolvió las claves necesarias.",
+              "The Push subscription did not return the required keys."
+            )
+          );
+        }
+
+        const {
+          error:
+            guardarError,
+        } = await supabase
+          .from(
+            "push_subscriptions"
+          )
+          .upsert(
+            {
+              user_id:
+                userId,
+              endpoint,
+              p256dh,
+              auth,
+              user_agent:
+                navigator.userAgent,
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict:
+                "endpoint",
+            }
+          );
+
+        if (guardarError) {
+          throw new Error(
+            guardarError.message
+          );
+        }
+
+        setPushActivo(true);
+        return;
+      }
+
+      setPushActivo(false);
     } catch (error) {
       console.error(
-        "No se pudo comprobar Push profesional:",
+        "No se pudo comprobar o sincronizar Push profesional:",
         error
       );
 
