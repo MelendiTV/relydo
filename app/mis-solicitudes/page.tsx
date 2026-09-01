@@ -929,18 +929,13 @@ export default function MisSolicitudesPage() {
         throw new Error(t.perfilNoEncontrado);
       }
 
-      if (
-        profileData.role !== "customer" &&
-        profileData.role !== "provider"
-      ) {
-        throw new Error(t.sinAcceso);
+      if (profileData.role !== "customer") {
+        await supabase.auth.signOut();
+        router.replace("/login-cliente");
+        return;
       }
 
-      setAccountRole(
-        profileData.role === "provider"
-          ? "provider"
-          : "customer"
-      );
+      setAccountRole("customer");
 
       setCliente(profileData);
 
