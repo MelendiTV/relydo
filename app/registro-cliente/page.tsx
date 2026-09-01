@@ -82,6 +82,9 @@ function RegistroClienteContenido() {
   const [awaitingEmailConfirmation, setAwaitingEmailConfirmation] =
     useState(false);
 
+  const [resendingVerification, setResendingVerification] =
+    useState(false);
+
   const text =
     language === "es"
       ? {
@@ -98,6 +101,9 @@ function RegistroClienteContenido() {
           email: "Correo electrónico",
           emailPlaceholder:
             "cliente@email.com",
+
+          emailRequerido:
+            "Escribe tu correo electrónico.",
 
           correoYaRegistrado:
             "Este correo electrónico ya está registrado. Inicia sesión o usa otro correo.",
@@ -116,6 +122,18 @@ function RegistroClienteContenido() {
 
           irALogin:
             "Ir a iniciar sesión",
+
+          reenviarVerificacion:
+            "Reenviar correo de verificación",
+
+          reenviandoVerificacion:
+            "Reenviando correo...",
+
+          verificacionReenviada:
+            "Te enviamos un nuevo correo de verificación. Revisa también tu carpeta de spam.",
+
+          errorReenviandoVerificacion:
+            "No pudimos reenviar el correo de verificación. Intenta nuevamente en unos minutos.",
 
           telefono: "Teléfono",
           telefonoPlaceholder:
@@ -241,6 +259,9 @@ function RegistroClienteContenido() {
           emailPlaceholder:
             "customer@email.com",
 
+          emailRequerido:
+            "Enter your email address.",
+
           correoYaRegistrado:
             "This email address is already registered. Sign in or use a different email.",
 
@@ -258,6 +279,18 @@ function RegistroClienteContenido() {
 
           irALogin:
             "Go to sign in",
+
+          reenviarVerificacion:
+            "Resend verification email",
+
+          reenviandoVerificacion:
+            "Resending email...",
+
+          verificacionReenviada:
+            "We sent you a new verification email. Please also check your spam folder.",
+
+          errorReenviandoVerificacion:
+            "We could not resend the verification email. Please try again in a few minutes.",
 
           telefono: "Phone",
           telefonoPlaceholder:
@@ -712,6 +745,61 @@ function RegistroClienteContenido() {
       }
 
       setLoading(false);
+    }
+  }
+
+  async function reenviarCorreoVerificacion() {
+    if (resendingVerification) {
+      return;
+    }
+
+    const correoLimpio =
+      email.trim().toLowerCase();
+
+    if (!correoLimpio) {
+      setError(text.emailRequerido);
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setResendingVerification(true);
+
+    try {
+      const { error: resendError } =
+        await supabase.auth.resend({
+          type: "signup",
+          email: correoLimpio,
+          options: {
+            emailRedirectTo:
+              `${window.location.origin}/verificar-email`,
+          },
+        });
+
+      if (resendError) {
+        console.error(
+          "Error reenviando verificación:",
+          resendError
+        );
+        setError(
+          text.errorReenviandoVerificacion
+        );
+        return;
+      }
+
+      setSuccess(
+        text.verificacionReenviada
+      );
+    } catch (err) {
+      console.error(
+        "Error inesperado reenviando verificación:",
+        err
+      );
+      setError(
+        text.errorReenviandoVerificacion
+      );
+    } finally {
+      setResendingVerification(false);
     }
   }
 
@@ -1228,6 +1316,21 @@ function RegistroClienteContenido() {
               <p className="text-sm text-slate-600">
                 {text.yaCuenta}
               </p>
+
+              <button
+                type="button"
+                onClick={
+                  reenviarCorreoVerificacion
+                }
+                disabled={
+                  resendingVerification
+                }
+                className="w-full rounded-xl border border-blue-700 bg-white px-4 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {resendingVerification
+                  ? text.reenviandoVerificacion
+                  : text.reenviarVerificacion}
+              </button>
 
               <button
                 type="button"
