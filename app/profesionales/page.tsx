@@ -809,7 +809,13 @@ function ProfesionalesContenido() {
                     <button
                       key={categoria.trade}
                       type="button"
-                      onClick={() => seleccionarTrade(categoria.trade)}
+                      onClick={() => {
+                        if (activo) {
+                          seleccionarTrade("");
+                        } else {
+                          seleccionarTrade(categoria.trade);
+                        }
+                      }}
                       title={categoria.nombre}
                       className={`flex min-h-[64px] min-w-0 items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-sm font-extrabold leading-tight shadow-sm transition ${
                         activo
