@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/icon/logo-oficial.png";
+const LOGO_SRC = "/icon/relydo-logo.png";
 
 function BrandLogo() {
   return (
@@ -12,7 +12,7 @@ function BrandLogo() {
       <img
         src={LOGO_SRC}
         alt="RELYDO"
-        className="h-16 w-auto object-contain sm:h-20"
+        className="h-10 w-auto object-contain sm:h-11"
         onError={(event) => {
           event.currentTarget.style.display = "none";
 
@@ -346,6 +346,16 @@ export default function ClientesHome() {
     router.push(
       `/servicios?buscar=${encodeURIComponent(
         texto
+      )}`
+    );
+  }
+
+  function irAServicio(
+    nombre: string
+  ) {
+    router.push(
+      `/servicios?buscar=${encodeURIComponent(
+        nombre
       )}`
     );
   }
@@ -1315,13 +1325,21 @@ export default function ClientesHome() {
 
             <div className="mt-4 flex flex-col items-start gap-3 text-slate-300">
 
-              <span>
+              <button
+                type="button"
+                onClick={() => router.push("/terms")}
+                className="transition hover:text-white"
+              >
                 {text.terms}
-              </span>
+              </button>
 
-              <span>
+              <button
+                type="button"
+                onClick={() => router.push("/privacy")}
+                className="transition hover:text-white"
+              >
                 {text.privacy}
-              </span>
+              </button>
 
             </div>
 
