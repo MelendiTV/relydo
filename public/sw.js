@@ -23,6 +23,7 @@ self.addEventListener("push", function (event) {
     // Badge pequeño
     badge: "/icons/notification-icon.png",
 
+    // Guardamos el destino recibido desde el servidor
     data: {
       url: data.url || "/",
     },
@@ -56,26 +57,56 @@ self.addEventListener("push", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 
-  const url =
+  const rawUrl =
     event.notification.data?.url || "/";
 
+  // Convierte siempre rutas como:
+  // /trabajos/123
+  //
+  // en una URL absoluta del dominio donde vive este Service Worker:
+  // https://www.relydo.co/trabajos/123
+  const targetUrl = new URL(
+    rawUrl,
+    self.location.origin
+  ).href;
+
   event.waitUntil(
-    clients
-      .matchAll({
+    (async function () {
+      const clientList = await clients.matchAll({
         type: "window",
         includeUncontrolled: true,
-      })
-      .then((clientList) => {
-        for (const client of clientList) {
-          if ("focus" in client) {
-            client.navigate(url);
-            return client.focus();
-          }
-        }
+      });
 
-        if (clients.openWindow) {
-          return clients.openWindow(url);
+      // Si RELYDO ya está abierto, usamos esa ventana.
+      for (const client of clientList) {
+        try {
+          const clientUrl = new URL(client.url);
+
+          // Solo usamos ventanas del mismo dominio.
+          if (clientUrl.origin === self.location.origin) {
+            if ("navigate" in client) {
+              await client.navigate(targetUrl);
+            }
+
+            if ("focus" in client) {
+              await client.focus();
+            }
+
+            return;
+          }
+        } catch (error) {
+          console.error(
+            "RELYDO notification navigation error:",
+            error
+          );
         }
-      })
+      }
+
+      // Si RELYDO no está abierto, abrimos directamente
+      // la página específica del trabajo.
+      if (clients.openWindow) {
+        await clients.openWindow(targetUrl);
+      }
+    })()
   );
 });
