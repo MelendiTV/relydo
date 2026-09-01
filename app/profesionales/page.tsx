@@ -859,6 +859,8 @@ function ProfesionalesContenido() {
               </div>
             </div>
 
+            {tradeSeleccionado && (
+              <>
             {/* TITULO RESULTADOS */}
             <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -1090,6 +1092,9 @@ function ProfesionalesContenido() {
               </div>
             )}
 
+
+              </>
+            )}
 
           </>
         )}
