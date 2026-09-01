@@ -19,6 +19,10 @@ const supabasePublishableKey =
 const supabaseSecretKey =
   process.env.SUPABASE_SECRET_KEY!;
 
+type JwtPayload = {
+  session_id?: string;
+};
+
 function crearAuthClient() {
   return createClient(
     supabaseUrl,
@@ -45,6 +49,55 @@ function crearAdminClient() {
   );
 }
 
+function decodeJwtPayload(
+  token: string
+): JwtPayload | null {
+  try {
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const base64 = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const padded =
+      base64 +
+      "=".repeat((4 - (base64.length % 4)) % 4);
+
+    const decoded = Buffer.from(
+      padded,
+      "base64"
+    ).toString("utf8");
+
+    return JSON.parse(decoded) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+function obtenerIp(
+  request: NextRequest
+) {
+  const forwarded =
+    request.headers.get("x-forwarded-for");
+
+  if (forwarded) {
+    const firstIp = forwarded
+      .split(",")[0]
+      .trim();
+
+    return firstIp || null;
+  }
+
+  return (
+    request.headers.get("x-real-ip") ||
+    null
+  );
+}
+
 async function obtenerUsuario(
   request: NextRequest
 ) {
@@ -59,6 +112,7 @@ async function obtenerUsuario(
   if (!accessToken) {
     return {
       user: null,
+      accessToken: null,
       error: "Unauthorized.",
     };
   }
@@ -80,12 +134,14 @@ async function obtenerUsuario(
   ) {
     return {
       user: null,
+      accessToken: null,
       error: "Unauthorized.",
     };
   }
 
   return {
     user: data.user,
+    accessToken,
     error: null,
   };
 }
@@ -157,6 +213,7 @@ export async function POST(
 
     const {
       user,
+      accessToken,
       error: userError,
     } =
       await obtenerUsuario(
@@ -165,7 +222,8 @@ export async function POST(
 
     if (
       userError ||
-      !user
+      !user ||
+      !accessToken
     ) {
       return NextResponse.json(
         {
@@ -431,6 +489,65 @@ export async function POST(
         needsVerification: false,
         accountStatus: "pending",
       });
+    }
+
+    /*
+      SESIÓN PROFESIONAL ÚNICA PARA GOOGLE
+
+      Este POST ya recibió y validó el access token
+      del OAuth. Cuando el Pro está aprobado,
+      hacemos que esta sesión de Google sustituya
+      cualquier sesión profesional anterior.
+    */
+
+    const payload =
+      decodeJwtPayload(accessToken);
+
+    const sessionId =
+      typeof payload?.session_id === "string"
+        ? payload.session_id.trim()
+        : "";
+
+    if (!sessionId) {
+      return NextResponse.json(
+        {
+          error:
+            "The Google authentication session does not contain a session_id.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    const ahora =
+      new Date().toISOString();
+
+    const {
+      error: activeSessionError,
+    } =
+      await admin
+        .from("provider_active_sessions")
+        .upsert(
+          {
+            user_id: user.id,
+            session_id: sessionId,
+            device_info:
+              request.headers
+                .get("user-agent")
+                ?.slice(0, 1000) || null,
+            ip_address:
+              obtenerIp(request),
+            activated_at: ahora,
+            updated_at: ahora,
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
+
+    if (activeSessionError) {
+      throw activeSessionError;
     }
 
     return NextResponse.json({

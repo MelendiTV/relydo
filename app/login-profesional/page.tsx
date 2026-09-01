@@ -27,6 +27,9 @@ function LoginProfesionalContenido() {
   const { language } = useLanguage();
 
   const redirectParam = searchParams.get("redirect");
+  const sessionWasReplaced =
+    searchParams.get("reason") ===
+    "session_replaced";
 
   const redirectProfesional =
     redirectParam &&
@@ -77,6 +80,8 @@ function LoginProfesionalContenido() {
           iniciarSesion: "Iniciar sesión",
           noCuenta: "¿Todavía no tienes cuenta?",
           registrate: "Regístrate como profesional",
+          sesionReemplazada:
+            "Tu cuenta profesional se abrió en otro dispositivo. Por seguridad, esta sesión fue cerrada.",
         }
       : {
           noIniciarSesion: "Unable to sign in.",
@@ -117,6 +122,8 @@ function LoginProfesionalContenido() {
           iniciarSesion: "Sign in",
           noCuenta: "Don't have an account yet?",
           registrate: "Register as a professional",
+          sesionReemplazada:
+            "Your professional account was opened on another device. For security, this session was signed out.",
         };
 
   const [email, setEmail] = useState("");
@@ -164,6 +171,59 @@ function LoginProfesionalContenido() {
     setMensajeDocumentos,
   ] =
     useState("");
+
+  async function activarSesionProfesionalActual() {
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    const accessToken =
+      sessionData.session?.access_token;
+
+    if (
+      sessionError ||
+      !accessToken
+    ) {
+      throw new Error(
+        language === "es"
+          ? "No pudimos activar de forma segura tu sesión profesional."
+          : "We could not securely activate your professional session."
+      );
+    }
+
+    const response = await fetch(
+      "/api/auth/provider/activate-session",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          deviceInfo:
+            typeof navigator !== "undefined"
+              ? navigator.userAgent
+              : null,
+        }),
+      }
+    );
+
+    const result = await response
+      .json()
+      .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+          (language === "es"
+            ? "No pudimos activar tu sesión profesional."
+            : "We could not activate your professional session.")
+      );
+    }
+  }
 
   /*
     ASEGURAR QUE LA ESPECIALIDAD
@@ -932,6 +992,17 @@ function LoginProfesionalContenido() {
         );
 
         /*
+          SESIÓN PROFESIONAL ÚNICA
+
+          Este dispositivo pasa a ser la única
+          sesión PRO autorizada para esta cuenta.
+          Cualquier sesión profesional anterior
+          dejará de coincidir con el registro activo.
+        */
+
+        await activarSesionProfesionalActual();
+
+        /*
           PANEL PROFESIONAL
         */
 
@@ -1248,6 +1319,12 @@ function LoginProfesionalContenido() {
           </div>
 
           <div className="p-8">
+            {sessionWasReplaced && (
+              <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+                {text.sesionReemplazada}
+              </div>
+            )}
+
             {error && (
               <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-700">
                 {error}

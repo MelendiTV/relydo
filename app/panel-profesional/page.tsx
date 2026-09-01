@@ -1439,6 +1439,73 @@ export default function PanelProfesional() {
     }
   }
 
+  async function comprobarSesionProfesionalActiva() {
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    const accessToken =
+      sessionData.session?.access_token;
+
+    if (sessionError || !accessToken) {
+      return false;
+    }
+
+    const response = await fetch(
+      "/api/auth/provider/activate-session",
+      {
+        method: "GET",
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    const result = await response
+      .json()
+      .catch(() => ({}));
+
+    if (
+      response.status === 409 &&
+      result?.code ===
+        "PROVIDER_SESSION_REPLACED"
+    ) {
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      window.location.replace(
+        "/login-profesional?reason=session_replaced"
+      );
+
+      return false;
+    }
+
+    if (response.status === 401) {
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      window.location.replace(
+        "/login-profesional"
+      );
+
+      return false;
+    }
+
+    if (!response.ok) {
+      console.warn(
+        "RELYDO professional session check failed:",
+        result
+      );
+    }
+
+    return response.ok;
+  }
+
   async function cargarPanel(mostrarCarga = true) {
     if (mostrarCarga) {
       setLoading(true);
@@ -1484,6 +1551,13 @@ export default function PanelProfesional() {
       }
 
       setAccountRole("provider");
+
+      const sesionProfesionalActiva =
+        await comprobarSesionProfesionalActiva();
+
+      if (!sesionProfesionalActiva) {
+        return;
+      }
 
       const { data: providerProfile, error: profileError } = await supabase
         .from("provider_profiles")
