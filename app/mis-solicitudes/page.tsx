@@ -1122,7 +1122,28 @@ export default function MisSolicitudesPage() {
   }
 
   async function comprobarPushCliente() {
+    if (
+      !userId ||
+      !pushDisponible
+    ) {
+      setPushActivo(false);
+      return;
+    }
+
     try {
+      const publicKey =
+        process.env
+          .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        console.error(
+          "RELYDO: falta NEXT_PUBLIC_VAPID_PUBLIC_KEY para comprobar Push del cliente."
+        );
+
+        setPushActivo(false);
+        return;
+      }
+
       const registration =
         await navigator.serviceWorker.register(
           "/sw.js"
@@ -1131,29 +1152,131 @@ export default function MisSolicitudesPage() {
       const ready =
         await navigator.serviceWorker.ready;
 
-      const subscription =
-        await ready.pushManager.getSubscription();
-
-      setPushActivo(
-        Boolean(subscription)
-      );
-
       if (
-        registration &&
         Notification.permission ===
           "denied"
       ) {
         setPushActivo(false);
+        return;
       }
+
+      let subscription =
+        await ready.pushManager.getSubscription();
+
+      async function guardarSuscripcionActual(
+        currentSubscription: PushSubscription
+      ) {
+        const json =
+          currentSubscription.toJSON();
+
+        const endpoint =
+          currentSubscription.endpoint;
+
+        const p256dh =
+          json.keys?.p256dh;
+
+        const auth =
+          json.keys?.auth;
+
+        if (
+          !endpoint ||
+          !p256dh ||
+          !auth
+        ) {
+          throw new Error(
+            "La suscripción Push no devolvió las claves necesarias."
+          );
+        }
+
+        const {
+          error: guardarError,
+        } = await supabase
+          .from(
+            "push_subscriptions"
+          )
+          .upsert(
+            {
+              user_id:
+                userId,
+              endpoint,
+              p256dh,
+              auth,
+              user_agent:
+                navigator.userAgent,
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict:
+                "endpoint",
+            }
+          );
+
+        if (guardarError) {
+          throw guardarError;
+        }
+      }
+
+      if (subscription) {
+        try {
+          await guardarSuscripcionActual(
+            subscription
+          );
+
+          setPushActivo(true);
+          return;
+        } catch (syncError) {
+          console.warn(
+            "RELYDO: la suscripción Push local del cliente no pudo sincronizarse. Se intentará recrearla:",
+            syncError
+          );
+
+          try {
+            await subscription.unsubscribe();
+          } catch (unsubscribeError) {
+            console.warn(
+              "RELYDO: no se pudo cancelar la suscripción Push local anterior del cliente:",
+              unsubscribeError
+            );
+          }
+
+          subscription = null;
+        }
+      }
+
+      if (
+        !subscription &&
+        Notification.permission ===
+          "granted"
+      ) {
+        const nuevaSuscripcion =
+          await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              urlBase64AUint8Array(
+                publicKey
+              ),
+          });
+
+        await guardarSuscripcionActual(
+          nuevaSuscripcion
+        );
+
+        setPushActivo(true);
+        return;
+      }
+
+      setPushActivo(false);
     } catch (error) {
       console.error(
-        "No se pudo comprobar Push:",
+        "No se pudo comprobar o sincronizar Push del cliente:",
         error
       );
 
       setPushActivo(false);
     }
   }
+
 
   function urlBase64AUint8Array(
     base64String: string
