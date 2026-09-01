@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -21,7 +21,7 @@ type SolicitudDocumentoPendiente = {
   submitted_at: string | null;
 };
 
-export default function LoginProfesional() {
+function LoginProfesionalContenido() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { language } = useLanguage();
@@ -1415,5 +1415,13 @@ export default function LoginProfesional() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginProfesional() {
+  return (
+    <Suspense fallback={null}>
+      <LoginProfesionalContenido />
+    </Suspense>
   );
 }
