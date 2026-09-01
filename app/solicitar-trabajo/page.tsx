@@ -997,8 +997,13 @@ function SolicitarTrabajoContenido() {
         .maybeSingle();
 
       if (perfilError) {
+        console.error(
+          "Error cargando perfil del cliente:",
+          perfilError
+        );
+
         throw new Error(
-          `${text.cuentaError}: ${perfilError.message}`
+          text.cuentaError
         );
       }
 
@@ -1125,8 +1130,7 @@ function SolicitarTrabajoContenido() {
         );
 
         throw new Error(
-          insertError?.message ||
-            text.crearError
+          text.crearError
         );
       }
 
