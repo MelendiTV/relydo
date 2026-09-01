@@ -34,6 +34,11 @@ type ClienteProfile = {
   full_name: string | null;
   role: string | null;
   avatar_url: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
 };
 
 type ReclamoCliente = {
@@ -235,6 +240,20 @@ export default function MisSolicitudesPage() {
             "Conectando actualización en vivo...",
           cuenta:
             "Cuenta",
+          datosPersonales: "Datos personales",
+          datosPersonalesDesc: "Revisa y actualiza la información de tu perfil.",
+          nombreCompleto: "Nombre completo",
+          telefono: "Teléfono",
+          direccion: "Dirección",
+          ciudad: "Ciudad",
+          estado: "Estado",
+          codigoPostal: "Código postal",
+          correo: "Correo electrónico",
+          correoNoEditable: "El correo de acceso no se cambia desde este panel.",
+          guardarPerfil: "Guardar cambios",
+          guardandoPerfil: "Guardando...",
+          perfilGuardado: "Tus datos personales se guardaron correctamente.",
+          perfilInvalido: "Completa nombre, teléfono, dirección, ciudad, estado y código postal correctamente.",
           cerrarSesion:
             "Cerrar sesión",
           nuevoTrabajo:
@@ -475,6 +494,20 @@ export default function MisSolicitudesPage() {
             "Connecting live updates...",
           cuenta:
             "Account",
+          datosPersonales: "Personal information",
+          datosPersonalesDesc: "Review and update your profile information.",
+          nombreCompleto: "Full name",
+          telefono: "Phone",
+          direccion: "Address",
+          ciudad: "City",
+          estado: "State",
+          codigoPostal: "ZIP code",
+          correo: "Email",
+          correoNoEditable: "Your sign-in email cannot be changed from this panel.",
+          guardarPerfil: "Save changes",
+          guardandoPerfil: "Saving...",
+          perfilGuardado: "Your personal information was saved successfully.",
+          perfilInvalido: "Complete your name, phone, address, city, state, and ZIP code correctly.",
           cerrarSesion:
             "Sign out",
           nuevoTrabajo:
@@ -644,6 +677,16 @@ export default function MisSolicitudesPage() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [cliente, setCliente] = useState<ClienteProfile | null>(null);
   const [email, setEmail] = useState("");
+  const [editandoPerfil, setEditandoPerfil] = useState({
+    full_name: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [mensajePerfil, setMensajePerfil] = useState("");
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(false);
   const [subiendoAvatar, setSubiendoAvatar] = useState(false);
@@ -920,7 +963,12 @@ export default function MisSolicitudesPage() {
         .select(`
           full_name,
           role,
-          avatar_url
+          avatar_url,
+          phone,
+          address,
+          city,
+          state,
+          zip
         `)
         .eq("id", user.id)
         .maybeSingle();
@@ -938,6 +986,14 @@ export default function MisSolicitudesPage() {
       setAccountRole("customer");
 
       setCliente(profileData);
+      setEditandoPerfil({
+        full_name: profileData.full_name || "",
+        phone: profileData.phone || "",
+        address: profileData.address || "",
+        city: profileData.city || "",
+        state: profileData.state || "",
+        zip: profileData.zip || "",
+      });
 
       const { data, error: solicitudesError } = await supabase
         .from("service_requests")
@@ -1053,6 +1109,67 @@ export default function MisSolicitudesPage() {
       }
 
       setActualizando(false);
+    }
+  }
+
+  async function guardarPerfilCliente() {
+    if (!userId || guardandoPerfil) return;
+
+    setMensajePerfil("");
+
+    const telefonoLimpio = editandoPerfil.phone.replace(/\D/g, "");
+    const zipValido = /^\d{5}(-\d{4})?$/.test(editandoPerfil.zip.trim());
+
+    if (
+      !editandoPerfil.full_name.trim() ||
+      telefonoLimpio.length < 10 ||
+      telefonoLimpio.length > 15 ||
+      !editandoPerfil.address.trim() ||
+      !editandoPerfil.city.trim() ||
+      !editandoPerfil.state.trim() ||
+      !zipValido
+    ) {
+      setMensajePerfil(t.perfilInvalido);
+      return;
+    }
+
+    setGuardandoPerfil(true);
+
+    try {
+      const cambios = {
+        full_name: editandoPerfil.full_name.trim(),
+        phone: editandoPerfil.phone.trim(),
+        address: editandoPerfil.address.trim(),
+        city: editandoPerfil.city.trim(),
+        state: editandoPerfil.state.trim().toUpperCase(),
+        zip: editandoPerfil.zip.trim(),
+      };
+
+      const { data, error: updateError } = await supabase
+        .from("profiles")
+        .update(cambios)
+        .eq("id", userId)
+        .eq("role", "customer")
+        .select("full_name, role, avatar_url, phone, address, city, state, zip")
+        .single();
+
+      if (updateError) throw updateError;
+
+      setCliente(data);
+      setEditandoPerfil({
+        full_name: data.full_name || "",
+        phone: data.phone || "",
+        address: data.address || "",
+        city: data.city || "",
+        state: data.state || "",
+        zip: data.zip || "",
+      });
+      setMensajePerfil(t.perfilGuardado);
+    } catch (err) {
+      console.error("Error guardando perfil de cliente:", err);
+      setMensajePerfil(t.perfilInvalido);
+    } finally {
+      setGuardandoPerfil(false);
     }
   }
 
@@ -1964,7 +2081,61 @@ export default function MisSolicitudesPage() {
                     ◐
                   </div>
 
-                  <div>
+                  <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm">
+              <h3 className="text-lg font-black">{t.datosPersonales}</h3>
+              <p className="mt-1 text-sm text-slate-600">{t.datosPersonalesDesc}</p>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[
+                  ["full_name", t.nombreCompleto],
+                  ["phone", t.telefono],
+                  ["address", t.direccion],
+                  ["city", t.ciudad],
+                  ["state", t.estado],
+                  ["zip", t.codigoPostal],
+                ].map(([campo, etiqueta]) => (
+                  <label key={campo} className="block">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-600">{etiqueta}</span>
+                    <input
+                      value={editandoPerfil[campo as keyof typeof editandoPerfil]}
+                      onChange={(e) =>
+                        setEditandoPerfil((actual) => ({
+                          ...actual,
+                          [campo]: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-blue-600"
+                    />
+                  </label>
+                ))}
+
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">{t.correo}</span>
+                  <input
+                    value={email}
+                    readOnly
+                    disabled
+                    className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-500"
+                  />
+                  <span className="mt-1 block text-xs text-slate-500">{t.correoNoEditable}</span>
+                </label>
+              </div>
+
+              {mensajePerfil && (
+                <p className="mt-4 text-sm font-bold text-slate-700">{mensajePerfil}</p>
+              )}
+
+              <button
+                type="button"
+                disabled={guardandoPerfil}
+                onClick={guardarPerfilCliente}
+                className="mt-4 rounded-xl bg-blue-700 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {guardandoPerfil ? t.guardandoPerfil : t.guardarPerfil}
+              </button>
+            </div>
+
+            <div>
                     <h3
                       className="font-black"
                       style={{
