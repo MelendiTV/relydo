@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,12 +16,9 @@ const supabaseAdmin = createClient(
   }
 );
 
-const vapidSubject =
-  process.env.VAPID_SUBJECT;
-
+const vapidSubject = process.env.VAPID_SUBJECT;
 const vapidPublicKey =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
 const vapidPrivateKey =
   process.env.VAPID_PRIVATE_KEY;
 
@@ -39,6 +37,42 @@ if (
 type Body = {
   offerId?: string;
 };
+
+type JwtPayload = {
+  session_id?: string;
+  [key: string]: unknown;
+};
+
+function decodeJwtPayload(
+  accessToken: string
+): JwtPayload | null {
+  try {
+    const parts = accessToken.split(".");
+
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const payloadPart = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const padded =
+      payloadPart +
+      "=".repeat(
+        (4 - (payloadPart.length % 4)) % 4
+      );
+
+    const json = Buffer.from(
+      padded,
+      "base64"
+    ).toString("utf8");
+
+    return JSON.parse(json) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(
   request: NextRequest
@@ -61,24 +95,19 @@ export async function POST(
     }
 
     /*
-      1. VALIDAR SESIÓN DEL PROFESIONAL
+      1. VALIDAR JWT
     */
 
     const authorization =
-      request.headers.get(
-        "authorization"
-      );
+      request.headers.get("authorization");
 
     if (
       !authorization ||
-      !authorization.startsWith(
-        "Bearer "
-      )
+      !authorization.startsWith("Bearer ")
     ) {
       return NextResponse.json(
         {
-          error:
-            "Sesión no válida.",
+          error: "Sesión no válida.",
         },
         {
           status: 401,
@@ -86,37 +115,33 @@ export async function POST(
       );
     }
 
-    const accessToken =
-      authorization.replace(
-        "Bearer ",
-        ""
-      );
+    const accessToken = authorization
+      .slice("Bearer ".length)
+      .trim();
 
-    const supabaseUser =
-      createClient(
-        process.env
-          .NEXT_PUBLIC_SUPABASE_URL!,
-        process.env
-          .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    if (!accessToken) {
+      return NextResponse.json(
         {
-          global: {
-            headers: {
-              Authorization:
-                `Bearer ${accessToken}`,
-            },
-          },
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
+          error: "Sesión no válida.",
+        },
+        {
+          status: 401,
         }
       );
+    }
+
+    /*
+      getUser(accessToken) valida realmente
+      el token contra Supabase Auth.
+    */
 
     const {
       data: { user },
       error: userError,
     } =
-      await supabaseUser.auth.getUser();
+      await supabaseAdmin.auth.getUser(
+        accessToken
+      );
 
     if (
       userError ||
@@ -134,7 +159,110 @@ export async function POST(
     }
 
     /*
-      2. LEER OFFER ID
+      2. CONFIRMAR QUE ES PROFESIONAL
+    */
+
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      profileError ||
+      !profile ||
+      profile.role !== "provider"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta operación requiere una cuenta profesional.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    /*
+      3. VALIDAR SESIÓN PRO ACTIVA
+
+      El JWT ya fue validado arriba.
+      Ahora obtenemos su session_id y
+      comprobamos que coincida con la
+      única sesión autorizada para el PRO.
+    */
+
+    const jwtPayload =
+      decodeJwtPayload(accessToken);
+
+    const currentSessionId =
+      typeof jwtPayload?.session_id ===
+      "string"
+        ? jwtPayload.session_id.trim()
+        : "";
+
+    if (!currentSessionId) {
+      return NextResponse.json(
+        {
+          error:
+            "La sesión profesional no contiene un identificador válido.",
+          code: "PROVIDER_SESSION_REPLACED",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    const {
+      data: activeSession,
+      error: activeSessionError,
+    } = await supabaseAdmin
+      .from("provider_active_sessions")
+      .select("session_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (activeSessionError) {
+      console.error(
+        "Error verificando sesión PRO activa:",
+        activeSessionError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo verificar la sesión profesional.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      !activeSession ||
+      String(activeSession.session_id) !==
+        currentSessionId
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Tu cuenta profesional se abrió en otro dispositivo.",
+          code: "PROVIDER_SESSION_REPLACED",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    /*
+      4. LEER OFFER ID
     */
 
     const body =
@@ -146,8 +274,7 @@ export async function POST(
     if (!offerId) {
       return NextResponse.json(
         {
-          error:
-            "Falta offerId.",
+          error: "Falta offerId.",
         },
         {
           status: 400,
@@ -156,7 +283,7 @@ export async function POST(
     }
 
     /*
-      3. BUSCAR OFERTA Y VERIFICAR
+      5. BUSCAR OFERTA Y VERIFICAR
          QUE PERTENECE AL PRO ACTUAL
     */
 
@@ -172,10 +299,7 @@ export async function POST(
         price,
         status
       `)
-      .eq(
-        "id",
-        offerId
-      )
+      .eq("id", offerId)
       .eq(
         "professional_id",
         user.id
@@ -198,7 +322,7 @@ export async function POST(
     }
 
     /*
-      4. BUSCAR TRABAJO Y CLIENTE
+      6. BUSCAR TRABAJO Y CLIENTE
     */
 
     const {
@@ -234,30 +358,25 @@ export async function POST(
     }
 
     if (!trabajo.customer_id) {
-      return NextResponse.json(
-        {
-          success: true,
-          devices: 0,
-          sent: 0,
-          message:
-            "La orden no tiene cliente asociado.",
-        }
-      );
+      return NextResponse.json({
+        success: true,
+        devices: 0,
+        sent: 0,
+        message:
+          "La orden no tiene cliente asociado.",
+      });
     }
 
     /*
-      5. BUSCAR TODOS LOS DISPOSITIVOS
+      7. BUSCAR TODOS LOS DISPOSITIVOS
          PUSH DEL CLIENTE
     */
 
     const {
       data: subscriptions,
-      error:
-        subscriptionsError,
+      error: subscriptionsError,
     } = await supabaseAdmin
-      .from(
-        "push_subscriptions"
-      )
+      .from("push_subscriptions")
       .select(`
         id,
         endpoint,
@@ -295,13 +414,12 @@ export async function POST(
     }
 
     /*
-      6. CREAR PUSH
+      8. CREAR PUSH
     */
 
-    const precio =
-      Number(
-        oferta.price || 0
-      ).toFixed(2);
+    const precio = Number(
+      oferta.price || 0
+    ).toFixed(2);
 
     const payload =
       JSON.stringify({
@@ -316,7 +434,7 @@ export async function POST(
       });
 
     /*
-      7. ENVIAR A TODOS LOS DISPOSITIVOS
+      9. ENVIAR A TODOS LOS DISPOSITIVOS
          DEL CLIENTE
     */
 
@@ -372,8 +490,7 @@ export async function POST(
             410
         ) {
           const {
-            error:
-              deleteError,
+            error: deleteError,
           } = await supabaseAdmin
             .from(
               "push_subscriptions"
