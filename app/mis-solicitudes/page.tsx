@@ -1121,6 +1121,82 @@ export default function MisSolicitudesPage() {
     );
   }
 
+  async function sincronizarSuscripcionPushCliente(
+    subscription: PushSubscription
+  ) {
+    const json =
+      subscription.toJSON();
+
+    const endpoint =
+      subscription.endpoint;
+
+    const p256dh =
+      json.keys?.p256dh;
+
+    const auth =
+      json.keys?.auth;
+
+    if (
+      !endpoint ||
+      !p256dh ||
+      !auth
+    ) {
+      throw new Error(
+        "La suscripción Push no devolvió las claves necesarias."
+      );
+    }
+
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    const accessToken =
+      sessionData.session?.access_token;
+
+    if (
+      sessionError ||
+      !accessToken
+    ) {
+      throw new Error(
+        t.sesionNoDisponible
+      );
+    }
+
+    const response = await fetch(
+      "/api/push/sync-subscription",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          endpoint,
+          p256dh,
+          auth,
+          userAgent:
+            navigator.userAgent,
+        }),
+      }
+    );
+
+    const result = await response
+      .json()
+      .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+          "No se pudo sincronizar la suscripción Push con RELYDO."
+      );
+    }
+
+    return result;
+  }
+
   async function comprobarPushCliente() {
     if (
       !userId ||
@@ -1136,21 +1212,10 @@ export default function MisSolicitudesPage() {
           .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
       if (!publicKey) {
-        console.error(
-          "RELYDO: falta NEXT_PUBLIC_VAPID_PUBLIC_KEY para comprobar Push del cliente."
+        throw new Error(
+          "Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY."
         );
-
-        setPushActivo(false);
-        return;
       }
-
-      const registration =
-        await navigator.serviceWorker.register(
-          "/sw.js"
-        );
-
-      const ready =
-        await navigator.serviceWorker.ready;
 
       if (
         Notification.permission ===
@@ -1160,96 +1225,22 @@ export default function MisSolicitudesPage() {
         return;
       }
 
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
+
+      await navigator.serviceWorker.ready;
+
       let subscription =
-        await ready.pushManager.getSubscription();
-
-      async function guardarSuscripcionActual(
-        currentSubscription: PushSubscription
-      ) {
-        const json =
-          currentSubscription.toJSON();
-
-        const endpoint =
-          currentSubscription.endpoint;
-
-        const p256dh =
-          json.keys?.p256dh;
-
-        const auth =
-          json.keys?.auth;
-
-        if (
-          !endpoint ||
-          !p256dh ||
-          !auth
-        ) {
-          throw new Error(
-            "La suscripción Push no devolvió las claves necesarias."
-          );
-        }
-
-        const {
-          error: guardarError,
-        } = await supabase
-          .from(
-            "push_subscriptions"
-          )
-          .upsert(
-            {
-              user_id:
-                userId,
-              endpoint,
-              p256dh,
-              auth,
-              user_agent:
-                navigator.userAgent,
-              updated_at:
-                new Date().toISOString(),
-            },
-            {
-              onConflict:
-                "endpoint",
-            }
-          );
-
-        if (guardarError) {
-          throw guardarError;
-        }
-      }
-
-      if (subscription) {
-        try {
-          await guardarSuscripcionActual(
-            subscription
-          );
-
-          setPushActivo(true);
-          return;
-        } catch (syncError) {
-          console.warn(
-            "RELYDO: la suscripción Push local del cliente no pudo sincronizarse. Se intentará recrearla:",
-            syncError
-          );
-
-          try {
-            await subscription.unsubscribe();
-          } catch (unsubscribeError) {
-            console.warn(
-              "RELYDO: no se pudo cancelar la suscripción Push local anterior del cliente:",
-              unsubscribeError
-            );
-          }
-
-          subscription = null;
-        }
-      }
+        await registration.pushManager.getSubscription();
 
       if (
         !subscription &&
         Notification.permission ===
           "granted"
       ) {
-        const nuevaSuscripcion =
+        subscription =
           await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey:
@@ -1257,16 +1248,18 @@ export default function MisSolicitudesPage() {
                 publicKey
               ),
           });
+      }
 
-        await guardarSuscripcionActual(
-          nuevaSuscripcion
-        );
-
-        setPushActivo(true);
+      if (!subscription) {
+        setPushActivo(false);
         return;
       }
 
-      setPushActivo(false);
+      await sincronizarSuscripcionPushCliente(
+        subscription
+      );
+
+      setPushActivo(true);
     } catch (error) {
       console.error(
         "No se pudo comprobar o sincronizar Push del cliente:",
@@ -1362,58 +1355,9 @@ export default function MisSolicitudesPage() {
           });
       }
 
-      const json =
-        subscription.toJSON();
-
-      const endpoint =
-        subscription.endpoint;
-
-      const p256dh =
-        json.keys?.p256dh;
-
-      const auth =
-        json.keys?.auth;
-
-      if (
-        !endpoint ||
-        !p256dh ||
-        !auth
-      ) {
-        throw new Error(
-          "La suscripción Push no devolvió las claves necesarias."
-        );
-      }
-
-      const {
-        error:
-          guardarError,
-      } = await supabase
-        .from(
-          "push_subscriptions"
-        )
-        .upsert(
-          {
-            user_id:
-              userId,
-            endpoint,
-            p256dh,
-            auth,
-            user_agent:
-              navigator.userAgent,
-            updated_at:
-              new Date().toISOString(),
-          },
-          {
-            onConflict:
-              "endpoint",
-          }
-        );
-
-      if (guardarError) {
-        throw new Error(
-          guardarError.message
-        );
-      }
+      await sincronizarSuscripcionPushCliente(
+        subscription
+      );
 
       setPushActivo(true);
 

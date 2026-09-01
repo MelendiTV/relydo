@@ -824,6 +824,91 @@ export default function PanelProfesional() {
     );
   }
 
+  async function sincronizarSuscripcionPushProfesional(
+    subscription: PushSubscription
+  ) {
+    const json =
+      subscription.toJSON();
+
+    const endpoint =
+      subscription.endpoint;
+
+    const p256dh =
+      json.keys?.p256dh;
+
+    const auth =
+      json.keys?.auth;
+
+    if (
+      !endpoint ||
+      !p256dh ||
+      !auth
+    ) {
+      throw new Error(
+        T(
+          "La suscripción Push no devolvió las claves necesarias.",
+          "The Push subscription did not return the required keys."
+        )
+      );
+    }
+
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    const accessToken =
+      sessionData.session?.access_token;
+
+    if (
+      sessionError ||
+      !accessToken
+    ) {
+      throw new Error(
+        T(
+          "Tu sesión ya no está disponible.",
+          "Your session is no longer available."
+        )
+      );
+    }
+
+    const response = await fetch(
+      "/api/push/sync-subscription",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          endpoint,
+          p256dh,
+          auth,
+          userAgent:
+            navigator.userAgent,
+        }),
+      }
+    );
+
+    const result = await response
+      .json()
+      .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+          T(
+            "No se pudo sincronizar la suscripción Push con RELYDO.",
+            "The Push subscription could not be synchronized with RELYDO."
+          )
+      );
+    }
+
+    return result;
+  }
+
   async function comprobarPushProfesional() {
     if (
       !userId ||
@@ -844,17 +929,6 @@ export default function PanelProfesional() {
         );
       }
 
-      const registration =
-        await navigator.serviceWorker.register(
-          "/sw.js"
-        );
-
-      const ready =
-        await navigator.serviceWorker.ready;
-
-      let subscription =
-        await ready.pushManager.getSubscription();
-
       if (
         Notification.permission ===
           "denied"
@@ -863,99 +937,15 @@ export default function PanelProfesional() {
         return;
       }
 
-      /*
-        IMPORTANTE:
+      const registration =
+        await navigator.serviceWorker.register(
+          "/sw.js"
+        );
 
-        Antes solamente comprobábamos si el navegador
-        tenía una suscripción local y, si existía,
-        marcábamos Push como activo.
+      await navigator.serviceWorker.ready;
 
-        Eso podía dejar el navegador "activo" aunque
-        la suscripción ya no existiera en Supabase para
-        el profesional que había iniciado sesión.
-
-        Ahora, si existe una suscripción local, la
-        sincronizamos nuevamente con push_subscriptions.
-      */
-
-      if (subscription) {
-        const json =
-          subscription.toJSON();
-
-        const endpoint =
-          subscription.endpoint;
-
-        const p256dh =
-          json.keys?.p256dh;
-
-        const auth =
-          json.keys?.auth;
-
-        if (
-          endpoint &&
-          p256dh &&
-          auth
-        ) {
-          const {
-            error:
-              syncError,
-          } = await supabase
-            .from(
-              "push_subscriptions"
-            )
-            .upsert(
-              {
-                user_id:
-                  userId,
-                endpoint,
-                p256dh,
-                auth,
-                user_agent:
-                  navigator.userAgent,
-                updated_at:
-                  new Date().toISOString(),
-              },
-              {
-                onConflict:
-                  "endpoint",
-              }
-            );
-
-          if (!syncError) {
-            setPushActivo(true);
-            return;
-          }
-
-          console.warn(
-            "No se pudo resincronizar la suscripción Push existente. Se intentará crear una nueva:",
-            syncError
-          );
-
-          /*
-            Si el endpoint viejo quedó registrado con
-            otra cuenta y RLS impide reasignarlo,
-            eliminamos solamente la suscripción LOCAL
-            de este navegador y creamos una nueva.
-          */
-
-          try {
-            await subscription.unsubscribe();
-          } catch (unsubscribeError) {
-            console.warn(
-              "No se pudo eliminar la suscripción Push local anterior:",
-              unsubscribeError
-            );
-          }
-
-          subscription = null;
-        }
-      }
-
-      /*
-        Si el usuario ya concedió permiso pero no existe
-        una suscripción local válida, la recreamos y la
-        guardamos automáticamente.
-      */
+      let subscription =
+        await registration.pushManager.getSubscription();
 
       if (
         !subscription &&
@@ -970,68 +960,18 @@ export default function PanelProfesional() {
                 publicKey
               ),
           });
+      }
 
-        const json =
-          subscription.toJSON();
-
-        const endpoint =
-          subscription.endpoint;
-
-        const p256dh =
-          json.keys?.p256dh;
-
-        const auth =
-          json.keys?.auth;
-
-        if (
-          !endpoint ||
-          !p256dh ||
-          !auth
-        ) {
-          throw new Error(
-            T(
-              "La suscripción Push no devolvió las claves necesarias.",
-              "The Push subscription did not return the required keys."
-            )
-          );
-        }
-
-        const {
-          error:
-            guardarError,
-        } = await supabase
-          .from(
-            "push_subscriptions"
-          )
-          .upsert(
-            {
-              user_id:
-                userId,
-              endpoint,
-              p256dh,
-              auth,
-              user_agent:
-                navigator.userAgent,
-              updated_at:
-                new Date().toISOString(),
-            },
-            {
-              onConflict:
-                "endpoint",
-            }
-          );
-
-        if (guardarError) {
-          throw new Error(
-            guardarError.message
-          );
-        }
-
-        setPushActivo(true);
+      if (!subscription) {
+        setPushActivo(false);
         return;
       }
 
-      setPushActivo(false);
+      await sincronizarSuscripcionPushProfesional(
+        subscription
+      );
+
+      setPushActivo(true);
     } catch (error) {
       console.error(
         "No se pudo comprobar o sincronizar Push profesional:",
@@ -1103,7 +1043,7 @@ export default function PanelProfesional() {
         throw new Error(
           T(
             "El navegador bloqueó las notificaciones. Debes permitirlas desde la configuración del navegador.",
-            "The browser blocked notifications. Allow them from your browser settings."
+            "The browser blocked notifications. Allow them from the browser settings."
           )
         );
       }
@@ -1129,61 +1069,9 @@ export default function PanelProfesional() {
           });
       }
 
-      const json =
-        subscription.toJSON();
-
-      const endpoint =
-        subscription.endpoint;
-
-      const p256dh =
-        json.keys?.p256dh;
-
-      const auth =
-        json.keys?.auth;
-
-      if (
-        !endpoint ||
-        !p256dh ||
-        !auth
-      ) {
-        throw new Error(
-          T(
-            "La suscripción Push no devolvió las claves necesarias.",
-            "The Push subscription did not return the required keys."
-          )
-        );
-      }
-
-      const {
-        error:
-          guardarError,
-      } = await supabase
-        .from(
-          "push_subscriptions"
-        )
-        .upsert(
-          {
-            user_id:
-              userId,
-            endpoint,
-            p256dh,
-            auth,
-            user_agent:
-              navigator.userAgent,
-            updated_at:
-              new Date().toISOString(),
-          },
-          {
-            onConflict:
-              "endpoint",
-          }
-        );
-
-      if (guardarError) {
-        throw new Error(
-          guardarError.message
-        );
-      }
+      await sincronizarSuscripcionPushProfesional(
+        subscription
+      );
 
       setPushActivo(true);
 
