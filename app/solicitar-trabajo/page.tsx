@@ -49,7 +49,6 @@ function nombreOficio(
     plumbing: "Plomería",
     electrical: "Electricidad",
     hvac: "HVAC / Aire acondicionado",
-    ac_rental: "Renta de aires acondicionados",
     carpentry: "Carpintería",
     painting: "Pintura",
     landscaping: "Jardinería",
@@ -58,22 +57,6 @@ function nombreOficio(
     handyman: "Handyman",
     "appliance-repair":
       "Reparación de electrodomésticos",
-    locksmith: "Cerrajería",
-    roofing: "Techado",
-    flooring: "Pisos",
-    tile: "Azulejos y losas",
-    drywall: "Drywall",
-    masonry: "Concreto y albañilería",
-    "doors-windows": "Puertas y ventanas",
-    garage: "Garajes",
-    fencing: "Cercas",
-    "pools-spas": "Piscinas y spas",
-    "pest-control": "Control de plagas",
-    "pressure-washing": "Lavado a presión",
-    "carpet-cleaning": "Limpieza de alfombras",
-    "junk-removal": "Retiro de basura",
-    "furniture-assembly": "Montaje de muebles",
-    "tv-smart-home": "TV y hogar inteligente",
     other: "Otros servicios",
   };
 
@@ -81,7 +64,6 @@ function nombreOficio(
     plumbing: "Plumbing",
     electrical: "Electrical",
     hvac: "HVAC / Air conditioning",
-    ac_rental: "Air conditioner rental",
     carpentry: "Carpentry",
     painting: "Painting",
     landscaping: "Landscaping",
@@ -90,22 +72,6 @@ function nombreOficio(
     handyman: "Handyman",
     "appliance-repair":
       "Appliance repair",
-    locksmith: "Locksmith",
-    roofing: "Roofing",
-    flooring: "Flooring",
-    tile: "Tile and stone",
-    drywall: "Drywall",
-    masonry: "Concrete and masonry",
-    "doors-windows": "Doors and windows",
-    garage: "Garage doors",
-    fencing: "Fences",
-    "pools-spas": "Pools and spas",
-    "pest-control": "Pest control",
-    "pressure-washing": "Pressure washing",
-    "carpet-cleaning": "Carpet cleaning",
-    "junk-removal": "Junk removal",
-    "furniture-assembly": "Furniture assembly",
-    "tv-smart-home": "TV and smart home",
     other: "Other services",
   };
 
@@ -295,28 +261,11 @@ function SolicitarTrabajoContenido() {
             landscaping: "Jardinería",
             cleaning: "Limpieza",
             hvac: "Aire acondicionado / HVAC",
-            acRental: "Renta de aires acondicionados",
             carpentry: "Carpintería",
             moving: "Mudanzas",
             applianceRepair:
               "Reparación de electrodomésticos",
             handyman: "Handyman",
-            locksmith: "Cerrajería",
-            roofing: "Techado",
-            flooring: "Pisos",
-            tile: "Azulejos y losas",
-            drywall: "Drywall",
-            masonry: "Concreto y albañilería",
-            doorsWindows: "Puertas y ventanas",
-            garage: "Garajes",
-            fencing: "Cercas",
-            poolsSpas: "Piscinas y spas",
-            pestControl: "Control de plagas",
-            pressureWashing: "Lavado a presión",
-            carpetCleaning: "Limpieza de alfombras",
-            junkRemoval: "Retiro de basura",
-            furnitureAssembly: "Montaje de muebles",
-            tvSmartHome: "TV y hogar inteligente",
             other: "Otros servicios",
           },
         }
@@ -446,28 +395,11 @@ function SolicitarTrabajoContenido() {
             landscaping: "Landscaping",
             cleaning: "Cleaning",
             hvac: "Air conditioning / HVAC",
-            acRental: "Air conditioner rental",
             carpentry: "Carpentry",
             moving: "Moving",
             applianceRepair:
               "Appliance repair",
             handyman: "Handyman",
-            locksmith: "Locksmith",
-            roofing: "Roofing",
-            flooring: "Flooring",
-            tile: "Tile and stone",
-            drywall: "Drywall",
-            masonry: "Concrete and masonry",
-            doorsWindows: "Doors and windows",
-            garage: "Garage doors",
-            fencing: "Fences",
-            poolsSpas: "Pools and spas",
-            pestControl: "Pest control",
-            pressureWashing: "Pressure washing",
-            carpetCleaning: "Carpet cleaning",
-            junkRemoval: "Junk removal",
-            furnitureAssembly: "Furniture assembly",
-            tvSmartHome: "TV and smart home",
             other: "Other services",
           },
         };
@@ -1055,8 +987,7 @@ function SolicitarTrabajoContenido() {
       }
 
       if (
-        perfilCliente.role !== "customer" &&
-        perfilCliente.role !== "provider"
+        perfilCliente.role !== "customer"
       ) {
         await supabase.auth.signOut();
 
@@ -1476,10 +1407,6 @@ function SolicitarTrabajoContenido() {
                     {text.servicios.hvac}
                   </option>
 
-                  <option value="ac_rental">
-                    {text.servicios.acRental}
-                  </option>
-
                   <option value="carpentry">
                     {text.servicios.carpentry}
                   </option>
@@ -1494,72 +1421,6 @@ function SolicitarTrabajoContenido() {
 
                   <option value="handyman">
                     {text.servicios.handyman}
-                  </option>
-
-
-
-                  <option value="locksmith">
-                    {text.servicios.locksmith}
-                  </option>
-
-                  <option value="roofing">
-                    {text.servicios.roofing}
-                  </option>
-
-                  <option value="flooring">
-                    {text.servicios.flooring}
-                  </option>
-
-                  <option value="tile">
-                    {text.servicios.tile}
-                  </option>
-
-                  <option value="drywall">
-                    {text.servicios.drywall}
-                  </option>
-
-                  <option value="masonry">
-                    {text.servicios.masonry}
-                  </option>
-
-                  <option value="doors-windows">
-                    {text.servicios.doorsWindows}
-                  </option>
-
-                  <option value="garage">
-                    {text.servicios.garage}
-                  </option>
-
-                  <option value="fencing">
-                    {text.servicios.fencing}
-                  </option>
-
-                  <option value="pools-spas">
-                    {text.servicios.poolsSpas}
-                  </option>
-
-                  <option value="pest-control">
-                    {text.servicios.pestControl}
-                  </option>
-
-                  <option value="pressure-washing">
-                    {text.servicios.pressureWashing}
-                  </option>
-
-                  <option value="carpet-cleaning">
-                    {text.servicios.carpetCleaning}
-                  </option>
-
-                  <option value="junk-removal">
-                    {text.servicios.junkRemoval}
-                  </option>
-
-                  <option value="furniture-assembly">
-                    {text.servicios.furnitureAssembly}
-                  </option>
-
-                  <option value="tv-smart-home">
-                    {text.servicios.tvSmartHome}
                   </option>
 
                   <option value="other">
