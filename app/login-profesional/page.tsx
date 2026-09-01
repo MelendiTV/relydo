@@ -144,6 +144,11 @@ function LoginProfesionalContenido() {
   >(null);
 
   const [
+    motivoRechazoCuenta,
+    setMotivoRechazoCuenta,
+  ] = useState("");
+
+  const [
     nombreNegocio,
     setNombreNegocio,
   ] = useState("");
@@ -952,6 +957,20 @@ function LoginProfesionalContenido() {
           providerProfile.verification_status ===
           "rejected"
         ) {
+          const { data: rejectionNotification } = await supabase
+            .from("notifications")
+            .select("message")
+            .eq("user_id", user.id)
+            .eq("type", "provider_verification_rejected")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          setMotivoRechazoCuenta(
+            typeof rejectionNotification?.message === "string"
+              ? rejectionNotification.message
+              : ""
+          );
           setEstadoCuenta("rejected");
           setCargando(false);
           return;
@@ -1053,6 +1072,7 @@ function LoginProfesionalContenido() {
   async function salirCuentaPendiente() {
     await supabase.auth.signOut();
     setEstadoCuenta(null);
+    setMotivoRechazoCuenta("");
     setPassword("");
   }
 
@@ -1250,11 +1270,17 @@ function LoginProfesionalContenido() {
                     : "Your professional account was not approved."}
                 </p>
 
-                <p className="mt-3 leading-7">
-                  {language === "es"
-                    ? "Contacta con RELYDO si necesitas aclarar o actualizar la información de tu verificación."
-                    : "Contact RELYDO if you need to clarify or update your verification information."}
-                </p>
+                {motivoRechazoCuenta ? (
+                  <p className="mt-3 rounded-xl border border-red-200 bg-white p-3 font-semibold leading-7 text-red-900">
+                    {motivoRechazoCuenta}
+                  </p>
+                ) : (
+                  <p className="mt-3 leading-7">
+                    {language === "es"
+                      ? "Contacta con RELYDO si necesitas aclarar o actualizar la información de tu verificación."
+                      : "Contact RELYDO if you need to clarify or update your verification information."}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="rounded-2xl border border-slate-300 bg-slate-50 p-5 text-slate-900">

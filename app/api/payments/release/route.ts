@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { sendRelydoNotification } from "../../../lib/serverNotifications";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -14,6 +15,47 @@ const supabaseAdmin = createClient(
     },
   }
 );
+
+
+type JwtPayload = {
+  session_id?: string;
+  [key: string]: unknown;
+};
+
+function decodeJwtPayload(accessToken: string): JwtPayload | null {
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length !== 3) return null;
+
+    const payloadPart = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const padded =
+      payloadPart +
+      "=".repeat((4 - (payloadPart.length % 4)) % 4);
+
+    return JSON.parse(
+      Buffer.from(padded, "base64").toString("utf8")
+    ) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+async function providerSessionIsActive(userId: string, accessToken: string) {
+  const sessionId = decodeJwtPayload(accessToken)?.session_id;
+  if (!sessionId) return false;
+
+  const { data, error } = await supabaseAdmin
+    .from("provider_active_sessions")
+    .select("session_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data?.session_id) return false;
+  return data.session_id === sessionId;
+}
 
 type ReleaseResult =
   | {
@@ -830,6 +872,19 @@ async function procesarLiberacion({
     );
     console.log("======================================");
 
+    if (!alreadyReleased) {
+      await sendRelydoNotification({
+        userId: serviceRequest.preferred_provider_id,
+        type: "payment_released",
+        title: "Pago liberado",
+        titleEn: "Payment released",
+        message: `El pago de tu trabajo fue liberado. Neto del profesional: $${Number(providerNetAmountTotal || 0).toFixed(2)}.`,
+        messageEn: `Your job payment was released. Provider net: $${Number(providerNetAmountTotal || 0).toFixed(2)}.`,
+        requestId,
+        url: `/trabajos/${requestId}`,
+      });
+    }
+
     return {
       success: true,
       requestId,
@@ -912,6 +967,23 @@ export async function POST(
     if (userError || !user) {
       return unauthorized(
         "No pudimos verificar tu sesión."
+      );
+    }
+
+    const sessionActive = await providerSessionIsActive(
+      user.id,
+      accessToken
+    );
+
+    if (!sessionActive) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PROVIDER_SESSION_REPLACED",
+          error:
+            "Tu sesión profesional ya no es la sesión activa de esta cuenta.",
+        },
+        { status: 409 }
       );
     }
 

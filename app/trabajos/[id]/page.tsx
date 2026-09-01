@@ -13,10 +13,32 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
+function serviceLabel(slug: string | null, language: "es" | "en") {
+  if (!slug) return language === "es" ? "No indicado" : "Not specified";
+  const es: Record<string, string> = {
+    plumbing: "Plomería", electrical: "Electricidad", painting: "Pintura", landscaping: "Jardinería", cleaning: "Limpieza",
+    hvac: "HVAC / Aire acondicionado", ac_rental: "Renta de aires acondicionados", carpentry: "Carpintería", moving: "Mudanzas",
+    appliance_repair: "Reparación de electrodomésticos", handyman: "Handyman", locksmith: "Cerrajería", roofing: "Techado", flooring: "Pisos",
+    tile: "Azulejos y losas", drywall: "Drywall", masonry: "Concreto y albañilería", doors_windows: "Puertas y ventanas", garage_doors: "Garajes",
+    fencing: "Cercas", pool_spa: "Piscinas y spas", pest_control: "Control de plagas", pressure_washing: "Lavado a presión",
+    carpet_cleaning: "Limpieza de alfombras", junk_removal: "Retiro de basura", furniture_assembly: "Montaje de muebles", smart_home: "TV y hogar inteligente", other: "Otros servicios",
+  };
+  const en: Record<string, string> = {
+    plumbing: "Plumbing", electrical: "Electrical", painting: "Painting", landscaping: "Landscaping", cleaning: "Cleaning",
+    hvac: "HVAC / Air conditioning", ac_rental: "Air conditioner rental", carpentry: "Carpentry", moving: "Moving",
+    appliance_repair: "Appliance repair", handyman: "Handyman", locksmith: "Locksmith", roofing: "Roofing", flooring: "Flooring",
+    tile: "Tile", drywall: "Drywall", masonry: "Concrete & masonry", doors_windows: "Doors & windows", garage_doors: "Garage doors",
+    fencing: "Fencing", pool_spa: "Pools & spas", pest_control: "Pest control", pressure_washing: "Pressure washing",
+    carpet_cleaning: "Carpet cleaning", junk_removal: "Junk removal", furniture_assembly: "Furniture assembly", smart_home: "TV & smart home", other: "Other services",
+  };
+  return (language === "es" ? es : en)[slug] || slug;
+}
+
 type Trabajo = {
   id: string;
   title: string;
   description: string;
+  service_id: string | null;
   address_line1: string | null;
   city: string;
   state: string;
@@ -347,6 +369,9 @@ export default function TrabajoDetallePage() {
     useState<Trabajo | null>(
       null
     );
+
+  const [serviceSlug, setServiceSlug] =
+    useState<string | null>(null);
 
   const [
     fotos,
@@ -1142,6 +1167,7 @@ export default function TrabajoDetallePage() {
           id,
           title,
           description,
+          service_id,
           address_line1,
           city,
           state,
@@ -1227,6 +1253,7 @@ export default function TrabajoDetallePage() {
                 id: string;
                 title: string;
                 description: string;
+                service_id?: string | null;
                 city: string;
                 state: string;
                 zip_code: string;
@@ -1243,6 +1270,7 @@ export default function TrabajoDetallePage() {
             id: trabajoAbiertoSeguro.id,
             title: trabajoAbiertoSeguro.title,
             description: trabajoAbiertoSeguro.description,
+            service_id: trabajoAbiertoSeguro.service_id || null,
             address_line1: null,
             city: trabajoAbiertoSeguro.city,
             state: trabajoAbiertoSeguro.state,
@@ -1298,6 +1326,7 @@ export default function TrabajoDetallePage() {
             id: String(historial.id),
             title: String(historial.title || ""),
             description: String(historial.description || ""),
+            service_id: historial.service_id ? String(historial.service_id) : null,
             address_line1: null,
             city: String(historial.city || ""),
             state: String(historial.state || ""),
@@ -1382,6 +1411,17 @@ export default function TrabajoDetallePage() {
         throw new Error(
           T("Esta solicitud está dirigida a otro profesional.", "This request is directed to another professional.")
         );
+      }
+
+      if (trabajoData.service_id) {
+        const { data: serviceData } = await supabase
+          .from("services")
+          .select("slug")
+          .eq("id", trabajoData.service_id)
+          .maybeSingle();
+        setServiceSlug(serviceData?.slug || null);
+      } else {
+        setServiceSlug(null);
       }
 
       setTrabajo(
@@ -4142,6 +4182,8 @@ export default function TrabajoDetallePage() {
                   nuevo,
                 ]
         );
+
+        void notificarEventoTrabajo("job_message_sent");
       }
     } catch (err) {
       setError(
@@ -4669,7 +4711,7 @@ export default function TrabajoDetallePage() {
 
                 {contratado && (
                   <span className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-2 text-xs font-black uppercase text-amber-800">
-                    Contratado
+                    {T("Contratado", "Hired")}
                   </span>
                 )}
               </div>
@@ -4930,7 +4972,7 @@ export default function TrabajoDetallePage() {
                               }
                               className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:opacity-50"
                             >
-                              🚗 Estoy en camino
+                              🚗 {T("Estoy en camino", "I'm on my way")}
                             </button>
                           )}
 
@@ -5320,9 +5362,9 @@ export default function TrabajoDetallePage() {
                             </p>
 
                             <p className="mt-2 text-sm text-slate-700">
-                              Adicional: ${Number(
+                              {T("Adicional", "Additional")}: ${Number(
                                 ultimoCambioPresupuesto.additional_amount
-                              ).toFixed(2)} · Nuevo total: ${Number(
+                              ).toFixed(2)} · {T("Nuevo total", "New total")}: ${Number(
                                 ultimoCambioPresupuesto.new_total_amount
                               ).toFixed(2)}
                             </p>
@@ -6113,10 +6155,18 @@ export default function TrabajoDetallePage() {
                       {T("Detalles del servicio", "Service details")}
                     </p>
 
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-xs font-semibold text-slate-500">
-                          Tiempo para llegar
+                          {T("Oficio / categoría", "Trade / category")}
+                        </p>
+                        <p className="mt-1 font-black text-slate-900">
+                          {serviceLabel(serviceSlug, language)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold text-slate-500">
+                          {T("Tiempo para llegar", "Time to arrival")}
                         </p>
                         <p className="mt-1 font-black text-slate-900">
                           {mostrarMinutos(oferta.arrival_minutes, language)}
@@ -6501,7 +6551,7 @@ export default function TrabajoDetallePage() {
                           : "text-amber-700"
                       }`}
                     >
-                      Tiempo para responder
+                      {T("Tiempo para responder", "Time to respond")}
                     </p>
 
                     <p
@@ -6903,7 +6953,7 @@ export default function TrabajoDetallePage() {
 
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-800">
-                      Minutos para llegar
+                      {T("Minutos para llegar", "Minutes to arrival")}
                     </label>
 
                     <input

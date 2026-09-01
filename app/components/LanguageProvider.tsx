@@ -19,6 +19,7 @@ import {
 
 type LanguageContextType = {
   language: AppLanguage;
+  setLanguage: (language: AppLanguage) => Promise<void>;
 };
 
 const LanguageContext =
@@ -40,45 +41,38 @@ export function LanguageProvider({
   useEffect(() => {
     let active = true;
 
-    async function detectAndPersistLanguage() {
-      const detectedLanguage =
-        getBrowserLanguage();
-
-      if (active) {
-        setLanguage(detectedLanguage);
-      }
+    async function loadLanguage() {
+      const browserLanguage = getBrowserLanguage();
 
       try {
         const {
-          data: {
-            user,
-          },
-          error:
-            userError,
-        } =
-          await supabase.auth.getUser();
+          data: { user },
+        } = await supabase.auth.getUser();
 
-        if (
-          userError ||
-          !user
-        ) {
+        if (!user) {
+          if (active) setLanguage(browserLanguage);
           return;
         }
 
-        const {
-          error:
-            updateError,
-        } =
-          await supabase
-            .from("profiles")
-            .update({
-              preferred_language:
-                detectedLanguage,
-            })
-            .eq(
-              "id",
-              user.id
-            );
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("preferred_language")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const savedLanguage = profile?.preferred_language;
+
+        if (savedLanguage === "es" || savedLanguage === "en") {
+          if (active) setLanguage(savedLanguage);
+          return;
+        }
+
+        if (active) setLanguage(browserLanguage);
+
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ preferred_language: browserLanguage })
+          .eq("id", user.id);
 
         if (updateError) {
           console.warn(
@@ -87,22 +81,46 @@ export function LanguageProvider({
           );
         }
       } catch (error) {
-        console.warn(
-          "Could not persist preferred language:",
-          error
-        );
+        if (active) setLanguage(browserLanguage);
+        console.warn("Could not load preferred language:", error);
       }
     }
 
-    detectAndPersistLanguage();
+    loadLanguage();
 
     return () => {
       active = false;
     };
   }, []);
 
+  async function updateLanguage(nextLanguage: AppLanguage) {
+    setLanguage(nextLanguage);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ preferred_language: nextLanguage })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } catch (error) {
+      console.warn("Could not update preferred language:", error);
+      throw error;
+    }
+  }
+
   return (
-    <LanguageContext.Provider value={{ language }}>
+    <LanguageContext.Provider
+      value={{ language, setLanguage: updateLanguage }}
+    >
       {children}
     </LanguageContext.Provider>
   );

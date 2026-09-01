@@ -33,7 +33,8 @@ type EventName =
   | "change_order_requested"
   | "change_order_answered"
   | "claim_created"
-  | "claim_provider_responded";
+  | "claim_provider_responded"
+  | "job_message_sent";
 
 type RequestBody = {
   event?: EventName;
@@ -716,6 +717,59 @@ export async function POST(
           url:
             `/trabajos/${requestId}`,
         });
+
+      return NextResponse.json({
+        success: true,
+        result,
+      });
+    }
+
+
+    /*
+      NUEVO MENSAJE DE CHAT
+    */
+
+    if (event === "job_message_sent") {
+      const senderIsCustomer = serviceRequest.customer_id === user.id;
+      const senderIsProvider = serviceRequest.preferred_provider_id === user.id;
+
+      if (!senderIsCustomer && !senderIsProvider) {
+        return NextResponse.json(
+          { error: "No tienes acceso al chat de este trabajo." },
+          { status: 403 }
+        );
+      }
+
+      if (serviceRequest.status !== "in_progress" && serviceRequest.status !== "completed") {
+        return NextResponse.json(
+          { error: "El chat no está disponible para este trabajo." },
+          { status: 409 }
+        );
+      }
+
+      const recipientId = senderIsCustomer
+        ? serviceRequest.preferred_provider_id
+        : serviceRequest.customer_id;
+
+      if (!recipientId) {
+        return NextResponse.json(
+          { error: "No encontramos al destinatario del mensaje." },
+          { status: 400 }
+        );
+      }
+
+      const result = await sendRelydoNotification({
+        userId: recipientId,
+        type: "job_message",
+        title: "Nuevo mensaje",
+        titleEn: "New message",
+        message: `${jobTitle}: tienes un nuevo mensaje en el chat del trabajo.`,
+        messageEn: `${jobTitle}: you have a new message in the job chat.`,
+        requestId,
+        url: senderIsCustomer
+          ? `/trabajos/${requestId}`
+          : `/mis-solicitudes/${requestId}`,
+      });
 
       return NextResponse.json({
         success: true,

@@ -692,8 +692,8 @@ export default function ProfesionalesHome() {
             </h3>
 
             <div className="mt-4 flex flex-col items-start gap-3 text-slate-400">
-              <span>{T.terms}</span>
-              <span>{T.privacy}</span>
+              <button type="button" onClick={() => router.push("/terms")} className="hover:text-blue-700">{T.terms}</button>
+              <button type="button" onClick={() => router.push("/privacy")} className="hover:text-blue-700">{T.privacy}</button>
             </div>
           </div>
         </div>

@@ -59,7 +59,7 @@ function normalizarFecha(valor: string | null | undefined) {
 
 export default function ConfiguracionPerfilProfesional() {
   const router = useRouter();
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const T = (es: string, en: string) => (language === "es" ? es : en);
 
   const [loading, setLoading] = useState(true);
@@ -403,6 +403,61 @@ export default function ConfiguracionPerfilProfesional() {
             {mensaje}
           </div>
         )}
+
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <h2 className="text-xl font-black text-slate-900">
+            {T("Idioma", "Language")}
+          </h2>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            {T(
+              "Elige el idioma que RELYDO usará en tu cuenta y notificaciones.",
+              "Choose the language RELYDO will use for your account and notifications."
+            )}
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await setLanguage("es");
+                  setMensaje("Idioma cambiado a Español.");
+                  setError("");
+                } catch {
+                  setError(T("No pudimos guardar el idioma.", "We could not save the language."));
+                }
+              }}
+              className={`rounded-2xl border px-5 py-4 text-left font-black transition ${
+                language === "es"
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-200 bg-white text-slate-800 hover:border-blue-300"
+              }`}
+            >
+              Español
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await setLanguage("en");
+                  setMensaje("Language changed to English.");
+                  setError("");
+                } catch {
+                  setError(T("No pudimos guardar el idioma.", "We could not save the language."));
+                }
+              }}
+              className={`rounded-2xl border px-5 py-4 text-left font-black transition ${
+                language === "en"
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-200 bg-white text-slate-800 hover:border-blue-300"
+              }`}
+            >
+              English
+            </button>
+          </div>
+        </section>
 
         <form onSubmit={guardarPerfil} className="mt-6 space-y-6">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">

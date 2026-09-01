@@ -542,12 +542,6 @@ export async function POST(
         );
       }
 
-      // El Push externo NO debe depender de que la notificación interna
-      // sea nueva. Si la campana ya tenía el evento pero el Web Push
-      // falló o no se entregó, este profesional debe seguir entrando
-      // en la fase de envío a sus dispositivos.
-      providerIdsToNotify.push(providerId);
-
       if (existingNotification) {
         duplicadosOmitidos += 1;
         continue;
@@ -576,6 +570,10 @@ export async function POST(
         );
       }
 
+      // Solo enviamos Web Push cuando acabamos de reservar/crear
+      // la notificación interna para este trabajo. Así, un retry del
+      // endpoint no vuelve a disparar el mismo Push al profesional.
+      providerIdsToNotify.push(providerId);
     }
 
     if (
@@ -598,8 +596,9 @@ export async function POST(
       9. BUSCAR DISPOSITIVOS PUSH
       DE TODOS LOS PROS COMPATIBLES
 
-      La deduplicación de la campana interna NO debe bloquear
-      el intento de Web Push.
+      Solo llegan aquí profesionales cuya notificación interna
+      fue creada en esta ejecución. Esto mantiene campana y Push
+      idempotentes frente a retries del mismo trabajo.
     */
 
     const {

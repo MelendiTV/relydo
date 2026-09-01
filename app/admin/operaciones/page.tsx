@@ -2791,6 +2791,25 @@ export default function AdminPage() {
       return;
     }
 
+    let motivoRechazo = "";
+
+    if (nuevoEstado === "rejected") {
+      const motivo = window.prompt(
+        "Escribe la razón concreta del rechazo. Esta explicación será enviada al profesional:"
+      );
+
+      if (motivo === null) {
+        return;
+      }
+
+      motivoRechazo = motivo.trim();
+
+      if (motivoRechazo.length < 5) {
+        setError("Debes escribir una razón de rechazo clara antes de continuar.");
+        return;
+      }
+    }
+
     setProcesando(
       userId
     );
@@ -2803,33 +2822,34 @@ export default function AdminPage() {
         nuevoEstado ===
         "verified";
 
-      const {
-        error:
-          profileError,
-      } = await supabase
-        .from(
-          "provider_profiles"
-        )
-        .update({
-          verification_status:
-            nuevoEstado,
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
 
-          verified:
-            esVerificado,
+      if (sessionError || !sessionData.session) {
+        throw new Error("No pudimos verificar tu sesión administrativa.");
+      }
 
-          active:
-            esVerificado,
-        })
-        .eq(
-          "user_id",
-          userId
-        );
+      const verificationResponse = await fetch(
+        "/api/admin/provider-verification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+          body: JSON.stringify({
+            providerId: userId,
+            status: nuevoEstado,
+            reason: motivoRechazo,
+          }),
+        }
+      );
 
-      if (
-        profileError
-      ) {
+      const verificationData = await verificationResponse.json();
+
+      if (!verificationResponse.ok) {
         throw new Error(
-          `No se pudo actualizar el profesional: ${profileError.message}`
+          verificationData?.error || "No se pudo actualizar el profesional."
         );
       }
 

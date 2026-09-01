@@ -373,6 +373,16 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "✓ Cambio de presupuesto aceptado": "✓ Budget change accepted",
   "✕ Cambio de presupuesto rechazado": "✕ Budget change rejected",
   "Cambio de presupuesto cancelado": "Budget change cancelled",
+  "¿Confirmas que aceptas el cambio de presupuesto?": "Do you confirm that you accept the budget change?",
+  "Adicional": "Additional",
+  "Nuevo total": "New total",
+  "Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.": "By accepting, you will continue to Stripe secure checkout to pay the additional amount and RELYDO service fee.",
+  "¿Confirmas que deseas rechazar este cambio de presupuesto?": "Do you confirm that you want to reject this budget change?",
+  "Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.": "Budget change accepted. We will now send you to Stripe secure checkout to charge only the additional amount and the corresponding service fee.",
+  "¿Confirmas la cancelación?": "Do you confirm the cancellation?",
+  "Penalidad": "Cancellation fee",
+  "Esta acción no se puede deshacer.": "This action cannot be undone.",
+  "Solicitud cancelada correctamente. Se procesó un reembolso de": "Request cancelled successfully. A refund was processed for",
   "Abriendo pago seguro...": "Opening secure payment...",
   "Evidencia del trabajo terminado": "Completed job evidence",
   "El pago adicional fue cancelado. Tu aprobación sigue registrada y puedes intentar pagarlo nuevamente.": "The additional payment was cancelled. Your approval is still recorded and you can try paying again.",
@@ -2369,22 +2379,22 @@ export default function MisSolicitudDetallePage() {
     const confirmar =
       window.confirm(
         decision === "accepted"
-          ? `¿Confirmas que aceptas el cambio de presupuesto?
+          ? `${T("¿Confirmas que aceptas el cambio de presupuesto?")}
 
-Total anterior: $${Number(
+${T("Total anterior")}: $${Number(
               changeOrder.original_amount
             ).toFixed(2)}
-Adicional: $${Number(
+${T("Adicional")}: $${Number(
               changeOrder.additional_amount
             ).toFixed(2)}
-Nuevo total: $${Number(
+${T("Nuevo total")}: $${Number(
               changeOrder.new_total_amount
             ).toFixed(2)}
 
-Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.`
-          : `¿Confirmas que deseas rechazar este cambio de presupuesto por $${Number(
+${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.")}`
+          : `${T("¿Confirmas que deseas rechazar este cambio de presupuesto?")} $${Number(
               changeOrder.additional_amount
-            ).toFixed(2)} adicionales?`
+            ).toFixed(2)}`
       );
 
     if (!confirmar) {
@@ -2489,7 +2499,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         decision === "accepted"
       ) {
         setMensaje(
-          `Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.`
+          T("Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.")
         );
 
         await pagarCambioPresupuesto(
@@ -2571,13 +2581,13 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
       payment
     ) {
       textoConfirmacion =
-        `¿Confirmas la cancelación?\n\n` +
-        `Total pagado: $${resumen.totalPagado.toFixed(2)}\n` +
-        `Penalidad: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
-        `Profesional: $${resumen.profesional.toFixed(2)}\n` +
+        `${T("¿Confirmas la cancelación?")}\n\n` +
+        `${T("Total pagado")}: $${resumen.totalPagado.toFixed(2)}\n` +
+        `${T("Penalidad")}: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
+        `${T("Profesional")}: $${resumen.profesional.toFixed(2)}\n` +
         `RELYDO: $${resumen.relydo.toFixed(2)}\n` +
-        `Reembolso al cliente: $${resumen.reembolso.toFixed(2)}\n\n` +
-        `Esta acción no se puede deshacer.`;
+        `${T("Reembolso al cliente")}: $${resumen.reembolso.toFixed(2)}\n\n` +
+        T("Esta acción no se puede deshacer.");
     }
 
     const confirmar =
@@ -2646,7 +2656,7 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
         Number(data.providerAwardAmount || 0) > 0
       ) {
         setMensaje(
-          `Solicitud cancelada correctamente. Se procesó un reembolso de $${Number(
+          `${T("Solicitud cancelada correctamente. Se procesó un reembolso de")} $${Number(
             data.customerRefundAmount || 0
           ).toFixed(2)}.`
         );
@@ -3394,6 +3404,8 @@ Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional 
                   nuevo,
                 ]
         );
+
+        void notificarEventoTrabajo("job_message_sent");
       }
     } catch (err) {
       setError(
