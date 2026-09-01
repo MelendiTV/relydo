@@ -853,6 +853,238 @@ function ProfesionalesContenido() {
               </div>
             </div>
 
+            {/* TITULO RESULTADOS */}
+            <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+                  {text.zona}
+                </p>
+                <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
+                  {
+                    text.profesionalesZona
+                  }
+                </h2>
+              </div>
+
+              <p className="text-sm font-bold text-slate-500">
+                {
+                  profesionalesFiltrados.length
+                }{" "}
+                {profesionalesFiltrados.length ===
+                1
+                  ? text.resultado
+                  : text.resultados}
+              </p>
+            </div>
+
+            {/* SIN PROFESIONALES EN EL AREA */}
+            {profesionales.length ===
+              0 && (
+              <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
+                <div className="text-5xl">
+                  👷
+                </div>
+
+                <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
+                  {
+                    text.sinProfesionales
+                  }
+                </h2>
+
+                <p className="mt-2 text-slate-600">
+                  {
+                    text.sinProfesionalesDescripcion
+                  }
+                </p>
+              </div>
+            )}
+
+            {/* SIN COINCIDENCIAS DE BUSQUEDA/FILTRO */}
+            {profesionales.length >
+              0 &&
+              profesionalesFiltrados.length ===
+                0 && (
+                <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
+                  <div className="text-5xl">
+                    🔎
+                  </div>
+
+                  <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
+                    {
+                      text.sinCoincidencias
+                    }
+                  </h2>
+
+                  <p className="mt-2 text-slate-600">
+                    {
+                      text.sinCoincidenciasDescripcion
+                    }
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      limpiarFiltros
+                    }
+                    className="mt-5 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
+                  >
+                    {text.limpiar}
+                  </button>
+                </div>
+              )}
+
+            {/* LISTA */}
+            {profesionalesFiltrados.length >
+              0 && (
+              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+                {profesionalesFiltrados.map(
+                  (
+                    profesional
+                  ) => (
+                    <article
+                      key={
+                        profesional.user_id
+                      }
+                      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
+                    >
+                      {/* CABECERA */}
+                      <div className="bg-blue-700 p-6 text-white">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl">
+                            👷
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
+                              ✓{" "}
+                              {
+                                text.verificado
+                              }
+                            </span>
+
+                            <h2 className="mt-3 break-words text-2xl font-extrabold">
+                              {profesional.business_name ||
+                                profesional.full_name ||
+                                text.profesionalRelydo}
+                            </h2>
+
+                            {profesional.full_name &&
+                              profesional.business_name && (
+                                <p className="mt-1 text-sm font-medium text-blue-100">
+                                  {
+                                    profesional.full_name
+                                  }
+                                </p>
+                              )}
+
+                            <p className="mt-1 font-semibold text-blue-100">
+                              {nombreOficio(
+                                profesional.trade,
+                                language
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CONTENIDO */}
+                      <div className="p-6">
+                        {profesional.bio && (
+                          <p className="line-clamp-3 leading-7 text-slate-600">
+                            {
+                              profesional.bio
+                            }
+                          </p>
+                        )}
+
+                        <div className="mt-5 grid grid-cols-3 gap-3">
+                          <div className="rounded-xl bg-slate-50 p-3 text-center">
+                            <p className="text-xs text-slate-500">
+                              {
+                                text.calificacion
+                              }
+                            </p>
+
+                            <p className="mt-1 font-extrabold text-slate-900">
+                              ⭐{" "}
+                              {Number(
+                                profesional.average_rating ??
+                                  0
+                              ).toFixed(
+                                1
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3 text-center">
+                            <p className="text-xs text-slate-500">
+                              {
+                                text.trabajos
+                              }
+                            </p>
+
+                            <p className="mt-1 font-extrabold text-slate-900">
+                              {profesional.completed_jobs ??
+                                0}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3 text-center">
+                            <p className="text-xs text-slate-500">
+                              {
+                                text.experiencia
+                              }
+                            </p>
+
+                            <p className="mt-1 font-extrabold text-slate-900">
+                              {profesional.years_experience ??
+                                0}{" "}
+                              {
+                                text.anos
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/profesionales/${profesional.user_id}?returnTo=${encodeURIComponent(
+                                  professionalsReturnPath
+                                )}`
+                              )
+                            }
+                            className="rounded-xl border-2 border-blue-700 px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
+                          >
+                            {
+                              text.verPerfil
+                            }
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/solicitar-trabajo?profesional=${profesional.user_id}`
+                              )
+                            }
+                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
+                          >
+                            {
+                              text.solicitarTrabajo
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  )
+                )}
+              </div>
+            )}
+
+
           </>
         )}
       </div>
