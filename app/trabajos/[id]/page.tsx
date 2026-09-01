@@ -640,6 +640,65 @@ export default function TrabajoDetallePage() {
             setMensaje("");
             setError("");
           }
+
+          // La contratación inicial actualiza varias tablas (solicitud,
+          // oferta y pago). Refrescamos el detalle completo para que la
+          // pantalla PRO no se quede mostrando "OPEN / presupuesto pendiente"
+          // después de que el cliente ya pagó.
+          window.setTimeout(
+            () => {
+              if (mounted) {
+                cargarTodo();
+              }
+            },
+            250
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "offers",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          window.setTimeout(
+            () => {
+              if (mounted) {
+                cargarTodo();
+              }
+            },
+            250
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payments",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          window.setTimeout(
+            () => {
+              if (mounted) {
+                cargarTodo();
+              }
+            },
+            250
+          );
         }
       )
       .on(
@@ -657,7 +716,9 @@ export default function TrabajoDetallePage() {
 
           window.setTimeout(
             () => {
-              cargarTodo();
+              if (mounted) {
+                cargarTodo();
+              }
             },
             250
           );
