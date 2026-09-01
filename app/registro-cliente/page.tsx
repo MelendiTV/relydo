@@ -707,9 +707,7 @@ function RegistroClienteContenido() {
         );
       } else {
         setError(
-          err instanceof Error
-            ? `${text.errorRegistro}: ${err.message}`
-            : text.errorInesperado
+          text.errorInesperado
         );
       }
 
