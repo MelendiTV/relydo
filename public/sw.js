@@ -3,6 +3,7 @@ self.addEventListener("push", function (event) {
     title: "RELYDO",
     body: "Tienes una nueva notificación.",
     url: "/",
+    tag: undefined,
   };
 
   if (event.data) {
@@ -16,10 +17,10 @@ self.addEventListener("push", function (event) {
   const options = {
     body: data.body || "Tienes una nueva notificación.",
 
-    // Icono principal que aparece en la notificación
+    // Icono principal
     icon: "/icons/notification-icon.png",
 
-    // Badge pequeño del sistema
+    // Badge pequeño
     badge: "/icons/notification-icon.png",
 
     data: {
@@ -28,10 +29,20 @@ self.addEventListener("push", function (event) {
 
     vibrate: [200, 100, 200],
 
-    // Evita que varias notificaciones iguales se amontonen
-    tag: data.tag || "relydo-notification",
+    // Cada notificación puede traer su propio tag.
+    // Los nuevos trabajos usan: new-job-<requestId>
+    tag: data.tag || `relydo-${Date.now()}`,
 
+    // Si vuelve a llegar el mismo tag, vuelve a avisar.
     renotify: true,
+
+    // La notificación no debe ser silenciosa.
+    silent: false,
+
+    // Mantener visible cuando navegador/SO lo permita.
+    requireInteraction: true,
+
+    timestamp: Date.now(),
   };
 
   event.waitUntil(
