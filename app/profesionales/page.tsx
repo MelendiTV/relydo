@@ -1,16 +1,8 @@
 "use client";
 
-import {
-  Suspense,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
 const supabase = createClient(
@@ -21,7 +13,6 @@ const supabase = createClient(
 type Profesional = {
   user_id: string;
   business_name: string | null;
-  full_name?: string | null;
   bio: string | null;
   trade: string | null;
   years_experience: number | null;
@@ -36,132 +27,51 @@ type Profesional = {
   zip_code: string | null;
 };
 
-type ProfileNameRow = {
-  id: string;
-  full_name: string | null;
-};
-
-function normalizar(
-  valor: string | null | undefined
-) {
-  return (valor || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function normalizarTrade(
-  valor: string | null | undefined
-) {
-  return normalizar(valor)
-    .replace(/_/g, "-")
-    .replace(/\s+/g, "-");
-}
-
 function nombreOficio(
   trade: string | null,
   language: "es" | "en"
 ) {
-  const key = normalizarTrade(trade);
-
   const oficiosEs: Record<string, string> = {
     plumbing: "Plomería",
     electrical: "Electricidad",
+    hvac: "HVAC / Aire acondicionado",
+    carpentry: "Carpintería",
     painting: "Pintura",
     landscaping: "Jardinería",
     cleaning: "Limpieza",
-    hvac: "A/C y HVAC",
-    "ac-rental": "Renta de A/C",
-    carpentry: "Carpintería",
     moving: "Mudanzas",
     "appliance-repair": "Reparación de electrodomésticos",
     handyman: "Handyman",
-    locksmith: "Cerrajería",
-    roofing: "Techado",
-    flooring: "Pisos",
-    tile: "Azulejos y losas",
-    drywall: "Drywall",
-    masonry: "Concreto y albañilería",
-    "doors-windows": "Puertas y ventanas",
-    "garage-doors": "Garajes",
-    fencing: "Cercas",
-    "pool-spa": "Piscinas y spas",
-    "pest-control": "Control de plagas",
-    "pressure-washing": "Lavado a presión",
-    "carpet-cleaning": "Limpieza de alfombras",
-    "junk-removal": "Retiro de basura",
-    "furniture-assembly": "Montaje de muebles",
-    "smart-home": "TV y hogar inteligente",
+    other: "Otros servicios",
   };
 
   const oficiosEn: Record<string, string> = {
     plumbing: "Plumbing",
     electrical: "Electrical",
+    hvac: "HVAC / Air conditioning",
+    carpentry: "Carpentry",
     painting: "Painting",
     landscaping: "Landscaping",
     cleaning: "Cleaning",
-    hvac: "A/C & HVAC",
-    "ac-rental": "A/C Rental",
-    carpentry: "Carpentry",
     moving: "Moving",
     "appliance-repair": "Appliance repair",
     handyman: "Handyman",
-    locksmith: "Locksmith",
-    roofing: "Roofing",
-    flooring: "Flooring",
-    tile: "Tile",
-    drywall: "Drywall",
-    masonry: "Concrete & masonry",
-    "doors-windows": "Doors & windows",
-    "garage-doors": "Garage doors",
-    fencing: "Fencing",
-    "pool-spa": "Pools & spas",
-    "pest-control": "Pest control",
-    "pressure-washing": "Pressure washing",
-    "carpet-cleaning": "Carpet cleaning",
-    "junk-removal": "Junk removal",
-    "furniture-assembly": "Furniture assembly",
-    "smart-home": "TV & smart home",
+    other: "Other services",
   };
 
   if (!trade) {
-    return language === "es" ? "Profesional" : "Professional";
+    return language === "es"
+      ? "Profesional"
+      : "Professional";
   }
 
-  const oficios = language === "es" ? oficiosEs : oficiosEn;
-  return oficios[key] || trade;
-}
+  const oficios =
+    language === "es"
+      ? oficiosEs
+      : oficiosEn;
 
-const ESPECIALIDADES = [
-  "plumbing",
-  "electrical",
-  "painting",
-  "landscaping",
-  "cleaning",
-  "hvac",
-  "ac_rental",
-  "carpentry",
-  "moving",
-  "appliance_repair",
-  "handyman",
-  "locksmith",
-  "roofing",
-  "flooring",
-  "tile",
-  "drywall",
-  "masonry",
-  "doors_windows",
-  "garage_doors",
-  "fencing",
-  "pool_spa",
-  "pest_control",
-  "pressure_washing",
-  "carpet_cleaning",
-  "junk_removal",
-  "furniture_assembly",
-  "smart_home",
-] as const;
+  return oficios[trade] || trade;
+}
 
 function ProfesionalesContenido() {
   const router = useRouter();
@@ -171,26 +81,9 @@ function ProfesionalesContenido() {
   const requestedTrade =
     searchParams.get("trade")?.trim() || "";
 
-  const [profesionales, setProfesionales] =
-    useState<Profesional[]>([]);
-  const [loading, setLoading] =
-    useState(true);
-  const [error, setError] =
-    useState("");
-  const [busqueda, setBusqueda] =
-    useState("");
-  const [tradeSeleccionado, setTradeSeleccionado] =
-    useState(normalizarTrade(requestedTrade));
-  const [customerArea, setCustomerArea] =
-    useState<{
-      city: string;
-      state: string;
-      zip: string;
-    }>({
-      city: "",
-      state: "",
-      zip: "",
-    });
+  const professionalsReturnPath = requestedTrade
+    ? `/profesionales?trade=${encodeURIComponent(requestedTrade)}`
+    : "/profesionales";
 
   const text =
     language === "es"
@@ -199,10 +92,16 @@ function ProfesionalesContenido() {
             "No se pudieron cargar los profesionales",
           cargando:
             "Cargando profesionales...",
+          volverInicio:
+            "Volver a mi cuenta",
           titulo:
             "Profesionales",
           descripcion:
-            "Encuentra profesionales verificados que atienden tu zona.",
+            "Encuentra profesionales verificados para realizar tu trabajo.",
+          sinProfesionales:
+            "Todavía no hay profesionales disponibles",
+          sinProfesionalesDescripcion:
+            "Los profesionales aparecerán aquí cuando estén verificados y activos.",
           verificado:
             "Verificado",
           profesionalRelydo:
@@ -219,42 +118,26 @@ function ProfesionalesContenido() {
             "Ver perfil",
           solicitarTrabajo:
             "Solicitar trabajo",
-          buscarPlaceholder:
-            "Buscar por profesional, negocio o especialidad...",
-          todos:
-            "Todos",
-          profesionalesZona:
-            "Profesionales que atienden tu zona",
-          especialidadesZona:
-            "Especialidades disponibles en tu zona",
-          resultados:
-            "resultados",
-          resultado:
-            "resultado",
           sinCoincidencias:
-            "No encontramos profesionales con esos filtros.",
+            "No encontramos profesionales de esta especialidad en tu zona.",
           sinCoincidenciasDescripcion:
-            "Prueba otra especialidad o cambia el texto de búsqueda.",
-          sinProfesionales:
-            "Todavía no hay profesionales disponibles en tu zona",
-          sinProfesionalesDescripcion:
-            "Los profesionales aparecerán aquí cuando estén verificados, activos y disponibles en tu área.",
-          limpiar:
-            "Limpiar filtros",
-          zona:
-            "Tu zona",
-          ubicacionNoDisponible:
-            "Ubicación del cliente no disponible",
+            "Prueba otra categoría o vuelve más tarde mientras ampliamos la red de profesionales.",
         }
       : {
           errorCarga:
             "We could not load the professionals",
           cargando:
             "Loading professionals...",
+          volverInicio:
+            "Back to my account",
           titulo:
             "Professionals",
           descripcion:
-            "Find verified professionals who serve your area.",
+            "Find verified professionals for your job.",
+          sinProfesionales:
+            "There are no professionals available yet",
+          sinProfesionalesDescripcion:
+            "Professionals will appear here once they are verified and active.",
           verificado:
             "Verified",
           profesionalRelydo:
@@ -271,371 +154,233 @@ function ProfesionalesContenido() {
             "View profile",
           solicitarTrabajo:
             "Request job",
-          buscarPlaceholder:
-            "Search by professional, business or specialty...",
-          todos:
-            "All",
-          profesionalesZona:
-            "Professionals serving your area",
-          especialidadesZona:
-            "Specialties available in your area",
-          resultados:
-            "results",
-          resultado:
-            "result",
           sinCoincidencias:
-            "We couldn't find professionals with those filters.",
+            "We couldn't find professionals in this specialty in your area.",
           sinCoincidenciasDescripcion:
-            "Try another specialty or change your search.",
-          sinProfesionales:
-            "There are no professionals available in your area yet",
-          sinProfesionalesDescripcion:
-            "Professionals will appear here once they are verified, active, and available in your area.",
-          limpiar:
-            "Clear filters",
-          zona:
-            "Your area",
-          ubicacionNoDisponible:
-            "Customer location unavailable",
+            "Try another category or check back later as we expand the professional network.",
         };
 
-  useEffect(() => {
-    setTradeSeleccionado(
-      normalizarTrade(requestedTrade)
-    );
-  }, [requestedTrade]);
+  const [profesionales, setProfesionales] =
+    useState<Profesional[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     cargarProfesionales();
-  }, []);
+  }, [requestedTrade]);
 
   async function cargarProfesionales() {
     setLoading(true);
     setError("");
 
-    try {
+    const normalizar = (
+      valor: string | null | undefined
+    ) =>
+      (valor || "")
+        .trim()
+        .toLowerCase();
+
+    const normalizarTrade = (
+      valor: string | null | undefined
+    ) =>
+      normalizar(valor)
+        .replace(/_/g, "-")
+        .replace(/\s+/g, "-");
+
+    let customerCity = "";
+    let customerState = "";
+    let customerZip = "";
+
+    const {
+      data: authData,
+    } = await supabase.auth.getUser();
+
+    if (authData.user) {
       const {
-        data: authData,
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        console.error(
-          "Error verificando sesión:",
-          authError
-        );
-      }
-
-      let customerCity = "";
-      let customerState = "";
-      let customerZip = "";
-
-      if (authData.user) {
-        const {
-          data: customerProfile,
-          error: customerProfileError,
-        } = await supabase
-          .from("profiles")
-          .select("city, state, zip_code")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-
-        if (customerProfileError) {
-          console.error(
-            "Error cargando ubicación del cliente:",
-            customerProfileError
-          );
-        } else {
-          customerCity =
-            customerProfile?.city?.trim() || "";
-          customerState =
-            customerProfile?.state?.trim() || "";
-          customerZip =
-            customerProfile?.zip_code?.trim() || "";
-        }
-      }
-
-      setCustomerArea({
-        city: customerCity,
-        state: customerState,
-        zip: customerZip,
-      });
-
-      const {
-        data,
-        error: profesionalesError,
+        data: customerProfile,
       } = await supabase
-        .from("provider_profiles")
-        .select(`
-          user_id,
-          business_name,
-          bio,
-          trade,
-          years_experience,
-          service_radius_miles,
-          average_rating,
-          completed_jobs,
-          verification_status,
-          verified,
-          active,
-          city,
-          state,
-          zip_code
-        `)
-        .eq(
-          "verification_status",
-          "verified"
-        )
-        .eq("verified", true)
-        .eq("active", true)
-        .order("average_rating", {
-          ascending: false,
-        });
+        .from("profiles")
+        .select("city, state, zip")
+        .eq("id", authData.user.id)
+        .maybeSingle();
 
-      if (profesionalesError) {
-        throw profesionalesError;
-      }
+      customerCity =
+        customerProfile?.city?.trim() || "";
+      customerState =
+        customerProfile?.state?.trim() || "";
+      customerZip =
+        customerProfile?.zip?.trim() || "";
+    }
 
-      const ciudadCliente =
-        normalizar(customerCity);
-      const estadoCliente =
-        normalizar(customerState);
-      const zipCliente =
-        normalizar(customerZip);
-
-      const enZona = (
-        (data || []) as Profesional[]
-      ).filter((profesional) => {
-        const ciudadProfesional =
-          normalizar(profesional.city);
-        const estadoProfesional =
-          normalizar(profesional.state);
-        const zipProfesional =
-          normalizar(
-            profesional.zip_code
-          );
-
-        /*
-          REGLA SEGURA ACTUAL:
-          1) Si Cliente tiene ciudad + estado:
-             solo muestra Pros de esa ciudad/estado.
-          2) Si no hay ciudad/estado pero sí ZIP:
-             usa coincidencia por ZIP.
-          3) Si el Cliente todavía no tiene ubicación:
-             no inventamos una zona y mostramos los Pros verificados.
-
-          IMPORTANTE:
-          El radio real por millas entre ciudades distintas requiere
-          coordenadas/geocodificación. No se simula con datos falsos.
-        */
-        if (
-          ciudadCliente &&
-          estadoCliente
-        ) {
-          return (
-            ciudadProfesional ===
-              ciudadCliente &&
-            estadoProfesional ===
-              estadoCliente
-          );
-        }
-
-        if (zipCliente) {
-          return (
-            zipProfesional === zipCliente
-          );
-        }
-
-        return true;
+    const {
+      data,
+      error: profesionalesError,
+    } = await supabase
+      .from("provider_profiles")
+      .select(`
+        user_id,
+        business_name,
+        bio,
+        trade,
+        years_experience,
+        service_radius_miles,
+        average_rating,
+        completed_jobs,
+        verification_status,
+        verified,
+        active,
+        city,
+        state,
+        zip_code
+      `)
+      .eq("verification_status", "verified")
+      .eq("verified", true)
+      .eq("active", true)
+      .order("average_rating", {
+        ascending: false,
       });
 
-      const providerIds =
-        enZona.map(
-          (profesional) =>
-            profesional.user_id
-        );
-
-      let nombres = new Map<
-        string,
-        string | null
-      >();
-
-      if (providerIds.length > 0) {
-        const {
-          data: profilesData,
-          error: profilesError,
-        } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", providerIds);
-
-        if (profilesError) {
-          console.warn(
-            "No se pudieron cargar nombres públicos de profesionales:",
-            profilesError
-          );
-        } else {
-          nombres = new Map(
-            (
-              (profilesData ||
-                []) as ProfileNameRow[]
-            ).map((profile) => [
-              profile.id,
-              profile.full_name,
-            ])
-          );
-        }
-      }
-
-      const completos =
-        enZona.map(
-          (profesional) => ({
-            ...profesional,
-            full_name:
-              nombres.get(
-                profesional.user_id
-              ) || null,
-          })
-        );
-
-      setProfesionales(completos);
-    } catch (err) {
+    if (profesionalesError) {
       console.error(
         "Error cargando profesionales:",
-        err
+        profesionalesError
       );
 
       setError(
-        `${text.errorCarga}: ${
-          err instanceof Error
-            ? err.message
-            : "Unknown error"
-        }`
+        `${text.errorCarga}: ${profesionalesError.message}`
       );
-      setProfesionales([]);
-    } finally {
+
       setLoading(false);
+      return;
     }
-  }
 
-  const categorias = useMemo(() => {
-    const conteo = new Map<string, number>();
+    const tradeBuscado =
+      normalizarTrade(requestedTrade);
 
-    profesionales.forEach((profesional) => {
-      const key = normalizarTrade(profesional.trade);
-      if (!key) return;
-      conteo.set(key, (conteo.get(key) || 0) + 1);
-    });
+    const ciudadCliente =
+      normalizar(customerCity);
 
-    return ESPECIALIDADES.map((trade) => {
-      const key = normalizarTrade(trade);
+    const estadoCliente =
+      normalizar(customerState);
 
-      return {
-        trade,
-        key,
-        count: conteo.get(key) || 0,
-        nombre: nombreOficio(trade, language),
-      };
-    });
-  }, [profesionales, language]);
+    const candidatos = (data || []).filter(
+      (profesional) => {
+        const tradeProfesional =
+          normalizarTrade(
+            profesional.trade
+          );
 
-  const profesionalesFiltrados =
-    useMemo(() => {
-      const texto =
-        normalizar(busqueda);
-      const tradeActivo =
-        normalizarTrade(
-          tradeSeleccionado
+        return (
+          !tradeBuscado ||
+          tradeProfesional ===
+            tradeBuscado
+        );
+      }
+    );
+
+    let filtrados = candidatos;
+
+    if (customerZip) {
+      try {
+        const response = await fetch(
+          "/api/location/zip-distance",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              customerZip,
+              providerZips: candidatos.map(
+                (profesional) => ({
+                  id: profesional.user_id,
+                  zip: profesional.zip_code,
+                })
+              ),
+            }),
+          }
         );
 
-      return profesionales.filter(
-        (profesional) => {
-          const tradeProfesional =
-            normalizarTrade(
-              profesional.trade
-            );
-
-          if (
-            tradeActivo &&
-            tradeProfesional !==
-              tradeActivo
-          ) {
-            return false;
-          }
-
-          if (!texto) {
-            return true;
-          }
-
-          const searchable = [
-            profesional.full_name,
-            profesional.business_name,
-            profesional.trade,
-            nombreOficio(
-              profesional.trade,
-              "es"
-            ),
-            nombreOficio(
-              profesional.trade,
-              "en"
-            ),
-            profesional.bio,
-          ]
-            .filter(Boolean)
-            .map((item) =>
-              normalizar(String(item))
-            )
-            .join(" ");
-
-          return searchable.includes(
-            texto
+        if (!response.ok) {
+          throw new Error(
+            "No se pudo calcular el radio de servicio."
           );
         }
+
+        const result = await response.json();
+        const distancias = new Map<
+          string,
+          number | null
+        >(
+          Object.entries(
+            result?.distances || {}
+          ) as [string, number | null][]
+        );
+
+        filtrados = candidatos.filter(
+          (profesional) => {
+            const distancia =
+              distancias.get(
+                profesional.user_id
+              );
+
+            const radio =
+              Number(
+                profesional.service_radius_miles ??
+                  0
+              );
+
+            if (
+              distancia === null ||
+              distancia === undefined ||
+              !Number.isFinite(radio) ||
+              radio <= 0
+            ) {
+              return false;
+            }
+
+            return distancia <= radio;
+          }
+        );
+      } catch (distanceError) {
+        console.error(
+          "Error calculando radio de servicio:",
+          distanceError
+        );
+
+        // Fallback conservador para cuentas antiguas sin geocodificación disponible:
+        // solo mantenemos profesionales de la misma ciudad y estado.
+        filtrados = candidatos.filter(
+          (profesional) =>
+            ciudadCliente &&
+            estadoCliente &&
+            normalizar(profesional.city) ===
+              ciudadCliente &&
+            normalizar(profesional.state) ===
+              estadoCliente
+        );
+      }
+    } else if (
+      ciudadCliente &&
+      estadoCliente
+    ) {
+      // Para cuentas antiguas que todavía no tengan ZIP guardado.
+      filtrados = candidatos.filter(
+        (profesional) =>
+          normalizar(profesional.city) ===
+            ciudadCliente &&
+          normalizar(profesional.state) ===
+            estadoCliente
       );
-    }, [
-      profesionales,
-      busqueda,
-      tradeSeleccionado,
-    ]);
-
-  function seleccionarTrade(
-    trade: string
-  ) {
-    const mismoTrade =
-      normalizarTrade(tradeSeleccionado) ===
-      normalizarTrade(trade);
-
-    const siguienteTrade =
-      mismoTrade ? "" : trade;
-
-    setTradeSeleccionado(siguienteTrade);
-
-    if (siguienteTrade) {
-      router.replace(
-        `/profesionales?trade=${encodeURIComponent(siguienteTrade)}`
-      );
-    } else {
-      router.replace("/profesionales");
     }
+
+    setProfesionales(filtrados);
+    setLoading(false);
   }
-
-  function limpiarFiltros() {
-    setBusqueda("");
-    seleccionarTrade("");
-  }
-
-  const professionalsReturnPath =
-    tradeSeleccionado
-      ? `/profesionales?trade=${encodeURIComponent(tradeSeleccionado)}`
-      : "/profesionales";
-
-  const areaLabel = [
-    customerArea.city,
-    customerArea.state,
-    customerArea.zip,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   if (loading) {
     return (
@@ -652,284 +397,198 @@ function ProfesionalesContenido() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10">
       <div className="mx-auto max-w-6xl">
-        {/* BUSCADOR ARRIBA */}
-        {!error && (
-          <div className="relative mb-5">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">
-              🔍
-            </span>
-            <input
-              type="search"
-              value={busqueda}
-              onChange={(event) => setBusqueda(event.target.value)}
-              placeholder={text.buscarPlaceholder}
-              className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-        )}
-
         {/* HEADER */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              aria-label={
-                language === "es"
-                  ? "Volver a la página anterior"
-                  : "Go back to previous page"
-              }
-              title={language === "es" ? "Volver" : "Back"}
-              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+
+        <div>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label={
+              language === "es"
+                ? "Volver a la página anterior"
+                : "Go back to previous page"
+            }
+            title={
+              language === "es"
+                ? "Volver"
+                : "Back"
+            }
+            className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:-translate-x-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md active:scale-95"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
             >
-              ←
-            </button>
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-            <h1 className="text-4xl font-extrabold text-slate-900">
-              {text.titulo}
-            </h1>
-            <p className="mt-1 text-base text-slate-600">
-              {text.descripcion}
-            </p>
-          </div>
+          <h1 className="mt-5 text-4xl font-extrabold text-slate-900">
+            {text.titulo}
+          </h1>
 
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
-            <span>📍</span>
-            <span>{areaLabel || text.ubicacionNoDisponible}</span>
-          </div>
+          <p className="mt-2 text-lg text-slate-600">
+            {text.descripcion}
+          </p>
         </div>
 
         {/* ERROR */}
+
         {error && (
-          <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
+          <div className="mt-7 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700">
             {error}
           </div>
         )}
 
-        {!error && (
-          <>
-            {/* 21 ESPECIALIDADES COMPACTAS: 11 ARRIBA / 10 ABAJO EN DESKTOP */}
-            <div className="mt-5">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {categorias.map((categoria, index) => {
-                  const tonos = [
-                    "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100",
-                    "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
-                    "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100",
-                    "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
-                    "border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100",
-                    "border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100",
-                  ];
-                  const activo =
-                    normalizarTrade(tradeSeleccionado) === categoria.key;
+        {/* SIN PROFESIONALES */}
 
-                  return (
-                    <button
-                      key={categoria.trade}
-                      type="button"
-                      onClick={() => seleccionarTrade(categoria.trade)}
-                      title={categoria.nombre}
-                      className={`flex min-h-[64px] min-w-0 items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-sm font-extrabold leading-tight shadow-sm transition ${
-                        activo
-                          ? "border-blue-700 bg-blue-700 text-white shadow-sm"
-                          : tonos[index % tonos.length]
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1 break-words text-left [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-                        {categoria.nombre}
-                      </span>
-                      <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-black/10 px-2 text-xs font-black">
-                        {categoria.count}
-                      </span>
-                    </button>
-                  );
-                })}
+        {!error &&
+          profesionales.length === 0 && (
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
+              <div className="text-5xl">
+                👷
               </div>
 
-              <div className="mt-2 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => seleccionarTrade("")}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
-                    !tradeSeleccionado
-                      ? "border-blue-700 bg-blue-700 text-white"
-                      : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400 hover:bg-blue-100"
-                  }`}
-                >
-                  {text.todos} · {profesionales.length}
-                </button>
+              <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
+                {requestedTrade
+                  ? text.sinCoincidencias
+                  : text.sinProfesionales}
+              </h2>
 
-                {(tradeSeleccionado || busqueda) && (
-                  <button
-                    type="button"
-                    onClick={limpiarFiltros}
-                    className="text-xs font-bold text-blue-700 hover:text-blue-900"
-                  >
-                    {text.limpiar}
-                  </button>
-                )}
-              </div>
+              <p className="mt-2 text-slate-600">
+                {requestedTrade
+                  ? text.sinCoincidenciasDescripcion
+                  : text.sinProfesionalesDescripcion}
+              </p>
             </div>
+          )}
 
+        {/* LISTA */}
 
-            {/* RESULTADOS SOLO DESPUÉS DE ELEGIR CATEGORÍA O BUSCAR */}
-            {(tradeSeleccionado || busqueda.trim()) && (
-              <>
-                <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
-                      {text.zona}
-                    </p>
-                    <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                      {text.profesionalesZona}
-                    </h2>
-                  </div>
+        {profesionales.length > 0 && (
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {profesionales.map(
+              (profesional) => (
+                <article
+                  key={profesional.user_id}
+                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                  {/* CABECERA */}
 
-                  <p className="text-sm font-bold text-slate-500">
-                    {profesionalesFiltrados.length}{" "}
-                    {profesionalesFiltrados.length === 1
-                      ? text.resultado
-                      : text.resultados}
-                  </p>
-                </div>
+                  <div className="bg-blue-700 p-6 text-white">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl">
+                        👷
+                      </div>
 
-                {profesionalesFiltrados.length === 0 ? (
-                  <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
-                    <div className="text-5xl">🔎</div>
+                      <div className="flex-1">
+                        <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
+                          ✓ {text.verificado}
+                        </span>
 
-                    <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
-                      {text.sinCoincidencias}
-                    </h2>
+                        <h2 className="mt-3 text-2xl font-extrabold">
+                          {profesional.business_name ||
+                            text.profesionalRelydo}
+                        </h2>
 
-                    <p className="mt-2 text-slate-600">
-                      {text.sinCoincidenciasDescripcion}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={limpiarFiltros}
-                      className="mt-5 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
-                    >
-                      {text.limpiar}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                    {profesionalesFiltrados.map((profesional) => (
-                      <article
-                        key={profesional.user_id}
-                        className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
-                      >
-                        <div className="bg-blue-700 p-6 text-white">
-                          <div className="flex items-start gap-4">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl">
-                              👷
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
-                                ✓ {text.verificado}
-                              </span>
-
-                              <h2 className="mt-3 break-words text-2xl font-extrabold">
-                                {profesional.business_name ||
-                                  profesional.full_name ||
-                                  text.profesionalRelydo}
-                              </h2>
-
-                              {profesional.full_name &&
-                                profesional.business_name && (
-                                  <p className="mt-1 text-sm font-medium text-blue-100">
-                                    {profesional.full_name}
-                                  </p>
-                                )}
-
-                              <p className="mt-1 font-semibold text-blue-100">
-                                {nombreOficio(
-                                  profesional.trade,
-                                  language
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-6">
-                          {profesional.bio && (
-                            <p className="line-clamp-3 leading-7 text-slate-600">
-                              {profesional.bio}
-                            </p>
+                        <p className="mt-1 font-semibold text-blue-100">
+                          {nombreOficio(
+                            profesional.trade,
+                            language
                           )}
-
-                          <div className="mt-5 grid grid-cols-3 gap-3">
-                            <div className="rounded-xl bg-slate-50 p-3 text-center">
-                              <p className="text-xs text-slate-500">
-                                {text.calificacion}
-                              </p>
-                              <p className="mt-1 font-extrabold text-slate-900">
-                                ⭐{" "}
-                                {Number(
-                                  profesional.average_rating ?? 0
-                                ).toFixed(1)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3 text-center">
-                              <p className="text-xs text-slate-500">
-                                {text.trabajos}
-                              </p>
-                              <p className="mt-1 font-extrabold text-slate-900">
-                                {profesional.completed_jobs ?? 0}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3 text-center">
-                              <p className="text-xs text-slate-500">
-                                {text.experiencia}
-                              </p>
-                              <p className="mt-1 font-extrabold text-slate-900">
-                                {profesional.years_experience ?? 0}{" "}
-                                {text.anos}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                router.push(
-                                  `/profesionales/${profesional.user_id}?returnTo=${encodeURIComponent(
-                                    professionalsReturnPath
-                                  )}`
-                                )
-                              }
-                              className="rounded-xl border-2 border-blue-700 px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
-                            >
-                              {text.verPerfil}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                router.push(
-                                  `/solicitar-trabajo?profesional=${profesional.user_id}`
-                                )
-                              }
-                              className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
-                            >
-                              {text.solicitarTrabajo}
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </>
-            )}
 
-          </>
+                  {/* CONTENIDO */}
+
+                  <div className="p-6">
+                    {profesional.bio && (
+                      <p className="line-clamp-3 leading-7 text-slate-600">
+                        {profesional.bio}
+                      </p>
+                    )}
+
+                    <div className="mt-5 grid grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-slate-50 p-3 text-center">
+                        <p className="text-xs text-slate-500">
+                          {text.calificacion}
+                        </p>
+
+                        <p className="mt-1 font-extrabold text-slate-900">
+                          ⭐{" "}
+                          {Number(
+                            profesional.average_rating ??
+                              0
+                          ).toFixed(1)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3 text-center">
+                        <p className="text-xs text-slate-500">
+                          {text.trabajos}
+                        </p>
+
+                        <p className="mt-1 font-extrabold text-slate-900">
+                          {profesional.completed_jobs ??
+                            0}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3 text-center">
+                        <p className="text-xs text-slate-500">
+                          {text.experiencia}
+                        </p>
+
+                        <p className="mt-1 font-extrabold text-slate-900">
+                          {profesional.years_experience ??
+                            0}{" "}
+                          {text.anos}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            `/profesionales/${profesional.user_id}?returnTo=${encodeURIComponent(
+                              professionalsReturnPath
+                            )}`
+                          )
+                        }
+                        className="rounded-xl border-2 border-blue-700 px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
+                      >
+                        {text.verPerfil}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            `/solicitar-trabajo?profesional=${profesional.user_id}`
+                          )
+                        }
+                        className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white hover:bg-blue-800"
+                      >
+                        {text.solicitarTrabajo}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              )
+            )}
+          </div>
         )}
       </div>
     </main>
