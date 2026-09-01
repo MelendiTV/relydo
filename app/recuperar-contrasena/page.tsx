@@ -104,7 +104,7 @@ function RecuperarContrasenaContenido() {
           confirmarPassword:
             "Confirmar contraseña",
           minimo:
-            "Mínimo 8 caracteres",
+            "Mínimo 8 caracteres, con mayúscula, minúscula, número y carácter especial",
           repetir:
             "Repite la contraseña",
           actualizando:
@@ -120,7 +120,7 @@ function RecuperarContrasenaContenido() {
           enlaceYaNoValido:
             "El enlace de recuperación ya no es válido. Solicita uno nuevo.",
           minimoError:
-            "La contraseña debe tener al menos 8 caracteres.",
+            "La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y carácter especial.",
           noCoinciden:
             "Las contraseñas no coinciden.",
           noValidar:
@@ -158,7 +158,7 @@ function RecuperarContrasenaContenido() {
           confirmarPassword:
             "Confirm password",
           minimo:
-            "Minimum 8 characters",
+            "Minimum 8 characters, with uppercase, lowercase, number, and special character",
           repetir:
             "Repeat your password",
           actualizando:
@@ -174,7 +174,7 @@ function RecuperarContrasenaContenido() {
           enlaceYaNoValido:
             "The recovery link is no longer valid. Request a new one.",
           minimoError:
-            "The password must contain at least 8 characters.",
+            "The password must be at least 8 characters and include an uppercase letter, lowercase letter, number, and special character.",
           noCoinciden:
             "The passwords do not match.",
           noValidar:
@@ -538,7 +538,10 @@ function RecuperarContrasenaContenido() {
     setError("");
     setMensaje("");
 
-    if (password.length < 8) {
+    const passwordSegura =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+    if (!passwordSegura.test(password)) {
       setError(
         text.minimoError
       );
