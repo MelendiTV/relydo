@@ -228,6 +228,8 @@ function SolicitarTrabajoContenido() {
             "Cargando...",
           todosObligatorios:
             "Completa todos los campos obligatorios.",
+          fechaPasada:
+            "La fecha preferida no puede ser anterior a hoy.",
           profesionalInvalido:
             "El profesional seleccionado no es válido o ya no está disponible.",
           verificarProfesionalError:
@@ -362,6 +364,8 @@ function SolicitarTrabajoContenido() {
             "Loading...",
           todosObligatorios:
             "Complete all required fields.",
+          fechaPasada:
+            "The preferred date cannot be earlier than today.",
           profesionalInvalido:
             "The selected professional is invalid or no longer available.",
           verificarProfesionalError:
@@ -894,6 +898,26 @@ function SolicitarTrabajoContenido() {
           "preferred_time"
         ) || ""
       ).trim();
+
+    const hoyLocal =
+      new Date();
+    const hoy =
+      `${hoyLocal.getFullYear()}-${String(
+        hoyLocal.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        hoyLocal.getDate()
+      ).padStart(2, "0")}`;
+
+    if (
+      preferredDate &&
+      preferredDate < hoy
+    ) {
+      setError(
+        text.fechaPasada
+      );
+      setEnviando(false);
+      return;
+    }
 
     /*
       AHORA LAS FOTOS VIENEN DEL ESTADO,
@@ -1719,6 +1743,15 @@ function SolicitarTrabajoContenido() {
                   <input
                     name="preferred_date"
                     type="date"
+                    min={(() => {
+                      const hoy =
+                        new Date();
+                      return `${hoy.getFullYear()}-${String(
+                        hoy.getMonth() + 1
+                      ).padStart(2, "0")}-${String(
+                        hoy.getDate()
+                      ).padStart(2, "0")}`;
+                    })()}
                     className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900"
                   />
 
