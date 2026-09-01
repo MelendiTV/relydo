@@ -135,6 +135,9 @@ function RegistroClienteContenido() {
           errorReenviandoVerificacion:
             "No pudimos reenviar el correo de verificación. Intenta nuevamente en unos minutos.",
 
+          rateLimitVerificacion:
+            "Has solicitado demasiados correos de verificación. Espera unos minutos antes de intentarlo nuevamente.",
+
           telefono: "Teléfono",
           telefonoPlaceholder:
             "(702) 555-1234",
@@ -291,6 +294,9 @@ function RegistroClienteContenido() {
 
           errorReenviandoVerificacion:
             "We could not resend the verification email. Please try again in a few minutes.",
+
+          rateLimitVerificacion:
+            "You have requested too many verification emails. Please wait a few minutes before trying again.",
 
           telefono: "Phone",
           telefonoPlaceholder:
@@ -781,8 +787,27 @@ function RegistroClienteContenido() {
           "Error reenviando verificación:",
           resendError
         );
+
+        const mensajeError =
+          resendError.message
+            .toLowerCase();
+
+        const esRateLimit =
+          resendError.status === 429 ||
+          mensajeError.includes(
+            "rate limit"
+          ) ||
+          mensajeError.includes(
+            "too many"
+          ) ||
+          mensajeError.includes(
+            "email rate limit"
+          );
+
         setError(
-          text.errorReenviandoVerificacion
+          esRateLimit
+            ? text.rateLimitVerificacion
+            : text.errorReenviandoVerificacion
         );
         return;
       }
