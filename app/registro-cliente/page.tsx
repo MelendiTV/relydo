@@ -193,6 +193,9 @@ function RegistroClienteContenido() {
           telefonoRequerido:
             "Escribe tu número de teléfono.",
 
+          telefonoInvalido:
+            "Escribe un número de teléfono válido de 10 a 15 dígitos.",
+
           direccionRequerida:
             "Escribe la dirección de la casa o apartamento.",
 
@@ -326,6 +329,9 @@ function RegistroClienteContenido() {
           telefonoRequerido:
             "Enter your phone number.",
 
+          telefonoInvalido:
+            "Enter a valid phone number with 10 to 15 digits.",
+
           direccionRequerida:
             "Enter your home or apartment address.",
 
@@ -432,6 +438,26 @@ function RegistroClienteContenido() {
 
     if (!telefonoLimpio) {
       setError(text.telefonoRequerido);
+      return;
+    }
+
+    const telefonoTieneSoloCaracteresValidos =
+      /^[+0-9() .-]+$/.test(
+        telefonoLimpio
+      );
+
+    const telefonoDigitos =
+      telefonoLimpio.replace(
+        /\D/g,
+        ""
+      );
+
+    if (
+      !telefonoTieneSoloCaracteresValidos ||
+      telefonoDigitos.length < 10 ||
+      telefonoDigitos.length > 15
+    ) {
+      setError(text.telefonoInvalido);
       return;
     }
 
@@ -822,6 +848,13 @@ function RegistroClienteContenido() {
                     )
                   }
                   required
+                  inputMode="tel"
+                  minLength={10}
+                  maxLength={20}
+                  pattern="[0-9+() .-]{10,20}"
+                  title={
+                    text.telefonoInvalido
+                  }
                   disabled={loading}
                   autoComplete="tel"
                   placeholder={
