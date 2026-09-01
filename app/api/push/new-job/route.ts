@@ -666,6 +666,7 @@ export async function POST(
         title: pushTitle,
         body: pushMessage,
         url: `/trabajos/${trabajo.id}`,
+        tag: `new-job-${trabajo.id}`,
       });
 
       try {
