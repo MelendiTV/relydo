@@ -967,12 +967,34 @@ export default function MisSolicitudDetallePage() {
       null
     );
 
+  const recargaDetalleTimerRef =
+    useRef<number | null>(null);
+
   const [
     ahoraChat,
     setAhoraChat,
   ] = useState(
     Date.now()
   );
+
+  function programarRecargaDetalle(
+    delay = 300
+  ) {
+    if (recargaDetalleTimerRef.current !== null) {
+      window.clearTimeout(
+        recargaDetalleTimerRef.current
+      );
+    }
+
+    recargaDetalleTimerRef.current =
+      window.setTimeout(
+        () => {
+          recargaDetalleTimerRef.current = null;
+          cargarDetalle(false);
+        },
+        delay
+      );
+  }
 
   /*
     CARGA INICIAL
@@ -982,6 +1004,15 @@ export default function MisSolicitudDetallePage() {
     if (id) {
       cargarDetalle();
     }
+
+    return () => {
+      if (recargaDetalleTimerRef.current !== null) {
+        window.clearTimeout(
+          recargaDetalleTimerRef.current
+        );
+        recargaDetalleTimerRef.current = null;
+      }
+    };
   }, [id]);
 
   /*
@@ -989,7 +1020,7 @@ export default function MisSolicitudDetallePage() {
   */
 
   useEffect(() => {
-    if (!id) {
+    if (!id || !usuarioChatId) {
       return;
     }
 
@@ -999,24 +1030,6 @@ export default function MisSolicitudDetallePage() {
       setCargandoChat(true);
 
       try {
-        const {
-          data: { user },
-          error: userError,
-        } =
-          await supabase.auth.getUser();
-
-        if (
-          userError ||
-          !user ||
-          !activo
-        ) {
-          return;
-        }
-
-        setUsuarioChatId(
-          user.id
-        );
-
         const {
           data,
           error: mensajesError,
@@ -1102,7 +1115,7 @@ export default function MisSolicitudDetallePage() {
         canalChat
       );
     };
-  }, [id]);
+  }, [id, usuarioChatId]);
 
   useEffect(() => {
     finalChatRef.current?.scrollIntoView({
@@ -1207,14 +1220,7 @@ export default function MisSolicitudDetallePage() {
               nuevo.status ===
                 "cancelled"
             ) {
-              window.setTimeout(
-                () => {
-                  cargarDetalle(
-                    false
-                  );
-                },
-                400
-              );
+              programarRecargaDetalle(400);
             }
           }
         )
@@ -1273,14 +1279,7 @@ export default function MisSolicitudDetallePage() {
               `request_id=eq.${id}`,
           },
           () => {
-            window.setTimeout(
-              () => {
-                cargarDetalle(
-                  false
-                );
-              },
-              300
-            );
+            programarRecargaDetalle(300);
           }
         )
         .subscribe();
@@ -1316,14 +1315,7 @@ export default function MisSolicitudDetallePage() {
               `request_id=eq.${id}`,
           },
           () => {
-            window.setTimeout(
-              () => {
-                cargarDetalle(
-                  false
-                );
-              },
-              250
-            );
+            programarRecargaDetalle(250);
           }
         )
         .subscribe();
@@ -1594,6 +1586,8 @@ export default function MisSolicitudDetallePage() {
 
         return;
       }
+
+      setUsuarioChatId(user.id);
 
       const { data: accountProfile, error: accountProfileError } = await supabase
         .from("profiles")
