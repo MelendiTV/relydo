@@ -1536,7 +1536,12 @@ export default function PanelProfesional() {
         .maybeSingle();
 
       if (baseProfileError || !baseProfile) {
-        throw new Error(T("No se encontró tu cuenta en RELYDO.", "We could not find your RELYDO account."));
+        throw new Error(
+          T(
+            "No se encontró tu cuenta en RELYDO.",
+            "We could not find your RELYDO account."
+          )
+        );
       }
 
       if (baseProfile.role === "admin") {
@@ -1567,7 +1572,10 @@ export default function PanelProfesional() {
 
       if (profileError) {
         throw new Error(
-          `${T("No se pudo cargar tu perfil profesional", "We could not load your professional profile")}: ${profileError.message}`
+          `${T(
+            "No se pudo cargar tu perfil profesional",
+            "We could not load your professional profile"
+          )}: ${profileError.message}`
         );
       }
 
@@ -1578,69 +1586,84 @@ export default function PanelProfesional() {
 
       setProfile(providerProfile as ProviderProfile);
 
-      const { count: reviewsCount, error: reviewsCountError } = await supabase
-        .from("reviews")
-        .select("id", { count: "exact", head: true })
-        .eq("reviewee_id", user.id);
+      // Estas cuatro cargas son independientes entre sí. Ejecutarlas en paralelo
+      // evita sumar sus latencias una detrás de otra al abrir o refrescar el panel.
+      const [reviewsResult, , documentosResult, solicitudesDocsResult] =
+        await Promise.all([
+          supabase
+            .from("reviews")
+            .select("id", { count: "exact", head: true })
+            .eq("reviewee_id", user.id),
+          consultarEstadoPagos(false),
+          supabase
+            .from("provider_documents")
+            .select(`
+              id,
+              user_id,
+              document_type,
+              file_path,
+              status,
+              rejection_reason,
+              created_at,
+              reviewed_at,
+              expiration_date,
+              approved_at,
+              reviewed_by
+            `)
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("provider_document_requests")
+            .select(`
+              id,
+              provider_id,
+              requested_by,
+              request_type,
+              document_type,
+              message,
+              status,
+              requested_at,
+              submitted_at,
+              completed_at,
+              created_at,
+              updated_at
+            `)
+            .eq("provider_id", user.id)
+            .order("requested_at", { ascending: false }),
+        ]);
 
-      if (reviewsCountError) {
-        console.error("Error cargando cantidad de calificaciones:", reviewsCountError);
+      if (reviewsResult.error) {
+        console.error(
+          "Error cargando cantidad de calificaciones:",
+          reviewsResult.error
+        );
         setRatingCount(0);
       } else {
-        setRatingCount(reviewsCount ?? 0);
+        setRatingCount(reviewsResult.count ?? 0);
       }
 
-      await consultarEstadoPagos(false);
-
-      const { data: documentosData, error: documentosError } = await supabase
-        .from("provider_documents")
-        .select(`
-          id,
-          user_id,
-          document_type,
-          file_path,
-          status,
-          rejection_reason,
-          created_at,
-          reviewed_at,
-          expiration_date,
-          approved_at,
-          reviewed_by
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (documentosError) {
-        console.error("Error cargando documentos del profesional:", documentosError);
+      if (documentosResult.error) {
+        console.error(
+          "Error cargando documentos del profesional:",
+          documentosResult.error
+        );
         setDocumentos([]);
       } else {
-        setDocumentos((documentosData || []) as DocumentoProfesional[]);
+        setDocumentos(
+          (documentosResult.data || []) as DocumentoProfesional[]
+        );
       }
 
-      const { data: solicitudesDocsData, error: solicitudesDocsError } = await supabase
-        .from("provider_document_requests")
-        .select(`
-          id,
-          provider_id,
-          requested_by,
-          request_type,
-          document_type,
-          message,
-          status,
-          requested_at,
-          submitted_at,
-          completed_at,
-          created_at,
-          updated_at
-        `)
-        .eq("provider_id", user.id)
-        .order("requested_at", { ascending: false });
-
-      if (solicitudesDocsError) {
-        console.error("Error cargando solicitudes de documentos:", solicitudesDocsError);
+      if (solicitudesDocsResult.error) {
+        console.error(
+          "Error cargando solicitudes de documentos:",
+          solicitudesDocsResult.error
+        );
         setSolicitudesDocumentos([]);
       } else {
-        setSolicitudesDocumentos((solicitudesDocsData || []) as SolicitudDocumentoProfesional[]);
+        setSolicitudesDocumentos(
+          (solicitudesDocsResult.data || []) as SolicitudDocumentoProfesional[]
+        );
       }
 
       const estaVerificado =
@@ -1656,185 +1679,148 @@ export default function PanelProfesional() {
         return;
       }
 
-      const { data: reclamosData, error: reclamosError } = await supabase
-        .from("job_claims")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          reason,
-          description,
-          status,
-          resolution_notes,
-          created_at
-        `)
-        .eq("provider_id", user.id)
-        .order("created_at", { ascending: false });
+      // Reclamos, reasignaciones, historial de ofertas y trabajos contratados
+      // tampoco dependen entre sí, por lo que se consultan simultáneamente.
+      const [
+        reclamosResult,
+        historialReasignacionesResult,
+        todasOfertasResult,
+        trabajosResult,
+      ] = await Promise.all([
+        supabase
+          .from("job_claims")
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            reason,
+            description,
+            status,
+            resolution_notes,
+            created_at
+          `)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("job_reassignment_history")
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            action,
+            reason,
+            created_at
+          `)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("offers")
+          .select(`
+            id,
+            request_id,
+            price,
+            arrival_minutes,
+            estimated_job_minutes,
+            message,
+            status,
+            created_at
+          `)
+          .eq("professional_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("service_requests")
+          .select(`
+            id,
+            title,
+            description,
+            city,
+            state,
+            zip_code,
+            preferred_date,
+            preferred_time,
+            status,
+            job_stage,
+            customer_name,
+            cancellation_reason,
+            cancelled_at,
+            created_at
+          `)
+          .eq("preferred_provider_id", user.id)
+          .in("status", ["in_progress", "completed", "cancelled"])
+          .order("created_at", { ascending: false }),
+      ]);
 
-      if (reclamosError) {
-        console.error("Error cargando reclamos del profesional:", reclamosError);
+      if (reclamosResult.error) {
+        console.error(
+          "Error cargando reclamos del profesional:",
+          reclamosResult.error
+        );
         setReclamos([]);
       } else {
-        setReclamos((reclamosData || []) as ReclamoProfesional[]);
+        setReclamos(
+          (reclamosResult.data || []) as ReclamoProfesional[]
+        );
       }
 
-      const { data: historialReasignacionesData, error: historialReasignacionesError } = await supabase
-        .from("job_reassignment_history")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          action,
-          reason,
-          created_at
-        `)
-        .eq("provider_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      if (historialReasignacionesError) {
+      if (historialReasignacionesResult.error) {
         console.error(
           "Error cargando historial de reasignaciones del profesional:",
-          historialReasignacionesError
+          historialReasignacionesResult.error
         );
         setHistorialReasignaciones([]);
       } else {
         setHistorialReasignaciones(
-          (historialReasignacionesData || []) as ReassignmentHistory[]
+          (historialReasignacionesResult.data || []) as ReassignmentHistory[]
         );
       }
 
-      /*
-        HISTORIAL COMPLETO DE PRESUPUESTOS DEL PROFESIONAL
+      if (trabajosResult.error) {
+        throw new Error(
+          `${T(
+            "No se pudieron cargar tus trabajos",
+            "We could not load your jobs"
+          )}: ${trabajosResult.error.message}`
+        );
+      }
 
-        A diferencia de trabajosContratados, aquí cargamos TODAS las ofertas
-        enviadas por este profesional, incluso si quedaron pending/rejected
-        y nunca llegó a ser el preferred_provider_id.
-      */
+      const todasOfertas = todasOfertasResult.error
+        ? []
+        : ((todasOfertasResult.data || []) as Array<
+            Omit<OfertaHistorial, "trabajo">
+          >);
 
-      const { data: todasOfertasData, error: todasOfertasError } = await supabase
-        .from("offers")
-        .select(`
-          id,
-          request_id,
-          price,
-          arrival_minutes,
-          estimated_job_minutes,
-          message,
-          status,
-          created_at
-        `)
-        .eq("professional_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (todasOfertasError) {
+      if (todasOfertasResult.error) {
         console.error(
           "Error cargando historial completo de presupuestos:",
-          todasOfertasError
+          todasOfertasResult.error
         );
         setOfertasHistorial([]);
-      } else {
-        const todasOfertas = (todasOfertasData || []) as Array<
-          Omit<OfertaHistorial, "trabajo">
-        >;
-
-        const idsSolicitudesOfertadas = Array.from(
-          new Set(todasOfertas.map((oferta) => oferta.request_id))
-        );
-
-        let trabajosOfertados: TrabajoContratado[] = [];
-
-        if (idsSolicitudesOfertadas.length > 0) {
-          const {
-            data: trabajosOfertadosData,
-            error: trabajosOfertadosError,
-          } = await supabase.rpc(
-            "get_provider_offer_history_requests_safe"
-          );
-
-          if (trabajosOfertadosError) {
-            console.error(
-              "Error cargando trabajos ligados a presupuestos:",
-              trabajosOfertadosError
-            );
-          } else {
-            trabajosOfertados =
-              (trabajosOfertadosData || []) as TrabajoContratado[];
-          }
-        }
-
-        setOfertasHistorial(
-          todasOfertas.map((oferta) => ({
-            ...oferta,
-            trabajo:
-              trabajosOfertados.find(
-                (trabajo) => trabajo.id === oferta.request_id
-              ) || null,
-          }))
-        );
       }
 
-      const { data: trabajosData, error: trabajosError } = await supabase
-        .from("service_requests")
-        .select(`
-          id,
-          title,
-          description,
-          city,
-          state,
-          zip_code,
-          preferred_date,
-          preferred_time,
-          status,
-          job_stage,
-          customer_name,
-          cancellation_reason,
-          cancelled_at,
-          created_at
-        `)
-        .eq("preferred_provider_id", user.id)
-        .in("status", ["in_progress", "completed", "cancelled"])
-        .order("created_at", { ascending: false });
-
-      if (trabajosError) {
-        throw new Error(
-          `${T("No se pudieron cargar tus trabajos", "We could not load your jobs")}: ${trabajosError.message}`
-        );
-      }
-
-      const trabajosBase = (trabajosData || []) as TrabajoContratado[];
-
-      if (trabajosBase.length === 0) {
-        setTrabajosContratados([]);
-      }
-
+      const trabajosBase =
+        (trabajosResult.data || []) as TrabajoContratado[];
       const requestIds = trabajosBase.map((trabajo) => trabajo.id);
 
-      const { data: ofertasData, error: ofertasError } =
-        requestIds.length > 0
-          ? await supabase
-              .from("offers")
-              .select(`
-                request_id,
-                price,
-                arrival_minutes,
-                estimated_job_minutes,
-                message,
-                status
-              `)
-              .eq("professional_id", user.id)
-              .in("request_id", requestIds)
-          : { data: [], error: null };
-
-      if (ofertasError) {
-        console.error("Error cargando presupuestos:", ofertasError);
+      // Reutilizamos todasOfertas para los trabajos contratados. Antes el panel
+      // hacía una segunda consulta a offers con los mismos datos del profesional.
+      const ofertasPorSolicitud = new Map<string, OfertaAceptada>();
+      for (const oferta of todasOfertas) {
+        if (!ofertasPorSolicitud.has(oferta.request_id)) {
+          ofertasPorSolicitud.set(oferta.request_id, oferta as OfertaAceptada);
+        }
       }
 
-      const ofertas = (ofertasData || []) as OfertaAceptada[];
+      const necesitaHistorialOfertas = todasOfertas.length > 0;
 
-      const { data: pagosData, error: pagosError } =
+      // El RPC del historial y los pagos solo dependen de los resultados ya
+      // obtenidos, pero son independientes entre ellos y pueden correr juntos.
+      const [trabajosOfertadosResult, pagosResult] = await Promise.all([
+        necesitaHistorialOfertas
+          ? supabase.rpc("get_provider_offer_history_requests_safe")
+          : Promise.resolve({ data: [], error: null }),
         requestIds.length > 0
-          ? await supabase
+          ? supabase
               .from("payments")
               .select(`
                 request_id,
@@ -1848,20 +1834,47 @@ export default function PanelProfesional() {
               `)
               .eq("provider_id", user.id)
               .in("request_id", requestIds)
-          : { data: [], error: null };
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      if (pagosError) {
-        console.error("Error cargando pagos del profesional:", pagosError);
+      if (!todasOfertasResult.error) {
+        if (trabajosOfertadosResult.error) {
+          console.error(
+            "Error cargando trabajos ligados a presupuestos:",
+            trabajosOfertadosResult.error
+          );
+        }
+
+        const trabajosOfertados =
+          (trabajosOfertadosResult.data || []) as TrabajoContratado[];
+        const trabajosOfertadosPorId = new Map(
+          trabajosOfertados.map((trabajo) => [trabajo.id, trabajo])
+        );
+
+        setOfertasHistorial(
+          todasOfertas.map((oferta) => ({
+            ...oferta,
+            trabajo: trabajosOfertadosPorId.get(oferta.request_id) || null,
+          }))
+        );
       }
 
-      const pagos = (pagosData || []) as PagoProfesional[];
+      if (pagosResult.error) {
+        console.error(
+          "Error cargando pagos del profesional:",
+          pagosResult.error
+        );
+      }
+
+      const pagos = (pagosResult.data || []) as PagoProfesional[];
+      const pagosPorSolicitud = new Map(
+        pagos.map((pago) => [pago.request_id, pago])
+      );
 
       const combinados = trabajosBase.map((trabajo) => ({
         ...trabajo,
-        oferta:
-          ofertas.find((oferta) => oferta.request_id === trabajo.id) || null,
-        pago:
-          pagos.find((pago) => pago.request_id === trabajo.id) || null,
+        oferta: ofertasPorSolicitud.get(trabajo.id) || null,
+        pago: pagosPorSolicitud.get(trabajo.id) || null,
       }));
 
       setTrabajosContratados(combinados);
@@ -1869,7 +1882,9 @@ export default function PanelProfesional() {
       console.error("Error cargando panel:", err);
 
       setError(
-        err instanceof Error ? err.message : T("Ocurrió un error inesperado.", "An unexpected error occurred.")
+        err instanceof Error
+          ? err.message
+          : T("Ocurrió un error inesperado.", "An unexpected error occurred.")
       );
     } finally {
       if (mostrarCarga) {
