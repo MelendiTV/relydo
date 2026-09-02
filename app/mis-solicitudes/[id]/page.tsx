@@ -448,6 +448,10 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...": "Example: These photos show the part of the job that was left incomplete and the damage I found after the service...",
   "presupuesto disponible": "offer available",
   "presupuestos disponibles": "offers available",
+  "Contratado": "Hired",
+  "En camino": "On the way",
+  "Has seleccionado este presupuesto por": "You selected this offer for",
+  "Tarifa de servicio RELYDO": "RELYDO service fee",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -3350,14 +3354,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     {
       numero: 1,
       icono: "🤝",
-      titulo: "Contratado",
+      titulo: T("Contratado"),
       descripcion:
         T("Profesional contratado"),
     },
     {
       numero: 2,
       icono: "🚗",
-      titulo: "En camino",
+      titulo: T("En camino"),
       descripcion:
         T("Va rumbo a tu ubicación"),
     },
@@ -4347,7 +4351,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </h2>
 
             <p className="mt-2 text-green-800">
-              Has seleccionado este presupuesto por{" "}
+              {T("Has seleccionado este presupuesto por")}{" "}
               <strong>
                 $
                 {Number(
@@ -4368,7 +4372,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">Tarifa de servicio RELYDO ({Number(payment.customer_fee_percent).toFixed(2)}%)</span>
+                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")} ({Number(payment.customer_fee_percent).toFixed(2)}%)</span>
                     <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
                   </div>
                   <div className="border-t border-slate-200 pt-3">
