@@ -380,6 +380,7 @@ export async function POST(
           );
 
         let servesArea = false;
+        let distanceEvaluated = false;
 
         if (
           customerZip &&
@@ -403,6 +404,7 @@ export async function POST(
             customerCoords &&
             providerCoords
           ) {
+            distanceEvaluated = true;
             servesArea =
               milesBetween(
                 customerCoords,
@@ -411,7 +413,7 @@ export async function POST(
           }
         }
 
-        if (!servesArea) {
+        if (!distanceEvaluated) {
           servesArea =
             String(
               proPreferido.city || ""
