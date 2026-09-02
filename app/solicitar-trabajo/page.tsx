@@ -834,77 +834,112 @@ function SolicitarTrabajoContenido() {
       string[] = [];
 
     try {
-      for (const file of files) {
-        const extension =
-          TIPOS_IMAGEN_PERMITIDOS[
-            file.type
-          ];
+      const resultadosSubida = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const extension =
+              TIPOS_IMAGEN_PERMITIDOS[
+                file.type
+              ];
 
-        if (!extension) {
-          throw new Error(
-            `"${file.name}" ${text.noImagen}`
-          );
-        }
+            if (!extension) {
+              throw new Error(
+                `"${file.name}" ${text.noImagen}`
+              );
+            }
 
-        const nombreArchivo =
-          `${crypto.randomUUID()}.${extension}`;
+            const nombreArchivo =
+              `${crypto.randomUUID()}.${extension}`;
 
-        const filePath =
-          `${requestId}/${nombreArchivo}`;
+            const filePath =
+              `${requestId}/${nombreArchivo}`;
 
-        const {
-          error: uploadError,
-        } =
-          await supabase.storage
-            .from("request-photos")
-            .upload(
+            const {
+              error: uploadError,
+            } =
+              await supabase.storage
+                .from("request-photos")
+                .upload(
+                  filePath,
+                  file,
+                  {
+                    cacheControl:
+                      "3600",
+
+                    upsert: false,
+
+                    contentType:
+                      file.type,
+                  }
+                );
+
+            if (uploadError) {
+              console.error(
+                "Error subiendo foto de solicitud:",
+                uploadError
+              );
+
+              throw new Error(
+                `${text.solicitudFotoUploadError} "${file.name}".`
+              );
+            }
+
+            const {
+              data:
+                publicUrlData,
+            } =
+              supabase.storage
+                .from("request-photos")
+                .getPublicUrl(
+                  filePath
+                );
+
+            return {
+              ok: true as const,
               filePath,
-              file,
-              {
-                cacheControl:
-                  "3600",
+              foto: {
+                request_id:
+                  requestId,
 
-                upsert: false,
+                file_url:
+                  publicUrlData.publicUrl,
+              },
+            };
+          } catch (error) {
+            return {
+              ok: false as const,
+              error,
+            };
+          }
+        })
+      );
 
-                contentType:
-                  file.type,
-              }
-            );
-
-        if (uploadError) {
-          console.error(
-            "Error subiendo foto de solicitud:",
-            uploadError
+      for (
+        const resultado of
+        resultadosSubida
+      ) {
+        if (resultado.ok) {
+          archivosSubidos.push(
+            resultado.filePath
           );
 
-          throw new Error(
-            `${text.solicitudFotoUploadError} "${file.name}".`
+          fotosParaGuardar.push(
+            resultado.foto
           );
         }
+      }
 
-        archivosSubidos.push(
-          filePath
+      const subidaFallida =
+        resultadosSubida.find(
+          (resultado) =>
+            resultado.ok === false
         );
 
-        const {
-          data:
-            publicUrlData,
-        } =
-          supabase.storage
-            .from("request-photos")
-            .getPublicUrl(
-              filePath
-            );
-
-        fotosParaGuardar.push(
-          {
-            request_id:
-              requestId,
-
-            file_url:
-              publicUrlData.publicUrl,
-          }
-        );
+      if (
+        subidaFallida?.ok ===
+        false
+      ) {
+        throw subidaFallida.error;
       }
 
       const {
