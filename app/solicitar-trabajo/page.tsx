@@ -968,10 +968,11 @@ function SolicitarTrabajoContenido() {
     const returnUrl =
       obtenerReturnUrl();
 
-    window.location.href =
+    router.push(
       `/login-cliente?redirect=${encodeURIComponent(
         returnUrl
-      )}`;
+      )}`
+    );
   }
 
   async function handleSubmit(

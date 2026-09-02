@@ -686,8 +686,7 @@ function RegistroClienteContenido() {
           text.creado
         );
 
-        window.location.href =
-          obtenerDestinoSeguro();
+        router.push(obtenerDestinoSeguro());
 
         return;
       }
