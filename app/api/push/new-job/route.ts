@@ -42,13 +42,6 @@ type Coordinates = {
   lon: number;
 };
 
-type PushDiagnosticError = {
-  providerId: string;
-  statusCode: number | null;
-  message: string;
-  endpointHost: string;
-};
-
 function normalizeZip(value: unknown) {
   const raw = String(value ?? "").trim();
   const match = raw.match(
@@ -78,17 +71,11 @@ async function zipCoordinates(
       return null;
     }
 
-    const data =
-      await response.json();
+    const data = await response.json();
+    const place = data?.places?.[0];
 
-    const place =
-      data?.places?.[0];
-
-    const lat =
-      Number(place?.latitude);
-
-    const lon =
-      Number(place?.longitude);
+    const lat = Number(place?.latitude);
+    const lon = Number(place?.longitude);
 
     if (
       !Number.isFinite(lat) ||
@@ -110,24 +97,15 @@ function milesBetween(
   a: Coordinates,
   b: Coordinates
 ) {
-  const earthMiles =
-    3958.7613;
+  const earthMiles = 3958.7613;
 
-  const rad =
-    (degrees: number) =>
-      (degrees * Math.PI) / 180;
+  const rad = (degrees: number) =>
+    (degrees * Math.PI) / 180;
 
-  const dLat =
-    rad(b.lat - a.lat);
-
-  const dLon =
-    rad(b.lon - a.lon);
-
-  const lat1 =
-    rad(a.lat);
-
-  const lat2 =
-    rad(b.lat);
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const lat1 = rad(a.lat);
+  const lat2 = rad(b.lat);
 
   const h =
     Math.sin(dLat / 2) ** 2 +
@@ -138,9 +116,7 @@ function milesBetween(
   return (
     2 *
     earthMiles *
-    Math.asin(
-      Math.sqrt(h)
-    )
+    Math.asin(Math.sqrt(h))
   );
 }
 
@@ -173,20 +149,15 @@ export async function POST(
     */
 
     const authorization =
-      request.headers.get(
-        "authorization"
-      );
+      request.headers.get("authorization");
 
     if (
       !authorization ||
-      !authorization.startsWith(
-        "Bearer "
-      )
+      !authorization.startsWith("Bearer ")
     ) {
       return NextResponse.json(
         {
-          error:
-            "Sesión no válida.",
+          error: "Sesión no válida.",
         },
         {
           status: 401,
@@ -200,25 +171,23 @@ export async function POST(
         ""
       );
 
-    const supabaseUser =
-      createClient(
-        process.env
-          .NEXT_PUBLIC_SUPABASE_URL!,
-        process.env
-          .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-        {
-          global: {
-            headers: {
-              Authorization:
-                `Bearer ${accessToken}`,
-            },
+    const supabaseUser = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
           },
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
-        }
-      );
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
 
     const {
       data: { user },
@@ -254,8 +223,7 @@ export async function POST(
     if (!requestId) {
       return NextResponse.json(
         {
-          error:
-            "Falta requestId.",
+          error: "Falta requestId.",
         },
         {
           status: 400,
@@ -265,6 +233,9 @@ export async function POST(
 
     /*
       4. BUSCAR EL TRABAJO
+
+      Comprobamos que el trabajo pertenece
+      al cliente autenticado.
     */
 
     const {
@@ -309,12 +280,15 @@ export async function POST(
     }
 
     if (
-      trabajo.status !==
-      "open"
+      trabajo.status !== "open"
     ) {
       return NextResponse.json({
         success: true,
+        providers: 0,
+        devices: 0,
         sent: 0,
+        failed: 0,
+        removed: 0,
         message:
           "La solicitud ya no está abierta.",
       });
@@ -358,8 +332,7 @@ export async function POST(
       6. ELEGIR PROFESIONALES
     */
 
-    let providerIds:
-      string[] = [];
+    let providerIds: string[] = [];
 
     if (
       trabajo.preferred_provider_id
@@ -367,9 +340,7 @@ export async function POST(
       const {
         data: proPreferido,
       } = await supabaseAdmin
-        .from(
-          "provider_profiles"
-        )
+        .from("provider_profiles")
         .select(
           "user_id, zip_code, service_radius_miles, city, state"
         )
@@ -408,8 +379,7 @@ export async function POST(
               0
           );
 
-        let servesArea =
-          false;
+        let servesArea = false;
 
         if (
           customerZip &&
@@ -420,15 +390,14 @@ export async function POST(
           const [
             customerCoords,
             providerCoords,
-          ] =
-            await Promise.all([
-              zipCoordinates(
-                customerZip
-              ),
-              zipCoordinates(
-                providerZip
-              ),
-            ]);
+          ] = await Promise.all([
+            zipCoordinates(
+              customerZip
+            ),
+            zipCoordinates(
+              providerZip
+            ),
+          ]);
 
           if (
             customerCoords &&
@@ -445,26 +414,22 @@ export async function POST(
         if (!servesArea) {
           servesArea =
             String(
-              proPreferido.city ||
-                ""
+              proPreferido.city || ""
             )
               .trim()
               .toLowerCase() ===
               String(
-                trabajo.city ||
-                  ""
+                trabajo.city || ""
               )
                 .trim()
                 .toLowerCase() &&
             String(
-              proPreferido.state ||
-                ""
+              proPreferido.state || ""
             )
               .trim()
               .toLowerCase() ===
               String(
-                trabajo.state ||
-                  ""
+                trabajo.state || ""
               )
                 .trim()
                 .toLowerCase();
@@ -479,12 +444,9 @@ export async function POST(
     } else {
       const {
         data: profesionales,
-        error:
-          profesionalesError,
+        error: profesionalesError,
       } = await supabaseAdmin
-        .from(
-          "provider_profiles"
-        )
+        .from("provider_profiles")
         .select(
           "user_id, zip_code, service_radius_miles, city, state"
         )
@@ -505,9 +467,7 @@ export async function POST(
           true
         );
 
-      if (
-        profesionalesError
-      ) {
+      if (profesionalesError) {
         return NextResponse.json(
           {
             error:
@@ -566,111 +526,66 @@ export async function POST(
             )
           );
 
-          providerIds =
-            candidates
-              .filter(
-                (item) => {
-                  const providerZip =
-                    normalizeZip(
-                      item.zip_code
-                    );
+          providerIds = candidates
+            .filter((item) => {
+              const providerZip =
+                normalizeZip(
+                  item.zip_code
+                );
 
-                  const providerCoords =
-                    providerZip
-                      ? coordsByZip.get(
-                          providerZip
-                        )
-                      : null;
+              const providerCoords =
+                providerZip
+                  ? coordsByZip.get(
+                      providerZip
+                    )
+                  : null;
 
-                  const radius =
-                    Number(
-                      item.service_radius_miles ||
-                        0
-                    );
+              const radius =
+                Number(
+                  item.service_radius_miles ||
+                    0
+                );
 
-                  if (
-                    !providerCoords ||
-                    !Number.isFinite(
-                      radius
-                    ) ||
-                    radius <= 0
-                  ) {
-                    return false;
-                  }
+              if (
+                !providerCoords ||
+                !Number.isFinite(radius) ||
+                radius <= 0
+              ) {
+                return false;
+              }
 
-                  return (
-                    milesBetween(
-                      customerCoords,
-                      providerCoords
-                    ) <= radius
-                  );
-                }
-              )
-              .map(
-                (item) =>
-                  item.user_id
+              return (
+                milesBetween(
+                  customerCoords,
+                  providerCoords
+                ) <= radius
               );
+            })
+            .map(
+              (item) =>
+                item.user_id
+            );
         } else {
-          providerIds =
-            candidates
-              .filter(
-                (item) =>
-                  String(
-                    item.city ||
-                      ""
-                  )
-                    .trim()
-                    .toLowerCase() ===
-                    String(
-                      trabajo.city ||
-                        ""
-                    )
-                      .trim()
-                      .toLowerCase() &&
-                  String(
-                    item.state ||
-                      ""
-                  )
-                    .trim()
-                    .toLowerCase() ===
-                    String(
-                      trabajo.state ||
-                        ""
-                    )
-                      .trim()
-                      .toLowerCase()
-              )
-              .map(
-                (item) =>
-                  item.user_id
-              );
-        }
-      } else {
-        providerIds =
-          candidates
+          providerIds = candidates
             .filter(
               (item) =>
                 String(
-                  item.city ||
-                    ""
+                  item.city || ""
                 )
                   .trim()
                   .toLowerCase() ===
                   String(
-                    trabajo.city ||
-                      ""
+                    trabajo.city || ""
                   )
                     .trim()
                     .toLowerCase() &&
                 String(
-                  item.state ||
-                    ""
+                  item.state || ""
                 )
                   .trim()
                   .toLowerCase() ===
                   String(
-                    trabajo.state ||
-                      ""
+                    trabajo.state || ""
                   )
                     .trim()
                     .toLowerCase()
@@ -679,41 +594,64 @@ export async function POST(
               (item) =>
                 item.user_id
             );
+        }
+      } else {
+        providerIds = candidates
+          .filter(
+            (item) =>
+              String(
+                item.city || ""
+              )
+                .trim()
+                .toLowerCase() ===
+                String(
+                  trabajo.city || ""
+                )
+                  .trim()
+                  .toLowerCase() &&
+              String(
+                item.state || ""
+              )
+                .trim()
+                .toLowerCase() ===
+                String(
+                  trabajo.state || ""
+                )
+                  .trim()
+                  .toLowerCase()
+          )
+          .map(
+            (item) =>
+              item.user_id
+          );
       }
     }
 
+    providerIds = [
+      ...new Set(providerIds),
+    ];
+
     if (
-      providerIds.length ===
-      0
+      providerIds.length === 0
     ) {
       return NextResponse.json({
         success: true,
         providers: 0,
         devices: 0,
         sent: 0,
+        failed: 0,
+        removed: 0,
         message:
           "No encontramos profesionales disponibles para este servicio.",
       });
     }
 
     /*
-      7. CONTENIDO
+      7. IDIOMA DE LOS PROFESIONALES
     */
 
-    const titulo =
-      trabajo.preferred_provider_id
-        ? "🆕 Nueva solicitud para ti"
-        : "🆕 Nuevo trabajo disponible";
-
-    const mensaje =
-      `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
-
-    const notificationType =
-      "new_job_available";
-
     const {
-      data:
-        languageProfiles,
+      data: languageProfiles,
     } = await supabaseAdmin
       .from("profiles")
       .select(
@@ -727,8 +665,7 @@ export async function POST(
     const languageByProvider =
       new Map(
         (
-          languageProfiles ||
-          []
+          languageProfiles || []
         ).map(
           (profile) => [
             profile.id,
@@ -741,160 +678,30 @@ export async function POST(
       );
 
     /*
-      8. NOTIFICACIÓN INTERNA
+      IMPORTANTE:
+
+      La notificación interna ya la crea automáticamente
+      el trigger PostgreSQL:
+
+      trg_notify_new_open_request
+      -> notify_new_open_request()
+
+      Esta API NO debe crear ni comprobar la campana
+      interna porque eso bloqueaba el Web Push.
+
+      Desde aquí la responsabilidad es exclusivamente:
+      enviar Web Push a los dispositivos registrados.
     */
 
-    const providerIdsToNotify:
-      string[] = [];
-
-    let duplicadosOmitidos =
-      0;
-
-    for (
-      const providerId of providerIds
-    ) {
-      const providerLanguage =
-        languageByProvider.get(
-          providerId
-        ) || "es";
-
-      const providerTitle =
-        providerLanguage ===
-        "en"
-          ? trabajo.preferred_provider_id
-            ? "🆕 New request for you"
-            : "🆕 New job available"
-          : titulo;
-
-      const providerMessage =
-        providerLanguage ===
-        "en"
-          ? `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`
-          : mensaje;
-
-      const {
-        data:
-          existingNotification,
-        error:
-          existingNotificationError,
-      } = await supabaseAdmin
-        .from("notifications")
-        .select("id")
-        .eq(
-          "user_id",
-          providerId
-        )
-        .eq(
-          "type",
-          notificationType
-        )
-        .eq(
-          "request_id",
-          trabajo.id
-        )
-        .limit(1)
-        .maybeSingle();
-
-      if (
-        existingNotificationError
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              existingNotificationError.message,
-          },
-          {
-            status: 500,
-          }
-        );
-      }
-
-      if (
-        existingNotification
-      ) {
-        duplicadosOmitidos +=
-          1;
-
-        continue;
-      }
-
-      const {
-        error:
-          notificationError,
-      } = await supabaseAdmin
-        .from("notifications")
-        .insert({
-          user_id:
-            providerId,
-          type:
-            notificationType,
-          title:
-            providerTitle,
-          message:
-            providerMessage,
-          request_id:
-            trabajo.id,
-          read: false,
-        });
-
-      if (
-        notificationError
-      ) {
-        if (
-          notificationError.code ===
-          "23505"
-        ) {
-          duplicadosOmitidos +=
-            1;
-
-          continue;
-        }
-
-        return NextResponse.json(
-          {
-            error:
-              notificationError.message,
-          },
-          {
-            status: 500,
-          }
-        );
-      }
-
-      providerIdsToNotify.push(
-        providerId
-      );
-    }
-
-    if (
-      providerIdsToNotify.length ===
-      0
-    ) {
-      return NextResponse.json({
-        success: true,
-        providers:
-          providerIds.length,
-        devices: 0,
-        sent: 0,
-        duplicatesSkipped:
-          duplicadosOmitidos,
-        message:
-          "La notificación de este trabajo ya había sido enviada.",
-      });
-    }
-
     /*
-      9. SUSCRIPCIONES PUSH
+      8. BUSCAR DISPOSITIVOS PUSH
     */
 
     const {
       data: subscriptions,
-      error:
-        subscriptionsError,
+      error: subscriptionsError,
     } = await supabaseAdmin
-      .from(
-        "push_subscriptions"
-      )
+      .from("push_subscriptions")
       .select(`
         id,
         user_id,
@@ -904,12 +711,10 @@ export async function POST(
       `)
       .in(
         "user_id",
-        providerIdsToNotify
+        providerIds
       );
 
-    if (
-      subscriptionsError
-    ) {
+    if (subscriptionsError) {
       return NextResponse.json(
         {
           error:
@@ -923,37 +728,28 @@ export async function POST(
 
     if (
       !subscriptions ||
-      subscriptions.length ===
-        0
+      subscriptions.length === 0
     ) {
       return NextResponse.json({
         success: true,
         providers:
-          providerIdsToNotify.length,
+          providerIds.length,
         devices: 0,
         sent: 0,
-        duplicatesSkipped:
-          duplicadosOmitidos,
+        failed: 0,
+        removed: 0,
         message:
           "Los profesionales encontrados todavía no tienen Push activado.",
       });
     }
 
     /*
-      10. ENVIAR PUSH
-
-      pushErrors es TEMPORAL.
-      Lo utilizamos solamente para localizar
-      el error exacto de entrega.
+      9. ENVIAR WEB PUSH
     */
 
     let enviados = 0;
     let fallidos = 0;
     let eliminados = 0;
-
-    const pushErrors:
-      PushDiagnosticError[] =
-      [];
 
     for (
       const subscription of subscriptions
@@ -964,12 +760,13 @@ export async function POST(
         ) || "es";
 
       const pushTitle =
-        providerLanguage ===
-        "en"
+        providerLanguage === "en"
           ? trabajo.preferred_provider_id
             ? "🆕 New request for you"
             : "🆕 New job available"
-          : titulo;
+          : trabajo.preferred_provider_id
+            ? "🆕 Nueva solicitud para ti"
+            : "🆕 Nuevo trabajo disponible";
 
       const pushMessage =
         `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
@@ -1020,7 +817,7 @@ export async function POST(
             }
           );
         } catch {
-          // No bloqueamos el flujo.
+          // No bloqueamos el envío por el log.
         }
       } catch (
         error: unknown
@@ -1042,22 +839,8 @@ export async function POST(
               subscription.endpoint
             ).host;
         } catch {
-          // Diagnóstico solamente.
+          // No bloqueamos el flujo.
         }
-
-        pushErrors.push({
-          providerId:
-            subscription.user_id,
-          statusCode:
-            typeof pushError.statusCode ===
-            "number"
-              ? pushError.statusCode
-              : null,
-          message:
-            pushError.message ||
-            "Error Push sin mensaje.",
-          endpointHost,
-        });
 
         console.error(
           "Error Push nuevo trabajo:",
@@ -1077,18 +860,17 @@ export async function POST(
         );
 
         /*
-          Suscripción vencida.
+          404 / 410:
+          la suscripción ya no existe.
+          La eliminamos para no seguir intentando.
         */
 
         if (
-          pushError.statusCode ===
-            404 ||
-          pushError.statusCode ===
-            410
+          pushError.statusCode === 404 ||
+          pushError.statusCode === 410
         ) {
           const {
-            error:
-              deleteError,
+            error: deleteError,
           } = await supabaseAdmin
             .from(
               "push_subscriptions"
@@ -1099,18 +881,12 @@ export async function POST(
               subscription.id
             );
 
-          if (
-            !deleteError
-          ) {
+          if (!deleteError) {
             eliminados += 1;
           }
         }
       }
     }
-
-    /*
-      RESPUESTA TEMPORAL DE DIAGNÓSTICO
-    */
 
     return NextResponse.json({
       success: true,
@@ -1120,13 +896,10 @@ export async function POST(
         subscriptions.length,
       sent:
         enviados,
-      duplicatesSkipped:
-        duplicadosOmitidos,
       failed:
         fallidos,
       removed:
         eliminados,
-      pushErrors,
     });
   } catch (error) {
     console.error(
