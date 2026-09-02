@@ -236,6 +236,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Resumen de pago": "Payment summary",
   "Presupuesto del profesional": "Professional's price",
   "Total del cliente": "Customer total",
+  "Describe qué ocurrió y qué parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
   "Estado del pago": "Payment status",
   "El pago está protegido por RELYDO y todavía no ha sido liberado al profesional.": "The payment is protected by RELYDO and has not yet been released to the professional.",
   "El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.": "The payment was processed and released according to RELYDO's payment flow.",
@@ -1668,534 +1669,257 @@ export default function MisSolicitudDetallePage() {
       );
 
       /*
-        PROFESIONAL PREFERIDO
-        Solo se consulta cuando la solicitud fue creada
-        dirigida a un profesional específico.
+        CARGA PARALELA DEL DETALLE
+        Una vez validada la solicitud y su ownership, estas consultas son
+        independientes. Ejecutarlas juntas evita un waterfall de red.
       */
-      if (solicitudData.preferred_provider_id) {
-        const {
-          data: preferredProviderData,
-          error: preferredProviderError,
-        } = await supabase
-          .from("provider_profiles")
-          .select(`
-            user_id,
-            business_name,
-            trade,
-            verified
-          `)
-          .eq(
-            "user_id",
-            solicitudData.preferred_provider_id
-          )
-          .maybeSingle();
+      const preferredProviderPromise = solicitudData.preferred_provider_id
+        ? supabase
+            .from("provider_profiles")
+            .select("user_id, business_name, trade, verified")
+            .eq("user_id", solicitudData.preferred_provider_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null });
 
-        if (preferredProviderError) {
-          console.error(
-            "Error cargando profesional preferido:",
-            preferredProviderError
-          );
-          setProfesionalPreferido(null);
-        } else {
-          setProfesionalPreferido(
-            preferredProviderData
-              ? preferredProviderData as PreferredProvider
-              : null
-          );
-        }
-      } else {
-        setProfesionalPreferido(null);
-      }
+      const reviewPromise = solicitudData.status === "completed"
+        ? supabase
+            .from("reviews")
+            .select("id, job_id, reviewer_id, reviewee_id, rating, comment, created_at")
+            .eq("job_id", id)
+            .eq("reviewer_id", user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null });
 
-      /*
-        FOTOS ORIGINALES DE LA SOLICITUD
-        La solicitud ya fue validada arriba con customer_id = user.id.
-        El bucket request-photos es privado, por lo que generamos URLs
-        firmadas temporales en vez de depender de una URL pública.
-      */
-      const {
-        data: requestPhotosData,
-        error: requestPhotosError,
-      } = await supabase
-        .from("request_photos")
-        .select(`
-          id,
-          request_id,
-          file_url,
-          created_at
-        `)
-        .eq("request_id", id)
-        .order("created_at", {
-          ascending: true,
-        });
-
-      if (requestPhotosError) {
-        console.error(
-          "Error cargando fotos originales de la solicitud:",
-          requestPhotosError
-        );
-        setFotosSolicitud([]);
-      } else {
-        const fotosConUrls = await Promise.all(
-          (requestPhotosData || []).map(
-            async (foto) => {
-              const marker = "/request-photos/";
-              const markerIndex = foto.file_url.indexOf(marker);
-
-              const rawPath =
-                markerIndex >= 0
-                  ? foto.file_url.slice(
-                      markerIndex + marker.length
-                    )
-                  : foto.file_url;
-
-              let filePath = rawPath;
-
-              try {
-                filePath = decodeURIComponent(rawPath);
-              } catch {
-                filePath = rawPath;
-              }
-
-              const {
-                data: signedData,
-                error: signedError,
-              } = await supabase.storage
-                .from("request-photos")
-                .createSignedUrl(
-                  filePath,
-                  60 * 60
-                );
-
-              if (signedError) {
-                console.error(
-                  "Error creando URL segura para foto de solicitud:",
-                  signedError
-                );
-
-                return {
-                  ...foto,
-                  signed_url: null,
-                } as RequestPhoto;
-              }
-
-              return {
-                ...foto,
-                signed_url:
-                  signedData?.signedUrl ||
-                  null,
-              } as RequestPhoto;
-            }
-          )
-        );
-
-        setFotosSolicitud(
-          fotosConUrls
-        );
-      }
-
-      const {
-        data: paymentSettingsData,
-        error: paymentSettingsError,
-      } = await supabase
-        .from("payment_settings")
-        .select(`
-          id,
-          provider_commission_percent,
-          customer_service_fee_percent,
-          customer_cancel_on_the_way_percent,
-          customer_cancel_arrived_percent,
-          cancellation_provider_percent,
-          currency,
-          active
-        `)
-        .eq("active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (paymentSettingsError) {
-        throw new Error(`${T("No pudimos cargar las tarifas de RELYDO")}: ${paymentSettingsError.message}`);
-      }
-
-      setPaymentSettings(paymentSettingsData ? paymentSettingsData as PaymentSettings : null);
-
-      const {
-        data: paymentData,
-        error: paymentError,
-      } = await supabase
-        .from("payments")
-        .select(`
-          id, request_id, offer_id, customer_id, provider_id,
-          job_amount, customer_fee_percent, customer_fee_amount,
-          customer_total_amount, provider_commission_percent,
-          provider_commission_amount, provider_net_amount,
-          platform_revenue_amount, refunded_amount, refunded_at,
-          released_at, currency, status
-        `)
-        .eq("request_id", id)
-        .eq("customer_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (paymentError) {
-        console.error("Error cargando cálculo de pago:", paymentError);
-      }
-
-      setPayment(paymentData ? paymentData as PaymentCalculation : null);
-
-      /*
-        EVIDENCIA FINAL DEL PROFESIONAL
-      */
-
-      const {
-        data: completionEvidenceData,
-        error: completionEvidenceError,
-      } = await supabase
-        .from("job_completion_evidence")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          file_type,
-          file_path,
-          file_url,
-          created_at
-        `)
-        .eq("request_id", id)
-        .order("created_at", {
-          ascending: true,
-        });
-
-      if (completionEvidenceError) {
-        console.error(
-          "Error cargando evidencia final del profesional:",
-          completionEvidenceError
-        );
-        setEvidenciasFinales([]);
-      } else {
-        const evidenciaBase =
-          (completionEvidenceData || []) as Omit<
-            CompletionEvidence,
-            "signed_url"
-          >[];
-
-        const evidenciaConUrls =
-          await Promise.all(
-            evidenciaBase.map(
-              async (item) => {
-                const {
-                  data: signedData,
-                  error: signedError,
-                } = await supabase.storage
-                  .from("job-completion-evidence")
-                  .createSignedUrl(
-                    item.file_path,
-                    60 * 60
-                  );
-
-                if (signedError) {
-                  console.error(
-                    "Error creando URL segura para evidencia final:",
-                    signedError
-                  );
-
-                  return {
-                    ...item,
-                    signed_url: null,
-                  };
-                }
-
-                return {
-                  ...item,
-                  signed_url:
-                    signedData?.signedUrl ||
-                    null,
-                };
-              }
-            )
-          );
-
-        setEvidenciasFinales(
-          evidenciaConUrls
-        );
-      }
-
-      const {
-        data: changeOrdersData,
-        error: changeOrdersError,
-      } = await supabase
-        .from("change_orders")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          customer_id,
-          reason,
-          description,
-          original_amount,
-          additional_amount,
-          new_total_amount,
-          status,
-          accepted_at,
-          rejected_at,
-          payment_status,
-          stripe_checkout_session_id,
-          stripe_payment_intent_id,
-          additional_customer_fee_percent,
-          additional_customer_fee_amount,
-          additional_customer_total_amount,
-          additional_provider_commission_percent,
-          additional_provider_commission_amount,
-          additional_provider_net_amount,
-          additional_platform_revenue_amount,
-          paid_at,
-          created_at,
-          updated_at
-        `)
-        .eq("request_id", id)
-        .eq("customer_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (changeOrdersError) {
-        console.error(
-          "Error cargando cambios de presupuesto:",
-          changeOrdersError
-        );
-        setChangeOrders([]);
-      } else {
-        setChangeOrders(
-          (changeOrdersData || []) as ChangeOrder[]
-        );
-      }
-
-      const {
-        data:
-          ofertasData,
-        error:
-          ofertasError,
-      } = await supabase
-        .from("offers")
-        .select(`
-          id,
-          request_id,
-          professional_id,
-          price,
-          arrival_minutes,
-          estimated_job_minutes,
-          message,
-          status,
-          created_at
-        `)
-        .eq(
-          "request_id",
-          id
-        )
-        .order(
-          "price",
-          {
-            ascending: true,
-          }
-        );
-
-      if (
-        ofertasError
-      ) {
-        throw new Error(
-          `${T("No pudimos cargar los presupuestos")}: ${ofertasError.message}`
-        );
-      }
-
-      const ofertasBase =
-        (ofertasData ||
-          []) as Oferta[];
-
-      let ofertasCompletas:
-        OfertaConProfesional[] =
-        [];
-
-      if (
-        ofertasBase.length >
-        0
-      ) {
-        const professionalIds =
-          [
-            ...new Set(
-              ofertasBase.map(
-                (oferta) =>
-                  oferta.professional_id
-              )
-            ),
-          ];
-
-        const {
-          data:
-            profesionalesData,
-          error:
-            profesionalesError,
-        } = await supabase
-          .from(
-            "provider_profiles"
-          )
-          .select(`
-            user_id,
-            business_name,
-            trade,
-            years_experience,
-            average_rating,
-            completed_jobs,
-            verified
-          `)
-          .in(
-            "user_id",
-            professionalIds
-          );
-
-        if (
-          profesionalesError
-        ) {
-          console.error(
-            "Error cargando profesionales:",
-            profesionalesError
-          );
-        }
-
-        const profesionales =
-          (profesionalesData ||
-            []) as Profesional[];
-
-        ofertasCompletas =
-          ofertasBase.map(
-            (oferta) => ({
-              ...oferta,
-
-              profesional:
-                profesionales.find(
-                  (
-                    profesional
-                  ) =>
-                    profesional.user_id ===
-                    oferta.professional_id
-                ) ||
-                null,
-            })
-          );
-      }
-
-      setOfertas(
-        ofertasCompletas
-      );
-
-      if (
-        solicitudData.status ===
-        "completed"
-      ) {
-        const {
-          data:
-            reviewData,
-          error:
-            reviewError,
-        } = await supabase
-          .from("reviews")
+      const [
+        preferredProviderResult,
+        requestPhotosResult,
+        paymentSettingsResult,
+        paymentResult,
+        completionEvidenceResult,
+        changeOrdersResult,
+        ofertasResult,
+        reviewResult,
+        claimResult,
+      ] = await Promise.all([
+        preferredProviderPromise,
+        supabase
+          .from("request_photos")
+          .select("id, request_id, file_url, created_at")
+          .eq("request_id", id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("payment_settings")
           .select(`
             id,
-            job_id,
-            reviewer_id,
-            reviewee_id,
-            rating,
-            comment,
-            created_at
+            provider_commission_percent,
+            customer_service_fee_percent,
+            customer_cancel_on_the_way_percent,
+            customer_cancel_arrived_percent,
+            cancellation_provider_percent,
+            currency,
+            active
           `)
-          .eq(
-            "job_id",
-            id
-          )
-          .eq(
-            "reviewer_id",
-            user.id
-          )
-          .maybeSingle();
+          .eq("active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("payments")
+          .select(`
+            id, request_id, offer_id, customer_id, provider_id,
+            job_amount, customer_fee_percent, customer_fee_amount,
+            customer_total_amount, provider_commission_percent,
+            provider_commission_amount, provider_net_amount,
+            platform_revenue_amount, refunded_amount, refunded_at,
+            released_at, currency, status
+          `)
+          .eq("request_id", id)
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("job_completion_evidence")
+          .select("id, request_id, provider_id, file_type, file_path, file_url, created_at")
+          .eq("request_id", id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("change_orders")
+          .select(`
+            id, request_id, provider_id, customer_id, reason, description,
+            original_amount, additional_amount, new_total_amount, status,
+            accepted_at, rejected_at, payment_status, stripe_checkout_session_id,
+            stripe_payment_intent_id, additional_customer_fee_percent,
+            additional_customer_fee_amount, additional_customer_total_amount,
+            additional_provider_commission_percent, additional_provider_commission_amount,
+            additional_provider_net_amount, additional_platform_revenue_amount,
+            paid_at, created_at, updated_at
+          `)
+          .eq("request_id", id)
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("offers")
+          .select(`
+            id, request_id, professional_id, price, arrival_minutes,
+            estimated_job_minutes, message, status, created_at
+          `)
+          .eq("request_id", id)
+          .order("price", { ascending: true }),
+        reviewPromise,
+        supabase
+          .from("job_claims")
+          .select(`
+            id, request_id, customer_id, provider_id, reason, description,
+            customer_evidence_note, status, resolution_type, resolution_notes,
+            provider_award_amount, customer_refund_amount, resolved_at,
+            created_at, updated_at
+          `)
+          .eq("request_id", id)
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-        if (
-          reviewError
-        ) {
-          console.error(
-            "Error cargando reseña:",
-            reviewError
-          );
-        }
-
-        if (
-          reviewData
-        ) {
-          setReview(
-            reviewData as Review
-          );
-
-          setRating(
-            reviewData.rating
-          );
-
-          setComentario(
-            reviewData.comment ||
-              ""
-          );
-        } else {
-          setReview(
-            null
-          );
-        }
+      const { data: preferredProviderData, error: preferredProviderError } = preferredProviderResult;
+      if (preferredProviderError) {
+        console.error("Error cargando profesional preferido:", preferredProviderError);
+        setProfesionalPreferido(null);
       } else {
-        setReview(
-          null
+        setProfesionalPreferido(
+          preferredProviderData ? (preferredProviderData as PreferredProvider) : null
         );
       }
 
-      // El reclamo debe conservarse visible aunque el trabajo
-      // haya quedado cancelado por una resolución de RELYDO.
-      const {
-        data: claimData,
-        error: claimError,
-      } = await supabase
-        .from("job_claims")
-        .select(`
-          id,
-          request_id,
-          customer_id,
-          provider_id,
-          reason,
-          description,
-          customer_evidence_note,
-          status,
-          resolution_type,
-          resolution_notes,
-          provider_award_amount,
-          customer_refund_amount,
-          resolved_at,
-          created_at,
-          updated_at
-        `)
-        .eq("request_id", id)
-        .eq("customer_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: requestPhotosData, error: requestPhotosError } = requestPhotosResult;
+      if (requestPhotosError) {
+        console.error("Error cargando fotos originales de la solicitud:", requestPhotosError);
+        setFotosSolicitud([]);
+      } else {
+        const fotosBase = (requestPhotosData || []).map((foto) => {
+          const marker = "/request-photos/";
+          const markerIndex = foto.file_url.indexOf(marker);
+          const rawPath = markerIndex >= 0
+            ? foto.file_url.slice(markerIndex + marker.length)
+            : foto.file_url;
+          try {
+            return { foto, path: decodeURIComponent(rawPath) };
+          } catch {
+            return { foto, path: rawPath };
+          }
+        });
 
-      if (claimError) {
-        console.error(
-          "Error cargando reclamo:",
-          claimError
-        );
+        if (fotosBase.length === 0) {
+          setFotosSolicitud([]);
+        } else {
+          const { data: signedPhotos, error: signedPhotosError } = await supabase.storage
+            .from("request-photos")
+            .createSignedUrls(fotosBase.map((item) => item.path), 60 * 60);
+
+          if (signedPhotosError) {
+            console.error("Error creando URLs seguras para fotos de solicitud:", signedPhotosError);
+          }
+
+          setFotosSolicitud(
+            fotosBase.map(({ foto }, index) => ({
+              ...foto,
+              signed_url: signedPhotos?.[index]?.signedUrl || null,
+            })) as RequestPhoto[]
+          );
+        }
       }
 
-      setClaim(
-        claimData
-          ? (claimData as JobClaim)
-          : null
-      );
+      const { data: paymentSettingsData, error: paymentSettingsError } = paymentSettingsResult;
+      if (paymentSettingsError) {
+        throw new Error(T("No pudimos cargar las tarifas de RELYDO"));
+      }
+      setPaymentSettings(paymentSettingsData ? (paymentSettingsData as PaymentSettings) : null);
+
+      const { data: paymentData, error: paymentError } = paymentResult;
+      if (paymentError) console.error("Error cargando cálculo de pago:", paymentError);
+      setPayment(paymentData ? (paymentData as PaymentCalculation) : null);
+
+      const { data: completionEvidenceData, error: completionEvidenceError } = completionEvidenceResult;
+      if (completionEvidenceError) {
+        console.error("Error cargando evidencia final del profesional:", completionEvidenceError);
+        setEvidenciasFinales([]);
+      } else {
+        const evidenciaBase = (completionEvidenceData || []) as Omit<CompletionEvidence, "signed_url">[];
+        if (evidenciaBase.length === 0) {
+          setEvidenciasFinales([]);
+        } else {
+          const { data: signedEvidence, error: signedEvidenceError } = await supabase.storage
+            .from("job-completion-evidence")
+            .createSignedUrls(evidenciaBase.map((item) => item.file_path), 60 * 60);
+
+          if (signedEvidenceError) {
+            console.error("Error creando URLs seguras para evidencia final:", signedEvidenceError);
+          }
+
+          setEvidenciasFinales(
+            evidenciaBase.map((item, index) => ({
+              ...item,
+              signed_url: signedEvidence?.[index]?.signedUrl || null,
+            }))
+          );
+        }
+      }
+
+      const { data: changeOrdersData, error: changeOrdersError } = changeOrdersResult;
+      if (changeOrdersError) {
+        console.error("Error cargando cambios de presupuesto:", changeOrdersError);
+        setChangeOrders([]);
+      } else {
+        setChangeOrders((changeOrdersData || []) as ChangeOrder[]);
+      }
+
+      const { data: ofertasData, error: ofertasError } = ofertasResult;
+      if (ofertasError) {
+        throw new Error(T("No pudimos cargar los presupuestos"));
+      }
+
+      const ofertasBase = (ofertasData || []) as Oferta[];
+      let ofertasCompletas: OfertaConProfesional[] = [];
+
+      if (ofertasBase.length > 0) {
+        const professionalIds = [...new Set(ofertasBase.map((oferta) => oferta.professional_id))];
+        const { data: profesionalesData, error: profesionalesError } = await supabase
+          .from("provider_profiles")
+          .select(`
+            user_id, business_name, trade, years_experience,
+            average_rating, completed_jobs, verified
+          `)
+          .in("user_id", professionalIds);
+
+        if (profesionalesError) {
+          console.error("Error cargando profesionales:", profesionalesError);
+        }
+
+        const profesionales = (profesionalesData || []) as Profesional[];
+        const profesionalesPorId = new Map(
+          profesionales.map((profesional) => [profesional.user_id, profesional])
+        );
+        ofertasCompletas = ofertasBase.map((oferta) => ({
+          ...oferta,
+          profesional: profesionalesPorId.get(oferta.professional_id) || null,
+        }));
+      }
+      setOfertas(ofertasCompletas);
+
+      const { data: reviewData, error: reviewError } = reviewResult;
+      if (reviewError) console.error("Error cargando reseña:", reviewError);
+      if (solicitudData.status === "completed" && reviewData) {
+        setReview(reviewData as Review);
+        setRating(reviewData.rating);
+        setComentario(reviewData.comment || "");
+      } else {
+        setReview(null);
+      }
+
+      const { data: claimData, error: claimError } = claimResult;
+      if (claimError) console.error("Error cargando reclamo:", claimError);
+      setClaim(claimData ? (claimData as JobClaim) : null);
     } catch (err) {
       console.error(
         err
@@ -4643,10 +4367,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             {payment && (
               <div className="mt-5 rounded-2xl border border-green-200 bg-white p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">Resumen de pago</p>
+                <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">{T("Resumen de pago")}</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">Presupuesto del profesional</span>
+                    <span className="text-slate-600">{T("Presupuesto del profesional")}</span>
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
@@ -4655,7 +4379,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </div>
                   <div className="border-t border-slate-200 pt-3">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-extrabold text-slate-900">Total del cliente</span>
+                      <span className="font-extrabold text-slate-900">{T("Total del cliente")}</span>
                       <strong className="text-xl text-green-800">${totalClientePagado.toFixed(2)}</strong>
                     </div>
                   </div>
@@ -5494,7 +5218,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     onChange={(e) => setDescripcionReclamo(e.target.value)}
                     rows={5}
                     maxLength={1500}
-                    placeholder="Describe qué ocurrió y qué parte del servicio tuvo el problema..."
+                    placeholder={T("Describe qué ocurrió y qué parte del servicio tuvo el problema...")}
                     className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
                   />
                   <p className="mt-2 text-right text-sm text-slate-500">

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/app/components/LanguageProvider";
 import { AccountModeProvider } from "@/app/components/AccountModeProvider";
 import ProfessionalSessionGuard from "@/app/components/ProfessionalSessionGuard";
+import DocumentLanguageSync from "@/app/components/DocumentLanguageSync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -79,6 +80,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <LanguageProvider>
+          <DocumentLanguageSync />
           <AccountModeProvider>
             <ProfessionalSessionGuard />
             {children}

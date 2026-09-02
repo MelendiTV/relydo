@@ -686,6 +686,22 @@ export default function MisSolicitudesPage() {
   const [confirmacionEliminar, setConfirmacionEliminar] = useState(false);
   const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
   const [mensajeEliminarCuenta, setMensajeEliminarCuenta] = useState("");
+  const deleteDialogCancelRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!mostrarEliminarCuenta) return;
+
+    deleteDialogCancelRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !eliminandoCuenta) {
+        setMostrarEliminarCuenta(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mostrarEliminarCuenta, eliminandoCuenta]);
 
   useEffect(() => {
     cargarPanelCliente();
@@ -915,65 +931,73 @@ export default function MisSolicitudesPage() {
       setUserId(user.id);
       setEmail(user.email || "");
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select(`
-          full_name,
-          role,
-          avatar_url
-        `)
-        .eq("id", user.id)
-        .maybeSingle();
+      // Perfil, solicitudes y reclamos no dependen entre sí. Cargarlos en
+      // paralelo evita sumar tres viajes consecutivos a Supabase.
+      const [profileResult, solicitudesResult, reclamosResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(`
+            full_name,
+            role,
+            avatar_url
+          `)
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("service_requests")
+          .select(`
+            id,
+            title,
+            description,
+            city,
+            state,
+            zip_code,
+            preferred_date,
+            preferred_time,
+            status,
+            job_stage,
+            created_at
+          `)
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("job_claims")
+          .select(`
+            id,
+            request_id,
+            reason,
+            description,
+            status,
+            created_at
+          `)
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
 
+      const { data: profileData, error: profileError } = profileResult;
       if (profileError || !profileData) {
         throw new Error(t.perfilNoEncontrado);
       }
 
-      if (
-        profileData.role !== "customer" &&
-        profileData.role !== "provider"
-      ) {
+      if (profileData.role !== "customer" && profileData.role !== "provider") {
         throw new Error(t.sinAcceso);
       }
 
-      setAccountRole(
-        profileData.role === "provider"
-          ? "provider"
-          : "customer"
-      );
-
+      setAccountRole(profileData.role === "provider" ? "provider" : "customer");
       setCliente(profileData);
 
-      const { data, error: solicitudesError } = await supabase
-        .from("service_requests")
-        .select(`
-          id,
-          title,
-          description,
-          city,
-          state,
-          zip_code,
-          preferred_date,
-          preferred_time,
-          status,
-          job_stage,
-          created_at
-        `)
-        .eq("customer_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        });
-
+      const { data, error: solicitudesError } = solicitudesResult;
       if (solicitudesError) {
-        throw new Error(
-          `${t.cargarSolicitudes}: ${solicitudesError.message}`
-        );
+        throw new Error(`${t.cargarSolicitudes}: ${solicitudesError.message}`);
+      }
+
+      const { data: reclamosData, error: reclamosError } = reclamosResult;
+      if (reclamosError) {
+        throw new Error(`${t.cargarReclamos}: ${reclamosError.message}`);
       }
 
       const solicitudesBase = (data || []) as Solicitud[];
-
       const requestIds = solicitudesBase.map((solicitud) => solicitud.id);
-
       let solicitudesConPresupuestos = solicitudesBase;
 
       if (requestIds.length > 0) {
@@ -983,38 +1007,25 @@ export default function MisSolicitudesPage() {
           .in("request_id", requestIds);
 
         if (ofertasError) {
-          console.error(
-            "No pudimos cargar los contadores de presupuestos:",
-            ofertasError
-          );
+          console.error("No pudimos cargar los contadores de presupuestos:", ofertasError);
         } else {
-          const resumenOfertas = new Map<
-            string,
-            {
-              offer_count: number;
-              professionals: Set<string>;
-            }
-          >();
+          const resumenOfertas = new Map<string, {
+            offer_count: number;
+            professionals: Set<string>;
+          }>();
 
           for (const oferta of ofertasData || []) {
-            const actual =
-              resumenOfertas.get(oferta.request_id) || {
-                offer_count: 0,
-                professionals: new Set<string>(),
-              };
-
+            const actual = resumenOfertas.get(oferta.request_id) || {
+              offer_count: 0,
+              professionals: new Set<string>(),
+            };
             actual.offer_count += 1;
-
-            if (oferta.professional_id) {
-              actual.professionals.add(oferta.professional_id);
-            }
-
+            if (oferta.professional_id) actual.professionals.add(oferta.professional_id);
             resumenOfertas.set(oferta.request_id, actual);
           }
 
           solicitudesConPresupuestos = solicitudesBase.map((solicitud) => {
             const resumen = resumenOfertas.get(solicitud.id);
-
             return {
               ...solicitud,
               offer_count: resumen?.offer_count || 0,
@@ -1025,26 +1036,6 @@ export default function MisSolicitudesPage() {
       }
 
       setSolicitudes(solicitudesConPresupuestos);
-
-      const { data: reclamosData, error: reclamosError } = await supabase
-        .from("job_claims")
-        .select(`
-          id,
-          request_id,
-          reason,
-          description,
-          status,
-          created_at
-        `)
-        .eq("customer_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (reclamosError) {
-        throw new Error(
-          `${t.cargarReclamos}: ${reclamosError.message}`
-        );
-      }
-
       setReclamos((reclamosData || []) as ReclamoCliente[]);
     } catch (err) {
       console.error(err);
@@ -2440,16 +2431,22 @@ export default function MisSolicitudesPage() {
 
         {mostrarEliminarCuenta && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 shadow-2xl sm:p-7">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-account-dialog-title"
+              aria-describedby="delete-account-dialog-description"
+              className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 shadow-2xl sm:p-7"
+            >
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-2xl">
                   ⚠️
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950">
+                  <h2 id="delete-account-dialog-title" className="text-2xl font-black text-slate-950">
                     {t.confirmarEliminarTitulo}
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                  <p id="delete-account-dialog-description" className="mt-2 text-sm leading-6 text-slate-600">
                     {t.confirmarEliminarDesc}
                   </p>
                 </div>
@@ -2475,10 +2472,11 @@ export default function MisSolicitudesPage() {
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
+                  ref={deleteDialogCancelRef}
                   type="button"
                   disabled={eliminandoCuenta}
                   onClick={() => setMostrarEliminarCuenta(false)}
-                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
+                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 outline-none transition focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
                 >
                   {t.cancelarEliminar}
                 </button>
@@ -2486,7 +2484,7 @@ export default function MisSolicitudesPage() {
                   type="button"
                   disabled={!confirmacionEliminar || eliminandoCuenta}
                   onClick={eliminarCuentaCliente}
-                  className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white outline-none transition hover:bg-red-800 focus:ring-4 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {eliminandoCuenta ? t.eliminandoCuenta : t.confirmarEliminar}
                 </button>

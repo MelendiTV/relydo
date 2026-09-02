@@ -886,15 +886,23 @@ function SolicitarTrabajoContenido() {
           filePath
         );
 
-        // request-photos is private. Store only the object path in DB;
-        // authorized readers generate a short-lived signed URL when needed.
+        const {
+          data:
+            publicUrlData,
+        } =
+          supabase.storage
+            .from("request-photos")
+            .getPublicUrl(
+              filePath
+            );
+
         fotosParaGuardar.push(
           {
             request_id:
               requestId,
 
             file_url:
-              filePath,
+              publicUrlData.publicUrl,
           }
         );
       }
@@ -1559,18 +1567,19 @@ function SolicitarTrabajoContenido() {
 
               <div>
 
-                <label className="mb-2 block font-bold text-slate-900">
+                <label htmlFor="service" className="mb-2 block font-bold text-slate-900">
                   {text.tipoServicio}
                 </label>
 
                 <select
-                  name="service"
+                  id="service"
+                    name="service"
                   required
                   defaultValue={
                     profesional?.trade ||
                     ""
                   }
-                  className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 >
 
                   <option
@@ -1698,32 +1707,34 @@ function SolicitarTrabajoContenido() {
 
               <div>
 
-                <label className="mb-2 block font-bold text-slate-900">
+                <label htmlFor="title" className="mb-2 block font-bold text-slate-900">
                   {text.problema}
                 </label>
 
                 <input
-                  name="title"
+                  id="title"
+                    name="title"
                   type="text"
                   required
                   placeholder={text.problemaPlaceholder}
-                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 
               </div>
 
               <div>
 
-                <label className="mb-2 block font-bold text-slate-900">
+                <label htmlFor="description" className="mb-2 block font-bold text-slate-900">
                   {text.describir}
                 </label>
 
                 <textarea
-                  name="description"
+                  id="description"
+                    name="description"
                   required
                   rows={5}
                   placeholder={text.describirPlaceholder}
-                  className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
+                  className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 
               </div>
@@ -1853,32 +1864,34 @@ function SolicitarTrabajoContenido() {
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="customer_name" className="mb-2 block font-bold text-slate-900">
                     {text.nombre}
                   </label>
 
                   <input
+                    id="customer_name"
                     name="customer_name"
                     type="text"
                     required
                     placeholder={text.nombrePlaceholder}
-                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="customer_phone" className="mb-2 block font-bold text-slate-900">
                     {text.telefono}
                   </label>
 
                   <input
+                    id="customer_phone"
                     name="customer_phone"
                     type="tel"
                     required
                     placeholder="(702) 555-1234"
-                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
@@ -1887,32 +1900,34 @@ function SolicitarTrabajoContenido() {
 
               <div>
 
-                <label className="mb-2 block font-bold text-slate-900">
+                <label htmlFor="customer_email" className="mb-2 block font-bold text-slate-900">
                   {text.email}
                 </label>
 
                 <input
-                  name="customer_email"
+                  id="customer_email"
+                    name="customer_email"
                   type="email"
                   required
                   placeholder="tu@email.com"
-                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 
               </div>
 
               <div>
 
-                <label className="mb-2 block font-bold text-slate-900">
+                <label htmlFor="address_line1" className="mb-2 block font-bold text-slate-900">
                   {text.direccion}
                 </label>
 
                 <input
-                  name="address_line1"
+                  id="address_line1"
+                    name="address_line1"
                   type="text"
                   required
                   placeholder="123 Main St"
-                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 
               </div>
@@ -1921,49 +1936,52 @@ function SolicitarTrabajoContenido() {
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="city" className="mb-2 block font-bold text-slate-900">
                     {text.ciudad}
                   </label>
 
                   <input
+                    id="city"
                     name="city"
                     type="text"
                     required
                     placeholder="Las Vegas"
-                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="state" className="mb-2 block font-bold text-slate-900">
                     {text.estado}
                   </label>
 
                   <input
+                    id="state"
                     name="state"
                     type="text"
                     required
                     maxLength={2}
                     placeholder="NV"
-                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="zip_code" className="mb-2 block font-bold text-slate-900">
                     {text.zip}
                   </label>
 
                   <input
+                    id="zip_code"
                     name="zip_code"
                     type="text"
                     required
                     placeholder="89101"
-                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
@@ -1974,11 +1992,12 @@ function SolicitarTrabajoContenido() {
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="preferred_date" className="mb-2 block font-bold text-slate-900">
                     {text.fechaPreferida}
                   </label>
 
                   <input
+                    id="preferred_date"
                     name="preferred_date"
                     type="date"
                     min={(() => {
@@ -1990,21 +2009,22 @@ function SolicitarTrabajoContenido() {
                         hoy.getDate()
                       ).padStart(2, "0")}`;
                     })()}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
 
                 <div>
 
-                  <label className="mb-2 block font-bold text-slate-900">
+                  <label htmlFor="preferred_time" className="mb-2 block font-bold text-slate-900">
                     {text.horaPreferida}
                   </label>
 
                   <input
+                    id="preferred_time"
                     name="preferred_time"
                     type="time"
-                    className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
 
                 </div>
