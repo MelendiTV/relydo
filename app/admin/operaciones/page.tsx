@@ -925,6 +925,9 @@ export default function AdminPage() {
 
       /*
         TODOS LOS PROFESIONALES
+
+        Esta primera consulta debe terminar antes porque sus IDs
+        se usan para cargar los datos personales de contacto.
       */
 
       const {
@@ -960,51 +963,6 @@ export default function AdminPage() {
         todos
       );
 
-      /*
-        DATOS PERSONALES / CONTACTO DE PROFESIONALES
-      */
-
-      const providerIds = todos
-        .map((provider) => provider.user_id)
-        .filter(Boolean);
-
-      if (providerIds.length > 0) {
-        const {
-          data: providerContactData,
-          error: providerContactError,
-        } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("id", providerIds);
-
-        if (providerContactError) {
-          console.error(
-            "No se pudo cargar la información personal de los profesionales:",
-            providerContactError
-          );
-
-          setProviderContacts({});
-        } else {
-          const contactos =
-            (providerContactData || []) as ProviderContact[];
-
-          const contactosPorId = contactos.reduce<
-            Record<string, ProviderContact>
-          >((acumulado, contacto) => {
-            acumulado[contacto.id] = contacto;
-            return acumulado;
-          }, {});
-
-          setProviderContacts(contactosPorId);
-        }
-      } else {
-        setProviderContacts({});
-      }
-
-      /*
-        SOLO PENDIENTES
-      */
-
       const pendientes =
         todos.filter(
           (provider) =>
@@ -1016,72 +974,223 @@ export default function AdminPage() {
         pendientes
       );
 
+      const providerIds = todos
+        .map((provider) => provider.user_id)
+        .filter(Boolean);
+
+      /*
+        CARGA PRINCIPAL EN PARALELO
+
+        Una vez conocemos los profesionales, estas consultas son
+        independientes entre sí. Ejecutarlas juntas evita esperar
+        una ronda de red completa por cada bloque.
+      */
+
+      const [
+        providerContactResult,
+        documentResult,
+        solicitudesDocumentosResult,
+        solicitudesResult,
+        reclamosResult,
+        evidenciasResult,
+        historialResult,
+      ] = await Promise.all([
+        providerIds.length > 0
+          ? supabase
+              .from("profiles")
+              .select("*")
+              .in("id", providerIds)
+          : Promise.resolve({
+              data: [],
+              error: null,
+            }),
+
+        supabase
+          .from(
+            "provider_documents"
+          )
+          .select("*"),
+
+        supabase
+          .from(
+            "provider_document_requests"
+          )
+          .select(`
+            id,
+            provider_id,
+            requested_by,
+            request_type,
+            document_type,
+            message,
+            status,
+            requested_at,
+            submitted_at,
+            completed_at,
+            created_at,
+            updated_at
+          `)
+          .order(
+            "requested_at",
+            { ascending: false }
+          ),
+
+        supabase
+          .from(
+            "service_requests"
+          )
+          .select(`
+            id,
+            customer_id,
+            title,
+            description,
+            address_line1,
+            address_line2,
+            city,
+            state,
+            zip_code,
+            preferred_date,
+            preferred_time,
+            status,
+            created_at,
+            customer_name,
+            customer_phone,
+            customer_email,
+            preferred_provider_id,
+            job_stage,
+            cancellation_reason,
+            cancelled_at
+          `)
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            }
+          )
+          .limit(1000),
+
+        supabase
+          .from("job_claims")
+          .select(`
+            id,
+            request_id,
+            customer_id,
+            provider_id,
+            reason,
+            description,
+            customer_evidence_note,
+            provider_response,
+            provider_response_deadline,
+            provider_responded_at,
+            status,
+            resolution_notes,
+            resolution_type,
+            provider_award_amount,
+            customer_refund_amount,
+            resolved_at,
+            resolved_by,
+            created_at,
+            updated_at
+          `)
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            }
+          )
+          .limit(500),
+
+        supabase
+          .from("claim_evidence")
+          .select(`
+            id,
+            claim_id,
+            uploaded_by,
+            uploaded_by_role,
+            file_type,
+            file_url,
+            file_path,
+            created_at
+          `)
+          .order(
+            "created_at",
+            {
+              ascending: true,
+            }
+          )
+          .limit(2000),
+
+        supabase
+          .from(
+            "job_reassignment_history"
+          )
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            action,
+            reason,
+            created_at
+          `)
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            }
+          )
+          .limit(500),
+      ]);
+
+      /*
+        DATOS PERSONALES / CONTACTO DE PROFESIONALES
+      */
+
+      if (providerContactResult.error) {
+        console.error(
+          "No se pudo cargar la información personal de los profesionales:",
+          providerContactResult.error
+        );
+
+        setProviderContacts({});
+      } else {
+        const contactos =
+          (providerContactResult.data || []) as ProviderContact[];
+
+        const contactosPorId = contactos.reduce<
+          Record<string, ProviderContact>
+        >((acumulado, contacto) => {
+          acumulado[contacto.id] = contacto;
+          return acumulado;
+        }, {});
+
+        setProviderContacts(contactosPorId);
+      }
+
       /*
         DOCUMENTOS
       */
 
-      const {
-        data:
-          documentData,
-        error:
-          documentError,
-      } = await supabase
-        .from(
-          "provider_documents"
-        )
-        .select("*");
-
-      if (
-        documentError
-      ) {
+      if (documentResult.error) {
         throw new Error(
-          `Error cargando documentos: ${documentError.message}`
+          `Error cargando documentos: ${documentResult.error.message}`
         );
       }
 
       setDocuments(
-        (documentData ||
-          []) as DocumentRow[]
+        (documentResult.data || []) as DocumentRow[]
       );
 
       /*
         SOLICITUDES DE DOCUMENTACIÓN
       */
 
-      const {
-        data: solicitudesDocumentosData,
-        error: solicitudesDocumentosError,
-      } = await supabase
-        .from(
-          "provider_document_requests"
-        )
-        .select(`
-          id,
-          provider_id,
-          requested_by,
-          request_type,
-          document_type,
-          message,
-          status,
-          requested_at,
-          submitted_at,
-          completed_at,
-          created_at,
-          updated_at
-        `)
-        .order(
-          "requested_at",
-          { ascending: false }
-        );
-
-      if (solicitudesDocumentosError) {
+      if (solicitudesDocumentosResult.error) {
         throw new Error(
-          `Error cargando solicitudes de documentación: ${solicitudesDocumentosError.message}`
+          `Error cargando solicitudes de documentación: ${solicitudesDocumentosResult.error.message}`
         );
       }
 
       setSolicitudesDocumentos(
-        (solicitudesDocumentosData ||
+        (solicitudesDocumentosResult.data ||
           []) as ProviderDocumentRequest[]
       );
 
@@ -1090,51 +1199,14 @@ export default function AdminPage() {
         DE LA PLATAFORMA
       */
 
-      const {
-        data: solicitudesData,
-        error: solicitudesError,
-      } = await supabase
-        .from(
-          "service_requests"
-        )
-        .select(`
-          id,
-          customer_id,
-          title,
-          description,
-          address_line1,
-          address_line2,
-          city,
-          state,
-          zip_code,
-          preferred_date,
-          preferred_time,
-          status,
-          created_at,
-          customer_name,
-          customer_phone,
-          customer_email,
-          preferred_provider_id,
-          job_stage,
-          cancellation_reason,
-          cancelled_at
-        `)
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(1000);
-
-      if (solicitudesError) {
+      if (solicitudesResult.error) {
         throw new Error(
-          `Error cargando órdenes: ${solicitudesError.message}`
+          `Error cargando órdenes: ${solicitudesResult.error.message}`
         );
       }
 
       setSolicitudesAdmin(
-        (solicitudesData ||
+        (solicitudesResult.data ||
           []) as SolicitudAdmin[]
       );
 
@@ -1142,92 +1214,33 @@ export default function AdminPage() {
         RECLAMOS
       */
 
-      const {
-        data: reclamosData,
-        error: reclamosError,
-      } = await supabase
-        .from("job_claims")
-        .select(`
-          id,
-          request_id,
-          customer_id,
-          provider_id,
-          reason,
-          description,
-          customer_evidence_note,
-          provider_response,
-          provider_response_deadline,
-          provider_responded_at,
-          status,
-          resolution_notes,
-          resolution_type,
-          provider_award_amount,
-          customer_refund_amount,
-          resolved_at,
-          resolved_by,
-          created_at,
-          updated_at
-        `)
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(500);
-
-      if (reclamosError) {
+      if (reclamosResult.error) {
         throw new Error(
-          `Error cargando reclamos: ${reclamosError.message}`
+          `Error cargando reclamos: ${reclamosResult.error.message}`
         );
       }
 
       setReclamos(
-        (reclamosData || []) as JobClaim[]
+        (reclamosResult.data || []) as JobClaim[]
       );
 
       /*
         EVIDENCIAS DE RECLAMOS
 
-        Cargamos solo los metadatos aquí. Las URLs firmadas se generan
-        de forma diferida en EvidenciaAdminCard cuando la tarjeta entra
-        en pantalla. Así evitamos disparar cientos o miles de operaciones
-        de Storage durante la carga inicial del panel.
+        Solo guardamos metadatos. EvidenciaAdminCard genera la URL
+        firmada de cada archivo cuando realmente entra en pantalla.
       */
 
-      const {
-        data: evidenciasData,
-        error: evidenciasError,
-      } = await supabase
-        .from("claim_evidence")
-        .select(`
-          id,
-          claim_id,
-          uploaded_by,
-          uploaded_by_role,
-          file_type,
-          file_url,
-          file_path,
-          created_at
-        `)
-        .order(
-          "created_at",
-          {
-            ascending: true,
-          }
-        )
-        .limit(2000);
-
-      if (evidenciasError) {
+      if (evidenciasResult.error) {
         console.error(
           "Error cargando evidencias de reclamos:",
-          evidenciasError
+          evidenciasResult.error
         );
 
         setEvidenciasReclamos([]);
       } else {
         const evidenciasBase =
-          (evidenciasData ||
+          (evidenciasResult.data ||
             []) as Omit<
               ClaimEvidenceAdmin,
               "signed_url"
@@ -1247,43 +1260,14 @@ export default function AdminPage() {
         HISTORIAL
       */
 
-      const {
-        data:
-          historialData,
-        error:
-          historialError,
-      } = await supabase
-        .from(
-          "job_reassignment_history"
-        )
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          action,
-          reason,
-          created_at
-        `)
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(
-          500
-        );
-
-      if (
-        historialError
-      ) {
+      if (historialResult.error) {
         throw new Error(
-          `Error cargando historial de reasignaciones: ${historialError.message}`
+          `Error cargando historial de reasignaciones: ${historialResult.error.message}`
         );
       }
 
       const historialBase =
-        (historialData ||
+        (historialResult.data ||
           []) as ReassignmentHistory[];
 
       if (
@@ -1297,23 +1281,14 @@ export default function AdminPage() {
         return;
       }
 
-      /*
-        REQUEST IDS
-      */
-
-      const requestIds =
-        [
-          ...new Set(
-            historialBase.map(
-              (item) =>
-                item.request_id
-            )
-          ),
-        ];
-
-      /*
-        PROVIDER IDS
-      */
+      const requestIds = [
+        ...new Set(
+          historialBase.map(
+            (item) =>
+              item.request_id
+          )
+        ),
+      ];
 
       const historialProviderIds: string[] = [
         ...new Set(
@@ -1324,101 +1299,113 @@ export default function AdminPage() {
       ];
 
       /*
-        DATOS DE TRABAJOS
+        COMPLETAR HISTORIAL EN PARALELO
+
+        Los trabajos y profesionales asociados al historial tampoco
+        dependen entre sí, por lo que se cargan al mismo tiempo.
       */
+
+      const [
+        trabajosResult,
+        profesionalesResult,
+      ] = await Promise.all([
+        requestIds.length > 0
+          ? supabase
+              .from(
+                "service_requests"
+              )
+              .select(`
+                id,
+                title,
+                city,
+                state,
+                status
+              `)
+              .in(
+                "id",
+                requestIds
+              )
+          : Promise.resolve({
+              data: [],
+              error: null,
+            }),
+
+        historialProviderIds.length > 0
+          ? supabase
+              .from(
+                "provider_profiles"
+              )
+              .select(`
+                user_id,
+                business_name,
+                trade
+              `)
+              .in(
+                "user_id",
+                historialProviderIds
+              )
+          : Promise.resolve({
+              data: [],
+              error: null,
+            }),
+      ]);
 
       let trabajos:
         TrabajoHistorial[] =
         [];
 
-      if (
-        requestIds.length >
-        0
-      ) {
-        const {
-          data:
-            trabajosData,
-          error:
-            trabajosError,
-        } = await supabase
-          .from(
-            "service_requests"
-          )
-          .select(`
-            id,
-            title,
-            city,
-            state,
-            status
-          `)
-          .in(
-            "id",
-            requestIds
-          );
-
-        if (
-          trabajosError
-        ) {
-          console.error(
-            "No se pudo cargar información de los trabajos:",
-            trabajosError
-          );
-        } else {
-          trabajos =
-            (trabajosData ||
-              []) as TrabajoHistorial[];
-        }
+      if (trabajosResult.error) {
+        console.error(
+          "No se pudo cargar información de los trabajos:",
+          trabajosResult.error
+        );
+      } else {
+        trabajos =
+          (trabajosResult.data ||
+            []) as TrabajoHistorial[];
       }
-
-      /*
-        DATOS PROFESIONALES
-        DEL HISTORIAL
-      */
 
       let profesionales:
         ProviderHistorial[] =
         [];
 
-      if (
-        historialProviderIds.length >
-        0
-      ) {
-        const {
-          data:
-            profesionalesData,
-          error:
-            profesionalesError,
-        } = await supabase
-          .from(
-            "provider_profiles"
-          )
-          .select(`
-            user_id,
-            business_name,
-            trade
-          `)
-          .in(
-            "user_id",
-            historialProviderIds
-          );
-
-        if (
-          profesionalesError
-        ) {
-          console.error(
-            "No se pudo cargar información de los profesionales:",
-            profesionalesError
-          );
-        } else {
-          profesionales =
-            (profesionalesData ||
-              []) as ProviderHistorial[];
-        }
+      if (profesionalesResult.error) {
+        console.error(
+          "No se pudo cargar información de los profesionales:",
+          profesionalesResult.error
+        );
+      } else {
+        profesionales =
+          (profesionalesResult.data ||
+            []) as ProviderHistorial[];
       }
 
       /*
         COMBINAR HISTORIAL
+
+        Usamos mapas para evitar recorrer las mismas colecciones
+        una y otra vez por cada elemento del historial.
       */
+
+      const trabajosPorId =
+        new Map(
+          trabajos.map(
+            (trabajo) => [
+              trabajo.id,
+              trabajo,
+            ] as const
+          )
+        );
+
+      const profesionalesPorId =
+        new Map(
+          profesionales.map(
+            (profesional) => [
+              profesional.user_id,
+              profesional,
+            ] as const
+          )
+        );
 
       const historialCompleto =
         historialBase.map(
@@ -1426,23 +1413,15 @@ export default function AdminPage() {
             ...item,
 
             trabajo:
-              trabajos.find(
-                (trabajo) =>
-                  trabajo.id ===
-                  item.request_id
-              ) ||
-              null,
+              trabajosPorId.get(
+                item.request_id
+              ) || null,
 
             profesional:
               item.provider_id
-                ? profesionales.find(
-                    (
-                      profesional
-                    ) =>
-                      profesional.user_id ===
-                      item.provider_id
-                  ) ||
-                  null
+                ? profesionalesPorId.get(
+                    item.provider_id
+                  ) || null
                 : null,
           })
         );
