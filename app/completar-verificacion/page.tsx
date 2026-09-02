@@ -458,25 +458,46 @@ export default function CompletarVerificacion() {
       return;
     }
 
+    const [providerResult, documentsResult] = await Promise.all([
+      supabase
+        .from("provider_profiles")
+        .select(
+          `
+          user_id,
+          business_name,
+          license_required,
+          license_number,
+          insured,
+          insurance_company,
+          bonded,
+          verification_status,
+          verified,
+          active
+        `
+        )
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("provider_documents")
+        .select(
+          `
+          id,
+          document_type,
+          status
+        `
+        )
+        .eq("user_id", user.id),
+    ]);
+
     const {
       data: providerProfile,
       error: providerError,
-    } = await supabase
-      .from("provider_profiles")
-      .select(`
-        user_id,
-        business_name,
-        license_required,
-        license_number,
-        insured,
-        insurance_company,
-        bonded,
-        verification_status,
-        verified,
-        active
-      `)
-      .eq("user_id", user.id)
-      .single();
+    } = providerResult;
+
+    const {
+      data: providerDocuments,
+      error: documentsError,
+    } = documentsResult;
 
     if (
       providerError ||
@@ -498,17 +519,7 @@ export default function CompletarVerificacion() {
       no existe en esta tabla.
     */
 
-    const {
-      data: providerDocuments,
-      error: documentsError,
-    } = await supabase
-      .from("provider_documents")
-      .select(`
-        id,
-        document_type,
-        status
-      `)
-      .eq("user_id", user.id);
+
 
     if (documentsError) {
       console.error(
