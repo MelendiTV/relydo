@@ -482,7 +482,7 @@ export async function POST(
         {
           error:
             settingsError
-              ? `No pudimos cargar las tarifas de RELYDO: ${settingsError.message}`
+              ? "No pudimos cargar las tarifas de RELYDO."
               : "No existe una configuración activa de pagos.",
         },
         {
