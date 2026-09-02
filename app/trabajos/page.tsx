@@ -27,7 +27,10 @@ type Trabajo = {
 
 type ProviderProfile = {
   user_id: string;
+  city: string | null;
   state: string | null;
+  zip_code: string | null;
+  service_radius_miles: number | null;
   trade: string | null;
   verification_status: string | null;
   verified: boolean | null;
@@ -35,7 +38,9 @@ type ProviderProfile = {
 };
 
 type GeneralProfile = {
+  city: string | null;
   state: string | null;
+  zip_code: string | null;
 };
 
 type ProviderService = {
@@ -164,7 +169,10 @@ export default function TrabajosPage() {
         .from("provider_profiles")
         .select(`
           user_id,
+          city,
           state,
+          zip_code,
+          service_radius_miles,
           trade,
           verification_status,
           verified,
@@ -260,25 +268,39 @@ export default function TrabajosPage() {
         intentamos profiles.state
       */
 
+      let providerCity =
+        perfil.city?.trim() || "";
+
       let providerState =
         perfil.state
           ?.trim()
           .toUpperCase() ||
         "";
 
-      if (!providerState) {
+      let providerZip =
+        perfil.zip_code?.trim() || "";
+
+      const providerRadius = Number(
+        perfil.service_radius_miles ?? 0
+      );
+
+      if (
+        !providerCity ||
+        !providerState ||
+        !providerZip
+      ) {
         const {
           data: generalProfile,
           error: generalProfileError,
         } = await supabase
           .from("profiles")
-          .select("state")
+          .select("city, state, zip_code")
           .eq("id", user.id)
           .maybeSingle();
 
         if (generalProfileError) {
           console.error(
-            "No se pudo comprobar el estado en profiles:",
+            "No se pudo comprobar la ubicación en profiles:",
             generalProfileError
           );
         }
@@ -286,11 +308,23 @@ export default function TrabajosPage() {
         const perfilGeneral =
           generalProfile as GeneralProfile | null;
 
-        providerState =
-          perfilGeneral?.state
-            ?.trim()
-            .toUpperCase() ||
-          "";
+        if (!providerCity) {
+          providerCity =
+            perfilGeneral?.city?.trim() || "";
+        }
+
+        if (!providerState) {
+          providerState =
+            perfilGeneral?.state
+              ?.trim()
+              .toUpperCase() ||
+            "";
+        }
+
+        if (!providerZip) {
+          providerZip =
+            perfilGeneral?.zip_code?.trim() || "";
+        }
       }
 
       if (!providerState) {
@@ -393,7 +427,7 @@ export default function TrabajosPage() {
 
       const safeJobs = (data || []) as Trabajo[];
 
-      const visibles =
+      const candidatosVisibles =
         safeJobs.filter(
           (trabajo: Trabajo) => {
             const puedeVerPorPreferencia =
@@ -411,6 +445,141 @@ export default function TrabajosPage() {
             );
           }
         );
+
+      let visibles = candidatosVisibles;
+
+      /*
+        9. FILTRO REAL POR ZIP + RADIO
+
+        Regla única de RELYDO:
+        - Si podemos calcular la distancia entre el ZIP
+          del Pro y el ZIP del trabajo, esa distancia manda.
+        - El trabajo solo aparece si está dentro de
+          service_radius_miles.
+        - Ciudad + estado se usan únicamente como fallback
+          cuando no podemos calcular la distancia.
+      */
+
+      if (
+        candidatosVisibles.length > 0 &&
+        providerZip
+      ) {
+        try {
+          const grupos: Trabajo[][] = [];
+
+          for (let i = 0; i < candidatosVisibles.length; i += 200) {
+            grupos.push(
+              candidatosVisibles.slice(i, i + 200)
+            );
+          }
+
+          const respuestas = await Promise.all(
+            grupos.map(async (grupo) => {
+              const response = await fetch(
+                "/api/location/zip-distance",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    customerZip: providerZip,
+                    providerZips: grupo.map(
+                      (trabajo) => ({
+                        id: trabajo.id,
+                        zip: trabajo.zip_code,
+                      })
+                    ),
+                  }),
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error(
+                  "No se pudo calcular el radio de servicio."
+                );
+              }
+
+              return response.json();
+            })
+          );
+
+          const distancias = new Map<
+            string,
+            number | null
+          >();
+
+          for (const respuesta of respuestas) {
+            for (const [requestId, distancia] of
+              Object.entries(
+                respuesta?.distances || {}
+              )) {
+              distancias.set(
+                requestId,
+                typeof distancia === "number"
+                  ? distancia
+                  : null
+              );
+            }
+          }
+
+          visibles = candidatosVisibles.filter(
+            (trabajo) => {
+              const distancia =
+                distancias.get(trabajo.id);
+
+              if (
+                distancia === null ||
+                distancia === undefined
+              ) {
+                return false;
+              }
+
+              if (
+                !Number.isFinite(providerRadius) ||
+                providerRadius <= 0
+              ) {
+                return false;
+              }
+
+              return distancia <= providerRadius;
+            }
+          );
+        } catch (distanceError) {
+          console.error(
+            "Error calculando radio de servicio:",
+            distanceError
+          );
+
+          const ciudadNormalizada =
+            providerCity.trim().toLowerCase();
+
+          visibles = candidatosVisibles.filter(
+            (trabajo) =>
+              Boolean(ciudadNormalizada) &&
+              trabajo.city
+                ?.trim()
+                .toLowerCase() === ciudadNormalizada &&
+              trabajo.state
+                ?.trim()
+                .toUpperCase() === providerState
+          );
+        }
+      } else if (candidatosVisibles.length > 0) {
+        const ciudadNormalizada =
+          providerCity.trim().toLowerCase();
+
+        visibles = candidatosVisibles.filter(
+          (trabajo) =>
+            Boolean(ciudadNormalizada) &&
+            trabajo.city
+              ?.trim()
+              .toLowerCase() === ciudadNormalizada &&
+            trabajo.state
+              ?.trim()
+              .toUpperCase() === providerState
+        );
+      }
 
       const visibleRequestIds =
         visibles.map(
