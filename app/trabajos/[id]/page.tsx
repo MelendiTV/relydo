@@ -617,6 +617,21 @@ export default function TrabajoDetallePage() {
     }
 
     let mounted = true;
+    let refreshTimer: number | null = null;
+
+    const programarRecarga = () => {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+
+        if (mounted) {
+          cargarTodo();
+        }
+      }, 250);
+    };
 
     cargarTodo();
 
@@ -670,14 +685,7 @@ export default function TrabajoDetallePage() {
           // oferta y pago). Refrescamos el detalle completo para que la
           // pantalla PRO no se quede mostrando "OPEN / presupuesto pendiente"
           // después de que el cliente ya pagó.
-          window.setTimeout(
-            () => {
-              if (mounted) {
-                cargarTodo();
-              }
-            },
-            250
-          );
+          programarRecarga();
         }
       )
       .on(
@@ -693,14 +701,7 @@ export default function TrabajoDetallePage() {
             return;
           }
 
-          window.setTimeout(
-            () => {
-              if (mounted) {
-                cargarTodo();
-              }
-            },
-            250
-          );
+          programarRecarga();
         }
       )
       .on(
@@ -716,14 +717,7 @@ export default function TrabajoDetallePage() {
             return;
           }
 
-          window.setTimeout(
-            () => {
-              if (mounted) {
-                cargarTodo();
-              }
-            },
-            250
-          );
+          programarRecarga();
         }
       )
       .on(
@@ -739,14 +733,7 @@ export default function TrabajoDetallePage() {
             return;
           }
 
-          window.setTimeout(
-            () => {
-              if (mounted) {
-                cargarTodo();
-              }
-            },
-            250
-          );
+          programarRecarga();
         }
       )
       .subscribe(
@@ -760,6 +747,10 @@ export default function TrabajoDetallePage() {
 
     return () => {
       mounted = false;
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
 
       supabase.removeChannel(
         channel
@@ -1413,339 +1404,228 @@ export default function TrabajoDetallePage() {
         );
       }
 
-      if (trabajoData.service_id) {
-        const { data: serviceData } = await supabase
-          .from("services")
-          .select("slug")
-          .eq("id", trabajoData.service_id)
-          .maybeSingle();
-        setServiceSlug(serviceData?.slug || null);
-      } else {
-        setServiceSlug(null);
-      }
-
       setTrabajo(
         trabajoData as Trabajo
       );
 
       /*
-        FOTOS
+        DATOS INDEPENDIENTES DEL DETALLE
+
+        Una vez validado el acceso al trabajo, estas consultas no dependen
+        entre sí. Las cargamos en paralelo para evitar una cascada de esperas.
       */
 
-      const {
-        data:
-          fotosData,
-        error:
-          fotosError,
-      } = await supabase
-        .from(
-          "request_photos"
-        )
-        .select(`
-          id,
-          request_id,
-          file_url
-        `)
-        .eq(
-          "request_id",
-          id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true,
-          }
-        );
+      const [
+        serviceResult,
+        fotosResult,
+        evidenciaFinalResult,
+        ofertaResult,
+        pagoResult,
+        cambiosResult,
+        reclamoResult,
+      ] = await Promise.all([
+        trabajoData.service_id
+          ? supabase
+              .from("services")
+              .select("slug")
+              .eq("id", trabajoData.service_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        supabase
+          .from("request_photos")
+          .select(`
+            id,
+            request_id,
+            file_url
+          `)
+          .eq("request_id", id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("job_completion_evidence")
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            file_type,
+            file_path,
+            file_url,
+            created_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("offers")
+          .select(`
+            id,
+            request_id,
+            professional_id,
+            price,
+            arrival_minutes,
+            estimated_job_minutes,
+            message,
+            status,
+            created_at
+          `)
+          .eq("request_id", id)
+          .eq("professional_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("payments")
+          .select(`
+            id,
+            request_id,
+            offer_id,
+            provider_id,
+            job_amount,
+            provider_commission_percent,
+            provider_commission_amount,
+            provider_net_amount,
+            status,
+            paid_at,
+            cancellation_stage,
+            cancellation_penalty_percent,
+            cancellation_penalty_amount,
+            cancellation_provider_amount,
+            cancellation_platform_amount,
+            cancellation_processed_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("change_orders")
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            customer_id,
+            reason,
+            description,
+            original_amount,
+            additional_amount,
+            new_total_amount,
+            status,
+            accepted_at,
+            rejected_at,
+            payment_status,
+            stripe_checkout_session_id,
+            stripe_payment_intent_id,
+            additional_customer_fee_percent,
+            additional_customer_fee_amount,
+            additional_customer_total_amount,
+            additional_provider_commission_percent,
+            additional_provider_commission_amount,
+            additional_provider_net_amount,
+            additional_platform_revenue_amount,
+            paid_at,
+            created_at,
+            updated_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("job_claims")
+          .select(`
+            id,
+            request_id,
+            customer_id,
+            provider_id,
+            reason,
+            description,
+            provider_response,
+            provider_response_deadline,
+            provider_responded_at,
+            status,
+            resolution_type,
+            resolution_notes,
+            provider_award_amount,
+            customer_refund_amount,
+            resolved_at,
+            created_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      if (
-        fotosError
-      ) {
-        console.error(
-          fotosError
-        );
-
-        setFotos([]);
+      if (serviceResult.error) {
+        console.error("Error cargando servicio:", serviceResult.error);
+        setServiceSlug(null);
       } else {
-        setFotos(
-          fotosData ||
-            []
-        );
+        setServiceSlug(serviceResult.data?.slug || null);
       }
 
-      /*
-        EVIDENCIA FINAL DEL TRABAJO
-      */
+      if (fotosResult.error) {
+        console.error(fotosResult.error);
+        setFotos([]);
+      } else {
+        setFotos(fotosResult.data || []);
+      }
 
-      const {
-        data: evidenciaFinalData,
-        error: evidenciaFinalError,
-      } = await supabase
-        .from("job_completion_evidence")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          file_type,
-          file_path,
-          file_url,
-          created_at
-        `)
-        .eq("request_id", id)
-        .eq("provider_id", user.id)
-        .order("created_at", {
-          ascending: true,
-        });
-
-      if (evidenciaFinalError) {
+      if (evidenciaFinalResult.error) {
         console.error(
           "Error cargando evidencia final:",
-          evidenciaFinalError
+          evidenciaFinalResult.error
         );
         setEvidenciasFinales([]);
       } else {
         setEvidenciasFinales(
-          (evidenciaFinalData || []) as EvidenciaFinal[]
+          (evidenciaFinalResult.data || []) as EvidenciaFinal[]
         );
       }
 
-      /*
-        PRESUPUESTO
-      */
-
-      const {
-        data:
-          ofertaData,
-        error:
-          ofertaError,
-      } = await supabase
-        .from(
-          "offers"
-        )
-        .select(`
-          id,
-          request_id,
-          professional_id,
-          price,
-          arrival_minutes,
-          estimated_job_minutes,
-          message,
-          status,
-          created_at
-        `)
-        .eq(
-          "request_id",
-          id
-        )
-        .eq(
-          "professional_id",
-          user.id
-        )
-        .maybeSingle();
-
-      if (
-        ofertaError
-      ) {
-        console.error(
-          ofertaError
-        );
+      if (ofertaResult.error) {
+        console.error(ofertaResult.error);
       }
+      setOferta(ofertaResult.data as Oferta | null);
 
-      setOferta(
-        ofertaData as Oferta | null
-      );
-
-
-      /*
-        PAGO DEL PROFESIONAL
-      */
-
-      const {
-        data:
-          pagoData,
-        error:
-          pagoError,
-      } = await supabase
-        .from(
-          "payments"
-        )
-        .select(`
-          id,
-          request_id,
-          offer_id,
-          provider_id,
-          job_amount,
-          provider_commission_percent,
-          provider_commission_amount,
-          provider_net_amount,
-          status,
-          paid_at,
-          cancellation_stage,
-          cancellation_penalty_percent,
-          cancellation_penalty_amount,
-          cancellation_provider_amount,
-          cancellation_platform_amount,
-          cancellation_processed_at
-        `)
-        .eq(
-          "request_id",
-          id
-        )
-        .eq(
-          "provider_id",
-          user.id
-        )
-        .order(
-          "updated_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(1)
-        .maybeSingle();
-
-      if (
-        pagoError
-      ) {
+      if (pagoResult.error) {
         console.error(
           "Error cargando pago del profesional:",
-          pagoError
+          pagoResult.error
         );
-
         setPago(null);
       } else {
-        setPago(
-          pagoData as Pago | null
-        );
+        setPago(pagoResult.data as Pago | null);
       }
 
-
-      /*
-        CAMBIOS DE PRESUPUESTO
-      */
-
-      const {
-        data: cambiosData,
-        error: cambiosError,
-      } = await supabase
-        .from("change_orders")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          customer_id,
-          reason,
-          description,
-          original_amount,
-          additional_amount,
-          new_total_amount,
-          status,
-          accepted_at,
-          rejected_at,
-          payment_status,
-          stripe_checkout_session_id,
-          stripe_payment_intent_id,
-          additional_customer_fee_percent,
-          additional_customer_fee_amount,
-          additional_customer_total_amount,
-          additional_provider_commission_percent,
-          additional_provider_commission_amount,
-          additional_provider_net_amount,
-          additional_platform_revenue_amount,
-          paid_at,
-          created_at,
-          updated_at
-        `)
-        .eq("request_id", id)
-        .eq("provider_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (cambiosError) {
+      if (cambiosResult.error) {
         console.error(
           "Error cargando cambios de presupuesto:",
-          cambiosError
+          cambiosResult.error
         );
         setCambiosPresupuesto([]);
       } else {
         setCambiosPresupuesto(
-          (cambiosData || []) as ChangeOrder[]
+          (cambiosResult.data || []) as ChangeOrder[]
         );
       }
 
-
-      /*
-        RECLAMO DEL TRABAJO
-      */
-
-      const {
-        data: reclamoData,
-        error: reclamoError,
-      } = await supabase
-        .from("job_claims")
-        .select(`
-          id,
-          request_id,
-          customer_id,
-          provider_id,
-          reason,
-          description,
-          provider_response,
-          provider_response_deadline,
-          provider_responded_at,
-          status,
-          resolution_type,
-          resolution_notes,
-          provider_award_amount,
-          customer_refund_amount,
-          resolved_at,
-          created_at
-        `)
-        .eq(
-          "request_id",
-          id
-        )
-        .eq(
-          "provider_id",
-          user.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(1)
-        .maybeSingle();
-
-      if (
-        reclamoError
-      ) {
+      if (reclamoResult.error) {
         console.error(
           "Error cargando reclamo del trabajo:",
-          reclamoError
+          reclamoResult.error
         );
-
         setReclamo(null);
         setEvidenciasReclamo([]);
       } else {
         const reclamoActual =
-          reclamoData as ReclamoTrabajo | null;
+          reclamoResult.data as ReclamoTrabajo | null;
 
-        setReclamo(
-          reclamoActual
-        );
+        setReclamo(reclamoActual);
 
-        if (
-          reclamoActual
-        ) {
+        if (reclamoActual) {
           const {
             data: evidenciasData,
             error: evidenciasError,
           } = await supabase
-            .from(
-              "claim_evidence"
-            )
+            .from("claim_evidence")
             .select(`
               id,
               claim_id,
@@ -1755,46 +1635,24 @@ export default function TrabajoDetallePage() {
               file_path,
               created_at
             `)
-            .eq(
-              "claim_id",
-              reclamoActual.id
-            )
-            .eq(
-              "uploaded_by",
-              user.id
-            )
-            .eq(
-              "uploaded_by_role",
-              "provider"
-            )
-            .order(
-              "created_at",
-              {
-                ascending: true,
-              }
-            );
+            .eq("claim_id", reclamoActual.id)
+            .eq("uploaded_by", user.id)
+            .eq("uploaded_by_role", "provider")
+            .order("created_at", { ascending: true });
 
-          if (
-            evidenciasError
-          ) {
+          if (evidenciasError) {
             console.error(
               "Error cargando evidencia del profesional:",
               evidenciasError
             );
-
-            setEvidenciasReclamo(
-              []
-            );
+            setEvidenciasReclamo([]);
           } else {
             setEvidenciasReclamo(
-              (evidenciasData ||
-                []) as EvidenciaReclamo[]
+              (evidenciasData || []) as EvidenciaReclamo[]
             );
           }
         } else {
-          setEvidenciasReclamo(
-            []
-          );
+          setEvidenciasReclamo([]);
         }
       }
     } catch (err) {
