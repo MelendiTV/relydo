@@ -344,7 +344,7 @@ export async function POST(
         {
           error:
             settingsError
-              ? `No pudimos cargar la configuración de cancelaciones: ${settingsError.message}`
+              ? "No pudimos cargar la configuración de cancelaciones."
               : "No existe una configuración activa de cancelaciones.",
         },
         { status: 500 }
