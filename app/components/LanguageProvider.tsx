@@ -48,45 +48,37 @@ export function LanguageProvider({
     async function loadLanguage() {
       const browserLanguage = getBrowserLanguage();
 
+      if (active) {
+        setLanguage(browserLanguage);
+      }
+
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
         if (!user) {
-          if (active) setLanguage(browserLanguage);
           return;
         }
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("preferred_language")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        const savedLanguage = profile?.preferred_language;
-
-        if (savedLanguage === "es" || savedLanguage === "en") {
-          if (active) setLanguage(savedLanguage);
-          return;
-        }
-
-        if (active) setLanguage(browserLanguage);
 
         const { error: updateError } = await supabase
           .from("profiles")
-          .update({ preferred_language: browserLanguage })
+          .update({
+            preferred_language: browserLanguage,
+          })
           .eq("id", user.id);
 
         if (updateError) {
           console.warn(
-            "Could not save preferred language:",
+            "Could not save detected browser language:",
             updateError.message
           );
         }
       } catch (error) {
-        if (active) setLanguage(browserLanguage);
-        console.warn("Could not load preferred language:", error);
+        console.warn(
+          "Could not save detected browser language:",
+          error
+        );
       }
     }
 
@@ -109,21 +101,29 @@ export function LanguageProvider({
 
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ preferred_language: nextLanguage })
+        .update({
+          preferred_language: nextLanguage,
+        })
         .eq("id", user.id);
 
       if (updateError) {
         throw updateError;
       }
     } catch (error) {
-      console.warn("Could not update preferred language:", error);
+      console.warn(
+        "Could not update preferred language:",
+        error
+      );
       throw error;
     }
   }
 
   return (
     <LanguageContext.Provider
-      value={{ language, setLanguage: updateLanguage }}
+      value={{
+        language,
+        setLanguage: updateLanguage,
+      }}
     >
       {children}
     </LanguageContext.Provider>
