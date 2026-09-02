@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
@@ -32,18 +33,6 @@ type ProviderProfile = {
   verification_status: string | null;
   verified: boolean | null;
   active: boolean | null;
-};
-
-type GeneralProfile = {
-  state: string | null;
-};
-
-type ProviderService = {
-  service_id: string;
-};
-
-type ReleasedJob = {
-  request_id: string;
 };
 
 type ProviderOfferStatus = {
@@ -211,154 +200,19 @@ export default function TrabajosPage() {
           )
         );
       }
-
       /*
-        4. OBTENER SERVICIOS
-        ASIGNADOS AL PROFESIONAL
+        4. BUSCAR TRABAJOS
+
+        El RPC ya aplica en PostgreSQL:
+        - profesional verificado y activo
+        - especialidades
+        - estado
+        - solicitudes dirigidas
+        - trabajos liberados
+        - solo solicitudes abiertas
       */
 
-      const {
-        data: providerServices,
-        error: servicesError,
-      } = await supabase
-        .from("provider_services")
-        .select("service_id")
-        .eq(
-          "provider_id",
-          user.id
-        );
-
-      if (servicesError) {
-        throw new Error(
-          `${T(
-            "No se pudieron cargar tus especialidades",
-            "We could not load your specialties"
-          )}: ${servicesError.message}`
-        );
-      }
-
-      const servicios =
-        (providerServices || []) as ProviderService[];
-
-      const serviceIds =
-        servicios.map(
-          (item) => item.service_id
-        );
-
-      if (serviceIds.length === 0) {
-        setTrabajos([]);
-        return;
-      }
-
-      /*
-        5. OBTENER ESTADO
-
-        Primero usamos:
-        provider_profiles.state
-
-        Si está vacío,
-        intentamos profiles.state
-      */
-
-      let providerState =
-        perfil.state
-          ?.trim()
-          .toUpperCase() ||
-        "";
-
-      if (!providerState) {
-        const {
-          data: generalProfile,
-          error: generalProfileError,
-        } = await supabase
-          .from("profiles")
-          .select("state")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (generalProfileError) {
-          console.error(
-            "No se pudo comprobar el estado en profiles:",
-            generalProfileError
-          );
-        }
-
-        const perfilGeneral =
-          generalProfile as GeneralProfile | null;
-
-        providerState =
-          perfilGeneral?.state
-            ?.trim()
-            .toUpperCase() ||
-          "";
-      }
-
-      if (!providerState) {
-        throw new Error(
-          T(
-            "Tu perfil profesional no tiene un estado configurado. Completa tu perfil e indica el estado donde trabajas.",
-            "Your professional profile does not have a state configured. Complete your profile and enter the state where you work."
-          )
-        );
-      }
-
-      /*
-        6. TRABAJOS QUE ESTE PROFESIONAL
-        YA LIBERÓ
-
-        Esta tabla guarda las solicitudes que
-        el profesional devolvió al sistema.
-
-        Ese profesional NO debe volver a verlas,
-        pero los demás profesionales sí.
-      */
-
-      const {
-        data: releasedJobsData,
-        error: releasedJobsError,
-      } = await supabase
-        .from(
-          "provider_released_jobs"
-        )
-        .select(
-          "request_id"
-        )
-        .eq(
-          "professional_id",
-          user.id
-        );
-
-      if (releasedJobsError) {
-        throw new Error(
-          `${T(
-            "No se pudo comprobar el historial de trabajos liberados",
-            "We could not check your released job history"
-          )}: ${releasedJobsError.message}`
-        );
-      }
-
-      const releasedJobs =
-        (releasedJobsData ||
-          []) as ReleasedJob[];
-
-      const releasedRequestIds =
-        new Set(
-          releasedJobs.map(
-            (item) =>
-              item.request_id
-          )
-        );
-
-      /*
-        7. BUSCAR TRABAJOS
-
-        FILTROS:
-        - abiertos
-        - misma especialidad
-        - mismo estado
-      */
-
-      const {
+const {
         data,
         error: trabajosError,
       } = await supabase.rpc(
@@ -373,44 +227,8 @@ export default function TrabajosPage() {
           )}: ${trabajosError.message}`
         );
       }
-
-      /*
-        8. FILTRAR TRABAJOS VISIBLES
-
-        REGLAS:
-
-        1. Si preferred_provider_id es NULL:
-           cualquier profesional compatible
-           puede verlo.
-
-        2. Si tiene preferred_provider_id:
-           solamente ese profesional puede verlo.
-
-        3. Si este profesional ya liberó
-           la solicitud:
-           NO vuelve a verla.
-      */
-
-      const safeJobs = (data || []) as Trabajo[];
-
       const visibles =
-        safeJobs.filter(
-          (trabajo: Trabajo) => {
-            const puedeVerPorPreferencia =
-              trabajo.preferred_provider_id === null ||
-              trabajo.preferred_provider_id === user.id;
-
-            const yaLoLibero =
-              releasedRequestIds.has(
-                trabajo.id
-              );
-
-            return (
-              puedeVerPorPreferencia &&
-              !yaLoLibero
-            );
-          }
-        );
+        (data || []) as Trabajo[];
 
       const visibleRequestIds =
         visibles.map(
