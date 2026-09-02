@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {
@@ -1188,6 +1188,11 @@ export default function AdminPage() {
 
       /*
         EVIDENCIAS DE RECLAMOS
+
+        Cargamos solo los metadatos aquí. Las URLs firmadas se generan
+        de forma diferida en EvidenciaAdminCard cuando la tarjeta entra
+        en pantalla. Así evitamos disparar cientos o miles de operaciones
+        de Storage durante la carga inicial del panel.
       */
 
       const {
@@ -1228,51 +1233,13 @@ export default function AdminPage() {
               "signed_url"
             >[];
 
-        const evidenciasConUrl =
-          await Promise.all(
-            evidenciasBase.map(
-              async (
-                evidencia
-              ) => {
-                const ruta =
-                  evidencia.file_path ||
-                  evidencia.file_url;
-
-                const {
-                  data:
-                    signedData,
-                  error:
-                    signedError,
-                } =
-                  await supabase.storage
-                    .from(
-                      "claim-evidence"
-                    )
-                    .createSignedUrl(
-                      ruta,
-                      60 * 60
-                    );
-
-                if (signedError) {
-                  console.error(
-                    "No se pudo crear URL firmada para evidencia:",
-                    evidencia.id,
-                    signedError
-                  );
-                }
-
-                return {
-                  ...evidencia,
-                  signed_url:
-                    signedData?.signedUrl ||
-                    null,
-                };
-              }
-            )
-          );
-
         setEvidenciasReclamos(
-          evidenciasConUrl
+          evidenciasBase.map(
+            (evidencia) => ({
+              ...evidencia,
+              signed_url: null,
+            })
+          )
         );
       }
 
@@ -6390,18 +6357,163 @@ function EvidenciaAdminCard({
 }: {
   evidencia: ClaimEvidenceAdmin;
 }) {
-  const url =
-    evidencia.signed_url;
+  const contenedorRef =
+    useRef<HTMLDivElement | null>(null);
+
+  const [url, setUrl] =
+    useState<string | null>(
+      evidencia.signed_url
+    );
+
+  const [cargando, setCargando] =
+    useState(false);
+
+  const [fallo, setFallo] =
+    useState(false);
+
+  useEffect(() => {
+    let activo = true;
+    let observer: IntersectionObserver | null = null;
+
+    setUrl(
+      evidencia.signed_url
+    );
+    setFallo(false);
+
+    if (evidencia.signed_url) {
+      return () => {
+        activo = false;
+      };
+    }
+
+    const ruta = String(
+      evidencia.file_path ||
+      evidencia.file_url ||
+      ""
+    ).trim();
+
+    if (!ruta) {
+      setFallo(true);
+      return () => {
+        activo = false;
+      };
+    }
+
+    const cargarUrlSegura =
+      async () => {
+        setCargando(true);
+
+        const {
+          data: signedData,
+          error: signedError,
+        } =
+          await supabase.storage
+            .from("claim-evidence")
+            .createSignedUrl(
+              ruta,
+              60 * 60
+            );
+
+        if (!activo) {
+          return;
+        }
+
+        if (
+          signedError ||
+          !signedData?.signedUrl
+        ) {
+          console.error(
+            "No se pudo crear URL firmada para evidencia:",
+            evidencia.id,
+            signedError
+          );
+          setFallo(true);
+          setCargando(false);
+          return;
+        }
+
+        setUrl(
+          signedData.signedUrl
+        );
+        setCargando(false);
+      };
+
+    const elemento =
+      contenedorRef.current;
+
+    if (
+      !elemento ||
+      typeof IntersectionObserver ===
+        "undefined"
+    ) {
+      void cargarUrlSegura();
+
+      return () => {
+        activo = false;
+      };
+    }
+
+    observer =
+      new IntersectionObserver(
+        (entries) => {
+          if (
+            entries.some(
+              (entry) =>
+                entry.isIntersecting
+            )
+          ) {
+            observer?.disconnect();
+            void cargarUrlSegura();
+          }
+        },
+        {
+          rootMargin: "250px",
+        }
+      );
+
+    observer.observe(elemento);
+
+    return () => {
+      activo = false;
+      observer?.disconnect();
+    };
+  }, [
+    evidencia.id,
+    evidencia.file_path,
+    evidencia.file_url,
+    evidencia.signed_url,
+  ]);
+
+  if (
+    !url &&
+    !fallo
+  ) {
+    return (
+      <div
+        ref={contenedorRef}
+        className="flex h-48 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-4 text-center"
+      >
+        <p className="text-sm font-bold text-slate-500">
+          {cargando
+            ? "Cargando evidencia segura..."
+            : "La evidencia se cargará al entrar en pantalla."}
+        </p>
+      </div>
+    );
+  }
 
   if (!url) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+      <div
+        ref={contenedorRef}
+        className="rounded-xl border border-red-200 bg-red-50 p-4"
+      >
         <p className="text-sm font-extrabold text-red-800">
           No se pudo abrir este archivo.
         </p>
 
         <p className="mt-1 text-xs text-red-600">
-          Actualiza los reclamos para generar un nuevo enlace seguro.
+          Actualiza los reclamos para intentar generar un nuevo enlace seguro.
         </p>
       </div>
     );
@@ -6412,8 +6524,10 @@ function EvidenciaAdminCard({
     "video"
   ) {
     return (
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
+      <div
+        ref={contenedorRef}
+        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
         <video
           controls
           preload="metadata"
@@ -6433,28 +6547,30 @@ function EvidenciaAdminCard({
             🎥 Abrir video
           </a>
         </div>
-
       </div>
     );
   }
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-    >
-      <img
-        src={url}
-        alt="Evidencia del reclamo"
-        className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
-      />
+    <div ref={contenedorRef}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
+        <img
+          src={url}
+          alt="Evidencia del reclamo"
+          loading="lazy"
+          className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
+        />
 
-      <div className="p-3 text-center text-sm font-extrabold text-blue-700">
-        🖼️ Abrir foto
-      </div>
-    </a>
+        <div className="p-3 text-center text-sm font-extrabold text-blue-700">
+          🖼️ Abrir foto
+        </div>
+      </a>
+    </div>
   );
 }
 
