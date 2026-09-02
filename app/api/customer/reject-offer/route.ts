@@ -413,9 +413,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo rechazar el presupuesto.",
+          "No se pudo rechazar el presupuesto.",
       },
       {
         status: 500,

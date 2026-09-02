@@ -39,6 +39,10 @@ export function LanguageProvider({
     useState<AppLanguage>("en");
 
   useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     let active = true;
 
     async function loadLanguage() {

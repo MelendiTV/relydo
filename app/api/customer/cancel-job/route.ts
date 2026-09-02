@@ -1154,9 +1154,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo procesar la cancelación.",
+          "No se pudo procesar la cancelación.",
       },
       { status: 500 }
     );

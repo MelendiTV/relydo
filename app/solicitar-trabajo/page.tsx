@@ -886,23 +886,15 @@ function SolicitarTrabajoContenido() {
           filePath
         );
 
-        const {
-          data:
-            publicUrlData,
-        } =
-          supabase.storage
-            .from("request-photos")
-            .getPublicUrl(
-              filePath
-            );
-
+        // request-photos is private. Store only the object path in DB;
+        // authorized readers generate a short-lived signed URL when needed.
         fotosParaGuardar.push(
           {
             request_id:
               requestId,
 
             file_url:
-              publicUrlData.publicUrl,
+              filePath,
           }
         );
       }

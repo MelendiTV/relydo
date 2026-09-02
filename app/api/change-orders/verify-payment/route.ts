@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     if (changeOrderError) {
       return NextResponse.json(
         {
-          error: `No pudimos consultar el cambio de presupuesto: ${changeOrderError.message}`,
+          error: "No pudimos consultar el cambio de presupuesto.",
         },
         { status: 500 }
       );
@@ -398,7 +398,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       return NextResponse.json(
         {
-          error: `Stripe cobró correctamente, pero RELYDO no pudo guardar el pago adicional: ${updateError.message}`,
+          error: "El pago adicional fue confirmado, pero no pudimos actualizar su registro automáticamente.",
         },
         { status: 500 }
       );
@@ -509,9 +509,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No pudimos verificar el pago adicional.",
+          "No pudimos verificar el pago adicional.",
       },
       { status: 500 }
     );

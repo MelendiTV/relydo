@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     if (serviceRequestError) {
       return NextResponse.json(
-        { error: `No pudimos consultar la solicitud: ${serviceRequestError.message}` },
+        { error: "No pudimos consultar la solicitud." },
         { status: 500 }
       );
     }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (offerError) {
       return NextResponse.json(
-        { error: `Error buscando la oferta: ${offerError.message}` },
+        { error: "No pudimos consultar el presupuesto." },
         { status: 500 }
       );
     }
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     if (existingPaymentError) {
       return NextResponse.json(
-        { error: `No pudimos comprobar pagos anteriores: ${existingPaymentError.message}` },
+        { error: "No pudimos comprobar pagos anteriores." },
         { status: 500 }
       );
     }
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     if (settingsError || !paymentSettings) {
       return NextResponse.json(
-        { error: settingsError?.message || "No existe una configuración de pagos activa en RELYDO." },
+        { error: "No pudimos cargar la configuración de pagos." },
         { status: 500 }
       );
     }
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creando Stripe Checkout:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No se pudo crear la sesión de pago." },
+      { error: "No se pudo crear la sesión de pago." },
       { status: 500 }
     );
   }

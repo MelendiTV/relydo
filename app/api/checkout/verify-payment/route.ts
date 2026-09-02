@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     if (offerError) {
       return NextResponse.json(
         {
-          error: `Error buscando la oferta: ${offerError.message}`,
+          error: "No pudimos consultar el presupuesto.",
         },
         { status: 500 }
       );
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
     if (requestError) {
       return NextResponse.json(
         {
-          error: `Error buscando la solicitud: ${requestError.message}`,
+          error: "No pudimos consultar la solicitud.",
         },
         { status: 500 }
       );
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
     if (existingPaymentError) {
       return NextResponse.json(
         {
-          error: `No pudimos comprobar el registro del pago: ${existingPaymentError.message}`,
+          error: "No pudimos comprobar el registro del pago.",
         },
         { status: 500 }
       );
@@ -446,7 +446,7 @@ export async function POST(request: NextRequest) {
       if (claimError) {
         return NextResponse.json(
           {
-            error: `Stripe confirmó el pago, pero no pudimos reservar el trabajo: ${claimError.message}`,
+            error: "El pago fue confirmado, pero no pudimos reservar el trabajo automáticamente.",
           },
           { status: 500 }
         );
@@ -494,7 +494,7 @@ export async function POST(request: NextRequest) {
     if (selectedOfferError) {
       return NextResponse.json(
         {
-          error: `Stripe confirmó el pago, pero no pudimos seleccionar la oferta: ${selectedOfferError.message}`,
+          error: "El pago fue confirmado, pero no pudimos seleccionar el presupuesto automáticamente.",
         },
         { status: 500 }
       );
@@ -555,7 +555,7 @@ export async function POST(request: NextRequest) {
         if (insertPaymentError.code !== "23505") {
           return NextResponse.json(
             {
-              error: `Stripe confirmó el pago, pero RELYDO no pudo crear payments: ${insertPaymentError.message}`,
+              error: "El pago fue confirmado, pero no pudimos registrar el pago automáticamente.",
             },
             { status: 500 }
           );
@@ -613,7 +613,7 @@ export async function POST(request: NextRequest) {
       if (updatePaymentError) {
         return NextResponse.json(
           {
-            error: `Stripe confirmó el pago, pero RELYDO no pudo completar payments: ${updatePaymentError.message}`,
+            error: "El pago fue confirmado, pero no pudimos actualizar el registro del pago automáticamente.",
           },
           { status: 500 }
         );
@@ -670,9 +670,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo verificar el pago.",
+          "No se pudo verificar el pago.",
       },
       { status: 500 }
     );

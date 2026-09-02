@@ -886,9 +886,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No pudimos iniciar el pago adicional.",
+          "No pudimos iniciar el pago adicional.",
       },
       {
         status: 500,

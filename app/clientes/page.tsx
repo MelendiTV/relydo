@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-const LOGO_SRC = "/icon/relydo-logo.png";
+const LOGO_SRC = "/icon/logo-oficial.png";
 
 function BrandLogo() {
   return (
@@ -37,7 +37,7 @@ function BrandLogo() {
 
 export default function ClientesHome() {
   const router = useRouter();
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
 
   const [busqueda, setBusqueda] = useState("");
 
@@ -487,7 +487,7 @@ export default function ClientesHome() {
               router.push("/")
             }
             aria-label="RELYDO Home"
-            className="shrink-0"
+            className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <BrandLogo />
           </button>
@@ -497,7 +497,7 @@ export default function ClientesHome() {
             <button
               type="button"
               onClick={() => router.push("/")}
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
+              className="rounded-md text-sm font-bold text-slate-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               {text.homeNav}
             </button>
@@ -514,7 +514,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
+              className="rounded-md text-sm font-bold text-slate-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               {
                 text.servicesNav
@@ -533,7 +533,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
+              className="rounded-md text-sm font-bold text-slate-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               {text.howNav}
             </button>
@@ -550,7 +550,7 @@ export default function ClientesHome() {
                       "smooth",
                   })
               }
-              className="text-sm font-bold text-slate-200 transition hover:text-white"
+              className="rounded-md text-sm font-bold text-slate-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               {text.trustNav}
             </button>
@@ -559,6 +559,21 @@ export default function ClientesHome() {
 
           <div className="flex items-center gap-2">
 
+            <div className="flex items-center rounded-xl border border-white/20 bg-white/5 p-1" aria-label={es ? "Seleccionar idioma" : "Select language"}>
+              <button
+                type="button"
+                onClick={() => void setLanguage("es")}
+                aria-pressed={language === "es"}
+                className={`rounded-lg px-2 py-1.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${language === "es" ? "bg-white text-slate-950" : "text-slate-200 hover:bg-white/10 hover:text-white"}`}
+              >ES</button>
+              <button
+                type="button"
+                onClick={() => void setLanguage("en")}
+                aria-pressed={language === "en"}
+                className={`rounded-lg px-2 py-1.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${language === "en" ? "bg-white text-slate-950" : "text-slate-200 hover:bg-white/10 hover:text-white"}`}
+              >EN</button>
+            </div>
+
             <button
               type="button"
               onClick={() =>
@@ -566,7 +581,7 @@ export default function ClientesHome() {
                   "/para-profesionales"
                 )
               }
-              className="hidden rounded-xl px-4 py-2 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white sm:block"
+              className="hidden rounded-xl px-4 py-2 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:block"
             >
               {text.pros}
             </button>
@@ -578,7 +593,7 @@ export default function ClientesHome() {
                   "/login-cliente"
                 )
               }
-              className="rounded-xl border border-white/25 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-blue-50 sm:px-5 sm:text-sm"
+              className="rounded-xl border border-white/25 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:px-5 sm:text-sm"
             >
               {text.signIn}
             </button>
@@ -590,7 +605,7 @@ export default function ClientesHome() {
                   "/registro-cliente"
                 )
               }
-              className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm"
+              className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:px-5 sm:py-3 sm:text-sm"
             >
               {text.signUp}
             </button>
