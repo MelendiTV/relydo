@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     if (offerError) {
       return NextResponse.json(
         {
-          error: "No pudimos consultar el presupuesto.",
+          error: "No pudimos consultar la oferta.",
         },
         { status: 500 }
       );
@@ -446,7 +446,7 @@ export async function POST(request: NextRequest) {
       if (claimError) {
         return NextResponse.json(
           {
-            error: "El pago fue confirmado, pero no pudimos reservar el trabajo automáticamente.",
+            error: "Stripe confirmó el pago, pero no pudimos reservar el trabajo.",
           },
           { status: 500 }
         );
@@ -494,7 +494,7 @@ export async function POST(request: NextRequest) {
     if (selectedOfferError) {
       return NextResponse.json(
         {
-          error: "El pago fue confirmado, pero no pudimos seleccionar el presupuesto automáticamente.",
+          error: "Stripe confirmó el pago, pero no pudimos seleccionar la oferta.",
         },
         { status: 500 }
       );
@@ -555,7 +555,7 @@ export async function POST(request: NextRequest) {
         if (insertPaymentError.code !== "23505") {
           return NextResponse.json(
             {
-              error: "El pago fue confirmado, pero no pudimos registrar el pago automáticamente.",
+              error: "Stripe confirmó el pago, pero RELYDO no pudo registrar el pago.",
             },
             { status: 500 }
           );
@@ -613,7 +613,7 @@ export async function POST(request: NextRequest) {
       if (updatePaymentError) {
         return NextResponse.json(
           {
-            error: "El pago fue confirmado, pero no pudimos actualizar el registro del pago automáticamente.",
+            error: "Stripe confirmó el pago, pero RELYDO no pudo completar el registro del pago.",
           },
           { status: 500 }
         );
@@ -669,8 +669,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          "No se pudo verificar el pago.",
+        error: "No se pudo verificar el pago.",
       },
       { status: 500 }
     );

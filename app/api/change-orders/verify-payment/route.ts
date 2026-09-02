@@ -330,9 +330,9 @@ export async function POST(request: NextRequest) {
     if (serviceRequestError || !serviceRequest) {
       return NextResponse.json(
         {
-          error:
-            serviceRequestError?.message ||
-            "No encontramos el trabajo correspondiente.",
+          error: serviceRequestError
+            ? "No pudimos consultar el trabajo correspondiente."
+            : "No encontramos el trabajo correspondiente.",
         },
         { status: serviceRequestError ? 500 : 404 }
       );
@@ -398,7 +398,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       return NextResponse.json(
         {
-          error: "El pago adicional fue confirmado, pero no pudimos actualizar su registro automáticamente.",
+          error: "Stripe cobró correctamente, pero RELYDO no pudo guardar el pago adicional.",
         },
         { status: 500 }
       );
@@ -508,8 +508,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          "No pudimos verificar el pago adicional.",
+        error: "No pudimos verificar el pago adicional.",
       },
       { status: 500 }
     );

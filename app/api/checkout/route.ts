@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (offerError) {
       return NextResponse.json(
-        { error: "No pudimos consultar el presupuesto." },
+        { error: "No pudimos consultar la oferta." },
         { status: 500 }
       );
     }

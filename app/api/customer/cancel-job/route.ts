@@ -182,7 +182,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            `No pudimos consultar la solicitud: ${requestError.message}`,
+            "No pudimos consultar la solicitud.",
         },
         { status: 500 }
       );
@@ -281,7 +281,7 @@ export async function POST(
         return NextResponse.json(
           {
             error:
-              `No se pudo cancelar la solicitud: ${cancelError.message}`,
+              "No se pudo cancelar la solicitud.",
           },
           { status: 500 }
         );
@@ -467,7 +467,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            `No pudimos consultar el pago: ${paymentError.message}`,
+            "No pudimos consultar el pago.",
         },
         { status: 500 }
       );
@@ -744,7 +744,7 @@ export async function POST(
         return NextResponse.json(
           {
             error:
-              `No pudimos consultar Stripe Connect: ${providerProfileError.message}`,
+              "No pudimos consultar la configuración de pagos del profesional.",
           },
           { status: 500 }
         );
@@ -1153,8 +1153,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error:
-          "No se pudo procesar la cancelación.",
+        error: "No se pudo procesar la cancelación.",
       },
       { status: 500 }
     );

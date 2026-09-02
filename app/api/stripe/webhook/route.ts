@@ -35,12 +35,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Invalid Stripe signature.",
-      },
+      { error: "Invalid Stripe signature." },
       { status: 400 }
     );
   }

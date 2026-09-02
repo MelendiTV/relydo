@@ -298,8 +298,7 @@ export async function POST(
     if (updateError) {
       return NextResponse.json(
         {
-          error:
-            updateError.message,
+          error: "No se pudo actualizar el presupuesto.",
         },
         {
           status: 500,
@@ -412,8 +411,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error:
-          "No se pudo rechazar el presupuesto.",
+        error: "No se pudo rechazar el presupuesto.",
       },
       {
         status: 500,

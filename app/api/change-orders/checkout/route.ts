@@ -210,7 +210,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            `No pudimos consultar el cambio de presupuesto: ${changeOrderError.message}`,
+            "No pudimos consultar el cambio de presupuesto.",
         },
         {
           status: 500,
@@ -369,7 +369,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            `No pudimos consultar el trabajo: ${serviceRequestError.message}`,
+            "No pudimos consultar el trabajo.",
         },
         {
           status: 500,
@@ -885,8 +885,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error:
-          "No pudimos iniciar el pago adicional.",
+        error: "No pudimos iniciar el pago adicional.",
       },
       {
         status: 500,
