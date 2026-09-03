@@ -4726,6 +4726,8 @@ export default function TrabajoDetallePage() {
                     : trabajo.status ===
                       "completed"
                     ? T("Completado", "Completed")
+                    : reclamoActivo
+                    ? T("Bajo revisión de RELYDO", "Under RELYDO review")
                     : trabajo.status ===
                       "in_progress"
                     ? T("En progreso", "In progress")
