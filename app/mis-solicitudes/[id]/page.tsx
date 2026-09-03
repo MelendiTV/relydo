@@ -4438,12 +4438,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </div>
                   )}
 
-                  {payment.status === "ready_for_payout" && (
-                    <p className="mt-3 text-xs leading-5 text-amber-700">
-                      {T("El pago está protegido por RELYDO y todavía no ha sido liberado al profesional.")}
-                    </p>
-                  )}
-
                   {payment.status === "paid_out" && (
                     <p className="mt-3 text-xs leading-5 text-blue-700">
                       {T("El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.")}
