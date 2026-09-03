@@ -4569,7 +4569,7 @@ export default function TrabajoDetallePage() {
         {/* CABECERA */}
 
         <section
-          className={`p-7 md:p-8 ${
+          className={`p-5 sm:p-6 ${
             trabajo.status === "open"
               ? "bg-transparent"
               : `rounded-3xl border bg-white shadow-lg ${
@@ -4579,7 +4579,7 @@ export default function TrabajoDetallePage() {
                 }`
           }`}
         >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1">
               <div className="flex flex-wrap gap-2">
 
@@ -4621,15 +4621,15 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
 
-              <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl md:text-4xl">
+              <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 {trabajo.title}
               </h1>
 
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
                 {trabajo.description}
               </p>
 
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
                 <Info
                   icono="📍"
@@ -4666,7 +4666,7 @@ export default function TrabajoDetallePage() {
               </div>
             </div>
 
-            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 lg:w-64">
+            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 lg:w-60">
               <p className="text-center text-sm text-slate-500">
                 {T("ID del trabajo", "Job ID")}
               </p>
@@ -4689,7 +4689,7 @@ export default function TrabajoDetallePage() {
                       "smooth",
                   })
                 }
-                className="mt-5 w-full rounded-xl bg-blue-700 px-4 py-3 font-extrabold text-white transition hover:bg-blue-800"
+                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2.5 font-extrabold text-white transition hover:bg-blue-800"
               >
                 {T("Ver detalle completo", "View full details")}
               </button>
@@ -4700,21 +4700,21 @@ export default function TrabajoDetallePage() {
         {/* GRID PRINCIPAL */}
 
         <div className={`grid grid-cols-1 ${
-          trabajo.status === "open" ? "gap-0" : "mt-6 gap-6"
+          trabajo.status === "open" ? "gap-0" : "mt-5 gap-4 sm:mt-6 sm:gap-6"
         } ${
-          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]"
+          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "xl:grid-cols-2"
         }`}>
 
           {/* IZQUIERDA */}
 
-          <div className="space-y-4 sm:space-y-6">
+          <div className={trabajo.status === "open" || trabajo.status === "completed" || trabajo.status === "cancelled" ? "space-y-4 sm:space-y-6" : "contents"}>
 
             {/* SEGUIMIENTO */}
 
             {trabajo.status !==
               "open" &&
               !ofertaRechazadaPorCliente && (
-                <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+                <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
                   <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled")
                     ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                     : "hidden"}>
@@ -4743,7 +4743,7 @@ export default function TrabajoDetallePage() {
                     </div>
                   </summary>
                   <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-6">
+              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -4770,7 +4770,7 @@ export default function TrabajoDetallePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="mt-6 grid grid-cols-3 gap-x-1 gap-y-6 sm:mt-8 sm:grid-cols-6 sm:gap-y-0">
+                    <div className="mt-5 grid grid-cols-3 gap-x-1 gap-y-5 sm:mt-6 sm:grid-cols-6 sm:gap-y-0">
                       {etapas.map(
                         (etapa) => {
                           const activo =
@@ -4832,15 +4832,14 @@ export default function TrabajoDetallePage() {
                     </div>
 
                     {contratado && (
-                      <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:mt-8 sm:p-6">
+                      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xl text-white">
-                            i
-                          </div>
-
+                        <div className="flex items-center justify-between gap-4">
                           <div>
-                            <h3 className="text-xl font-black text-blue-950">
+                            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                              {T("Acciones del trabajo", "Job actions")}
+                            </p>
+                            <h3 className="mt-1 text-lg font-black text-slate-950">
                               {etapaActual ===
                               1
                                 ? T("Trabajo contratado", "Job hired")
@@ -4857,13 +4856,13 @@ export default function TrabajoDetallePage() {
                                 : T("Trabajo completado", "Job completed")}
                             </h3>
 
-                            <p className="mt-1 text-sm leading-6 text-blue-900">
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
                               {T("El cliente puede ver el avance del servicio en tiempo real.", "The customer can see the service progress in real time.")}
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
                           {etapaActual ===
                             1 && (
@@ -5621,7 +5620,7 @@ export default function TrabajoDetallePage() {
               className={
                 trabajo.status === "open"
                   ? "border-t border-slate-200 bg-transparent p-6"
-                  : "rounded-3xl border border-slate-200 bg-white p-6 shadow-lg"
+                  : "rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"
               }
             >
 
@@ -5697,7 +5696,7 @@ export default function TrabajoDetallePage() {
 
           {/* DERECHA */}
 
-          <div className="space-y-4 sm:space-y-6">
+          <div className={trabajo.status === "open" || trabajo.status === "completed" || trabajo.status === "cancelled" ? "space-y-4 sm:space-y-6" : "contents"}>
 
             {/* FOTOS */}
 
@@ -5718,7 +5717,7 @@ export default function TrabajoDetallePage() {
                     className={
                       trabajo.status === "open"
                         ? "border-t border-slate-200 bg-transparent p-6 lg:border-l"
-                        : "rounded-3xl border border-slate-200 bg-white p-6 shadow-lg"
+                        : "rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"
                     }
                   >
 
@@ -5792,7 +5791,7 @@ export default function TrabajoDetallePage() {
             {/* COMPROBANTE / PRESUPUESTO */}
 
             {oferta && (
-              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
                 <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
