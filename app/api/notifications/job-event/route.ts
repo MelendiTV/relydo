@@ -29,6 +29,7 @@ const supabaseAdmin =
 type EventName =
   | "provider_stage_changed"
   | "job_submitted_for_review"
+  | "job_completion_approved"
   | "job_completed"
   | "provider_released_job"
   | "change_order_requested"
@@ -357,6 +358,59 @@ export async function POST(
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,
+        });
+
+      return NextResponse.json({
+        success: true,
+        result,
+      });
+    }
+
+    /*
+      CLIENTE APRUEBA LA FINALIZACIÓN DEL TRABAJO
+    */
+
+    if (
+      event ===
+      "job_completion_approved"
+    ) {
+      if (
+        serviceRequest.customer_id !==
+          user.id ||
+        !serviceRequest.preferred_provider_id ||
+        serviceRequest.status !==
+          "completed" ||
+        serviceRequest.completion_review_status !==
+          "approved"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No puedes notificar la aprobación de este trabajo.",
+          },
+          {
+            status: 403,
+          }
+        );
+      }
+
+      const result =
+        await sendRelydoNotification({
+          userId:
+            serviceRequest.preferred_provider_id,
+          type:
+            "job_completion_approved",
+          title:
+            "Trabajo aprobado por el cliente",
+          titleEn:
+            "Job approved by the customer",
+          message:
+            `${jobTitle}: el cliente revisó la evidencia final y aprobó el trabajo como completado.`,
+          messageEn:
+            `${jobTitle}: the customer reviewed the final evidence and approved the job as completed.`,
+          requestId,
+          url:
+            `/trabajos/${requestId}`,
         });
 
       return NextResponse.json({

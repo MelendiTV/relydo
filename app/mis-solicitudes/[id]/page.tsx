@@ -2522,6 +2522,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         throw new Error(approvalError.message);
       }
 
+      await notificarEventoTrabajo(
+        "job_completion_approved"
+      );
+
       await cargarDetalle(false);
       setMensaje(
         T("Trabajo aprobado correctamente.")
@@ -4315,7 +4319,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </section>
         ) : solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" ? (
+            solicitud.job_stage === "working" &&
+            solicitud.completion_review_status === "pending" ? (
           <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
             <p className="text-sm font-black uppercase tracking-wide text-amber-700">
               {T("Trabajo iniciado")}
@@ -5216,6 +5221,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           (
             solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" &&
+            solicitud.completion_review_status === "pending" &&
             (Boolean(claim) || mostrarReclamo)
           )
         ) &&
