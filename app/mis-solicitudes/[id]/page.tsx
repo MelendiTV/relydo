@@ -3846,6 +3846,170 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </section>
         )}
 
+        {/* RESEÑA */}
+
+        {solicitud.status ===
+          "completed" &&
+          ofertaSeleccionada && (
+            <section
+              className={`mt-6 rounded-3xl border border-slate-200 bg-white shadow-xl ${
+                review ? "p-5" : "p-8"
+              }`}
+            >
+              {!review && (
+                <div className="mb-5 font-extrabold text-slate-900">
+                  <span>{T("Calificar profesional")}</span>
+                </div>
+              )}
+
+              {review ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-extrabold text-slate-900">
+                      ✓ {T("Gracias por tu calificación")}
+                    </p>
+                    <div className="mt-1 text-xl">
+                      {[1, 2, 3, 4, 5].map((estrella) => (
+                        <span
+                          key={estrella}
+                          className={
+                            estrella <= review.rating
+                              ? "text-yellow-500"
+                              : "text-slate-300"
+                          }
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-500">
+                    {T("Ya calificaste este trabajo.")}
+                  </p>
+                </div>
+              ) : (
+                <>
+
+                  <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+                    {T("Trabajo completado")}
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-extrabold text-slate-900">
+                    {T("Calificar profesional")}
+                  </h2>
+
+                  <p className="mt-2 text-slate-600">
+                    ¿Cómo fue tu experiencia con{" "}
+                    <strong>
+                      {ofertaSeleccionada.profesional
+                        ?.business_name ||
+                        T("este profesional")}
+                    </strong>
+                    ?
+                  </p>
+
+                  <form
+                    onSubmit={
+                      enviarResena
+                    }
+                    className="mt-7"
+                  >
+
+                    <p className="font-bold text-slate-900">
+                      {T("Tu calificación *")}
+                    </p>
+
+                    <div className="mt-3 flex gap-2">
+
+                      {[1, 2, 3, 4, 5].map(
+                        (
+                          estrella
+                        ) => (
+                          <button
+                            key={
+                              estrella
+                            }
+                            type="button"
+                            onClick={() =>
+                              setRating(
+                                estrella
+                              )
+                            }
+                            className={`text-5xl transition hover:scale-110 ${
+                              estrella <=
+                              rating
+                                ? "text-yellow-400"
+                                : "text-slate-300"
+                            }`}
+                          >
+                            ★
+                          </button>
+                        )
+                      )}
+
+                    </div>
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      {rating === 0
+                        ? "Selecciona de 1 a 5 estrellas."
+                        : `Has seleccionado ${rating} ${
+                            rating === 1
+                              ? "estrella"
+                              : "estrellas"
+                          }.`}
+                    </p>
+
+                    <div className="mt-7">
+
+                      <label className="mb-2 block font-bold text-slate-900">
+                        {T("Comentario")}
+                      </label>
+
+                      <textarea
+                        value={
+                          comentario
+                        }
+                        onChange={(e) =>
+                          setComentario(
+                            e.target.value
+                          )
+                        }
+                        rows={5}
+                        maxLength={
+                          1000
+                        }
+                        placeholder={T("Cuéntanos cómo fue el servicio...")}
+                        className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
+                      />
+
+                      <p className="mt-2 text-right text-sm text-slate-500">
+                        {comentario.length}
+                        /1000
+                      </p>
+
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        enviandoReview ||
+                        rating === 0
+                      }
+                      className="mt-6 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
+                    >
+                      {enviandoReview
+                        ? T("Enviando calificación...")
+                        : T("Enviar reseña")}
+                    </button>
+
+                  </form>
+
+                </>
+              )}
+
+            </section>
+          )}
+
         {mensaje && (
           <div className="mt-6 rounded-2xl border border-green-300 bg-green-50 p-5 font-bold text-green-800">
             ✅ {mensaje}
@@ -5056,203 +5220,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </div>
                 </div>
               </div>
-            </section>
-          )}
-
-        {/* RESEÑA */}
-
-        {solicitud.status ===
-          "completed" &&
-          ofertaSeleccionada && (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
-              <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("Calificar profesional")}</span>
-            </div>
-
-              {review ? (
-                <>
-
-                  <div className="text-center">
-
-                    <div className="text-5xl">
-                      ✅
-                    </div>
-
-                    <h2 className="mt-3 text-2xl font-extrabold text-slate-900">
-                      {T("Gracias por tu calificación")}
-                    </h2>
-
-                    <p className="mt-2 text-slate-600">
-                      {T("Ya calificaste este trabajo.")}
-                    </p>
-
-                  </div>
-
-                  <div className="mt-6 rounded-2xl bg-slate-50 p-6">
-
-                    <p className="text-sm font-bold text-slate-500">
-                      {T("Tu calificación")}
-                    </p>
-
-                    <div className="mt-2 text-3xl">
-
-                      {[1, 2, 3, 4, 5].map(
-                        (
-                          estrella
-                        ) => (
-                          <span
-                            key={
-                              estrella
-                            }
-                            className={
-                              estrella <=
-                              review.rating
-                                ? "text-yellow-500"
-                                : "text-slate-300"
-                            }
-                          >
-                            ★
-                          </span>
-                        )
-                      )}
-
-                    </div>
-
-                    {review.comment && (
-                      <>
-                        <p className="mt-5 text-sm font-bold text-slate-500">
-                          {T("Tu comentario")}
-                        </p>
-
-                        <p className="mt-2 leading-7 text-slate-700">
-                          {review.comment}
-                        </p>
-                      </>
-                    )}
-
-                  </div>
-
-                </>
-              ) : (
-                <>
-
-                  <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-                    {T("Trabajo completado")}
-                  </p>
-
-                  <h2 className="mt-2 text-3xl font-extrabold text-slate-900">
-                    {T("Calificar profesional")}
-                  </h2>
-
-                  <p className="mt-2 text-slate-600">
-                    ¿Cómo fue tu experiencia con{" "}
-                    <strong>
-                      {ofertaSeleccionada.profesional
-                        ?.business_name ||
-                        T("este profesional")}
-                    </strong>
-                    ?
-                  </p>
-
-                  <form
-                    onSubmit={
-                      enviarResena
-                    }
-                    className="mt-7"
-                  >
-
-                    <p className="font-bold text-slate-900">
-                      {T("Tu calificación *")}
-                    </p>
-
-                    <div className="mt-3 flex gap-2">
-
-                      {[1, 2, 3, 4, 5].map(
-                        (
-                          estrella
-                        ) => (
-                          <button
-                            key={
-                              estrella
-                            }
-                            type="button"
-                            onClick={() =>
-                              setRating(
-                                estrella
-                              )
-                            }
-                            className={`text-5xl transition hover:scale-110 ${
-                              estrella <=
-                              rating
-                                ? "text-yellow-400"
-                                : "text-slate-300"
-                            }`}
-                          >
-                            ★
-                          </button>
-                        )
-                      )}
-
-                    </div>
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      {rating === 0
-                        ? "Selecciona de 1 a 5 estrellas."
-                        : `Has seleccionado ${rating} ${
-                            rating === 1
-                              ? "estrella"
-                              : "estrellas"
-                          }.`}
-                    </p>
-
-                    <div className="mt-7">
-
-                      <label className="mb-2 block font-bold text-slate-900">
-                        {T("Comentario")}
-                      </label>
-
-                      <textarea
-                        value={
-                          comentario
-                        }
-                        onChange={(e) =>
-                          setComentario(
-                            e.target.value
-                          )
-                        }
-                        rows={5}
-                        maxLength={
-                          1000
-                        }
-                        placeholder={T("Cuéntanos cómo fue el servicio...")}
-                        className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
-                      />
-
-                      <p className="mt-2 text-right text-sm text-slate-500">
-                        {comentario.length}
-                        /1000
-                      </p>
-
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={
-                        enviandoReview ||
-                        rating === 0
-                      }
-                      className="mt-6 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
-                    >
-                      {enviandoReview
-                        ? T("Enviando calificación...")
-                        : T("Enviar reseña")}
-                    </button>
-
-                  </form>
-
-                </>
-              )}
-
             </section>
           )}
 
