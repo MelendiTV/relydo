@@ -5063,42 +5063,7 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {etapaActual === 4 &&
-                            ultimoCambioPresupuesto?.status !== "rejected" && (
-                            <button
-                              type="button"
-                              disabled={!puedeSolicitarCambioPresupuesto}
-                              onClick={() => {
-                                setMostrarCambioPresupuesto(true);
-                                setError("");
-                                setMensaje("");
-                              }}
-                              className={`sm:col-span-2 flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                                cambioPresupuestoPendiente || reclamoActivo
-                                  ? "border-slate-200 bg-slate-100 text-slate-500"
-                                  : "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
-                              }`}
-                            >
-                              <span className="flex items-center gap-3">
-                                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-xl">💰</span>
-                                <span>
-                                  <span className="block font-black">
-                                    {cambioPresupuestoPendiente
-                                      ? T("Cambio de presupuesto pendiente", "Budget change pending")
-                                      : reclamoActivo
-                                      ? T("Cambio bloqueado por reclamo", "Change blocked by claim")
-                                      : T("Solicitar cambio de presupuesto", "Request budget change")}
-                                  </span>
-                                  {!cambioPresupuestoPendiente && !reclamoActivo && (
-                                    <span className="mt-0.5 block text-sm font-medium text-slate-600">
-                                      {T("Si el trabajo requiere algo adicional", "If the job requires additional work")}
-                                    </span>
-                                  )}
-                                </span>
-                              </span>
-                              <span className="text-2xl">›</span>
-                            </button>
-                          )}
+
 
                           {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
                             <button
