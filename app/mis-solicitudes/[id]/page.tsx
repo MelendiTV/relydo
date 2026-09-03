@@ -5405,6 +5405,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* PRESUPUESTOS */}
 
+        {ofertas.some((oferta) => oferta.status !== "selected") && (
         <details className="mt-8">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
             <span>{T("Presupuestos recibidos")}</span>
@@ -5707,6 +5708,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )}
 
         </details>
+        )}
 
       </div>
 
