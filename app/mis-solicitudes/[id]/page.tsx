@@ -563,9 +563,14 @@ function mostrarMinutos(
 
 function numeroEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  completionReviewStatus: "pending" | "approved" | null
 ) {
   if (status === "completed") {
+    return 6;
+  }
+
+  if (completionReviewStatus === "pending") {
     return 5;
   }
 
@@ -586,10 +591,15 @@ function numeroEtapa(
 
 function tituloEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  completionReviewStatus: "pending" | "approved" | null
 ) {
   if (status === "completed") {
     return "Trabajo completado";
+  }
+
+  if (completionReviewStatus === "pending") {
+    return "Trabajo listo para revisión";
   }
 
   if (jobStage === "working") {
@@ -609,10 +619,15 @@ function tituloEtapa(
 
 function textoEtapa(
   status: string,
-  jobStage: string | null
+  jobStage: string | null,
+  completionReviewStatus: "pending" | "approved" | null
 ) {
   if (status === "completed") {
     return "El profesional marcó el servicio como terminado.";
+  }
+
+  if (completionReviewStatus === "pending") {
+    return "El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.";
   }
 
   if (jobStage === "working") {
@@ -3423,7 +3438,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   const etapaActual =
     numeroEtapa(
       solicitud.status,
-      solicitud.job_stage
+      solicitud.job_stage,
+      solicitud.completion_review_status
     );
 
   const mostrarSeguimiento =
@@ -3506,6 +3522,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     },
     {
       numero: 5,
+      icono: "🔎",
+      titulo: T("En revisión"),
+      descripcion:
+        T("Pendiente de tu aprobación"),
+    },
+    {
+      numero: 6,
       icono: "✅",
       titulo: T("Completado"),
       descripcion:
@@ -3665,7 +3688,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     tituloEtapa(
                       solicitud.status,
-                      solicitud.job_stage
+                      solicitud.job_stage,
+                      solicitud.completion_review_status
                     )
                   )}
                 </h2>
@@ -3674,7 +3698,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T(
                     textoEtapa(
                       solicitud.status,
-                      solicitud.job_stage
+                      solicitud.job_stage,
+                      solicitud.completion_review_status
                     )
                   )}
                 </p>
@@ -3707,7 +3732,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             <div className="mt-9">
 
-              <div className="grid grid-cols-5 gap-1">
+              <div className="grid grid-cols-6 gap-1">
 
                 {etapas.map(
                   (etapa) => {
@@ -3728,7 +3753,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       >
 
                         {etapa.numero <
-                          5 && (
+                          6 && (
                             <div
                               className={`absolute left-1/2 top-5 h-1 w-full ${
                                 etapa.numero <
@@ -3781,6 +3806,42 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
 
             </div>
+
+            {solicitud.status === "in_progress" &&
+              solicitud.job_stage === "working" &&
+              solicitud.completion_review_status === "pending" && (
+                <div className="mt-8 rounded-2xl border-2 border-amber-300 bg-amber-50 p-6">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-3xl">
+                      <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+                        {T("Pendiente de tu aprobación")}
+                      </p>
+
+                      <h3 className="mt-2 text-xl font-black text-slate-950">
+                        {T("Trabajo listo para revisión")}
+                      </h3>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                        {T("Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.")}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={aprobarFinalizacionTrabajo}
+                      disabled={
+                        aprobandoFinalizacion ||
+                        Boolean(claim && claim.status !== "resolved")
+                      }
+                      className="min-h-14 w-full rounded-2xl bg-emerald-600 px-7 py-4 text-lg font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:min-w-[250px]"
+                    >
+                      {aprobandoFinalizacion
+                        ? T("Aprobando trabajo...")
+                        : T("✓ Aprobar trabajo")}
+                    </button>
+                  </div>
+                </div>
+              )}
 
           </section>
         )}
@@ -4850,45 +4911,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </section>
           )}
 
-        {solicitud.status === "in_progress" &&
-          solicitud.job_stage === "working" &&
-          solicitud.completion_review_status === "pending" && (
-            <section className="mt-8 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-xl">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-3xl">
-                  <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-                    {T("Pendiente de tu aprobación")}
-                  </p>
 
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">
-                    {T("Trabajo listo para revisión")}
-                  </h2>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-700">
-                    {T("El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.")}
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {T("Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.")}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={aprobarFinalizacionTrabajo}
-                  disabled={
-                    aprobandoFinalizacion ||
-                    Boolean(claim && claim.status !== "resolved")
-                  }
-                  className="min-h-14 w-full rounded-2xl bg-emerald-600 px-7 py-4 text-lg font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:min-w-[250px]"
-                >
-                  {aprobandoFinalizacion
-                    ? T("Aprobando trabajo...")
-                    : T("✓ Aprobar trabajo")}
-                </button>
-              </div>
-            </section>
-          )}
 
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
