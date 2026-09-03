@@ -452,6 +452,8 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "En camino": "On the way",
   "Has seleccionado este presupuesto por": "You selected this offer for",
   "Tarifa de servicio RELYDO": "RELYDO service fee",
+  "Revisar y continuar": "Review and continue",
+  "Contratar por": "Hire for",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -5490,9 +5492,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           </h3>
 
                           <p className="mt-1 font-semibold text-blue-700">
-                            {nombreOficio(
-                              oferta.profesional?.trade ||
-                                null
+                            {T(
+                              nombreOficio(
+                                oferta.profesional?.trade ||
+                                  null
+                              )
                             )}
                           </p>
 
@@ -5516,7 +5520,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           {paymentSettings && (
                             <>
                               <p className="mt-2 text-xs font-semibold text-green-700">
-                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} tarifa RELYDO
+                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} {T("Tarifa de servicio RELYDO")}
                               </p>
                               <p className="mt-1 text-sm font-black text-green-950">
                                 Total: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
@@ -5537,7 +5541,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                           <p className="mt-1 font-extrabold text-slate-900">
                             {mostrarMinutos(
-                              oferta.arrival_minutes
+                              oferta.arrival_minutes,
+                              language
                             )}
                           </p>
                         </div>
@@ -5549,7 +5554,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                           <p className="mt-1 font-extrabold text-slate-900">
                             {mostrarMinutos(
-                              oferta.estimated_job_minutes
+                              oferta.estimated_job_minutes,
+                              language
                             )}
                           </p>
                         </div>
@@ -5577,7 +5583,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           <p className="mt-1 font-extrabold text-slate-900">
                             {oferta.profesional?.years_experience ??
                               0}{" "}
-                            años
+                            {language === "en"
+                              ? (oferta.profesional?.years_experience ?? 0) === 1
+                                ? "year"
+                                : "years"
+                              : (oferta.profesional?.years_experience ?? 0) === 1
+                              ? "año"
+                              : "años"}
                           </p>
                         </div>
 
@@ -5644,11 +5656,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             oferta.id
                               ? T("Contratando profesional...")
                               : paymentSettings
-                              ? `Revisar y continuar · Total $${calcularMontosPago(
+                              ? `${T("Revisar y continuar")} · Total $${calcularMontosPago(
                                   oferta.price,
                                   paymentSettings
                                 ).customerTotalAmount.toFixed(2)}`
-                              : `Contratar por $${Number(
+                              : `${T("Contratar por")} $${Number(
                                   oferta.price
                                 ).toFixed(
                                   2
