@@ -299,6 +299,24 @@ function calcularTiempoRestante(
 }
 
 
+function claimReasonText(
+  language: "es" | "en",
+  reason: string
+) {
+  if (language !== "en") {
+    return reason;
+  }
+
+  const normalized = reason.trim().toLowerCase();
+
+  const en: Record<string, string> = {
+    "calidad del trabajo": "Work quality",
+  };
+
+  return en[normalized] || reason;
+}
+
+
 function resolutionNoteText(
   language: "es" | "en",
   note: string | null
@@ -6545,7 +6563,7 @@ export default function TrabajoDetallePage() {
                 ) : (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="font-black text-amber-950">
-                      🔒 Chat bloqueado
+                      {T("🔒 Chat bloqueado", "🔒 Chat locked")}
                     </p>
 
                     <p className="mt-1 text-sm leading-6 text-amber-900">
@@ -6680,7 +6698,7 @@ export default function TrabajoDetallePage() {
               </p>
 
               <p className="mt-2 font-black text-rose-950">
-                {reclamo.reason}
+                {claimReasonText(language, reclamo.reason)}
               </p>
 
               {reclamo.description && (
