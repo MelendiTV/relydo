@@ -4384,7 +4384,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     <strong className="text-slate-900">${presupuestoTotalPagado.toFixed(2)}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")} ({Number(payment.customer_fee_percent).toFixed(2)}%)</span>
+                    <span className="text-slate-600">{T("Tarifa de servicio RELYDO")}</span>
                     <strong className="text-slate-900">${tarifaClienteTotalPagada.toFixed(2)}</strong>
                   </div>
                   <div className="border-t border-slate-200 pt-3">
