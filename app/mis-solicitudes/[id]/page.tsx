@@ -455,6 +455,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Revisar y continuar": "Review and continue",
   "Contratar por": "Hire for",
   "Detalles de la solicitud": "Request details",
+  "Pagado": "Paid",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -4422,7 +4423,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
-                      {T(nombreEstadoPagoCliente(payment.status))}
+                      {T("Pagado")}
                     </span>
                   </div>
 
