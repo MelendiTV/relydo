@@ -5370,32 +5370,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T("No se pueden abrir nuevos reclamos después de que el trabajo ha sido cancelado.")}
                 </p>
               </div>
-            ) : !mostrarReclamo ? (
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                    {T("¿Hubo un problema con el servicio?")}
-                  </p>
-                  <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
-                    {T("Reportar un problema")}
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-slate-600">
-                    {T("Usa esta opción si el trabajo quedó incompleto, hubo daños, un cobro adicional u otro problema importante.")}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarReclamo(true);
-                    setError("");
-                    setMensaje("");
-                  }}
-                  className="shrink-0 rounded-xl border-2 border-red-600 bg-white px-6 py-3 font-extrabold text-red-700 hover:bg-red-50"
-                >
-                  {T("⚠️ Reportar problema")}
-                </button>
-              </div>
             ) : (
               <form onSubmit={enviarReclamo} className="space-y-5">
                 <div className="flex items-start justify-between gap-4">
