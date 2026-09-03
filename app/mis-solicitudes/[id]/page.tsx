@@ -5403,8 +5403,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {ofertasPendientes}{" "}
                   {ofertasPendientes ===
                   1
-                    ? "presupuesto disponible"
-                    : "presupuestos disponibles"}
+                    ? T("presupuesto disponible")
+                    : T("presupuestos disponibles")}
                 </div>
               )}
 
@@ -5520,7 +5520,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           {paymentSettings && (
                             <>
                               <p className="mt-2 text-xs font-semibold text-green-700">
-                                + ${calcularMontosPago(oferta.price, paymentSettings).customerFeeAmount.toFixed(2)} {T("Tarifa de servicio RELYDO")}
+                                {T("Tarifa de servicio RELYDO")}
                               </p>
                               <p className="mt-1 text-sm font-black text-green-950">
                                 Total: ${calcularMontosPago(oferta.price, paymentSettings).customerTotalAmount.toFixed(2)}
