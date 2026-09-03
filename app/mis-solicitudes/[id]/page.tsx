@@ -4155,7 +4155,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </section>
         ) : solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" ? (
+            solicitud.job_stage === "working" &&
+            solicitud.completion_review_status === "pending" ? (
           <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
             <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("Trabajo iniciado")}</span>
@@ -5263,6 +5264,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           (
             solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" &&
+            solicitud.completion_review_status === "pending" &&
             (Boolean(claim) || mostrarReclamo)
           )
         ) &&
