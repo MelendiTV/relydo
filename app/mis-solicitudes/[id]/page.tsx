@@ -3415,7 +3415,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* SOLICITUD */}
 
         <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
-          <div className="mb-5 px-1 font-extrabold text-slate-900">
+          <div className="mb-5 px-5 pt-4 font-extrabold text-slate-900">
               <span>{T("Detalles de la solicitud")}</span>
             </div>
 
