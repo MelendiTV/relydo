@@ -4789,11 +4789,15 @@ export default function TrabajoDetallePage() {
                               className="relative text-center"
                             >
                               {etapa.numero <
-                                5 && (
+                                6 && (
                                 <div
                                   className={`absolute left-1/2 top-5 hidden h-1 w-full sm:block ${
-                                    etapa.numero <
-                                    etapaActual
+                                    etapa.numero === 5
+                                      ? etapaActual >= 6
+                                        ? "bg-green-500"
+                                        : "bg-green-200"
+                                      : etapa.numero <
+                                        etapaActual
                                       ? "bg-blue-600"
                                       : "bg-slate-200"
                                   }`}
