@@ -4913,7 +4913,7 @@ export default function TrabajoDetallePage() {
                                 setError("");
                                 setMensaje("");
                               }}
-                              className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                              className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
                             >
                               {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
                             </button>
@@ -5146,7 +5146,7 @@ export default function TrabajoDetallePage() {
                                     "start",
                                 })
                             }
-                            className="rounded-2xl border-2 border-blue-300 bg-white px-5 py-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                            className="rounded-xl border-2 border-blue-300 bg-white px-4 py-2.5 text-sm font-extrabold text-blue-700 transition hover:bg-blue-50"
                           >
                             {T("💬 Chat con el cliente", "💬 Chat with customer")}
                           </button>
@@ -5154,7 +5154,7 @@ export default function TrabajoDetallePage() {
                           <button
                             type="button"
                             onClick={abrirDireccion}
-                            className="sm:col-span-2 rounded-2xl border-2 border-blue-300 bg-white px-5 py-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                            className="sm:col-span-2 rounded-xl border-2 border-blue-300 bg-white px-4 py-2.5 text-sm font-extrabold text-blue-700 transition hover:bg-blue-50"
                           >
                             {T("📍 Ver dirección en el mapa", "📍 View address on map")}
                           </button>
