@@ -4523,13 +4523,60 @@ export default function TrabajoDetallePage() {
           </section>
         )}
 
+        {/* DETALLE PRINCIPAL DESPLEGABLE */}
+
+        <details
+          open
+          className={
+            trabajo.status === "open"
+              ? "group rounded-3xl border border-slate-200 bg-white shadow-lg"
+              : "group"
+          }
+        >
+          <summary
+            className={
+              trabajo.status === "open"
+                ? "cursor-pointer list-none px-7 py-5 md:px-8"
+                : "hidden"
+            }
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                  {T("Detalle del trabajo", "Job details")}
+                </p>
+                <p className="mt-1 truncate text-lg font-black text-slate-950">
+                  {trabajo.title}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {trabajo.city}, {trabajo.state} {trabajo.zip_code}
+                </p>
+              </div>
+
+              <span className="shrink-0 text-2xl text-slate-500 transition group-open:rotate-90">
+                ›
+              </span>
+            </div>
+          </summary>
+
+          <div
+            className={
+              trabajo.status === "open"
+                ? "border-t border-slate-200 px-1 pb-1"
+                : ""
+            }
+          >
         {/* CABECERA */}
 
         <section
-          className={`rounded-3xl border bg-white p-7 shadow-lg md:p-8 ${
-            cancelado
-              ? "border-red-200"
-              : "border-slate-200"
+          className={`p-7 md:p-8 ${
+            trabajo.status === "open"
+              ? "bg-transparent"
+              : `rounded-3xl border bg-white shadow-lg ${
+                  cancelado
+                    ? "border-red-200"
+                    : "border-slate-200"
+                }`
           }`}
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -4652,7 +4699,9 @@ export default function TrabajoDetallePage() {
 
         {/* GRID PRINCIPAL */}
 
-        <div className={`mt-6 grid grid-cols-1 gap-6 ${
+        <div className={`grid grid-cols-1 ${
+          trabajo.status === "open" ? "gap-0" : "mt-6 gap-6"
+        } ${
           (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "lg:grid-cols-2"
         }`}>
 
@@ -5568,7 +5617,13 @@ export default function TrabajoDetallePage() {
                 </div>
               </summary>
               <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+            <section
+              className={
+                trabajo.status === "open"
+                  ? "border-t border-slate-200 bg-transparent p-6"
+                  : "rounded-3xl border border-slate-200 bg-white p-6 shadow-lg"
+              }
+            >
 
               <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -5659,7 +5714,13 @@ export default function TrabajoDetallePage() {
                   </div>
                 </summary>
                 <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
-                  <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+                  <section
+                    className={
+                      trabajo.status === "open"
+                        ? "border-t border-slate-200 bg-transparent p-6 lg:border-l"
+                        : "rounded-3xl border border-slate-200 bg-white p-6 shadow-lg"
+                    }
+                  >
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -6717,7 +6778,13 @@ export default function TrabajoDetallePage() {
           "open" &&
           oferta?.status !==
             "rejected" && (
-          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7">
+          <section
+            className={
+              trabajo.status === "open"
+                ? "border-t border-slate-200 bg-transparent p-6 md:p-7"
+                : "mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            }
+          >
 
             <h2 className="flex items-center gap-3 text-2xl font-black text-slate-950">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
@@ -6876,6 +6943,9 @@ export default function TrabajoDetallePage() {
             )}
           </section>
         )}
+
+          </div>
+        </details>
       </div>
     </main>
   );
