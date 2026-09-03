@@ -238,7 +238,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Total del cliente": "Customer total",
   "Describe qué ocurrió y qué parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
   "Estado del pago": "Payment status",
-  "El pago está protegido por RELYDO y todavía no ha sido liberado al profesional.": "The payment is protected by RELYDO and has not yet been released to the professional.",
   "El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.": "The payment was processed and released according to RELYDO's payment flow.",
   "RELYDO procesó el reembolso correspondiente a este trabajo.": "RELYDO processed the refund for this job.",
   "RELYDO procesó un reembolso parcial para este trabajo.": "RELYDO processed a partial refund for this job.",
