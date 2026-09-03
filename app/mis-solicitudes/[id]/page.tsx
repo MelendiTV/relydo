@@ -5258,7 +5258,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* RECLAMO / REPORTAR PROBLEMA */}
 
         {(
-          solicitud.status === "completed" ||
+          (solicitud.status === "completed" && Boolean(claim)) ||
           solicitud.status === "cancelled" ||
           (
             solicitud.status === "in_progress" &&
