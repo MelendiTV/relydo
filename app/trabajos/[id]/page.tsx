@@ -779,6 +779,84 @@ export default function TrabajoDetallePage() {
   }, [id]);
 
   /*
+    RESPALDO DE SINCRONIZACIÓN DE APROBACIÓN FINAL
+
+    Supabase Realtime permanece suscrito, pero en producción el UPDATE
+    que aprueba la revisión final puede no llegar a esta pantalla.
+    Mientras el trabajo esté únicamente "pending", comprobamos la misma
+    fila de service_requests y detenemos la comprobación en cuanto cambia.
+  */
+  useEffect(() => {
+    if (
+      !id ||
+      trabajo?.status !== "in_progress" ||
+      trabajo?.completion_review_status !== "pending"
+    ) {
+      return;
+    }
+
+    let activo = true;
+
+    const comprobarAprobacionFinal = async () => {
+      const { data, error: estadoError } = await supabase
+        .from("service_requests")
+        .select(`
+          status,
+          job_stage,
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
+        `)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (
+        !activo ||
+        estadoError ||
+        !data
+      ) {
+        return;
+      }
+
+      if (
+        data.status === "completed" ||
+        data.completion_review_status === "approved"
+      ) {
+        setTrabajo((actual) =>
+          actual
+            ? {
+                ...actual,
+                status: data.status,
+                job_stage: data.job_stage,
+                completed_at: data.completed_at,
+                completion_review_status: data.completion_review_status,
+                submitted_for_review_at: data.submitted_for_review_at,
+                completion_approved_at: data.completion_approved_at,
+              }
+            : actual
+        );
+      }
+    };
+
+    comprobarAprobacionFinal();
+
+    const timer = window.setInterval(
+      comprobarAprobacionFinal,
+      1500
+    );
+
+    return () => {
+      activo = false;
+      window.clearInterval(timer);
+    };
+  }, [
+    id,
+    trabajo?.status,
+    trabajo?.completion_review_status,
+  ]);
+
+  /*
     CHAT PRIVADO RELYDO
   */
 
