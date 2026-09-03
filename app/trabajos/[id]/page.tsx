@@ -5,14 +5,9 @@ import {
   useParams,
   useRouter,
 } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import NotificationsBell from "@/app/components/NotificationsBell";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 function serviceLabel(slug: string | null, language: "es" | "en") {
   if (!slug) return language === "es" ? "No indicado" : "Not specified";
