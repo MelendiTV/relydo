@@ -673,6 +673,26 @@ export default function TrabajoDetallePage() {
             }
           );
 
+          // La aprobación final del cliente cambia el trabajo a completed.
+          // Aplicamos ese estado inmediatamente en la pantalla PRO y la
+          // recarga completa de abajo sincroniza el resto de tablas.
+          if (
+            nuevo.status === "completed" ||
+            nuevo.completion_review_status === "approved"
+          ) {
+            setTrabajo(
+              (actual) =>
+                actual
+                  ? {
+                      ...actual,
+                      ...nuevo,
+                      status: "completed",
+                      completion_review_status: "approved",
+                    }
+                  : nuevo
+            );
+          }
+
           if (
             nuevo.status ===
             "cancelled"
