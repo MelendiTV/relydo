@@ -6,12 +6,8 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 const SOUND_STORAGE_KEY =
   "relydo_sound_enabled";
