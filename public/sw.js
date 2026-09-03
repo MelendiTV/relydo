@@ -67,45 +67,11 @@ self.addEventListener("notificationclick", function (event) {
     (async function () {
       try {
         /*
-          IMPORTANTE:
+          Primero buscamos una pestaña RELYDO
+          que ya esté abierta.
 
-          Abrimos directamente el destino de la
-          notificación.
-
-          Esto evita depender de client.navigate(),
-          que puede comportarse diferente entre
-          Chrome, Edge y una PWA instalada en iPhone.
-
-          Si /trabajos/[id] detecta que no existe
-          sesión profesional, esa página enviará a:
-
-          /login-profesional?redirect=/trabajos/[id]
-
-          y el login conservará ese destino.
-        */
-
-        if (clients.openWindow) {
-          const openedClient =
-            await clients.openWindow(targetUrl);
-
-          if (
-            openedClient &&
-            "focus" in openedClient
-          ) {
-            await openedClient.focus();
-          }
-
-          return;
-        }
-
-        /*
-          FALLBACK:
-
-          Algunos navegadores podrían no permitir
-          openWindow en una situación determinada.
-
-          En ese caso buscamos una ventana RELYDO
-          existente y tratamos de navegarla.
+          Si existe, reutilizamos esa misma pestaña
+          en lugar de crear una nueva.
         */
 
         const clientList =
@@ -140,6 +106,25 @@ self.addEventListener("notificationclick", function (event) {
               "RELYDO notification client error:",
               error
             );
+          }
+        }
+
+        /*
+          Si no existe ninguna pestaña RELYDO
+          abierta, entonces sí abrimos una nueva.
+        */
+
+        if (clients.openWindow) {
+          const openedClient =
+            await clients.openWindow(
+              targetUrl
+            );
+
+          if (
+            openedClient &&
+            "focus" in openedClient
+          ) {
+            await openedClient.focus();
           }
         }
       } catch (error) {
