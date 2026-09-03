@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -456,10 +455,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Revisar y continuar": "Review and continue",
   "Contratar por": "Hire for",
   "Detalles de la solicitud": "Request details",
-  "Cambio de presupuesto": "Budget change",
-  "Calificación del servicio": "Service rating",
-  "Reclamo del servicio": "Service claim",
-  "Conectando...": "Connecting...",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -755,45 +750,6 @@ function formatearHoraChat(
     }
   ).format(
     new Date(fecha)
-  );
-}
-
-type CollapsibleSectionProps = {
-  title: string;
-  children: ReactNode;
-  className?: string;
-  id?: string;
-  defaultOpen?: boolean;
-};
-
-function CollapsibleSection({
-  title,
-  children,
-  className = "",
-  id,
-  defaultOpen = true,
-}: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <section id={id} className={className}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 text-left"
-        aria-expanded={open}
-      >
-        <span className="font-extrabold text-slate-900">{title}</span>
-        <span
-          aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-700"
-        >
-          {open ? "−" : "+"}
-        </span>
-      </button>
-
-      {open && <div>{children}</div>}
-    </section>
   );
 }
 
@@ -3455,7 +3411,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* SOLICITUD */}
 
-        <CollapsibleSection title={T("Detalles de la solicitud")} className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <details className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+            <span>{T("Detalles de la solicitud")}</span>
+            <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+          </summary>
 
           <div className="bg-blue-700 p-8 text-white">
 
@@ -3515,16 +3475,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </div>
 
-        </CollapsibleSection>
-
-
+        </details>
 
         {/* AVISO SOLO MIENTRAS NO HAYA OFERTAS NUEVAS */}
 
         {profesionalLiberoTrabajo &&
           ofertasPendientes ===
             0 && (
-            <CollapsibleSection title={T("Buscando un nuevo profesional")} className="mt-6 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-sm">
+            <details className="mt-6 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+                <span>{T("Buscando un nuevo profesional")}</span>
+                <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+              </summary>
 
               <div className="flex items-start gap-4">
 
@@ -3562,13 +3524,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               </div>
 
-            </CollapsibleSection>
+            </details>
           )}
 
         {/* SEGUIMIENTO */}
 
         {mostrarSeguimiento && (
-          <CollapsibleSection title={T("Seguimiento en vivo")} className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+          <details className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("Seguimiento en vivo")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
@@ -3615,7 +3581,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                   {realtimeConectado
                     ? T("Actualizando en vivo")
-                    : T("Conectando...")}
+                    : "Conectando..."}
                 </div>
               )}
 
@@ -3698,7 +3664,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             </div>
 
-          </CollapsibleSection>
+          </details>
         )}
 
         {mensaje && (
@@ -3717,7 +3683,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {solicitud.status ===
         "cancelled" ? (
-          <CollapsibleSection title={T("Solicitud cancelada")} className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
+          <details className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("Solicitud cancelada")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
 
             <div className="flex items-start gap-4">
 
@@ -3735,7 +3705,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <h2 className="mt-2 text-2xl font-extrabold text-red-900">
                   {canceladoPorRelydo
-                    ? T("Trabajo cancelado por resolución de RELYDO")
+                    ? "Trabajo cancelado por resolución de RELYDO"
                     : T("Este trabajo fue cancelado")}
                 </h2>
 
@@ -3805,9 +3775,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             </div>
 
-          </CollapsibleSection>
+          </details>
         ) : puedeCancelar ? (
-          <CollapsibleSection title={T("¿Ya no necesitas el servicio?")} id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
+          <details id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("¿Ya no necesitas el servicio?")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
 
             {!mostrarCancelacion ? (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3928,7 +3902,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   ) : payment ? (
                     <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total pagado")}</span>
+                        <span className="text-slate-600">Total pagado</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.totalPagado.toFixed(2)}
                         </strong>
@@ -3936,7 +3910,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Penalidad")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          Penalidad ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
@@ -3993,8 +3967,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {cancelando
-                      ? T("Cancelando solicitud...")
-                      : T("Confirmar cancelación")}
+                      ? "Cancelando solicitud..."
+                      : "Confirmar cancelación"}
                   </button>
 
                 </div>
@@ -4002,10 +3976,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
             )}
 
-          </CollapsibleSection>
+          </details>
         ) : solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" ? (
-          <CollapsibleSection title={T("Trabajo iniciado")} className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
+          <details className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("Trabajo iniciado")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
             <p className="text-sm font-black uppercase tracking-wide text-amber-700">
               {T("Trabajo iniciado")}
             </p>
@@ -4041,14 +4019,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             >
               {T("⚠️ Iniciar reclamo")}
             </button>
-          </CollapsibleSection>
+          </details>
         ) : null}
 
+
         {fotosSolicitud.length > 0 && (
-          <CollapsibleSection
-            title={T("📷 Fotos de la solicitud")}
-            className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
-          >
+          <details className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("📷 Fotos de la solicitud")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
             <h2 className="text-xl font-extrabold text-slate-900">
               {T("📷 Fotos de la solicitud")}
             </h2>
@@ -4077,13 +4057,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   ) : null
               )}
             </div>
-          </CollapsibleSection>
+          </details>
         )}
+
 
         {/* CAMBIO DE PRESUPUESTO */}
 
         {changeOrderPendiente && (
-          <CollapsibleSection title={T("💰 Cambio de presupuesto solicitado")} className="mt-6 overflow-hidden rounded-3xl border-2 border-violet-300 bg-white shadow-xl">
+          <details className="mt-6 overflow-hidden rounded-3xl border-2 border-violet-300 bg-white shadow-xl">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("💰 Cambio de presupuesto solicitado")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
             <div className="bg-violet-700 px-7 py-5 text-white">
               <p className="text-sm font-black uppercase tracking-wide text-violet-100">
                 {T("💰 Cambio de presupuesto solicitado")}
@@ -4222,14 +4207,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </button>
               </div>
             </div>
-          </CollapsibleSection>
+          </details>
         )}
 
         {!changeOrderPendiente &&
           ultimoChangeOrder &&
           ultimoChangeOrder.status !==
             "pending" && (
-          <CollapsibleSection title={T("Cambio de presupuesto")}
+          <details
             className={`mt-6 rounded-3xl border-2 p-6 shadow-sm ${
               ultimoChangeOrder.status ===
               "accepted"
@@ -4240,6 +4225,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 : "border-slate-300 bg-slate-50"
             }`}
           >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("Decisión")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
             <p
               className={`text-sm font-black uppercase tracking-wide ${
                 ultimoChangeOrder.status ===
@@ -4351,13 +4340,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 {T("El cambio fue rechazado. El presupuesto anterior permanece sin cambios.")}
               </p>
             )}
-          </CollapsibleSection>
+          </details>
         )}
 
         {/* PROFESIONAL CONTRATADO */}
 
         {ofertaSeleccionada && (
-          <CollapsibleSection title={T("✓ Profesional contratado")} className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
+          <details className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("✓ Profesional contratado")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
               {T("✓ Profesional contratado")}
@@ -4545,7 +4538,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </button>
               )}
 
-          </CollapsibleSection>
+          </details>
         )}
 
         {/* CHAT PRIVADO RELYDO */}
@@ -4553,10 +4546,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {ofertaSeleccionada &&
           solicitud.status !==
             "open" && (
-            <CollapsibleSection title={T("🔒 Comunicación protegida")}
+            <details
               id="chat-relydo"
               className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
             >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+                <span>{T("🔒 Comunicación protegida")}</span>
+                <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+              </summary>
               <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -4746,14 +4743,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </div>
                 )}
               </div>
-            </CollapsibleSection>
+            </details>
           )}
 
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
         {solicitud.status === "completed" &&
           evidenciasFinales.length > 0 && (
-            <CollapsibleSection title={T("📸 Evidencia del trabajo terminado")} className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+            <details className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+                <span>{T("📸 Evidencia del trabajo terminado")}</span>
+                <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+              </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide text-blue-700">
@@ -4845,7 +4846,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
                 </p>
               </div>
-            </CollapsibleSection>
+            </details>
           )}
 
         {/* RESEÑA */}
@@ -4853,7 +4854,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {solicitud.status ===
           "completed" &&
           ofertaSeleccionada && (
-            <CollapsibleSection title={T("Calificación del servicio")} className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+            <details className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+                <span>{T("Calificar profesional")}</span>
+                <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+              </summary>
 
               {review ? (
                 <>
@@ -5039,7 +5044,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </>
               )}
 
-            </CollapsibleSection>
+            </details>
           )}
 
         {/* RECLAMO / REPORTAR PROBLEMA */}
@@ -5053,10 +5058,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )
         ) &&
           ofertaSeleccionada && (
-          <CollapsibleSection title={T("Reclamo del servicio")}
+          <details
             id="reclamos-cliente"
             className="mt-8 scroll-mt-6 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
           >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+              <span>{T("¿Hubo un problema con el servicio?")}</span>
+              <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+            </summary>
             {claim ? (
               <>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -5391,12 +5400,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </div>
               </form>
             )}
-          </CollapsibleSection>
+          </details>
         )}
 
         {/* PRESUPUESTOS */}
 
-        <CollapsibleSection title={T("Presupuestos recibidos")} className="mt-8">
+        <details className="mt-8">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-1 py-1 font-extrabold text-slate-900 select-none">
+            <span>{T("Presupuestos recibidos")}</span>
+            <span aria-hidden="true" className="text-xl leading-none text-slate-500">⌄</span>
+          </summary>
 
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
@@ -5693,7 +5706,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
           )}
 
-        </CollapsibleSection>
+        </details>
 
       </div>
 
