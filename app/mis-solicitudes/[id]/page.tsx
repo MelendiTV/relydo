@@ -4154,49 +4154,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             )}
 
           </section>
-        ) : solicitud.status === "in_progress" &&
-            solicitud.job_stage === "working" ? (
-          <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
-            <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("Trabajo iniciado")}</span>
-            </div>
-            <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-              {T("Trabajo iniciado")}
-            </p>
-            <h2 className="mt-2 text-xl font-black text-amber-950">
-              {T("La cancelación automática ya no está disponible")}
-            </h2>
-            <p className="mt-2 leading-7 text-amber-900">
-              {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMostrarReclamo(true);
-                setError("");
-                setMensaje("");
-
-                window.setTimeout(() => {
-                  const reclamos =
-                    document.getElementById(
-                      "reclamos-cliente"
-                    );
-
-                  if (reclamos) {
-                    reclamos.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }
-                }, 50);
-              }}
-              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-5 py-3.5 font-black text-white transition hover:bg-amber-700 sm:w-auto"
-            >
-              {T("⚠️ Iniciar reclamo")}
-            </button>
-          </section>
-        ) : null}
+) : null}
 
 
         {fotosSolicitud.length > 0 && (
@@ -4910,8 +4868,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
             </section>
           )}
-
-
 
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
