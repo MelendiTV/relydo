@@ -4579,7 +4579,7 @@ export default function TrabajoDetallePage() {
                 }`
           }`}
         >
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1">
               <div className="flex flex-wrap gap-2">
 
@@ -4621,7 +4621,7 @@ export default function TrabajoDetallePage() {
                 )}
               </div>
 
-              <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+              <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl md:text-4xl">
                 {trabajo.title}
               </h1>
 
@@ -4629,7 +4629,7 @@ export default function TrabajoDetallePage() {
                 {trabajo.description}
               </p>
 
-              <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
                 <Info
                   icono="📍"
@@ -4666,7 +4666,7 @@ export default function TrabajoDetallePage() {
               </div>
             </div>
 
-            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-5 lg:w-72">
+            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 lg:w-64">
               <p className="text-center text-sm text-slate-500">
                 {T("ID del trabajo", "Job ID")}
               </p>
@@ -4702,12 +4702,12 @@ export default function TrabajoDetallePage() {
         <div className={`grid grid-cols-1 ${
           trabajo.status === "open" ? "gap-0" : "mt-6 gap-6"
         } ${
-          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "lg:grid-cols-2"
+          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]"
         }`}>
 
           {/* IZQUIERDA */}
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
 
             {/* SEGUIMIENTO */}
 
@@ -4743,7 +4743,7 @@ export default function TrabajoDetallePage() {
                     </div>
                   </summary>
                   <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-6">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
@@ -4770,7 +4770,7 @@ export default function TrabajoDetallePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="mt-8 grid grid-cols-5 gap-1">
+                    <div className="mt-6 grid grid-cols-3 gap-x-1 gap-y-6 sm:mt-8 sm:grid-cols-6 sm:gap-y-0">
                       {etapas.map(
                         (etapa) => {
                           const activo =
@@ -4787,7 +4787,7 @@ export default function TrabajoDetallePage() {
                               {etapa.numero <
                                 5 && (
                                 <div
-                                  className={`absolute left-1/2 top-5 h-1 w-full ${
+                                  className={`absolute left-1/2 top-5 hidden h-1 w-full sm:block ${
                                     etapa.numero <
                                     etapaActual
                                       ? "bg-blue-600"
@@ -4832,7 +4832,7 @@ export default function TrabajoDetallePage() {
                     </div>
 
                     {contratado && (
-                      <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-6">
+                      <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:mt-8 sm:p-6">
 
                         <div className="flex items-start gap-4">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xl text-white">
@@ -5697,7 +5697,7 @@ export default function TrabajoDetallePage() {
 
           {/* DERECHA */}
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
 
             {/* FOTOS */}
 
@@ -5764,7 +5764,7 @@ export default function TrabajoDetallePage() {
                               index +
                               1
                             }`}
-                            className="h-44 w-full object-cover transition duration-300 group-hover:scale-105"
+                            className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
                           />
                         </a>
                       )
@@ -5806,7 +5806,7 @@ export default function TrabajoDetallePage() {
                 </summary>
                 <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
                   <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
-                <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+                <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex items-center gap-3">
@@ -5985,9 +5985,6 @@ export default function TrabajoDetallePage() {
                               <p className="text-sm font-semibold text-slate-600">
                                 {T("Tarifa de servicio RELYDO", "RELYDO service fee")}
                               </p>
-                              <p className="mt-1 text-xs text-slate-400">
-                                {Number(pago.provider_commission_percent).toFixed(2)}% del valor del servicio
-                              </p>
                             </div>
                             <p className="font-bold text-slate-700">
                               ${comisionTotalProfesional.toFixed(2)}
@@ -5997,7 +5994,7 @@ export default function TrabajoDetallePage() {
                           <div className="flex items-center justify-between gap-4 py-5">
                             <div>
                               <p className="text-sm font-black uppercase tracking-wide text-slate-500">
-                                Total a recibir
+                                {T("Total a recibir", "Total to receive")}
                               </p>
                               <p className="mt-1 text-xs text-slate-400">
                                 {T("Neto después de la tarifa RELYDO", "Net after RELYDO fee")}
@@ -6025,7 +6022,7 @@ export default function TrabajoDetallePage() {
                           </div>
 
                           <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
-                            Registrado
+                            {T("Registrado", "Recorded")}
                           </span>
                         </div>
                       </>
@@ -6205,14 +6202,14 @@ export default function TrabajoDetallePage() {
               id="chat-relydo"
               className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
             >
-              <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
+              <div className="border-b border-slate-200 bg-slate-950 px-4 py-4 text-white sm:px-6 sm:py-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-blue-300">
                       {T("🔒 Comunicación protegida", "🔒 Protected communication")}
                     </p>
 
-                    <h2 className="mt-1 text-2xl font-black">
+                    <h2 className="mt-1 text-xl font-black sm:text-2xl">
                       Chat con{" "}
                       {trabajo.customer_name ||
                         T("el cliente", "the customer")}
@@ -6237,13 +6234,13 @@ export default function TrabajoDetallePage() {
                 </div>
               </div>
 
-              <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
+              <div className="max-h-[360px] min-h-[160px] overflow-y-auto bg-slate-50 p-4 sm:max-h-[430px] sm:min-h-[220px] sm:p-5">
                 {cargandoChat ? (
-                  <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
+                  <div className="flex min-h-[140px] items-center justify-center text-sm font-bold text-slate-500 sm:min-h-[190px]">
                     {T("Cargando conversación...", "Loading conversation...")}
                   </div>
                 ) : mensajesChat.length === 0 ? (
-                  <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
+                  <div className="flex min-h-[140px] flex-col items-center justify-center text-center sm:min-h-[190px]">
                     <div className="text-4xl">
                       💬
                     </div>
