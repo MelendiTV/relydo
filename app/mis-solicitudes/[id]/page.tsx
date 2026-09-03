@@ -4129,11 +4129,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <div>
 
-                  <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
-                    {T("¿Ya no necesitas el servicio?")}
-                  </p>
-
-                  <h2 className="mt-1 text-xl font-extrabold text-slate-900">
+                  <h2 className="text-xl font-extrabold text-slate-900">
                     {T("Puedes cancelar esta solicitud")}
                   </h2>
 
@@ -4371,9 +4367,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           evidenciasFinales.length > 0
         ) && (
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-            <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("📷 Fotos de la solicitud")}</span>
-            </div>
             <h2 className="text-xl font-extrabold text-slate-900">
               {T("📷 Fotos de la solicitud")}
             </h2>
@@ -5091,10 +5084,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className={`grid grid-cols-1 gap-6 ${fotosSolicitud.length > 0 ? "lg:grid-cols-2" : ""}`}>
                 {fotosSolicitud.length > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <div className="mb-4 font-extrabold text-slate-900">
-                      <span>{T("📷 Fotos de la solicitud")}</span>
-                    </div>
-
                     <h2 className="text-xl font-extrabold text-slate-900">
                       {T("📷 Fotos de la solicitud")}
                     </h2>
