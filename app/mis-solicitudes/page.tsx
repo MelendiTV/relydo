@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NotificationsBell from "@/app/components/NotificationsBell";
 import { AccountModeSwitcher } from "@/app/components/AccountModeSwitcher";
 import { useAccountMode } from "@/app/components/AccountModeProvider";
 import { useLanguage } from "@/app/components/LanguageProvider";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 type Solicitud = {
   id: string;
