@@ -46,13 +46,28 @@ self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 
   const rawUrl = event.notification.data?.url || "/";
+  const officialOrigin = "https://www.relydo.co";
 
   let targetUrl;
 
   try {
-    targetUrl = new URL(
+    const parsedUrl = new URL(
       rawUrl,
       self.location.origin
+    );
+
+    const hostedByRelydo =
+      self.location.hostname === "www.relydo.co" ||
+      self.location.hostname === "relydo.co" ||
+      self.location.hostname.endsWith(".vercel.app");
+
+    const destinationOrigin = hostedByRelydo
+      ? officialOrigin
+      : self.location.origin;
+
+    targetUrl = new URL(
+      `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
+      destinationOrigin
     ).href;
   } catch (error) {
     console.error(
@@ -60,15 +75,18 @@ self.addEventListener("notificationclick", function (event) {
       error
     );
 
-    targetUrl = self.location.origin + "/";
+    targetUrl = officialOrigin + "/";
   }
 
   event.waitUntil(
     (async function () {
       try {
+        const targetOrigin =
+          new URL(targetUrl).origin;
+
         /*
           Primero buscamos una pestaña RELYDO
-          que ya esté abierta.
+          que ya esté abierta en el dominio destino.
 
           Si existe, reutilizamos esa misma pestaña
           en lugar de crear una nueva.
@@ -87,7 +105,7 @@ self.addEventListener("notificationclick", function (event) {
 
             if (
               clientUrl.origin ===
-              self.location.origin
+              targetOrigin
             ) {
               if ("navigate" in client) {
                 await client.navigate(
@@ -110,8 +128,8 @@ self.addEventListener("notificationclick", function (event) {
         }
 
         /*
-          Si no existe ninguna pestaña RELYDO
-          abierta, entonces sí abrimos una nueva.
+          Si no existe una pestaña del dominio destino,
+          abrimos directamente la URL oficial de RELYDO.
         */
 
         if (clients.openWindow) {
