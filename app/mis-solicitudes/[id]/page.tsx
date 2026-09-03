@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
+import NotificationsBell from "@/app/components/NotificationsBell";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -3542,6 +3543,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10">
+      <div className="hidden" aria-hidden="true">
+        <NotificationsBell modo="cliente" />
+      </div>
+
 
       <div className="mx-auto max-w-5xl">
 

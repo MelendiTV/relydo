@@ -7,6 +7,7 @@ import {
 } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
+import NotificationsBell from "@/app/components/NotificationsBell";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -4437,6 +4438,10 @@ export default function TrabajoDetallePage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
+      <div className="hidden" aria-hidden="true">
+        <NotificationsBell modo="profesional" />
+      </div>
+
 
       {/* BARRA SUPERIOR */}
 
