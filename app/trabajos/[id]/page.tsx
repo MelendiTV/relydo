@@ -5072,7 +5072,7 @@ export default function TrabajoDetallePage() {
                                 !evidenciasFinales.some((item) => item.file_type === "image")
                               }
                               onClick={pasarARevision}
-                              className={`h-12 w-full rounded-xl border-2 px-4 font-extrabold transition disabled:cursor-not-allowed ${
+                              className={`min-h-16 w-full rounded-xl border-2 px-5 py-3 font-extrabold transition disabled:cursor-not-allowed ${
                                 reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
                                   ? "border-slate-200 bg-slate-200 text-slate-500"
                                   : "border-green-600 bg-green-600 text-white hover:bg-green-700"
@@ -5109,17 +5109,9 @@ export default function TrabajoDetallePage() {
                                     "start",
                                 })
                             }
-                            className="h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                            className="mt-3 h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
                           >
                             {T("💬 Chat con el cliente", "💬 Chat with customer")}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={abrirDireccion}
-                            className="h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
-                          >
-                            {T("📍 Ver dirección en el mapa", "📍 View address on map")}
                           </button>
 
 
