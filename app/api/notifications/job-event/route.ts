@@ -28,6 +28,7 @@ const supabaseAdmin =
 
 type EventName =
   | "provider_stage_changed"
+  | "job_submitted_for_review"
   | "job_completed"
   | "provider_released_job"
   | "change_order_requested"
@@ -157,7 +158,8 @@ export async function POST(
           customer_id,
           preferred_provider_id,
           status,
-          job_stage
+          job_stage,
+          completion_review_status
         `)
         .eq(
           "id",
@@ -298,6 +300,60 @@ export async function POST(
                 ? selected.messageEs
                 : selected.messageEn
             }`,
+          requestId,
+          url:
+            `/mis-solicitudes/${requestId}`,
+        });
+
+      return NextResponse.json({
+        success: true,
+        result,
+      });
+    }
+
+    /*
+      TRABAJO ENVIADO A REVISIÓN DEL CLIENTE
+    */
+
+    if (
+      event ===
+      "job_submitted_for_review"
+    ) {
+      if (
+        serviceRequest.preferred_provider_id !==
+          user.id ||
+        serviceRequest.status !==
+          "in_progress" ||
+        serviceRequest.job_stage !==
+          "working" ||
+        serviceRequest.completion_review_status !==
+          "pending"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No puedes notificar la revisión de este trabajo.",
+          },
+          {
+            status: 403,
+          }
+        );
+      }
+
+      const result =
+        await sendRelydoNotification({
+          userId:
+            serviceRequest.customer_id,
+          type:
+            "job_submitted_for_review",
+          title:
+            "Trabajo listo para revisión",
+          titleEn:
+            "Job ready for review",
+          message:
+            `${jobTitle}: el profesional terminó el servicio y envió la evidencia final. Revisa el trabajo y apruébalo si todo está correcto.`,
+          messageEn:
+            `${jobTitle}: the professional finished the service and submitted the final evidence. Review the job and approve it if everything is correct.`,
           requestId,
           url:
             `/mis-solicitudes/${requestId}`,

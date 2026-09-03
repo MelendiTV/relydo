@@ -25,6 +25,9 @@ type Solicitud = {
   cancellation_reason: string | null;
   cancelled_at: string | null;
   completed_at: string | null;
+  completion_review_status: "pending" | "approved" | null;
+  submitted_for_review_at: string | null;
+  completion_approved_at: string | null;
 };
 
 type Oferta = {
@@ -458,6 +461,17 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Contratar por": "Hire for",
   "Detalles de la solicitud": "Request details",
   "Pagado": "Paid",
+  "Trabajo listo para revisión": "Job ready for review",
+  "El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.": "The professional finished the service and submitted the final evidence. Review it before approving the job.",
+  "✓ Aprobar trabajo": "✓ Approve job",
+  "Aprobando trabajo...": "Approving job...",
+  "Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.": "Review the final evidence below. If everything is correct, approve the job. If there is a problem, use the claims system.",
+  "¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?": "Do you confirm the job was completed correctly and want to approve it as completed?",
+  "Trabajo aprobado correctamente.": "Job approved successfully.",
+  "No se pudo aprobar el trabajo.": "The job could not be approved.",
+  "Este trabajo no está pendiente de tu aprobación.": "This job is not waiting for your approval.",
+  "No puedes aprobar el trabajo mientras exista un reclamo activo.": "You cannot approve the job while there is an active claim.",
+  "Pendiente de tu aprobación": "Waiting for your approval",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -818,6 +832,11 @@ export default function MisSolicitudDetallePage() {
     setEnviandoReview,
   ] =
     useState(false);
+
+  const [
+    aprobandoFinalizacion,
+    setAprobandoFinalizacion,
+  ] = useState(false);
 
   const [
     error,
@@ -1218,6 +1237,24 @@ export default function MisSolicitudDetallePage() {
                     undefined
                       ? nuevo.completed_at
                       : actual.completed_at,
+
+                  completion_review_status:
+                    nuevo.completion_review_status !==
+                    undefined
+                      ? nuevo.completion_review_status
+                      : actual.completion_review_status,
+
+                  submitted_for_review_at:
+                    nuevo.submitted_for_review_at !==
+                    undefined
+                      ? nuevo.submitted_for_review_at
+                      : actual.submitted_for_review_at,
+
+                  completion_approved_at:
+                    nuevo.completion_approved_at !==
+                    undefined
+                      ? nuevo.completion_approved_at
+                      : actual.completion_approved_at,
                 };
               }
             );
@@ -1228,7 +1265,11 @@ export default function MisSolicitudDetallePage() {
               nuevo.status ===
                 "completed" ||
               nuevo.status ===
-                "cancelled"
+                "cancelled" ||
+              nuevo.completion_review_status ===
+                "pending" ||
+              nuevo.completion_review_status ===
+                "approved"
             ) {
               programarRecargaDetalle(400);
             }
@@ -1647,7 +1688,10 @@ export default function MisSolicitudDetallePage() {
           job_stage,
           cancellation_reason,
           cancelled_at,
-          completed_at
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
         `)
         .eq(
           "id",
@@ -2408,6 +2452,80 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       );
     } finally {
       setCancelando(false);
+    }
+  }
+
+  /*
+    APROBAR FINALIZACIÓN DEL TRABAJO
+  */
+
+  async function aprobarFinalizacionTrabajo() {
+    if (!solicitud) {
+      return;
+    }
+
+    if (
+      solicitud.status !== "in_progress" ||
+      solicitud.job_stage !== "working" ||
+      solicitud.completion_review_status !== "pending"
+    ) {
+      setError(
+        T("Este trabajo no está pendiente de tu aprobación.")
+      );
+      return;
+    }
+
+    if (claim && claim.status !== "resolved") {
+      setError(
+        T("No puedes aprobar el trabajo mientras exista un reclamo activo.")
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        T("¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?")
+      )
+    ) {
+      return;
+    }
+
+    setAprobandoFinalizacion(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const { error: approvalError } =
+        await supabase.rpc(
+          "approve_job_completion",
+          {
+            p_request_id: solicitud.id,
+          }
+        );
+
+      if (approvalError) {
+        throw new Error(approvalError.message);
+      }
+
+      await cargarDetalle(false);
+      setMensaje(
+        T("Trabajo aprobado correctamente.")
+      );
+    } catch (err) {
+      console.error(
+        "Error aprobando finalización del trabajo:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No se pudo aprobar el trabajo.")
+      );
+
+      await cargarDetalle(false);
+    } finally {
+      setAprobandoFinalizacion(false);
     }
   }
 
@@ -4732,9 +4850,55 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </section>
           )}
 
+        {solicitud.status === "in_progress" &&
+          solicitud.job_stage === "working" &&
+          solicitud.completion_review_status === "pending" && (
+            <section className="mt-8 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-xl">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+                    {T("Pendiente de tu aprobación")}
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">
+                    {T("Trabajo listo para revisión")}
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {T("El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.")}
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {T("Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.")}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={aprobarFinalizacionTrabajo}
+                  disabled={
+                    aprobandoFinalizacion ||
+                    Boolean(claim && claim.status !== "resolved")
+                  }
+                  className="min-h-14 w-full rounded-2xl bg-emerald-600 px-7 py-4 text-lg font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:min-w-[250px]"
+                >
+                  {aprobandoFinalizacion
+                    ? T("Aprobando trabajo...")
+                    : T("✓ Aprobar trabajo")}
+                </button>
+              </div>
+            </section>
+          )}
+
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
-        {solicitud.status === "completed" &&
+        {(
+          solicitud.status === "completed" ||
+          (
+            solicitud.status === "in_progress" &&
+            solicitud.completion_review_status === "pending"
+          )
+        ) &&
           evidenciasFinales.length > 0 && (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
               <div className="mb-5 font-extrabold text-slate-900">

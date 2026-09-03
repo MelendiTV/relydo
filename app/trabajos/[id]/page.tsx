@@ -2510,6 +2510,10 @@ export default function TrabajoDetallePage() {
         submitted_for_review_at: actual.submitted_for_review_at || new Date().toISOString(),
       } : actual);
 
+      await notificarEventoTrabajo(
+        "job_submitted_for_review"
+      );
+
       await cargarTodo();
       setMensaje(T("Trabajo enviado al cliente para revisión.", "Job sent to the customer for review."));
     } catch (err) {
