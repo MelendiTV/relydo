@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -454,6 +455,11 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tarifa de servicio RELYDO": "RELYDO service fee",
   "Revisar y continuar": "Review and continue",
   "Contratar por": "Hire for",
+  "Detalles de la solicitud": "Request details",
+  "Cambio de presupuesto": "Budget change",
+  "Calificación del servicio": "Service rating",
+  "Reclamo del servicio": "Service claim",
+  "Conectando...": "Connecting...",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -749,6 +755,45 @@ function formatearHoraChat(
     }
   ).format(
     new Date(fecha)
+  );
+}
+
+type CollapsibleSectionProps = {
+  title: string;
+  children: ReactNode;
+  className?: string;
+  id?: string;
+  defaultOpen?: boolean;
+};
+
+function CollapsibleSection({
+  title,
+  children,
+  className = "",
+  id,
+  defaultOpen = true,
+}: CollapsibleSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section id={id} className={className}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 text-left"
+        aria-expanded={open}
+      >
+        <span className="font-extrabold text-slate-900">{title}</span>
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-700"
+        >
+          {open ? "−" : "+"}
+        </span>
+      </button>
+
+      {open && <div>{children}</div>}
+    </section>
   );
 }
 
@@ -3410,7 +3455,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* SOLICITUD */}
 
-        <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <CollapsibleSection title={T("Detalles de la solicitud")} className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
 
           <div className="bg-blue-700 p-8 text-white">
 
@@ -3470,80 +3515,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
           </div>
 
-        </section>
+        </CollapsibleSection>
 
-        {profesionalPreferido && (
-          <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm md:p-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-blue-700">
-                  {T("⭐ Profesional preferido")}
-                </p>
 
-                <h2 className="mt-1 text-xl font-extrabold text-slate-900">
-                  {profesionalPreferido.business_name ||
-                    T("Profesional")}
-                </h2>
-
-                {profesionalPreferido.trade && (
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
-                    {profesionalPreferido.trade}
-                  </p>
-                )}
-
-                <p className="mt-2 text-sm text-slate-600">
-                  {T("Esta solicitud fue creada con este profesional como preferido.")}
-                </p>
-              </div>
-
-              {profesionalPreferido.verified === true && (
-                <span className="w-fit rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
-                  ✓ {T("Profesional verificado")}
-                </span>
-              )}
-            </div>
-          </section>
-        )}
-
-        {fotosSolicitud.length > 0 && (
-          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-            <h2 className="text-xl font-extrabold text-slate-900">
-              {T("📷 Fotos de la solicitud")}
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-600">
-              {T("Fotos que adjuntaste al crear esta solicitud.")}
-            </p>
-
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {fotosSolicitud.map(
-                (foto, index) =>
-                  foto.signed_url ? (
-                    <a
-                      key={foto.id}
-                      href={foto.signed_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-                    >
-                      <img
-                        src={foto.signed_url}
-                        alt={`${T("Foto de la solicitud")} ${index + 1}`}
-                        className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
-                      />
-                    </a>
-                  ) : null
-              )}
-            </div>
-          </section>
-        )}
 
         {/* AVISO SOLO MIENTRAS NO HAYA OFERTAS NUEVAS */}
 
         {profesionalLiberoTrabajo &&
           ofertasPendientes ===
             0 && (
-            <section className="mt-6 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-sm">
+            <CollapsibleSection title={T("Buscando un nuevo profesional")} className="mt-6 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-sm">
 
               <div className="flex items-start gap-4">
 
@@ -3581,13 +3562,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               </div>
 
-            </section>
+            </CollapsibleSection>
           )}
 
         {/* SEGUIMIENTO */}
 
         {mostrarSeguimiento && (
-          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+          <CollapsibleSection title={T("Seguimiento en vivo")} className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
@@ -3634,7 +3615,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                   {realtimeConectado
                     ? T("Actualizando en vivo")
-                    : "Conectando..."}
+                    : T("Conectando...")}
                 </div>
               )}
 
@@ -3717,7 +3698,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             </div>
 
-          </section>
+          </CollapsibleSection>
         )}
 
         {mensaje && (
@@ -3736,7 +3717,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {solicitud.status ===
         "cancelled" ? (
-          <section className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
+          <CollapsibleSection title={T("Solicitud cancelada")} className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
 
             <div className="flex items-start gap-4">
 
@@ -3754,7 +3735,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <h2 className="mt-2 text-2xl font-extrabold text-red-900">
                   {canceladoPorRelydo
-                    ? "Trabajo cancelado por resolución de RELYDO"
+                    ? T("Trabajo cancelado por resolución de RELYDO")
                     : T("Este trabajo fue cancelado")}
                 </h2>
 
@@ -3824,9 +3805,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             </div>
 
-          </section>
+          </CollapsibleSection>
         ) : puedeCancelar ? (
-          <section id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
+          <CollapsibleSection title={T("¿Ya no necesitas el servicio?")} id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
 
             {!mostrarCancelacion ? (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3947,7 +3928,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   ) : payment ? (
                     <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">Total pagado</span>
+                        <span className="text-slate-600">{T("Total pagado")}</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.totalPagado.toFixed(2)}
                         </strong>
@@ -3955,7 +3936,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          Penalidad ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          {T("Penalidad")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
@@ -4012,8 +3993,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {cancelando
-                      ? "Cancelando solicitud..."
-                      : "Confirmar cancelación"}
+                      ? T("Cancelando solicitud...")
+                      : T("Confirmar cancelación")}
                   </button>
 
                 </div>
@@ -4021,10 +4002,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </div>
             )}
 
-          </section>
+          </CollapsibleSection>
         ) : solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" ? (
-          <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
+          <CollapsibleSection title={T("Trabajo iniciado")} className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
             <p className="text-sm font-black uppercase tracking-wide text-amber-700">
               {T("Trabajo iniciado")}
             </p>
@@ -4060,13 +4041,49 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             >
               {T("⚠️ Iniciar reclamo")}
             </button>
-          </section>
+          </CollapsibleSection>
         ) : null}
+
+        {fotosSolicitud.length > 0 && (
+          <CollapsibleSection
+            title={T("📷 Fotos de la solicitud")}
+            className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
+          >
+            <h2 className="text-xl font-extrabold text-slate-900">
+              {T("📷 Fotos de la solicitud")}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-600">
+              {T("Fotos que adjuntaste al crear esta solicitud.")}
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {fotosSolicitud.map(
+                (foto, index) =>
+                  foto.signed_url ? (
+                    <a
+                      key={foto.id}
+                      href={foto.signed_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                    >
+                      <img
+                        src={foto.signed_url}
+                        alt={`${T("Foto de la solicitud")} ${index + 1}`}
+                        className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
+                      />
+                    </a>
+                  ) : null
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
 
         {/* CAMBIO DE PRESUPUESTO */}
 
         {changeOrderPendiente && (
-          <section className="mt-6 overflow-hidden rounded-3xl border-2 border-violet-300 bg-white shadow-xl">
+          <CollapsibleSection title={T("💰 Cambio de presupuesto solicitado")} className="mt-6 overflow-hidden rounded-3xl border-2 border-violet-300 bg-white shadow-xl">
             <div className="bg-violet-700 px-7 py-5 text-white">
               <p className="text-sm font-black uppercase tracking-wide text-violet-100">
                 {T("💰 Cambio de presupuesto solicitado")}
@@ -4205,14 +4222,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </button>
               </div>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {!changeOrderPendiente &&
           ultimoChangeOrder &&
           ultimoChangeOrder.status !==
             "pending" && (
-          <section
+          <CollapsibleSection title={T("Cambio de presupuesto")}
             className={`mt-6 rounded-3xl border-2 p-6 shadow-sm ${
               ultimoChangeOrder.status ===
               "accepted"
@@ -4334,13 +4351,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 {T("El cambio fue rechazado. El presupuesto anterior permanece sin cambios.")}
               </p>
             )}
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* PROFESIONAL CONTRATADO */}
 
         {ofertaSeleccionada && (
-          <section className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
+          <CollapsibleSection title={T("✓ Profesional contratado")} className="mt-6 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
               {T("✓ Profesional contratado")}
@@ -4528,7 +4545,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </button>
               )}
 
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* CHAT PRIVADO RELYDO */}
@@ -4536,7 +4553,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {ofertaSeleccionada &&
           solicitud.status !==
             "open" && (
-            <section
+            <CollapsibleSection title={T("🔒 Comunicación protegida")}
               id="chat-relydo"
               className="mt-8 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
             >
@@ -4729,14 +4746,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </div>
                 )}
               </div>
-            </section>
+            </CollapsibleSection>
           )}
 
         {/* EVIDENCIA FINAL DEL PROFESIONAL */}
 
         {solicitud.status === "completed" &&
           evidenciasFinales.length > 0 && (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+            <CollapsibleSection title={T("📸 Evidencia del trabajo terminado")} className="mt-8 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide text-blue-700">
@@ -4828,7 +4845,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
                 </p>
               </div>
-            </section>
+            </CollapsibleSection>
           )}
 
         {/* RESEÑA */}
@@ -4836,7 +4853,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {solicitud.status ===
           "completed" &&
           ofertaSeleccionada && (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+            <CollapsibleSection title={T("Calificación del servicio")} className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
 
               {review ? (
                 <>
@@ -5022,7 +5039,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </>
               )}
 
-            </section>
+            </CollapsibleSection>
           )}
 
         {/* RECLAMO / REPORTAR PROBLEMA */}
@@ -5036,7 +5053,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )
         ) &&
           ofertaSeleccionada && (
-          <section
+          <CollapsibleSection title={T("Reclamo del servicio")}
             id="reclamos-cliente"
             className="mt-8 scroll-mt-6 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
           >
@@ -5374,12 +5391,12 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 </div>
               </form>
             )}
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* PRESUPUESTOS */}
 
-        <section className="mt-8">
+        <CollapsibleSection title={T("Presupuestos recibidos")} className="mt-8">
 
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
@@ -5676,7 +5693,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
           )}
 
-        </section>
+        </CollapsibleSection>
 
       </div>
 
