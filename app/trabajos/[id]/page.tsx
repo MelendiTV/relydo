@@ -4913,7 +4913,7 @@ export default function TrabajoDetallePage() {
                                 setError("");
                                 setMensaje("");
                               }}
-                              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                              className="h-12 rounded-xl bg-amber-500 px-4 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
                             >
                               {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
                             </button>
@@ -4944,7 +4944,7 @@ export default function TrabajoDetallePage() {
                                     setMostrarConfirmacionInicio(false);
                                     await cambiarEtapa("working");
                                   }}
-                                  className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                                  className="h-12 rounded-xl bg-amber-500 px-4 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
                                 >
                                   {T("Sí, iniciar trabajo", "Yes, start job")}
                                 </button>
@@ -4958,7 +4958,7 @@ export default function TrabajoDetallePage() {
                                     setError("");
                                     setMensaje("");
                                   }}
-                                  className="rounded-xl border-2 border-violet-300 bg-white px-4 py-3 font-extrabold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="h-12 rounded-xl border-2 border-violet-300 bg-white px-4 font-extrabold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   {T(
                                     "Necesito ajustar el presupuesto",
@@ -5146,7 +5146,7 @@ export default function TrabajoDetallePage() {
                                     "start",
                                 })
                             }
-                            className="rounded-xl border-2 border-blue-300 bg-white px-4 py-2 text-sm font-extrabold text-blue-700 transition hover:bg-blue-50"
+                            className="h-12 rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
                           >
                             {T("💬 Chat con el cliente", "💬 Chat with customer")}
                           </button>
@@ -5154,7 +5154,7 @@ export default function TrabajoDetallePage() {
                           <button
                             type="button"
                             onClick={abrirDireccion}
-                            className="sm:col-span-2 rounded-xl border-2 border-blue-300 bg-white px-4 py-2 text-sm font-extrabold text-blue-700 transition hover:bg-blue-50"
+                            className="sm:col-span-2 h-12 rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
                           >
                             {T("📍 Ver dirección en el mapa", "📍 View address on map")}
                           </button>
