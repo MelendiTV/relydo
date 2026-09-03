@@ -468,6 +468,7 @@ export default function NotificationsBell({
       const customEvent =
         event as CustomEvent<{
           enabled?: boolean;
+          playTest?: boolean;
         }>;
 
       const enabled =
@@ -504,6 +505,44 @@ export default function NotificationsBell({
       }
 
       await intentarReactivarAudio();
+
+      if (customEvent.detail?.playTest) {
+        const context =
+          audioContextRef.current;
+
+        if (
+          context &&
+          context.state ===
+            "running"
+        ) {
+          const ahora =
+            context.currentTime;
+
+          crearTono(
+            context,
+            700,
+            ahora,
+            0.20,
+            0.35
+          );
+
+          crearTono(
+            context,
+            950,
+            ahora + 0.24,
+            0.25,
+            0.38
+          );
+
+          crearTono(
+            context,
+            1200,
+            ahora + 0.52,
+            0.45,
+            0.42
+          );
+        }
+      }
     }
 
     window.addEventListener(

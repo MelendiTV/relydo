@@ -1102,6 +1102,8 @@ export default function MisSolicitudesPage() {
           detail: {
             enabled:
               siguiente,
+            playTest:
+              siguiente,
           },
         }
       )

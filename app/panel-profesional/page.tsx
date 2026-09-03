@@ -811,6 +811,8 @@ export default function PanelProfesional() {
           detail: {
             enabled:
               siguiente,
+            playTest:
+              siguiente,
           },
         }
       )
