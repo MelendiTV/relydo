@@ -35,6 +35,14 @@ type WindowConAudio = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
 
+/*
+  AUDIO CONTEXT COMPARTIDO
+
+  Se mantiene fuera del componente para que no se pierda al navegar
+  entre el panel y el detalle de un trabajo.
+*/
+let sharedAudioContext: AudioContext | null = null;
+
 export default function NotificationsBell({
   modo = "cliente",
 }: Props) {
@@ -102,7 +110,7 @@ export default function NotificationsBell({
 
   const audioContextRef =
     useRef<AudioContext | null>(
-      null
+      sharedAudioContext
     );
 
   /*
@@ -663,6 +671,9 @@ export default function NotificationsBell({
       ) {
         audioContextRef.current =
           new AudioContextClass();
+
+        sharedAudioContext =
+          audioContextRef.current;
 
         /*
           ESCUCHAR CAMBIOS
