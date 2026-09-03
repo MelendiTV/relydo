@@ -4969,8 +4969,9 @@ export default function TrabajoDetallePage() {
                             </div>
                           )}
 
-                          {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" && (
-                            <div className="sm:col-span-2 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+                          {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" ? (
+                            <div className="sm:col-span-2 xl:col-span-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)] xl:items-start">
+                            <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
                               <div className="grid min-w-0 grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                                 <div className="min-w-0 p-5 md:p-6">
                                   <div className="flex min-w-0 items-start gap-4">
@@ -5061,10 +5062,71 @@ export default function TrabajoDetallePage() {
                                 </div>
                               </div>
                             </div>
+                              <div className="space-y-3">
+                          {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
+                            <button
+                              type="button"
+                              disabled={
+                                completando ||
+                                reclamoActivo ||
+                                !evidenciasFinales.some((item) => item.file_type === "image")
+                              }
+                              onClick={pasarARevision}
+                              className={`h-12 w-full rounded-xl border-2 px-4 font-extrabold transition disabled:cursor-not-allowed ${
+                                reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
+                                  ? "border-slate-200 bg-slate-200 text-slate-500"
+                                  : "border-green-600 bg-green-600 text-white hover:bg-green-700"
+                              }`}
+                            >
+                              {reclamoActivo
+                                ? T("🔒 Bloqueado por reclamo", "🔒 Blocked by claim")
+                                : !evidenciasFinales.some((item) => item.file_type === "image")
+                                ? T("🔒 Pasar a revisión\nSube y guarda al menos 1 foto para habilitar", "🔒 Submit for review\nUpload and save at least 1 photo to enable")
+                                : completando
+                                ? T("Enviando a revisión...", "Submitting for review...")
+                                : T("✓ Pasar a revisión", "✓ Submit for review")}
+                            </button>
                           )}
 
+                          {trabajo.completion_review_status === "pending" && (
+                            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-900">{T("⏳ Trabajo en revisión del cliente", "⏳ Job under customer review")}</p>
+                              <p className="mt-1 text-sm text-amber-800">{T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}</p>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              document
+                                .getElementById(
+                                  "chat-relydo"
+                                )
+                                ?.scrollIntoView({
+                                  behavior:
+                                    "smooth",
+                                  block:
+                                    "start",
+                                })
+                            }
+                            className="h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            {T("💬 Chat con el cliente", "💬 Chat with customer")}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={abrirDireccion}
+                            className="h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            {T("📍 Ver dirección en el mapa", "📍 View address on map")}
+                          </button>
 
 
+                              </div>
+                            </div>
+                          ) : (
+                            <>
                           {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
                             <button
                               type="button"
@@ -5123,6 +5185,10 @@ export default function TrabajoDetallePage() {
                           >
                             {T("📍 Ver dirección en el mapa", "📍 View address on map")}
                           </button>
+
+
+                            </>
+                          )}
 
                           {etapaActual <
                             4 &&
