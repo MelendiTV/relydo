@@ -4889,13 +4889,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       </button>
                     </div>
 
-                    {solicitud.status ===
-                      "completed" &&
-                      solicitud.completed_at && (
-                        <p className="mt-2 text-xs font-bold text-amber-700">
-                          {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
-                        </p>
-                      )}
+                    <p className="mt-2 text-xs font-bold text-amber-700">
+                      {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
+                    </p>
 
                     <p className="mt-2 text-xs leading-5 text-slate-500">
                       {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
