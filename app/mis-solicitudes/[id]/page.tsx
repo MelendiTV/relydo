@@ -3464,6 +3464,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     solicitud.status === "completed" &&
     Boolean(review);
 
+  const panelesCerrados =
+    trabajoFinalizadoConReview ||
+    solicitud.status === "cancelled";
+
   const puedeCancelar =
     solicitud.status ===
       "open" ||
@@ -3734,12 +3738,12 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {mostrarSeguimiento && (
           <details
-            key={trabajoFinalizadoConReview ? "seguimiento-cerrado" : "seguimiento-abierto"}
-            open={!trabajoFinalizadoConReview}
+            key={panelesCerrados ? "seguimiento-cerrado" : "seguimiento-abierto"}
+            open={!panelesCerrados}
             className="group mt-6"
           >
             <summary
-              className={trabajoFinalizadoConReview
+              className={panelesCerrados
                 ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                 : "hidden"}
             >
@@ -3755,7 +3759,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
               </div>
             </summary>
-            <section className={trabajoFinalizadoConReview
+            <section className={panelesCerrados
               ? "mt-2 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl"
               : "rounded-3xl border border-slate-200 bg-white p-7 shadow-xl"}>
             <div className="mb-5 font-extrabold text-slate-900">
@@ -4159,7 +4163,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
 
                     <p className="mt-2 font-semibold text-slate-800">
-                      {solicitud.cancellation_reason}
+                      {T(solicitud.cancellation_reason)}
                     </p>
 
                   </div>
@@ -4454,7 +4458,30 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               solicitud.completion_review_status === "pending")) &&
           evidenciasFinales.length > 0
         ) && (
-          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <details
+            open={solicitud.status !== "cancelled"}
+            className="group mt-6"
+          >
+            <summary
+              className={solicitud.status === "cancelled"
+                ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                : "hidden"}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-extrabold text-slate-950">
+                    {T("📷 Fotos de la solicitud")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {T("Fotos que adjuntaste al crear esta solicitud.")}
+                  </p>
+                </div>
+                <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+              </div>
+            </summary>
+            <section className={solicitud.status === "cancelled"
+              ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
+              : "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"}>
             <h2 className="text-xl font-extrabold text-slate-900">
               {T("📷 Fotos de la solicitud")}
             </h2>
@@ -4484,6 +4511,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               )}
             </div>
           </section>
+          </details>
         )}
 
 
@@ -4772,11 +4800,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {ofertaSeleccionada && (
           <details
             key={trabajoFinalizadoConReview ? "profesional-cerrado" : "profesional-abierto"}
-            open={!trabajoFinalizadoConReview}
+            open={!panelesCerrados}
             className="group mt-6"
           >
             <summary
-              className={trabajoFinalizadoConReview
+              className={panelesCerrados
                 ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                 : "hidden"}
             >
@@ -4792,7 +4820,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
               </div>
             </summary>
-            <section className={trabajoFinalizadoConReview
+            <section className={panelesCerrados
               ? "mt-2 rounded-3xl border-2 border-green-300 bg-green-50 p-7"
               : "rounded-3xl border-2 border-green-300 bg-green-50 p-7"}>
             <div className="mb-5 font-extrabold text-slate-900">
@@ -4995,11 +5023,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           evidenciasFinales.length > 0 && (
             <details
               key={trabajoFinalizadoConReview ? "evidencia-cerrada" : "evidencia-abierta"}
-              open={!trabajoFinalizadoConReview}
+              open={!panelesCerrados}
               className="group mt-8"
             >
               <summary
-                className={trabajoFinalizadoConReview
+                className={panelesCerrados
                   ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                   : "hidden"}
               >
@@ -5015,7 +5043,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                 </div>
               </summary>
-              <section className={trabajoFinalizadoConReview
+              <section className={panelesCerrados
                 ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"
                 : "rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"}>
               <div className={`grid grid-cols-1 gap-6 ${fotosSolicitud.length > 0 ? "lg:grid-cols-2" : ""}`}>
@@ -5157,11 +5185,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             "open" && (
             <details
               key={trabajoFinalizadoConReview ? "chat-cerrado" : "chat-abierto"}
-              open={!trabajoFinalizadoConReview}
+              open={!panelesCerrados}
               className="group mt-8"
             >
               <summary
-                className={trabajoFinalizadoConReview
+                className={panelesCerrados
                   ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                   : "hidden"}
               >
@@ -5179,7 +5207,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </summary>
               <section
                 id="chat-relydo"
-                className={trabajoFinalizadoConReview
+                className={panelesCerrados
                   ? "mt-2 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
                   : "scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"}
               >
