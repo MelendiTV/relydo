@@ -4375,7 +4375,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          {T("Penalidad")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          {T("Penalidad")}
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
