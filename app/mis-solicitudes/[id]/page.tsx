@@ -378,6 +378,8 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Decisión": "Decision",
   "El problema es mayor de lo esperado": "The problem is bigger than expected",
   "Se necesita trabajo adicional": "Additional work is needed",
+  "Se necesitan materiales adicionales": "Additional materials are needed",
+  "Procesando...": "Processing...",
   "✕ Rechazar cambio": "✕ Reject change",
   "✓ Cambio de presupuesto aceptado": "✓ Budget change accepted",
   "✕ Cambio de presupuesto rechazado": "✕ Budget change rejected",
@@ -1532,11 +1534,17 @@ export default function MisSolicitudDetallePage() {
         );
 
         setMensaje(
-          `Pago adicional confirmado${
-            changeOrderId
-              ? ""
-              : ""
-          }. El resumen de pago ya incluye el cambio de presupuesto.`
+          language === "en"
+            ? `Additional payment confirmed${
+                changeOrderId
+                  ? ""
+                  : ""
+              }. The payment summary now includes the budget change.`
+            : `Pago adicional confirmado${
+                changeOrderId
+                  ? ""
+                  : ""
+              }. El resumen de pago ya incluye el cambio de presupuesto.`
         );
 
         window.history.replaceState(
@@ -4410,7 +4418,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     : changeOrderPendiente.reason === "trabajo_adicional"
                     ? T("Se necesita trabajo adicional")
                     : changeOrderPendiente.reason === "materiales_adicionales"
-                    ? "Se necesitan materiales adicionales"
+                    ? T("Se necesitan materiales adicionales")
                     : changeOrderPendiente.reason === "otro"
                     ? T("Otro motivo")
                     : changeOrderPendiente.reason}
@@ -4433,9 +4441,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-900">
-                  Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los ${Number(
-                    changeOrderPendiente.additional_amount
-                  ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.
+                  {language === "en"
+                    ? `By accepting, RELYDO will send you to Stripe secure checkout to pay the additional $${Number(
+                        changeOrderPendiente.additional_amount
+                      ).toFixed(2)} plus the applicable service fee.`
+                    : `Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los $${Number(
+                        changeOrderPendiente.additional_amount
+                      ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.`}
                 </p>
               </div>
 
@@ -4458,7 +4470,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? "Procesando..."
+                    ? T("Procesando...")
                     : T("✕ Rechazar cambio")}
                 </button>
 
@@ -4480,7 +4492,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? "Procesando..."
+                    ? T("Procesando...")
+                    : language === "en"
+                    ? `✓ Accept +$${Number(
+                        changeOrderPendiente.additional_amount
+                      ).toFixed(2)}`
                     : `✓ Aceptar +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
@@ -4561,11 +4577,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {T("✓ Cambio pagado")}
                   </p>
                   <p className="mt-1 text-sm font-bold leading-6 text-emerald-800">
-                    Stripe confirmó el pago adicional de $
-                    {Number(
-                      ultimoChangeOrder.additional_customer_total_amount ||
-                        0
-                    ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.
+                    {language === "en"
+                      ? `Stripe confirmed the additional payment of $${Number(
+                          ultimoChangeOrder.additional_customer_total_amount ||
+                            0
+                        ).toFixed(2)}. This amount is already included in the job total summary.`
+                      : `Stripe confirmó el pago adicional de $${Number(
+                          ultimoChangeOrder.additional_customer_total_amount ||
+                            0
+                        ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.`}
                   </p>
                 </div>
               )}
