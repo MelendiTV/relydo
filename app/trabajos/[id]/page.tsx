@@ -1693,9 +1693,8 @@ export default function TrabajoDetallePage() {
 
       if (serviceResult.error) {
         console.error("Error cargando servicio:", serviceResult.error);
-        setServiceSlug(null);
-      } else {
-        setServiceSlug(serviceResult.data?.slug || null);
+      } else if (serviceResult.data?.slug) {
+        setServiceSlug(serviceResult.data.slug);
       }
 
       if (fotosResult.error) {
@@ -6236,7 +6235,7 @@ export default function TrabajoDetallePage() {
                                 {pago.cancellation_stage === "on_the_way"
                                   ? T("En camino", "On the way")
                                   : pago.cancellation_stage === "arrived"
-                                  ? "Llegaste al lugar"
+                                  ? T("Llegaste al lugar", "Arrived")
                                   : T("Antes de iniciar", "Before starting")}
                               </span>
                             </div>
