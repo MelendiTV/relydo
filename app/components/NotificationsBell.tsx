@@ -6,8 +6,12 @@ import {
   useState,
 } from "react";
 
-import { supabase } from "@/app/lib/supabaseBrowser";
+import { createClient } from "@supabase/supabase-js";
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
 
 const SOUND_STORAGE_KEY =
   "relydo_sound_enabled";
@@ -30,14 +34,6 @@ type Props = {
 type WindowConAudio = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
-
-/*
-  AUDIO CONTEXT COMPARTIDO
-
-  Se mantiene fuera del componente para que no se pierda al navegar
-  entre el panel y el detalle de un trabajo.
-*/
-let sharedAudioContext: AudioContext | null = null;
 
 export default function NotificationsBell({
   modo = "cliente",
@@ -106,7 +102,7 @@ export default function NotificationsBell({
 
   const audioContextRef =
     useRef<AudioContext | null>(
-      sharedAudioContext
+      null
     );
 
   /*
@@ -667,9 +663,6 @@ export default function NotificationsBell({
       ) {
         audioContextRef.current =
           new AudioContextClass();
-
-        sharedAudioContext =
-          audioContextRef.current;
 
         /*
           ESCUCHAR CAMBIOS
