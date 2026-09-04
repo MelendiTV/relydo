@@ -4277,32 +4277,6 @@ export default function TrabajoDetallePage() {
           </button>
         </div>
 
-      {fotoAbierta && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={fotoAbierta.alt}
-          onClick={() => setFotoAbierta(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setFotoAbierta(null)}
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-black text-slate-950 shadow-lg"
-            aria-label={T("Cerrar foto", "Close photo")}
-          >
-            ×
-          </button>
-
-          <img
-            src={fotoAbierta.url}
-            alt={fotoAbierta.alt}
-            onClick={(event) => event.stopPropagation()}
-            className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl"
-          />
-        </div>
-      )}
-
       </main>
     );
   }
@@ -6015,7 +5989,7 @@ export default function TrabajoDetallePage() {
                                   alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
                                 })
                               }
-                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                              className="group cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
                             >
                               <img
                                 src={foto.file_url}
@@ -6032,7 +6006,7 @@ export default function TrabajoDetallePage() {
                       <div className={fotos.length > 0 ? "mt-7 border-t border-slate-200 pt-7" : ""}>
                         <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
                           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">✓</span>
-                          {T("Evidencia final del profesional", "Professional final evidence")}
+                          {T("Evidencia final del trabajo terminado por el Pro", "Final evidence of the job completed by the Pro")}
                           <span className="text-slate-500">({evidenciasFinales.length})</span>
                         </h2>
 
@@ -6065,7 +6039,7 @@ export default function TrabajoDetallePage() {
                                     alt: `${T("Foto final del profesional", "Professional final photo")} ${index + 1}`,
                                   })
                                 }
-                                className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                                className="group cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
                               >
                                 <img
                                   src={mediaUrl}
@@ -7238,6 +7212,32 @@ export default function TrabajoDetallePage() {
           </div>
         </details>
       </div>
+
+      {fotoAbierta && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={fotoAbierta.alt}
+          onClick={() => setFotoAbierta(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setFotoAbierta(null)}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-black text-slate-950 shadow-lg"
+            aria-label={T("Cerrar foto", "Close photo")}
+          >
+            ×
+          </button>
+
+          <img
+            src={fotoAbierta.url}
+            alt={fotoAbierta.alt}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </main>
   );
 }
