@@ -4983,6 +4983,173 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </details>
         )}
 
+        {/* FOTOS DE LA SOLICITUD + EVIDENCIA FINAL DEL PROFESIONAL */}
+
+        {(
+          solicitud.status === "completed" ||
+          (
+            solicitud.status === "in_progress" &&
+            solicitud.completion_review_status === "pending"
+          )
+        ) &&
+          evidenciasFinales.length > 0 && (
+            <details
+              key={trabajoFinalizadoConReview ? "evidencia-cerrada" : "evidencia-abierta"}
+              open={!trabajoFinalizadoConReview}
+              className="group mt-8"
+            >
+              <summary
+                className={trabajoFinalizadoConReview
+                  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                  : "hidden"}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      {T("📸 Evidencia del trabajo terminado")}
+                    </p>
+                    <p className="mt-1 font-extrabold text-slate-950">
+                      {T("Fotos y videos registrados por el profesional")}
+                    </p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <section className={trabajoFinalizadoConReview
+                ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"
+                : "rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"}>
+              <div className={`grid grid-cols-1 gap-6 ${fotosSolicitud.length > 0 ? "lg:grid-cols-2" : ""}`}>
+                {fotosSolicitud.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h2 className="text-xl font-extrabold text-slate-900">
+                      {T("📷 Fotos de la solicitud")}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-600">
+                      {T("Fotos que adjuntaste al crear esta solicitud.")}
+                    </p>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                      {fotosSolicitud.map(
+                        (foto, index) =>
+                          foto.signed_url ? (
+                            <button
+                              key={foto.id}
+                              type="button"
+                              onClick={() => abrirVisorFoto(`request-${foto.id}`)}
+                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left cursor-zoom-in"
+                              aria-label={`${T("Foto de la solicitud")} ${index + 1}`}
+                            >
+                              <img
+                                src={foto.signed_url}
+                                alt={`${T("Foto de la solicitud")} ${index + 1}`}
+                                className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
+                              />
+                            </button>
+                          ) : null
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-blue-100 bg-white p-5">
+                  <div className="mb-4 font-extrabold text-slate-900">
+                    <span>{T("📸 Evidencia del trabajo terminado")}</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+                        {T("📸 Evidencia del trabajo terminado")}
+                      </p>
+
+                      <h2 className="mt-2 text-2xl font-black text-slate-950">
+                        {T("Fotos y videos registrados por el profesional")}
+                      </h2>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.")}
+                      </p>
+                    </div>
+
+                    <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
+                      {
+                        evidenciasFinales.filter(
+                          (item) => item.file_type === "image"
+                        ).length
+                      }{" "}
+                      foto(s) ·{" "}
+                      {
+                        evidenciasFinales.filter(
+                          (item) => item.file_type === "video"
+                        ).length
+                      }{" "}
+                      video(s)
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {evidenciasFinales.map(
+                      (item) => (
+                        <article
+                          key={item.id}
+                          className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                        >
+                          {item.signed_url ? (
+                            item.file_type === "video" ? (
+                              <video
+                                src={item.signed_url}
+                                controls
+                                preload="metadata"
+                                className="aspect-video w-full bg-black object-contain"
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => abrirVisorFoto(`evidence-${item.id}`)}
+                                className="block w-full cursor-zoom-in"
+                                aria-label={T("Evidencia del trabajo terminado")}
+                              >
+                                <img
+                                  src={item.signed_url}
+                                  alt={T("Evidencia del trabajo terminado")}
+                                  className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
+                                />
+                              </button>
+                            )
+                          ) : (
+                            <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
+                              {T("No pudimos abrir este archivo de evidencia.")}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                            <span className="text-sm font-black text-slate-800">
+                              {item.file_type === "video"
+                                ? T("🎥 Video")
+                                : T("📷 Foto")}
+                            </span>
+
+                            <span className="text-xs font-semibold text-slate-500">
+                              {T("Registrado")}
+                            </span>
+                          </div>
+                        </article>
+                      )
+                    )}
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                    <p className="text-sm font-bold leading-6 text-blue-900">
+                      {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </section>
+            </details>
+          )}
+
         {/* CHAT PRIVADO RELYDO */}
 
         {ofertaSeleccionada &&
@@ -5203,173 +5370,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
                   </div>
                 )}
-              </div>
-              </section>
-            </details>
-          )}
-
-        {/* FOTOS DE LA SOLICITUD + EVIDENCIA FINAL DEL PROFESIONAL */}
-
-        {(
-          solicitud.status === "completed" ||
-          (
-            solicitud.status === "in_progress" &&
-            solicitud.completion_review_status === "pending"
-          )
-        ) &&
-          evidenciasFinales.length > 0 && (
-            <details
-              key={trabajoFinalizadoConReview ? "evidencia-cerrada" : "evidencia-abierta"}
-              open={!trabajoFinalizadoConReview}
-              className="group mt-8"
-            >
-              <summary
-                className={trabajoFinalizadoConReview
-                  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                  : "hidden"}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                      {T("📸 Evidencia del trabajo terminado")}
-                    </p>
-                    <p className="mt-1 font-extrabold text-slate-950">
-                      {T("Fotos y videos registrados por el profesional")}
-                    </p>
-                  </div>
-                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-                </div>
-              </summary>
-              <section className={trabajoFinalizadoConReview
-                ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"
-                : "rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"}>
-              <div className={`grid grid-cols-1 gap-6 ${fotosSolicitud.length > 0 ? "lg:grid-cols-2" : ""}`}>
-                {fotosSolicitud.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h2 className="text-xl font-extrabold text-slate-900">
-                      {T("📷 Fotos de la solicitud")}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-600">
-                      {T("Fotos que adjuntaste al crear esta solicitud.")}
-                    </p>
-
-                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                      {fotosSolicitud.map(
-                        (foto, index) =>
-                          foto.signed_url ? (
-                            <button
-                              key={foto.id}
-                              type="button"
-                              onClick={() => abrirVisorFoto(`request-${foto.id}`)}
-                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left cursor-zoom-in"
-                              aria-label={`${T("Foto de la solicitud")} ${index + 1}`}
-                            >
-                              <img
-                                src={foto.signed_url}
-                                alt={`${T("Foto de la solicitud")} ${index + 1}`}
-                                className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
-                              />
-                            </button>
-                          ) : null
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="rounded-2xl border border-blue-100 bg-white p-5">
-                  <div className="mb-4 font-extrabold text-slate-900">
-                    <span>{T("📸 Evidencia del trabajo terminado")}</span>
-                  </div>
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-wide text-blue-700">
-                        {T("📸 Evidencia del trabajo terminado")}
-                      </p>
-
-                      <h2 className="mt-2 text-2xl font-black text-slate-950">
-                        {T("Fotos y videos registrados por el profesional")}
-                      </h2>
-
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.")}
-                      </p>
-                    </div>
-
-                    <div className="w-fit shrink-0 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
-                      {
-                        evidenciasFinales.filter(
-                          (item) => item.file_type === "image"
-                        ).length
-                      }{" "}
-                      foto(s) ·{" "}
-                      {
-                        evidenciasFinales.filter(
-                          (item) => item.file_type === "video"
-                        ).length
-                      }{" "}
-                      video(s)
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {evidenciasFinales.map(
-                      (item) => (
-                        <article
-                          key={item.id}
-                          className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-                        >
-                          {item.signed_url ? (
-                            item.file_type === "video" ? (
-                              <video
-                                src={item.signed_url}
-                                controls
-                                preload="metadata"
-                                className="aspect-video w-full bg-black object-contain"
-                              />
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => abrirVisorFoto(`evidence-${item.id}`)}
-                                className="block w-full cursor-zoom-in"
-                                aria-label={T("Evidencia del trabajo terminado")}
-                              >
-                                <img
-                                  src={item.signed_url}
-                                  alt={T("Evidencia del trabajo terminado")}
-                                  className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
-                                />
-                              </button>
-                            )
-                          ) : (
-                            <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
-                              {T("No pudimos abrir este archivo de evidencia.")}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
-                            <span className="text-sm font-black text-slate-800">
-                              {item.file_type === "video"
-                                ? T("🎥 Video")
-                                : T("📷 Foto")}
-                            </span>
-
-                            <span className="text-xs font-semibold text-slate-500">
-                              {T("Registrado")}
-                            </span>
-                          </div>
-                        </article>
-                      )
-                    )}
-                  </div>
-
-                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                    <p className="text-sm font-bold leading-6 text-blue-900">
-                      {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
-                    </p>
-                  </div>
-                </div>
               </div>
               </section>
             </details>
