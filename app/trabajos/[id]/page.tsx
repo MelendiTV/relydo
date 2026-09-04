@@ -5761,7 +5761,7 @@ export default function TrabajoDetallePage() {
                                 onChange={
                                   seleccionarArchivosCambioPresupuesto
                                 }
-                                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm"
+                                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:font-bold file:text-slate-900"
                               />
 
                               <p className="mt-2 text-xs text-slate-500">
@@ -5782,7 +5782,9 @@ export default function TrabajoDetallePage() {
                                           {file.type.startsWith("video/")
                                             ? "🎥"
                                             : "📷"}{" "}
-                                          {file.name}
+                                          {language === "en"
+                                            ? file.name.replace(/^Captura de pantalla/i, "Screenshot")
+                                            : file.name}
                                         </p>
                                       </div>
 
