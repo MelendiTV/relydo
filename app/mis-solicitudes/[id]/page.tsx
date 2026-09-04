@@ -5736,7 +5736,29 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* PRESUPUESTOS */}
 
         {ofertas.some((oferta) => oferta.status !== "selected") && (
-        <section className="mt-8">
+        <details
+          open={solicitud.status !== "cancelled"}
+          className="group mt-8"
+        >
+          <summary
+            className={solicitud.status === "cancelled"
+              ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+              : "hidden"}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-extrabold text-slate-950">
+                  {T("Presupuestos recibidos")}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {T("Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.")}
+                </p>
+              </div>
+              <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+            </div>
+          </summary>
+
+        <section className={solicitud.status === "cancelled" ? "mt-2" : ""}>
           <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("Presupuestos recibidos")}</span>
             </div>
@@ -6037,6 +6059,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )}
 
         </section>
+        </details>
         )}
 
       </div>
