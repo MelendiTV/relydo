@@ -4954,7 +4954,11 @@ export default function TrabajoDetallePage() {
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
-                        <p className="mt-1 font-extrabold text-slate-950">✅ {T("Trabajo completado", "Job completed")}</p>
+                        <p className="mt-1 font-extrabold text-slate-950">
+                          {cancelado
+                            ? `🚫 ${T("Trabajo cancelado", "Job cancelled")}`
+                            : `✅ ${T("Trabajo completado", "Job completed")}`}
+                        </p>
                         {(trabajo.submitted_for_review_at || trabajo.completion_approved_at) && (
                           <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-500">
                             {trabajo.submitted_for_review_at && (
