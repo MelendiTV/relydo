@@ -5145,24 +5145,79 @@ export default function TrabajoDetallePage() {
                           {etapaActual ===
                             3 &&
                             ultimoCambioPresupuesto?.status !== "rejected" && (
-                            <button
-                              type="button"
-                              disabled={
-                                cambiandoEstado
-                              }
-                              onClick={() => {
-                                setMostrarConfirmacionInicio(true);
-                                setError("");
-                                setMensaje("");
-                              }}
-                              className="h-12 rounded-xl bg-amber-500 px-4 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
-                            >
-                              {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
-                            </button>
+                            <div>
+                              <button
+                                type="button"
+                                disabled={
+                                  cambiandoEstado ||
+                                  ultimoCambioPresupuesto?.status === "pending" ||
+                                  (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status !== "paid"
+                                  )
+                                }
+                                onClick={async () => {
+                                  if (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status === "paid"
+                                  ) {
+                                    setMostrarConfirmacionInicio(false);
+                                    setError("");
+                                    setMensaje("");
+                                    await cambiarEtapa("working");
+                                    return;
+                                  }
+
+                                  setMostrarConfirmacionInicio(true);
+                                  setError("");
+                                  setMensaje("");
+                                }}
+                                className={`h-12 w-full rounded-xl px-4 font-extrabold transition disabled:cursor-not-allowed ${
+                                  ultimoCambioPresupuesto?.status === "pending" ||
+                                  (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status !== "paid"
+                                  )
+                                    ? "bg-slate-300 text-slate-500"
+                                    : "bg-amber-500 text-white hover:bg-amber-600"
+                                }`}
+                              >
+                                {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
+                              </button>
+
+                              {ultimoCambioPresupuesto?.status === "pending" && (
+                                <p className="mt-2 text-center text-xs font-bold text-slate-600">
+                                  {T(
+                                    "Esperando respuesta del cliente",
+                                    "Waiting for customer response"
+                                  )}
+                                </p>
+                              )}
+
+                              {ultimoCambioPresupuesto?.status === "accepted" &&
+                                ultimoCambioPresupuesto.payment_status !== "paid" && (
+                                <p className="mt-2 text-center text-xs font-bold text-amber-700">
+                                  {T(
+                                    "Esperando confirmación de pago",
+                                    "Waiting for payment confirmation"
+                                  )}
+                                </p>
+                              )}
+
+                              {ultimoCambioPresupuesto?.status === "accepted" &&
+                                ultimoCambioPresupuesto.payment_status === "paid" && (
+                                <p className="mt-2 text-center text-xs font-bold text-emerald-700">
+                                  {T(
+                                    "✓ Pago confirmado",
+                                    "✓ Payment confirmed"
+                                  )}
+                                </p>
+                              )}
+                            </div>
                           )}
 
                           {etapaActual === 3 &&
-                            ultimoCambioPresupuesto?.status !== "rejected" &&
+                            !ultimoCambioPresupuesto &&
                             mostrarConfirmacionInicio && (
                             <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
                               <p className="font-black text-amber-950">

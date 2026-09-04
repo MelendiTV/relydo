@@ -425,8 +425,9 @@ export async function POST(
     if (
       serviceRequest.status !==
         "in_progress" ||
-      serviceRequest.job_stage !==
-        "working"
+      !["arrived", "working"].includes(
+        serviceRequest.job_stage || ""
+      )
     ) {
       return NextResponse.json(
         {
