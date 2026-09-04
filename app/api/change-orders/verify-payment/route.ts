@@ -342,7 +342,9 @@ export async function POST(request: NextRequest) {
       serviceRequest.customer_id === customerId &&
       serviceRequest.preferred_provider_id === providerId &&
       serviceRequest.status === "in_progress" &&
-      serviceRequest.job_stage === "working";
+      ["arrived", "working"].includes(
+        serviceRequest.job_stage || ""
+      );
 
     if (!jobStillValid) {
       const refund = await refundUnexpectedChangeOrderPayment(
