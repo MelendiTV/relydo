@@ -4475,6 +4475,47 @@ export default function TrabajoDetallePage() {
 
   void ahora;
 
+  const fotosVisor = [
+    ...fotos.map((foto, index) => ({
+      url: foto.file_url,
+      alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
+    })),
+    ...evidenciasFinales
+      .filter(
+        (item) =>
+          item.file_type === "image" &&
+          Boolean(item.signed_url)
+      )
+      .map((item, index) => ({
+        url: item.signed_url as string,
+        alt: `${T("Foto final del profesional", "Professional final photo")} ${index + 1}`,
+      })),
+  ];
+
+  const indiceFotoAbierta =
+    fotoAbierta
+      ? fotosVisor.findIndex(
+          (item) => item.url === fotoAbierta.url
+        )
+      : -1;
+
+  const cambiarFotoAbierta = (direccion: -1 | 1) => {
+    if (
+      fotosVisor.length < 2 ||
+      indiceFotoAbierta < 0
+    ) {
+      return;
+    }
+
+    const siguienteIndice =
+      (indiceFotoAbierta + direccion + fotosVisor.length) %
+      fotosVisor.length;
+
+    setFotoAbierta(
+      fotosVisor[siguienteIndice]
+    );
+  };
+
   const etapas = [
     {
       numero: 1,
@@ -7229,6 +7270,34 @@ export default function TrabajoDetallePage() {
           >
             ×
           </button>
+
+          {fotosVisor.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cambiarFotoAbierta(-1);
+                }}
+                className="absolute left-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-black text-slate-950 shadow-lg transition hover:bg-white"
+                aria-label={T("Foto anterior", "Previous photo")}
+              >
+                ‹
+              </button>
+
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cambiarFotoAbierta(1);
+                }}
+                className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-black text-slate-950 shadow-lg transition hover:bg-white"
+                aria-label={T("Foto siguiente", "Next photo")}
+              >
+                ›
+              </button>
+            </>
+          )}
 
           <img
             src={fotoAbierta.url}
