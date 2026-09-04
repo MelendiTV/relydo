@@ -719,49 +719,71 @@ function calcularCancelacionCliente(
     Number(payment?.job_amount || 0)
   );
 
+  const serviceFee = redondearDinero(
+    Number(
+      payment?.customer_fee_amount ??
+        Math.max(0, totalPagado - precioTrabajo)
+    )
+  );
+
+  // Debe coincidir exactamente con /api/customer/cancel-job.
   let penalidadPercent = 0;
+  let porcentajeProTrabajo = 0;
+  let porcentajeRelydoEtapa = 0;
+
+  if (
+    solicitud.status === "in_progress" &&
+    !solicitud.job_stage
+  ) {
+    penalidadPercent = 5;
+    porcentajeProTrabajo = 0;
+    porcentajeRelydoEtapa = 5;
+  }
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "on_the_way"
   ) {
-    penalidadPercent = Number(
-      settings?.customer_cancel_on_the_way_percent || 0
-    );
+    penalidadPercent = 12.5;
+    porcentajeProTrabajo = 5.5;
+    porcentajeRelydoEtapa = 7;
   }
 
   if (
     solicitud.status === "in_progress" &&
     solicitud.job_stage === "arrived"
   ) {
-    penalidadPercent = Number(
-      settings?.customer_cancel_arrived_percent || 0
-    );
+    penalidadPercent = 23.5;
+    porcentajeProTrabajo = 12;
+    porcentajeRelydoEtapa = 11.5;
   }
 
   const penalidad = redondearDinero(
     precioTrabajo * (penalidadPercent / 100)
   );
 
-  const porcentajePro = Number(
-    settings?.cancellation_provider_percent || 0
+  const profesional = redondearDinero(
+    precioTrabajo * (porcentajeProTrabajo / 100)
   );
 
-  const profesional = redondearDinero(
-    penalidad * (porcentajePro / 100)
+  const relydoEtapa = redondearDinero(
+    precioTrabajo * (porcentajeRelydoEtapa / 100)
   );
 
   const relydo = redondearDinero(
-    penalidad - profesional
+    serviceFee + relydoEtapa
   );
 
+  // El service fee original no se reembolsa. El reembolso sale
+  // únicamente del precio del trabajo, igual que en el servidor.
   const reembolso = redondearDinero(
-    Math.max(0, totalPagado - penalidad)
+    Math.max(0, precioTrabajo - penalidad)
   );
 
   return {
     totalPagado,
     precioTrabajo,
+    serviceFee,
     penalidadPercent,
     penalidad,
     profesional,
@@ -2378,6 +2400,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       textoConfirmacion =
         `${T("¿Confirmas la cancelación?")}\n\n` +
         `${T("Total pagado")}: $${resumen.totalPagado.toFixed(2)}\n` +
+        `${T("Tarifa de servicio RELYDO")}: $${resumen.serviceFee.toFixed(2)}\n` +
         `${T("Penalidad")}: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
         `${T("Profesional")}: $${resumen.profesional.toFixed(2)}\n` +
         `RELYDO: $${resumen.relydo.toFixed(2)}\n` +
@@ -4335,7 +4358,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   ) : payment ? (
                     <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">Total pagado</span>
+                        <span className="text-slate-600">{T("Total pagado")}</span>
                         <strong className="text-slate-900">
                           ${resumenCancelacion.totalPagado.toFixed(2)}
                         </strong>
@@ -4343,7 +4366,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-slate-600">
-                          Penalidad ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
+                          {T("Tarifa de servicio RELYDO")}
+                        </span>
+                        <strong className="text-slate-900">
+                          ${resumenCancelacion.serviceFee.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">
+                          {T("Penalidad")} ({resumenCancelacion.penalidadPercent.toFixed(2)}%)
                         </span>
                         <strong className="text-red-700">
                           -${resumenCancelacion.penalidad.toFixed(2)}
@@ -4400,8 +4432,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {cancelando
-                      ? "Cancelando solicitud..."
-                      : "Confirmar cancelación"}
+                      ? T("Cancelando solicitud...")
+                      : T("Confirmar cancelación")}
                   </button>
 
                 </div>
