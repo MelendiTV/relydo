@@ -2,9 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabaseBrowser";
+import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import NotificationsBell from "@/app/components/NotificationsBell";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
 
 type Solicitud = {
   id: string;
@@ -268,6 +273,8 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tu comentario": "Your comment",
   "Trabajo completado": "Job completed",
   "Calificar profesional": "Rate professional",
+  "¿Cómo fue tu experiencia con": "How was your experience with",
+  "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
   "Tu calificación *": "Your rating *",
   "Comentario": "Comment",
   "⚠️ Problema reportado": "⚠️ Problem reported",
@@ -966,6 +973,11 @@ export default function MisSolicitudDetallePage() {
     fotosSolicitud,
     setFotosSolicitud,
   ] = useState<RequestPhoto[]>([]);
+
+  const [
+    visorFotoIndex,
+    setVisorFotoIndex,
+  ] = useState<number | null>(null);
 
   const [
     profesionalPreferido,
@@ -3490,6 +3502,47 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       )
     );
 
+  const fotosVisor = [
+    ...fotosSolicitud
+      .filter((foto) => Boolean(foto.signed_url))
+      .map((foto) => ({
+        id: `request-${foto.id}`,
+        url: foto.signed_url as string,
+        alt: T("Foto de la solicitud"),
+      })),
+    ...evidenciasFinales
+      .filter(
+        (item) =>
+          item.file_type === "image" &&
+          Boolean(item.signed_url)
+      )
+      .map((item) => ({
+        id: `evidence-${item.id}`,
+        url: item.signed_url as string,
+        alt: T("Evidencia del trabajo terminado"),
+      })),
+  ];
+
+  function abrirVisorFoto(id: string) {
+    const index = fotosVisor.findIndex(
+      (foto) => foto.id === id
+    );
+
+    if (index >= 0) {
+      setVisorFotoIndex(index);
+    }
+  }
+
+  function moverVisorFoto(direccion: -1 | 1) {
+    setVisorFotoIndex((actual) => {
+      if (actual === null || fotosVisor.length === 0) {
+        return actual;
+      }
+
+      return (actual + direccion + fotosVisor.length) % fotosVisor.length;
+    });
+  }
+
   const etapas = [
     {
       numero: 1,
@@ -3903,7 +3956,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </h2>
 
                   <p className="mt-2 text-slate-600">
-                    ¿Cómo fue tu experiencia con{" "}
+                    {T("¿Cómo fue tu experiencia con")}{" "}
                     <strong>
                       {ofertaSeleccionada.profesional
                         ?.business_name ||
@@ -3955,7 +4008,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                     <p className="mt-2 text-sm text-slate-500">
                       {rating === 0
-                        ? "Selecciona de 1 a 5 estrellas."
+                        ? T("Selecciona de 1 a 5 estrellas.")
+                        : language === "en"
+                        ? `You selected ${rating} ${
+                            rating === 1
+                              ? "star"
+                              : "stars"
+                          }.`
                         : `Has seleccionado ${rating} ${
                             rating === 1
                               ? "estrella"
@@ -4379,19 +4438,19 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               {fotosSolicitud.map(
                 (foto, index) =>
                   foto.signed_url ? (
-                    <a
+                    <button
                       key={foto.id}
-                      href={foto.signed_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                      type="button"
+                      onClick={() => abrirVisorFoto(`request-${foto.id}`)}
+                      className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-left cursor-zoom-in"
+                      aria-label={`${T("Foto de la solicitud")} ${index + 1}`}
                     >
                       <img
                         src={foto.signed_url}
                         alt={`${T("Foto de la solicitud")} ${index + 1}`}
                         className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
                       />
-                    </a>
+                    </button>
                   ) : null
               )}
             </div>
@@ -5096,19 +5155,19 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {fotosSolicitud.map(
                         (foto, index) =>
                           foto.signed_url ? (
-                            <a
+                            <button
                               key={foto.id}
-                              href={foto.signed_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                              type="button"
+                              onClick={() => abrirVisorFoto(`request-${foto.id}`)}
+                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left cursor-zoom-in"
+                              aria-label={`${T("Foto de la solicitud")} ${index + 1}`}
                             >
                               <img
                                 src={foto.signed_url}
                                 alt={`${T("Foto de la solicitud")} ${index + 1}`}
                                 className="aspect-square h-full w-full object-cover transition group-hover:scale-[1.02]"
                               />
-                            </a>
+                            </button>
                           ) : null
                       )}
                     </div>
@@ -5167,18 +5226,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                                 className="aspect-video w-full bg-black object-contain"
                               />
                             ) : (
-                              <a
-                                href={item.signed_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block"
+                              <button
+                                type="button"
+                                onClick={() => abrirVisorFoto(`evidence-${item.id}`)}
+                                className="block w-full cursor-zoom-in"
+                                aria-label={T("Evidencia del trabajo terminado")}
                               >
                                 <img
                                   src={item.signed_url}
                                   alt={T("Evidencia del trabajo terminado")}
                                   className="aspect-video w-full bg-slate-100 object-cover transition hover:opacity-95"
                                 />
-                              </a>
+                              </button>
                             )
                           ) : (
                             <div className="flex aspect-video items-center justify-center bg-slate-100 px-5 text-center text-sm font-bold text-slate-500">
@@ -5849,6 +5908,67 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         )}
 
       </div>
+
+      {visorFotoIndex !== null && fotosVisor[visorFotoIndex] && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={fotosVisor[visorFotoIndex].alt}
+          onClick={() => setVisorFotoIndex(null)}
+        >
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setVisorFotoIndex(null);
+            }}
+            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-3xl font-light text-white transition hover:bg-white/25"
+            aria-label={language === "es" ? "Cerrar visor" : "Close viewer"}
+          >
+            ×
+          </button>
+
+          {fotosVisor.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moverVisorFoto(-1);
+                }}
+                className="absolute left-3 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-5xl font-light text-white transition hover:bg-white/25 sm:left-6"
+                aria-label={language === "es" ? "Foto anterior" : "Previous photo"}
+              >
+                ‹
+              </button>
+
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moverVisorFoto(1);
+                }}
+                className="absolute right-3 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-5xl font-light text-white transition hover:bg-white/25 sm:right-6"
+                aria-label={language === "es" ? "Foto siguiente" : "Next photo"}
+              >
+                ›
+              </button>
+            </>
+          )}
+
+          <img
+            src={fotosVisor[visorFotoIndex].url}
+            alt={fotosVisor[visorFotoIndex].alt}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[85vh] max-w-[88vw] rounded-xl object-contain shadow-2xl"
+          />
+
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-sm font-bold text-white">
+            {visorFotoIndex + 1} / {fotosVisor.length}
+          </div>
+        </div>
+      )}
 
     </main>
   );
