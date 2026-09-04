@@ -4237,211 +4237,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </div>
 
           </section>
-        ) : puedeCancelar ? (
-          <section id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
-            <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("¿Ya no necesitas el servicio?")}</span>
-            </div>
-
-            {!mostrarCancelacion ? (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-                <div>
-
-                  <h2 className="text-xl font-extrabold text-slate-900">
-                    {T("Puedes cancelar esta solicitud")}
-                  </h2>
-
-                  <p className="mt-2 text-sm text-slate-600">
-                    {T("La cancelación dejará de estar disponible cuando el profesional haya iniciado el trabajo.")}
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarCancelacion(
-                      true
-                    );
-                    setError("");
-                    setMensaje("");
-                  }}
-                  className="shrink-0 rounded-xl border-2 border-red-600 bg-white px-5 py-3 font-extrabold text-red-700 hover:bg-red-50"
-                >
-                  {T("Cancelar solicitud")}
-                </button>
-
-              </div>
-            ) : (
-              <div>
-
-                <div className="flex items-start justify-between gap-4">
-
-                  <div>
-                    <p className="text-sm font-extrabold uppercase tracking-wide text-red-700">
-                      {T("Cancelar solicitud")}
-                    </p>
-
-                    <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                      {T("¿Por qué deseas cancelar?")}
-                    </h2>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMostrarCancelacion(
-                        false
-                      );
-                      setMotivoCancelacion(
-                        ""
-                      );
-                    }}
-                    className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
-                  >
-                    ✕
-                  </button>
-
-                </div>
-
-                <select
-                  value={
-                    motivoCancelacion
-                  }
-                  onChange={(e) =>
-                    setMotivoCancelacion(
-                      e.target.value
-                    )
-                  }
-                  className="mt-5 w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
-                >
-                  <option value="">
-                    {T("Selecciona un motivo")}
-                  </option>
-
-                  <option value="Ya no necesito el servicio">
-                    {T("Ya no necesito el servicio")}
-                  </option>
-
-                  <option value="Encontré otra solución">
-                    {T("Encontré otra solución")}
-                  </option>
-
-                  <option value="Cambió mi horario">
-                    {T("Cambió mi horario")}
-                  </option>
-
-                  <option value="El precio no me conviene">
-                    {T("El precio no me conviene")}
-                  </option>
-
-                  <option value="Otro motivo">
-                    {T("Otro motivo")}
-                  </option>
-                </select>
-
-                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
-                  <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                    {T("Resumen de la cancelación")}
-                  </p>
-
-                  {solicitud.status === "open" ? (
-                    <div className="mt-3 rounded-xl bg-white p-4">
-                      <p className="font-extrabold text-emerald-700">
-                        {T("Cancelación sin penalidad")}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {T("Esta solicitud todavía no tiene un trabajo pagado en progreso.")}
-                      </p>
-                    </div>
-                  ) : payment ? (
-                    <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">{T("Total pagado")}</span>
-                        <strong className="text-slate-900">
-                          ${resumenCancelacion.totalPagado.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">
-                          {T("Tarifa de servicio RELYDO")}
-                        </span>
-                        <strong className="text-slate-900">
-                          ${resumenCancelacion.serviceFee.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600">
-                          {T("Penalidad")}
-                        </span>
-                        <strong className="text-red-700">
-                          -${resumenCancelacion.penalidad.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      <div className="border-t border-slate-200 pt-3">
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="font-black text-slate-900">
-                            {T("Reembolso al cliente")}
-                          </span>
-                          <strong className="text-xl text-emerald-700">
-                            ${resumenCancelacion.reembolso.toFixed(2)}
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                      {T("No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.")}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMostrarCancelacion(
-                        false
-                      );
-                      setMotivoCancelacion(
-                        ""
-                      );
-                    }}
-                    disabled={
-                      cancelando
-                    }
-                    className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-extrabold text-slate-700 disabled:opacity-50"
-                  >
-                    {T("Volver")}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      cancelarSolicitud
-                    }
-                    disabled={
-                      cancelando ||
-                      !motivoCancelacion
-                    }
-                    className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {cancelando
-                      ? T("Cancelando solicitud...")
-                      : T("Confirmar cancelación")}
-                  </button>
-
-                </div>
-
-              </div>
-            )}
-
-          </section>
         ) : solicitud.status === "in_progress" &&
             solicitud.job_stage === "working" ? (
           <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-7 shadow-sm">
@@ -4824,6 +4619,219 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 {T("El cambio fue rechazado. El presupuesto anterior permanece sin cambios.")}
               </p>
             )}
+          </section>
+        )}
+
+        {/* CANCELACIÓN DISPONIBLE — DEBAJO DEL CHANGE ORDER */}
+
+        {puedeCancelar &&
+          !(
+            ultimoChangeOrder?.status === "accepted" &&
+            ultimoChangeOrder.payment_status === "paid"
+          ) && (
+          <section id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
+            <div className="mb-5 font-extrabold text-slate-900">
+              <span>{T("¿Ya no necesitas el servicio?")}</span>
+            </div>
+
+            {!mostrarCancelacion ? (
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+
+                  <h2 className="text-xl font-extrabold text-slate-900">
+                    {T("Puedes cancelar esta solicitud")}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-slate-600">
+                    {T("La cancelación dejará de estar disponible cuando el profesional haya iniciado el trabajo.")}
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarCancelacion(
+                      true
+                    );
+                    setError("");
+                    setMensaje("");
+                  }}
+                  className="shrink-0 rounded-xl border-2 border-red-600 bg-white px-5 py-3 font-extrabold text-red-700 hover:bg-red-50"
+                >
+                  {T("Cancelar solicitud")}
+                </button>
+
+              </div>
+            ) : (
+              <div>
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <div>
+                    <p className="text-sm font-extrabold uppercase tracking-wide text-red-700">
+                      {T("Cancelar solicitud")}
+                    </p>
+
+                    <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
+                      {T("¿Por qué deseas cancelar?")}
+                    </h2>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarCancelacion(
+                        false
+                      );
+                      setMotivoCancelacion(
+                        ""
+                      );
+                    }}
+                    className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
+                  >
+                    ✕
+                  </button>
+
+                </div>
+
+                <select
+                  value={
+                    motivoCancelacion
+                  }
+                  onChange={(e) =>
+                    setMotivoCancelacion(
+                      e.target.value
+                    )
+                  }
+                  className="mt-5 w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
+                >
+                  <option value="">
+                    {T("Selecciona un motivo")}
+                  </option>
+
+                  <option value="Ya no necesito el servicio">
+                    {T("Ya no necesito el servicio")}
+                  </option>
+
+                  <option value="Encontré otra solución">
+                    {T("Encontré otra solución")}
+                  </option>
+
+                  <option value="Cambió mi horario">
+                    {T("Cambió mi horario")}
+                  </option>
+
+                  <option value="El precio no me conviene">
+                    {T("El precio no me conviene")}
+                  </option>
+
+                  <option value="Otro motivo">
+                    {T("Otro motivo")}
+                  </option>
+                </select>
+
+                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
+                  <p className="text-sm font-black uppercase tracking-wide text-red-700">
+                    {T("Resumen de la cancelación")}
+                  </p>
+
+                  {solicitud.status === "open" ? (
+                    <div className="mt-3 rounded-xl bg-white p-4">
+                      <p className="font-extrabold text-emerald-700">
+                        {T("Cancelación sin penalidad")}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {T("Esta solicitud todavía no tiene un trabajo pagado en progreso.")}
+                      </p>
+                    </div>
+                  ) : payment ? (
+                    <div className="mt-4 space-y-3 rounded-xl bg-white p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">{T("Total pagado")}</span>
+                        <strong className="text-slate-900">
+                          ${resumenCancelacion.totalPagado.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">
+                          {T("Tarifa de servicio RELYDO")}
+                        </span>
+                        <strong className="text-slate-900">
+                          ${resumenCancelacion.serviceFee.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600">
+                          {T("Penalidad")}
+                        </span>
+                        <strong className="text-red-700">
+                          -${resumenCancelacion.penalidad.toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-3">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="font-black text-slate-900">
+                            {T("Reembolso al cliente")}
+                          </span>
+                          <strong className="text-xl text-emerald-700">
+                            ${resumenCancelacion.reembolso.toFixed(2)}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                      {T("No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.")}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarCancelacion(
+                        false
+                      );
+                      setMotivoCancelacion(
+                        ""
+                      );
+                    }}
+                    disabled={
+                      cancelando
+                    }
+                    className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-extrabold text-slate-700 disabled:opacity-50"
+                  >
+                    {T("Volver")}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      cancelarSolicitud
+                    }
+                    disabled={
+                      cancelando ||
+                      !motivoCancelacion
+                    }
+                    className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {cancelando
+                      ? T("Cancelando solicitud...")
+                      : T("Confirmar cancelación")}
+                  </button>
+
+                </div>
+
+              </div>
+            )}
+
           </section>
         )}
 
