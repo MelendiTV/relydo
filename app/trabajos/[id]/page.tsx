@@ -5483,7 +5483,7 @@ export default function TrabajoDetallePage() {
                             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                               <div className="rounded-xl bg-white p-4">
                                 <p className="text-xs font-bold text-slate-500">
-                                  Total anterior
+                                  {T("Total anterior", "Previous total")}
                                 </p>
                                 <p className="mt-1 text-xl font-black text-slate-950">
                                   ${Number(
@@ -5668,7 +5668,7 @@ export default function TrabajoDetallePage() {
                             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div>
                                 <label className="text-sm font-black text-slate-800">
-                                  Motivo
+                                  {T("Motivo", "Reason")}
                                 </label>
 
                                 <select
@@ -5683,19 +5683,19 @@ export default function TrabajoDetallePage() {
                                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-violet-500"
                                 >
                                   <option value="">
-                                    Selecciona un motivo
+                                    {T("Selecciona un motivo", "Select a reason")}
                                   </option>
                                   <option value="problema_mayor">
-                                    El problema es mayor de lo esperado
+                                    {T("El problema es mayor de lo esperado", "The problem is bigger than expected")}
                                   </option>
                                   <option value="trabajo_adicional">
                                     {T("Se necesita trabajo adicional", "Additional work is needed")}
                                   </option>
                                   <option value="materiales_adicionales">
-                                    Se necesitan materiales adicionales
+                                    {T("Se necesitan materiales adicionales", "Additional materials are needed")}
                                   </option>
                                   <option value="otro">
-                                    Otro motivo
+                                    {T("Otro motivo", "Other reason")}
                                   </option>
                                 </select>
                               </div>
@@ -5751,7 +5751,7 @@ export default function TrabajoDetallePage() {
 
                             <div className="mt-4">
                               <label className="text-sm font-black text-slate-800">
-                                Fotos o videos (opcional)
+                                {T("Fotos o videos (opcional)", "Photos or videos (optional)")}
                               </label>
 
                               <input
