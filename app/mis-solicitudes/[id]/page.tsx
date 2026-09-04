@@ -378,8 +378,6 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Decisión": "Decision",
   "El problema es mayor de lo esperado": "The problem is bigger than expected",
   "Se necesita trabajo adicional": "Additional work is needed",
-  "Se necesitan materiales adicionales": "Additional materials are needed",
-  "Procesando...": "Processing...",
   "✕ Rechazar cambio": "✕ Reject change",
   "✓ Cambio de presupuesto aceptado": "✓ Budget change accepted",
   "✕ Cambio de presupuesto rechazado": "✕ Budget change rejected",
@@ -4412,7 +4410,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     : changeOrderPendiente.reason === "trabajo_adicional"
                     ? T("Se necesita trabajo adicional")
                     : changeOrderPendiente.reason === "materiales_adicionales"
-                    ? T("Se necesitan materiales adicionales")
+                    ? "Se necesitan materiales adicionales"
                     : changeOrderPendiente.reason === "otro"
                     ? T("Otro motivo")
                     : changeOrderPendiente.reason}
@@ -4435,13 +4433,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-900">
-                  {language === "en"
-                    ? `By accepting, RELYDO will send you to Stripe secure checkout to pay the additional $${Number(
-                        changeOrderPendiente.additional_amount
-                      ).toFixed(2)} plus the applicable service fee.`
-                    : `Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los $${Number(
-                        changeOrderPendiente.additional_amount
-                      ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.`}
+                  Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los ${Number(
+                    changeOrderPendiente.additional_amount
+                  ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.
                 </p>
               </div>
 
@@ -4464,7 +4458,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? T("Procesando...")
+                    ? "Procesando..."
                     : T("✕ Rechazar cambio")}
                 </button>
 
@@ -4486,11 +4480,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 >
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
-                    ? T("Procesando...")
-                    : language === "en"
-                    ? `✓ Accept +$${Number(
-                        changeOrderPendiente.additional_amount
-                      ).toFixed(2)}`
+                    ? "Procesando..."
                     : `✓ Aceptar +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
