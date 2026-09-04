@@ -67,6 +67,7 @@ type EvidenciaFinal = {
   file_path: string;
   file_url: string | null;
   created_at: string;
+  signed_url?: string | null;
 };
 
 type Oferta = {
@@ -454,6 +455,14 @@ export default function TrabajoDetallePage() {
     setEvidenciasFinales,
   ] =
     useState<EvidenciaFinal[]>([]);
+
+  const [
+    fotoAbierta,
+    setFotoAbierta,
+  ] = useState<{
+    url: string;
+    alt: string;
+  } | null>(null);
 
   const [
     archivosEvidenciaFinal,
@@ -1703,9 +1712,36 @@ export default function TrabajoDetallePage() {
         );
         setEvidenciasFinales([]);
       } else {
-        setEvidenciasFinales(
-          (evidenciaFinalResult.data || []) as EvidenciaFinal[]
+        const evidenciaBase =
+          (evidenciaFinalResult.data || []) as EvidenciaFinal[];
+
+        const evidenciaConUrls = await Promise.all(
+          evidenciaBase.map(async (item) => {
+            const { data: signedData, error: signedError } =
+              await supabase.storage
+                .from("job-completion-evidence")
+                .createSignedUrl(item.file_path, 60 * 60);
+
+            if (signedError) {
+              console.error(
+                "Error creando URL segura para evidencia final:",
+                signedError
+              );
+
+              return {
+                ...item,
+                signed_url: null,
+              };
+            }
+
+            return {
+              ...item,
+              signed_url: signedData?.signedUrl || null,
+            };
+          })
         );
+
+        setEvidenciasFinales(evidenciaConUrls);
       }
 
       if (ofertaResult.error) {
@@ -2540,8 +2576,25 @@ export default function TrabajoDetallePage() {
           );
         }
 
-        const evidenciaGuardada =
+        const evidenciaGuardadaBase =
           evidenciaData as EvidenciaFinal;
+
+        const { data: signedData, error: signedError } =
+          await supabase.storage
+            .from("job-completion-evidence")
+            .createSignedUrl(evidenciaGuardadaBase.file_path, 60 * 60);
+
+        if (signedError) {
+          console.error(
+            "Error creando URL segura para evidencia final recién guardada:",
+            signedError
+          );
+        }
+
+        const evidenciaGuardada: EvidenciaFinal = {
+          ...evidenciaGuardadaBase,
+          signed_url: signedData?.signedUrl || null,
+        };
 
         guardadas.push(evidenciaGuardada);
 
@@ -4223,6 +4276,33 @@ export default function TrabajoDetallePage() {
             {T("Volver al panel", "Back to dashboard")}
           </button>
         </div>
+
+      {fotoAbierta && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={fotoAbierta.alt}
+          onClick={() => setFotoAbierta(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setFotoAbierta(null)}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-black text-slate-950 shadow-lg"
+            aria-label={T("Cerrar foto", "Close photo")}
+          >
+            ×
+          </button>
+
+          <img
+            src={fotoAbierta.url}
+            alt={fotoAbierta.alt}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
+
       </main>
     );
   }
@@ -5883,19 +5963,32 @@ export default function TrabajoDetallePage() {
 
             {/* FOTOS */}
 
-            {fotos.length >
-              0 && (
-              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
-                <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+            {(fotos.length > 0 || evidenciasFinales.length > 0) && (
+              <details
+                open={trabajo.status !== "completed" && trabajo.status !== "cancelled"}
+                className="group"
+              >
+                <summary
+                  className={
+                    trabajo.status === "completed" || trabajo.status === "cancelled"
+                      ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                      : "hidden"
+                  }
+                >
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-extrabold text-slate-950">📷 {T("Fotos del problema", "Problem photos")}</p>
-                      <p className="mt-1 text-sm text-slate-600">{fotos.length} {fotos.length === 1 ? T("foto", "photo") : T("fotos", "photos")}</p>
+                      <p className="font-extrabold text-slate-950">
+                        📷 {T("Evidencia fotográfica", "Photo evidence")}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {fotos.length} {T("del cliente", "from customer")} · {evidenciasFinales.filter((item) => item.file_type === "image").length} {T("del profesional", "from professional")}
+                      </p>
                     </div>
                     <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                   </div>
                 </summary>
-                <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
+
+                <div className={trabajo.status === "completed" || trabajo.status === "cancelled" ? "mt-3" : ""}>
                   <section
                     className={
                       trabajo.status === "open"
@@ -5903,70 +5996,89 @@ export default function TrabajoDetallePage() {
                         : "rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"
                     }
                   >
+                    {fotos.length > 0 && (
+                      <div>
+                        <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">📷</span>
+                          {T("Fotos del cliente", "Customer photos")}
+                          <span className="text-slate-500">({fotos.length})</span>
+                        </h2>
 
-                <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
-                    📷
-                  </span>
-
-                  {T("Fotos del problema", "Problem photos")}
-
-                  <span className="text-slate-500">
-                    ({fotos.length})
-                  </span>
-                </h2>
-
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {fotos
-                    .slice(
-                      0,
-                      3
-                    )
-                    .map(
-                      (
-                        foto,
-                        index
-                      ) => (
-                        <a
-                          key={
-                            foto.id
-                          }
-                          href={
-                            foto.file_url
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
-                        >
-                          <img
-                            src={
-                              foto.file_url
-                            }
-                            alt={`${T("Foto", "Photo")} ${
-                              index +
-                              1
-                            }`}
-                            className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
-                          />
-                        </a>
-                      )
+                        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {fotos.map((foto, index) => (
+                            <button
+                              key={foto.id}
+                              type="button"
+                              onClick={() =>
+                                setFotoAbierta({
+                                  url: foto.file_url,
+                                  alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
+                                })
+                              }
+                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                            >
+                              <img
+                                src={foto.file_url}
+                                alt={`${T("Foto del cliente", "Customer photo")} ${index + 1}`}
+                                className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                </div>
 
-                <div className="mt-5 text-center">
-                  <a
-                    href={
-                      fotos[0]
-                        .file_url
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block rounded-xl border border-slate-300 px-5 py-3 font-bold text-blue-700 transition hover:bg-blue-50"
-                  >
-                    {T("Ver fotos en tamaño completo", "View full-size photos")}
-                  </a>
-                </div>
-              </section>
+                    {evidenciasFinales.length > 0 && (
+                      <div className={fotos.length > 0 ? "mt-7 border-t border-slate-200 pt-7" : ""}>
+                        <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">✓</span>
+                          {T("Evidencia final del profesional", "Professional final evidence")}
+                          <span className="text-slate-500">({evidenciasFinales.length})</span>
+                        </h2>
+
+                        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {evidenciasFinales.map((item, index) => {
+                            const mediaUrl = item.signed_url;
+
+                            if (!mediaUrl) {
+                              return null;
+                            }
+
+                            if (item.file_type === "video") {
+                              return (
+                                <video
+                                  key={item.id}
+                                  src={mediaUrl}
+                                  controls
+                                  className="h-32 w-full rounded-2xl border border-slate-200 bg-black object-cover sm:h-40 lg:h-44"
+                                />
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() =>
+                                  setFotoAbierta({
+                                    url: mediaUrl,
+                                    alt: `${T("Foto final del profesional", "Professional final photo")} ${index + 1}`,
+                                  })
+                                }
+                                className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                              >
+                                <img
+                                  src={mediaUrl}
+                                  alt={`${T("Foto final del profesional", "Professional final photo")} ${index + 1}`}
+                                  className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </section>
                 </div>
               </details>
             )}
