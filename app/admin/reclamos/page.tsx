@@ -1319,76 +1319,54 @@ export default function AdminReclamosPage() {
 
                     {activo && !esReabierto && (
                       <div className="mt-5">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          {reclamo.status === "open" && (
+                        {reclamo.status === "open" ? (
+                          <div className="flex justify-center">
                             <button
                               type="button"
-                              disabled={
-                                procesando ===
-                                reclamo.id
-                              }
-                              onClick={() =>
-                                pasarRevision(
-                                  reclamo
-                                )
-                              }
-                              className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                              disabled={procesando === reclamo.id}
+                              onClick={() => pasarRevision(reclamo)}
+                              className="w-full max-w-sm rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white disabled:opacity-50"
                             >
                               🔎 Pasar a revisión
                             </button>
-                          )}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <button
+                              type="button"
+                              disabled={procesando === reclamo.id}
+                              onClick={() =>
+                                resolver(reclamo, "pay_provider")
+                              }
+                              className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                            >
+                              💰 Pagar profesional
+                            </button>
 
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                              reclamo.id
-                            }
-                            onClick={() =>
-                              resolver(
-                                reclamo,
-                                "pay_provider"
-                              )
-                            }
-                            className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            💰 Pagar profesional
-                          </button>
+                            <button
+                              type="button"
+                              disabled={procesando === reclamo.id}
+                              onClick={() =>
+                                resolver(reclamo, "refund_customer")
+                              }
+                              className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                            >
+                              ↩️ Reembolsar cliente
+                            </button>
 
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                              reclamo.id
-                            }
-                            onClick={() =>
-                              resolver(
-                                reclamo,
-                                "refund_customer"
-                              )
-                            }
-                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            ↩️ Reembolsar cliente
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                                reclamo.id ||
-                              cargandoParcial
-                            }
-                            onClick={() =>
-                              abrirParcial(
-                                reclamo
-                              )
-                            }
-                            className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            ⚖️ Resolución parcial
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              disabled={
+                                procesando === reclamo.id ||
+                                cargandoParcial
+                              }
+                              onClick={() => abrirParcial(reclamo)}
+                              className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                            >
+                              ⚖️ Resolución parcial
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
