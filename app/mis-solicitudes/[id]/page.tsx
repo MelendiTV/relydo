@@ -445,6 +445,8 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "No se pudo enviar el mensaje.": "We could not send the message.",
   "Trabajo cancelado por resolución de RELYDO": "Job cancelled by RELYDO resolution",
   "RELYDO cerró este trabajo después de resolver el reclamo. El servicio ya no continuará.": "RELYDO closed this job after resolving the claim. The service will not continue.",
+  "Trabajo cerrado por resolución de RELYDO": "Job closed by RELYDO resolution",
+  "Este trabajo fue cerrado después de que RELYDO resolviera el reclamo. Consulta el reclamo más abajo para ver la decisión y los detalles financieros.": "This job was closed after RELYDO resolved the claim. View the claim below for the full decision and financial details.",
   "Esta solicitud ya no está activa.": "This request is no longer active.",
   "Cancelando solicitud...": "Cancelling request...",
   "Confirmar cancelación": "Confirm cancellation",
@@ -3652,6 +3654,27 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* SOLICITUD */}
 
+        {canceladoPorRelydo && (
+          <section className="mt-6 rounded-2xl border border-red-300 bg-red-50 px-5 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-600 text-lg font-black text-white">
+                ✕
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-red-700">
+                  {T("Resolución de RELYDO")}
+                </p>
+                <p className="mt-1 font-extrabold text-red-950">
+                  {T("Trabajo cerrado por resolución de RELYDO")}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-red-800">
+                  {T("Este trabajo fue cerrado después de que RELYDO resolviera el reclamo. Consulta el reclamo más abajo para ver la decisión y los detalles financieros.")}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
           <div className="mb-5 px-5 pt-4 font-extrabold text-slate-900">
               <span>{T("Detalles de la solicitud")}</span>
@@ -4153,7 +4176,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {/* CANCELACIÓN */}
 
         {solicitud.status ===
-        "cancelled" ? (
+        "cancelled" && !canceladoPorRelydo ? (
           <section className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
             <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("Solicitud cancelada")}</span>
