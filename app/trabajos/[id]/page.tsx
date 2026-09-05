@@ -6033,9 +6033,10 @@ export default function TrabajoDetallePage() {
               >
                 {reclamo.status === "open"
                   ? T("Abierto", "Open")
-                  : reclamo.status === "reviewing"
+                  : reclamo.status === "reviewing" ||
+                    reclamo.status === "in_review"
                   ? T("En revisión", "Under review")
-                  : "Cerrado"}
+                  : T("Cerrado", "Closed")}
               </span>
             </div>
 
