@@ -312,6 +312,7 @@ function claimReasonText(
 
   const en: Record<string, string> = {
     "calidad del trabajo": "Work quality",
+    "cobro adicional no acordado": "Unapproved additional charge",
   };
 
   return en[normalized] || reason;
@@ -6934,7 +6935,7 @@ export default function TrabajoDetallePage() {
                     </div>
 
                     <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
-                      📎 Adjuntar archivos
+                      📎 {T("Adjuntar archivos", "Attach files")}
 
                       <input
                         type="file"
