@@ -5117,43 +5117,29 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )
         ) &&
           evidenciasFinales.length > 0 && (
-            <details
-              key={trabajoFinalizadoConReview ? "evidencia-cerrada" : "evidencia-abierta"}
-              open={!panelesCerrados}
-              className="group mt-8"
-            >
-              <summary
-                className={panelesCerrados
-                  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                  : "hidden"}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                      {T("📸 Evidencia del trabajo terminado")}
-                    </p>
-                    <p className="mt-1 font-extrabold text-slate-950">
-                      {T("Fotos y videos registrados por el profesional")}
-                    </p>
-                  </div>
-                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-                </div>
-              </summary>
-              <section className={panelesCerrados
-                ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"
-                : "rounded-3xl border border-slate-200 bg-white p-6 shadow-xl md:p-7"}>
-              <div className={`grid grid-cols-1 gap-6 ${fotosSolicitud.length > 0 ? "lg:grid-cols-2" : ""}`}>
-                {fotosSolicitud.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h2 className="text-xl font-extrabold text-slate-900">
-                      {T("📷 Fotos de la solicitud")}
-                    </h2>
+            <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {fotosSolicitud.length > 0 && (
+                <details
+                  key={trabajoFinalizadoConReview ? "fotos-solicitud-cerradas" : "fotos-solicitud-abiertas"}
+                  open={!panelesCerrados}
+                  className="group"
+                >
+                  <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-extrabold text-slate-950">
+                          {T("📷 Fotos de la solicitud")}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {T("Fotos que adjuntaste al crear esta solicitud.")}
+                        </p>
+                      </div>
+                      <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    </div>
+                  </summary>
 
-                    <p className="mt-1 text-sm text-slate-600">
-                      {T("Fotos que adjuntaste al crear esta solicitud.")}
-                    </p>
-
-                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                  <section className="mt-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                       {fotosSolicitud.map(
                         (foto, index) =>
                           foto.signed_url ? (
@@ -5161,7 +5147,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                               key={foto.id}
                               type="button"
                               onClick={() => abrirVisorFoto(`request-${foto.id}`)}
-                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left cursor-zoom-in"
+                              className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-left cursor-zoom-in"
                               aria-label={`${T("Foto de la solicitud")} ${index + 1}`}
                             >
                               <img
@@ -5173,14 +5159,46 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           ) : null
                       )}
                     </div>
-                  </div>
-                )}
+                  </section>
+                </details>
+              )}
 
-                <div className="rounded-2xl border border-blue-100 bg-white p-5">
-                  <div className="mb-4 font-extrabold text-slate-900">
-                    <span>{T("📸 Evidencia del trabajo terminado")}</span>
+              <details
+                key={trabajoFinalizadoConReview ? "evidencia-final-cerrada" : "evidencia-final-abierta"}
+                open={!panelesCerrados}
+                className="group"
+              >
+                <summary className="cursor-pointer list-none rounded-2xl border border-blue-100 bg-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-slate-950">
+                        {T("📸 Evidencia del trabajo terminado")}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {T("Fotos y videos registrados por el profesional")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 sm:inline-block">
+                        {
+                          evidenciasFinales.filter(
+                            (item) => item.file_type === "image"
+                          ).length
+                        }{" "}
+                        foto(s) ·{" "}
+                        {
+                          evidenciasFinales.filter(
+                            (item) => item.file_type === "video"
+                          ).length
+                        }{" "}
+                        video(s)
+                      </span>
+                      <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    </div>
                   </div>
+                </summary>
 
+                <section className="mt-2 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-black uppercase tracking-wide text-blue-700">
@@ -5268,10 +5286,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
                     </p>
                   </div>
-                </div>
-              </div>
-              </section>
-            </details>
+                </section>
+              </details>
+            </div>
           )}
 
         {/* RECLAMO / REPORTAR PROBLEMA */}
