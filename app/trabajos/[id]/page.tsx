@@ -5942,6 +5942,366 @@ export default function TrabajoDetallePage() {
                 </details>
             )}
 
+        {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
+
+        {reclamo && (
+          <section
+            id="reclamo-profesional"
+            className="mt-6 rounded-3xl border-2 border-rose-200 bg-white p-6 shadow-lg md:p-7 xl:col-span-2"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-rose-700">
+                  {T("⚠️ Reclamo del cliente", "⚠️ Customer claim")}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black text-slate-950">
+                  {profesionalYaRespondio
+                    ? T("Respuesta enviada al reclamo", "Claim response submitted")
+                    : reclamo.status === "open" ||
+                      reclamo.status === "reviewing" ||
+                      reclamo.status === "in_review"
+                    ? T("Adjuntar evidencia al reclamo", "Attach evidence to claim")
+                    : T("Historial del reclamo", "Claim history")}
+                </h2>
+
+                <p className="mt-2 max-w-3xl text-slate-600">
+                  {profesionalYaRespondio
+                    ? T("Tu respuesta quedó registrada. Ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your response was recorded. You can no longer add, remove, or modify information for this claim.")
+                    : reclamo.status === "open" ||
+                      reclamo.status === "reviewing" ||
+                      reclamo.status === "in_review"
+                    ? T("Puedes enviar una sola respuesta con fotos o videos para que RELYDO tenga evidencia de ambas partes antes de resolver el reclamo.", "You can submit one response with photos or videos so RELYDO has evidence from both parties before resolving the claim.")
+                    : T("Consulta los detalles, la evidencia y la resolución final de este reclamo.", "Review the details, evidence, and final resolution of this claim.")}
+                </p>
+              </div>
+
+              <span
+                className={`w-fit rounded-full px-4 py-2 text-sm font-black ${
+                  reclamo.status === "open"
+                    ? "bg-red-100 text-red-800"
+                    : reclamo.status === "reviewing"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-green-100 text-green-800"
+                }`}
+              >
+                {reclamo.status === "open"
+                  ? T("Abierto", "Open")
+                  : reclamo.status === "reviewing"
+                  ? T("En revisión", "Under review")
+                  : "Cerrado"}
+              </span>
+            </div>
+
+            {(reclamo.status === "open" ||
+              reclamo.status === "reviewing" ||
+              reclamo.status === "in_review") &&
+              !profesionalYaRespondio && (
+              <div
+                className={`mt-5 rounded-2xl border p-5 ${
+                  tiempoRespuestaReclamo.vencido
+                    ? "border-red-300 bg-red-50"
+                    : "border-amber-300 bg-amber-50"
+                }`}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p
+                      className={`text-sm font-black uppercase tracking-wide ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-700"
+                          : "text-amber-700"
+                      }`}
+                    >
+                      {T("Tiempo para responder", "Time to respond")}
+                    </p>
+
+                    <p
+                      className={`mt-1 text-2xl font-black ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-950"
+                          : "text-amber-950"
+                      }`}
+                    >
+                      {tiempoRespuestaReclamo.texto}
+                    </p>
+
+                    <p
+                      className={`mt-2 text-sm ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-800"
+                          : "text-amber-800"
+                      }`}
+                    >
+                      {tiempoRespuestaReclamo.vencido
+                        ? T("Ya no puedes enviar nueva evidencia desde el panel. Admin revisará el reclamo con la información disponible.", "You can no longer submit new evidence from the dashboard. Admin will review the claim using the available information.")
+                        : T("Tienes 24 horas desde que se abrió el reclamo para enviar tu respuesta, fotos o videos.", "You have 24 hours from when the claim was opened to submit your response, photos, or videos.")}
+                    </p>
+                  </div>
+
+                  {reclamo.provider_response_deadline && (
+                    <div className="rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
+                      <p className="font-bold text-slate-500">
+                        {T("Fecha límite", "Deadline")}
+                      </p>
+                      <p className="mt-1 font-black text-slate-900">
+                        {formatearFechaHora(
+                          reclamo.provider_response_deadline,
+                          language
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-5">
+              <p className="text-sm font-bold text-rose-700">
+                {T("Motivo del cliente", "Customer reason")}
+              </p>
+
+              <p className="mt-2 font-black text-rose-950">
+                {claimReasonText(language, reclamo.reason)}
+              </p>
+
+              {reclamo.description && (
+                <p className="mt-3 whitespace-pre-wrap leading-7 text-rose-900">
+                  {reclamo.description}
+                </p>
+              )}
+            </div>
+
+            {evidenciasReclamo.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="font-black text-slate-900">
+                  {T("Evidencia que ya enviaste", "Evidence you already submitted")}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  {evidenciasReclamo.filter(
+                    (item) =>
+                      item.file_type === "image"
+                  ).length}{" "}
+                  {T("foto(s)", "photo(s)")} ·{" "}
+                  {evidenciasReclamo.filter(
+                    (item) =>
+                      item.file_type === "video"
+                  ).length}{" "}
+                  {T("video(s)", "video(s)")}
+                </p>
+              </div>
+            )}
+
+            {(reclamo.status === "open" ||
+              reclamo.status === "reviewing") &&
+              !profesionalYaRespondio &&
+              !tiempoRespuestaReclamo.vencido && (
+              <>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-black text-slate-900">
+                        {T("Fotos o videos", "Photos or videos")}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-600">
+                        {T("Hasta 10 fotos y 2 videos en total. Máximo 50 MB por archivo.", "Up to 10 photos and 2 videos total. Maximum 50 MB per file.")}
+                      </p>
+                    </div>
+
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
+                      📎 {T("Adjuntar archivos", "Attach files")}
+
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                        onChange={
+                          seleccionarArchivosReclamo
+                        }
+                        disabled={
+                          subiendoEvidencia
+                        }
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {archivosReclamo.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {archivosReclamo.map(
+                        (file, index) => (
+                          <div
+                            key={`${file.name}-${file.size}-${index}`}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-900">
+                                {file.type.startsWith(
+                                  "video/"
+                                )
+                                  ? "🎥"
+                                  : "🖼️"}{" "}
+                                {file.name}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {(file.size /
+                                  1024 /
+                                  1024).toFixed(
+                                  2
+                                )}{" "}
+                                MB
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={
+                                subiendoEvidencia
+                              }
+                              onClick={() =>
+                                quitarArchivoReclamo(
+                                  index
+                                )
+                              }
+                              className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                  <label className="mb-2 block font-black text-slate-900">
+                    {T("Explicación de la evidencia *", "Evidence explanation *")}
+                  </label>
+
+                  <p className="mb-3 text-sm text-slate-600">
+                    {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar este reclamo.", "Describe what the photos or videos show and what RELYDO should consider when reviewing this claim.")}
+                  </p>
+
+                  <textarea
+                    value={explicacionEvidencia}
+                    onChange={(e) =>
+                      setExplicacionEvidencia(
+                        e.target.value
+                      )
+                    }
+                    rows={5}
+                    maxLength={1500}
+                    disabled={subiendoEvidencia}
+                    placeholder={T("Ejemplo: Estas fotos muestran que el trabajo sí fue terminado y que el daño reportado por el cliente ya existía antes de comenzar...", "Example: These photos show that the work was completed and that the damage reported by the customer already existed before the job started...")}
+                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                  />
+
+                  <p className="mt-2 text-right text-sm text-slate-500">
+                    {explicacionEvidencia.length}/1500
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={
+                    subiendoEvidencia ||
+                    archivosReclamo.length ===
+                      0 ||
+                    !explicacionEvidencia.trim()
+                  }
+                  onClick={
+                    subirEvidenciaReclamo
+                  }
+                  className="mt-5 w-full rounded-xl bg-rose-700 px-6 py-4 text-lg font-black text-white shadow transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {subiendoEvidencia
+                    ? T("Subiendo evidencia...", "Uploading evidence...")
+                    : T("Enviar evidencia al reclamo", "Submit evidence to claim")}
+                </button>
+
+                <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                  {T("Una vez enviada, la evidencia quedará asociada al reclamo para revisión de RELYDO.", "Once submitted, the evidence will be linked to the claim for RELYDO review.")}
+                </p>
+              </>
+            )}
+
+            {!profesionalYaRespondio &&
+              tiempoRespuestaReclamo.vencido && (
+                <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5">
+                  <p className="font-black text-red-900">
+                    {T("⏰ Plazo de respuesta vencido", "⏰ Response deadline expired")}
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-red-800">
+                    {T("Ya no puedes agregar comentarios, fotos o videos a este reclamo. RELYDO lo revisará con la evidencia disponible.", "You can no longer add comments, photos, or videos to this claim. RELYDO will review it using the available evidence.")}
+                  </p>
+                </div>
+              )}
+
+            {profesionalYaRespondio && (
+              <div className="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
+                <p className="font-black text-emerald-900">
+                  {T("✅ Tu respuesta ya fue enviada", "✅ Your response has already been submitted")}
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-emerald-800">
+                  {T("La evidencia y tu explicación quedaron registradas para revisión de RELYDO. Por seguridad, ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your evidence and explanation were recorded for RELYDO review. For security, you can no longer add, remove, or modify information for this claim.")}
+                </p>
+
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
+                    {T("Tu explicación", "Your explanation")}
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                    {reclamo.provider_response ||
+                      T("El profesional envió evidencia para responder al reclamo.", "The professional submitted evidence in response to the claim.")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {reclamo.status !== "open" &&
+              reclamo.status !== "reviewing" &&
+              reclamo.status !== "in_review" && (
+                <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
+                  <p className="font-black text-green-900">
+                    {T("✅ Reclamo resuelto", "✅ Claim resolved")}
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-green-800">
+                    {cancelado
+                      ? T(
+                          "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
+                          "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
+                        )
+                      : T(
+                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
+                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
+                        )}
+                  </p>
+
+                  {reclamo.resolution_notes && (
+                    <div className="mt-4 rounded-xl border border-green-200 bg-white p-4">
+                      <p className="text-xs font-black uppercase tracking-wide text-green-700">
+                        {T("Resolución de RELYDO", "RELYDO resolution")}
+                      </p>
+
+                      <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                        {resolutionNoteText(language, reclamo.resolution_notes)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+          </section>
+        )}
+
+
             {/* INFORMACION */}
 
             <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
@@ -6765,365 +7125,6 @@ export default function TrabajoDetallePage() {
               </div>
             </details>
           )}
-
-        {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
-
-        {reclamo && (
-          <section
-            id="reclamo-profesional"
-            className="mt-6 rounded-3xl border-2 border-rose-200 bg-white p-6 shadow-lg md:p-7"
-          >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-rose-700">
-                  {T("⚠️ Reclamo del cliente", "⚠️ Customer claim")}
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black text-slate-950">
-                  {profesionalYaRespondio
-                    ? T("Respuesta enviada al reclamo", "Claim response submitted")
-                    : reclamo.status === "open" ||
-                      reclamo.status === "reviewing" ||
-                      reclamo.status === "in_review"
-                    ? T("Adjuntar evidencia al reclamo", "Attach evidence to claim")
-                    : T("Historial del reclamo", "Claim history")}
-                </h2>
-
-                <p className="mt-2 max-w-3xl text-slate-600">
-                  {profesionalYaRespondio
-                    ? T("Tu respuesta quedó registrada. Ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your response was recorded. You can no longer add, remove, or modify information for this claim.")
-                    : reclamo.status === "open" ||
-                      reclamo.status === "reviewing" ||
-                      reclamo.status === "in_review"
-                    ? T("Puedes enviar una sola respuesta con fotos o videos para que RELYDO tenga evidencia de ambas partes antes de resolver el reclamo.", "You can submit one response with photos or videos so RELYDO has evidence from both parties before resolving the claim.")
-                    : T("Consulta los detalles, la evidencia y la resolución final de este reclamo.", "Review the details, evidence, and final resolution of this claim.")}
-                </p>
-              </div>
-
-              <span
-                className={`w-fit rounded-full px-4 py-2 text-sm font-black ${
-                  reclamo.status === "open"
-                    ? "bg-red-100 text-red-800"
-                    : reclamo.status === "reviewing"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-green-100 text-green-800"
-                }`}
-              >
-                {reclamo.status === "open"
-                  ? T("Abierto", "Open")
-                  : reclamo.status === "reviewing"
-                  ? T("En revisión", "Under review")
-                  : "Cerrado"}
-              </span>
-            </div>
-
-            {(reclamo.status === "open" ||
-              reclamo.status === "reviewing" ||
-              reclamo.status === "in_review") &&
-              !profesionalYaRespondio && (
-              <div
-                className={`mt-5 rounded-2xl border p-5 ${
-                  tiempoRespuestaReclamo.vencido
-                    ? "border-red-300 bg-red-50"
-                    : "border-amber-300 bg-amber-50"
-                }`}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p
-                      className={`text-sm font-black uppercase tracking-wide ${
-                        tiempoRespuestaReclamo.vencido
-                          ? "text-red-700"
-                          : "text-amber-700"
-                      }`}
-                    >
-                      {T("Tiempo para responder", "Time to respond")}
-                    </p>
-
-                    <p
-                      className={`mt-1 text-2xl font-black ${
-                        tiempoRespuestaReclamo.vencido
-                          ? "text-red-950"
-                          : "text-amber-950"
-                      }`}
-                    >
-                      {tiempoRespuestaReclamo.texto}
-                    </p>
-
-                    <p
-                      className={`mt-2 text-sm ${
-                        tiempoRespuestaReclamo.vencido
-                          ? "text-red-800"
-                          : "text-amber-800"
-                      }`}
-                    >
-                      {tiempoRespuestaReclamo.vencido
-                        ? T("Ya no puedes enviar nueva evidencia desde el panel. Admin revisará el reclamo con la información disponible.", "You can no longer submit new evidence from the dashboard. Admin will review the claim using the available information.")
-                        : T("Tienes 24 horas desde que se abrió el reclamo para enviar tu respuesta, fotos o videos.", "You have 24 hours from when the claim was opened to submit your response, photos, or videos.")}
-                    </p>
-                  </div>
-
-                  {reclamo.provider_response_deadline && (
-                    <div className="rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
-                      <p className="font-bold text-slate-500">
-                        {T("Fecha límite", "Deadline")}
-                      </p>
-                      <p className="mt-1 font-black text-slate-900">
-                        {formatearFechaHora(
-                          reclamo.provider_response_deadline,
-                          language
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-5">
-              <p className="text-sm font-bold text-rose-700">
-                {T("Motivo del cliente", "Customer reason")}
-              </p>
-
-              <p className="mt-2 font-black text-rose-950">
-                {claimReasonText(language, reclamo.reason)}
-              </p>
-
-              {reclamo.description && (
-                <p className="mt-3 whitespace-pre-wrap leading-7 text-rose-900">
-                  {reclamo.description}
-                </p>
-              )}
-            </div>
-
-            {evidenciasReclamo.length > 0 && (
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="font-black text-slate-900">
-                  {T("Evidencia que ya enviaste", "Evidence you already submitted")}
-                </p>
-
-                <p className="mt-1 text-sm text-slate-600">
-                  {evidenciasReclamo.filter(
-                    (item) =>
-                      item.file_type === "image"
-                  ).length}{" "}
-                  {T("foto(s)", "photo(s)")} ·{" "}
-                  {evidenciasReclamo.filter(
-                    (item) =>
-                      item.file_type === "video"
-                  ).length}{" "}
-                  {T("video(s)", "video(s)")}
-                </p>
-              </div>
-            )}
-
-            {(reclamo.status === "open" ||
-              reclamo.status === "reviewing") &&
-              !profesionalYaRespondio &&
-              !tiempoRespuestaReclamo.vencido && (
-              <>
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-black text-slate-900">
-                        {T("Fotos o videos", "Photos or videos")}
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-600">
-                        {T("Hasta 10 fotos y 2 videos en total. Máximo 50 MB por archivo.", "Up to 10 photos and 2 videos total. Maximum 50 MB per file.")}
-                      </p>
-                    </div>
-
-                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
-                      📎 {T("Adjuntar archivos", "Attach files")}
-
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                        onChange={
-                          seleccionarArchivosReclamo
-                        }
-                        disabled={
-                          subiendoEvidencia
-                        }
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
-                  {archivosReclamo.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      {archivosReclamo.map(
-                        (file, index) => (
-                          <div
-                            key={`${file.name}-${file.size}-${index}`}
-                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate font-bold text-slate-900">
-                                {file.type.startsWith(
-                                  "video/"
-                                )
-                                  ? "🎥"
-                                  : "🖼️"}{" "}
-                                {file.name}
-                              </p>
-
-                              <p className="mt-1 text-xs text-slate-500">
-                                {(file.size /
-                                  1024 /
-                                  1024).toFixed(
-                                  2
-                                )}{" "}
-                                MB
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={
-                                subiendoEvidencia
-                              }
-                              onClick={() =>
-                                quitarArchivoReclamo(
-                                  index
-                                )
-                              }
-                              className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
-                  <label className="mb-2 block font-black text-slate-900">
-                    {T("Explicación de la evidencia *", "Evidence explanation *")}
-                  </label>
-
-                  <p className="mb-3 text-sm text-slate-600">
-                    {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar este reclamo.", "Describe what the photos or videos show and what RELYDO should consider when reviewing this claim.")}
-                  </p>
-
-                  <textarea
-                    value={explicacionEvidencia}
-                    onChange={(e) =>
-                      setExplicacionEvidencia(
-                        e.target.value
-                      )
-                    }
-                    rows={5}
-                    maxLength={1500}
-                    disabled={subiendoEvidencia}
-                    placeholder={T("Ejemplo: Estas fotos muestran que el trabajo sí fue terminado y que el daño reportado por el cliente ya existía antes de comenzar...", "Example: These photos show that the work was completed and that the damage reported by the customer already existed before the job started...")}
-                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                  />
-
-                  <p className="mt-2 text-right text-sm text-slate-500">
-                    {explicacionEvidencia.length}/1500
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    subiendoEvidencia ||
-                    archivosReclamo.length ===
-                      0 ||
-                    !explicacionEvidencia.trim()
-                  }
-                  onClick={
-                    subirEvidenciaReclamo
-                  }
-                  className="mt-5 w-full rounded-xl bg-rose-700 px-6 py-4 text-lg font-black text-white shadow transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {subiendoEvidencia
-                    ? T("Subiendo evidencia...", "Uploading evidence...")
-                    : T("Enviar evidencia al reclamo", "Submit evidence to claim")}
-                </button>
-
-                <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-                  {T("Una vez enviada, la evidencia quedará asociada al reclamo para revisión de RELYDO.", "Once submitted, the evidence will be linked to the claim for RELYDO review.")}
-                </p>
-              </>
-            )}
-
-            {!profesionalYaRespondio &&
-              tiempoRespuestaReclamo.vencido && (
-                <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5">
-                  <p className="font-black text-red-900">
-                    {T("⏰ Plazo de respuesta vencido", "⏰ Response deadline expired")}
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-red-800">
-                    {T("Ya no puedes agregar comentarios, fotos o videos a este reclamo. RELYDO lo revisará con la evidencia disponible.", "You can no longer add comments, photos, or videos to this claim. RELYDO will review it using the available evidence.")}
-                  </p>
-                </div>
-              )}
-
-            {profesionalYaRespondio && (
-              <div className="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
-                <p className="font-black text-emerald-900">
-                  {T("✅ Tu respuesta ya fue enviada", "✅ Your response has already been submitted")}
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-emerald-800">
-                  {T("La evidencia y tu explicación quedaron registradas para revisión de RELYDO. Por seguridad, ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your evidence and explanation were recorded for RELYDO review. For security, you can no longer add, remove, or modify information for this claim.")}
-                </p>
-
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
-                    {T("Tu explicación", "Your explanation")}
-                  </p>
-
-                  <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                    {reclamo.provider_response ||
-                      T("El profesional envió evidencia para responder al reclamo.", "The professional submitted evidence in response to the claim.")}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {reclamo.status !== "open" &&
-              reclamo.status !== "reviewing" &&
-              reclamo.status !== "in_review" && (
-                <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
-                  <p className="font-black text-green-900">
-                    {T("✅ Reclamo resuelto", "✅ Claim resolved")}
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-green-800">
-                    {cancelado
-                      ? T(
-                          "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
-                          "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
-                        )
-                      : T(
-                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
-                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
-                        )}
-                  </p>
-
-                  {reclamo.resolution_notes && (
-                    <div className="mt-4 rounded-xl border border-green-200 bg-white p-4">
-                      <p className="text-xs font-black uppercase tracking-wide text-green-700">
-                        {T("Resolución de RELYDO", "RELYDO resolution")}
-                      </p>
-
-                      <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                        {resolutionNoteText(language, reclamo.resolution_notes)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-          </section>
-        )}
 
         {/* MENSAJES */}
 
