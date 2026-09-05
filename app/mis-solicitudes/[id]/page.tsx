@@ -5280,231 +5280,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             </details>
           )}
 
-        {/* CHAT PRIVADO RELYDO */}
-
-        {ofertaSeleccionada &&
-          solicitud.status !==
-            "open" && (
-            <details
-              key={trabajoFinalizadoConReview ? "chat-cerrado" : "chat-abierto"}
-              open={!panelesCerrados}
-              className="group mt-8"
-            >
-              <summary
-                className={panelesCerrados
-                  ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                  : "hidden"}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                      {T("🔒 Comunicación protegida")}
-                    </p>
-                    <p className="mt-1 font-extrabold text-slate-950">
-                      {T("Chat con")} {ofertaSeleccionada.profesional?.business_name || T("el profesional")}
-                    </p>
-                  </div>
-                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
-                </div>
-              </summary>
-              <section
-                id="chat-relydo"
-                className={panelesCerrados
-                  ? "mt-2 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
-                  : "scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"}
-              >
-              <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("🔒 Comunicación protegida")}</span>
-            </div>
-              <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
-                      {T("🔒 Comunicación protegida")}
-                    </p>
-
-                    <h2 className="mt-1 text-2xl font-black">
-                      {T("Chat con")}{" "}
-                      {ofertaSeleccionada.profesional
-                        ?.business_name ||
-                        T("el profesional")}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-300">
-                      {T("Los números de teléfono personales permanecen privados.")}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
-                      chatRealtimeConectado
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-700 text-slate-200"
-                    }`}
-                  >
-                    {chatRealtimeConectado
-                      ? T("● En tiempo real")
-                      : T("Conectando...")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
-                {cargandoChat ? (
-                  <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
-                    {T("Cargando conversación...")}
-                  </div>
-                ) : mensajesChat.length === 0 ? (
-                  <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
-                    <div className="text-4xl">
-                      💬
-                    </div>
-
-                    <p className="mt-3 font-black text-slate-800">
-                      {T("Todavía no hay mensajes")}
-                    </p>
-
-                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
-                      {T("Usa este chat para coordinar el servicio sin compartir tu número personal.")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {mensajesChat.map(
-                      (item) => {
-                        const mio =
-                          item.sender_id ===
-                          usuarioChatId;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`flex ${
-                              mio
-                                ? "justify-end"
-                                : "justify-start"
-                            }`}
-                          >
-                            <div
-                              className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[72%] ${
-                                mio
-                                  ? "rounded-br-md bg-blue-700 text-white"
-                                  : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
-                              }`}
-                            >
-                              <p
-                                className={`text-xs font-black ${
-                                  mio
-                                    ? "text-blue-100"
-                                    : "text-blue-700"
-                                }`}
-                              >
-                                {mio
-                                  ? T("Tú")
-                                  : item.sender_role ===
-                                    "admin"
-                                  ? "RELYDO Admin"
-                                  : ofertaSeleccionada.profesional
-                                      ?.business_name ||
-                                    T("Profesional")}
-                              </p>
-
-                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-                                {item.message}
-                              </p>
-
-                              <p
-                                className={`mt-1 text-right text-[11px] ${
-                                  mio
-                                    ? "text-blue-200"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {formatearHoraChat(
-                                  item.created_at
-                                , language)}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-
-                    <div
-                      ref={finalChatRef}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-slate-200 bg-white p-5">
-                {chatPuedeEnviar ? (
-                  <>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <textarea
-                        value={mensajeChat}
-                        onChange={(e) =>
-                          setMensajeChat(
-                            e.target.value
-                          )
-                        }
-                        onKeyDown={(e) => {
-                          if (
-                            e.key ===
-                              "Enter" &&
-                            !e.shiftKey
-                          ) {
-                            e.preventDefault();
-                            enviarMensajeChat();
-                          }
-                        }}
-                        rows={2}
-                        maxLength={1500}
-                        placeholder={T("Escribe un mensaje...")}
-                        className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
-                      />
-
-                      <button
-                        type="button"
-                        disabled={
-                          enviandoMensajeChat ||
-                          !mensajeChat.trim()
-                        }
-                        onClick={
-                          enviarMensajeChat
-                        }
-                        className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {enviandoMensajeChat
-                          ? "Enviando..."
-                          : T("Enviar")}
-                      </button>
-                    </div>
-
-                    <p className="mt-2 text-xs font-bold text-amber-700">
-                      {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
-                    </p>
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
-                    </p>
-                  </>
-                ) : (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="font-black text-amber-950">
-                      {T("🔒 Chat bloqueado")}
-                    </p>
-
-                    <p className="mt-1 text-sm leading-6 text-amber-900">
-                      {motivoChatBloqueado()}
-                    </p>
-                  </div>
-                )}
-              </div>
-              </section>
-            </details>
-          )}
-
         {/* RECLAMO / REPORTAR PROBLEMA */}
 
         {(
@@ -5517,10 +5292,40 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           )
         ) &&
           ofertaSeleccionada && (
-          <section
-            id="reclamos-cliente"
-            className="mt-8 scroll-mt-6 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
+          <details
+            open={!claim}
+            className="group mt-8 scroll-mt-6"
           >
+            <summary className="cursor-pointer list-none rounded-2xl border border-red-200 bg-white px-5 py-4 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-red-700">
+                    {claim ? T("⚠️ Problema reportado") : T("Reportar un problema")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {claim ? T("Tu reclamo quedó registrado") : T("¿Hubo un problema con el servicio?")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {claim && (
+                    <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black uppercase text-amber-800">
+                      {claim.status === "open"
+                        ? (language === "en" ? "Open" : "Abierto")
+                        : claim.status === "reviewing"
+                        ? T("En revisión")
+                        : claim.status === "resolved"
+                        ? (language === "en" ? "Resolved" : "Resuelto")
+                        : (language === "en" ? "Rejected" : "Rechazado")}
+                    </span>
+                  )}
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </div>
+            </summary>
+            <section
+              id="reclamos-cliente"
+              className="mt-2 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
+            >
             <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("¿Hubo un problema con el servicio?")}</span>
             </div>
@@ -5833,6 +5638,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </form>
             )}
           </section>
+          </details>
         )}
 
         {/* PRESUPUESTOS */}
@@ -6163,6 +5969,226 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         </section>
         </details>
         )}
+
+        {/* CHAT PRIVADO RELYDO */}
+
+        {ofertaSeleccionada &&
+          solicitud.status !==
+            "open" && (
+            <details
+              key={trabajoFinalizadoConReview ? "chat-cerrado" : reclamoActivoChat ? "chat-reclamo" : "chat-abierto"}
+              open={!panelesCerrados && !reclamoActivoChat}
+              className="group mt-8"
+            >
+              <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      {T("🔒 Comunicación protegida")}
+                    </p>
+                    <p className="mt-1 font-extrabold text-slate-950">
+                      {T("Chat con")} {ofertaSeleccionada.profesional?.business_name || T("el profesional")}
+                    </p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <section
+                id="chat-relydo"
+                className="mt-2 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
+              >
+              <div className="mb-5 font-extrabold text-slate-900">
+              <span>{T("🔒 Comunicación protegida")}</span>
+            </div>
+              <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
+                      {T("🔒 Comunicación protegida")}
+                    </p>
+
+                    <h2 className="mt-1 text-2xl font-black">
+                      {T("Chat con")}{" "}
+                      {ofertaSeleccionada.profesional
+                        ?.business_name ||
+                        T("el profesional")}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-300">
+                      {T("Los números de teléfono personales permanecen privados.")}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
+                      chatRealtimeConectado
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-700 text-slate-200"
+                    }`}
+                  >
+                    {chatRealtimeConectado
+                      ? T("● En tiempo real")
+                      : T("Conectando...")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
+                {cargandoChat ? (
+                  <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
+                    {T("Cargando conversación...")}
+                  </div>
+                ) : mensajesChat.length === 0 ? (
+                  <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
+                    <div className="text-4xl">
+                      💬
+                    </div>
+
+                    <p className="mt-3 font-black text-slate-800">
+                      {T("Todavía no hay mensajes")}
+                    </p>
+
+                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
+                      {T("Usa este chat para coordinar el servicio sin compartir tu número personal.")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mensajesChat.map(
+                      (item) => {
+                        const mio =
+                          item.sender_id ===
+                          usuarioChatId;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex ${
+                              mio
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[72%] ${
+                                mio
+                                  ? "rounded-br-md bg-blue-700 text-white"
+                                  : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                              }`}
+                            >
+                              <p
+                                className={`text-xs font-black ${
+                                  mio
+                                    ? "text-blue-100"
+                                    : "text-blue-700"
+                                }`}
+                              >
+                                {mio
+                                  ? T("Tú")
+                                  : item.sender_role ===
+                                    "admin"
+                                  ? "RELYDO Admin"
+                                  : ofertaSeleccionada.profesional
+                                      ?.business_name ||
+                                    T("Profesional")}
+                              </p>
+
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                                {item.message}
+                              </p>
+
+                              <p
+                                className={`mt-1 text-right text-[11px] ${
+                                  mio
+                                    ? "text-blue-200"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {formatearHoraChat(
+                                  item.created_at
+                                , language)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
+
+                    <div
+                      ref={finalChatRef}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 bg-white p-5">
+                {chatPuedeEnviar ? (
+                  <>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <textarea
+                        value={mensajeChat}
+                        onChange={(e) =>
+                          setMensajeChat(
+                            e.target.value
+                          )
+                        }
+                        onKeyDown={(e) => {
+                          if (
+                            e.key ===
+                              "Enter" &&
+                            !e.shiftKey
+                          ) {
+                            e.preventDefault();
+                            enviarMensajeChat();
+                          }
+                        }}
+                        rows={2}
+                        maxLength={1500}
+                        placeholder={T("Escribe un mensaje...")}
+                        className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={
+                          enviandoMensajeChat ||
+                          !mensajeChat.trim()
+                        }
+                        onClick={
+                          enviarMensajeChat
+                        }
+                        className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {enviandoMensajeChat
+                          ? "Enviando..."
+                          : T("Enviar")}
+                      </button>
+                    </div>
+
+                    <p className="mt-2 text-xs font-bold text-amber-700">
+                      {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
+                    </p>
+
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
+                    </p>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="font-black text-amber-950">
+                      {T("🔒 Chat bloqueado")}
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      {motivoChatBloqueado()}
+                    </p>
+                  </div>
+                )}
+              </div>
+              </section>
+            </details>
+          )}
+
 
       </div>
 
