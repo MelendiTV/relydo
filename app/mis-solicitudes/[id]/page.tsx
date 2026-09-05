@@ -376,6 +376,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Solicitud cancelada": "Request cancelled",
   "Este trabajo fue cancelado": "This job was cancelled",
   "Decisión": "Decision",
+  "Cambio de presupuesto": "Budget change",
   "El problema es mayor de lo esperado": "The problem is bigger than expected",
   "Se necesita trabajo adicional": "Additional work is needed",
   "Se necesitan materiales adicionales": "Additional materials are needed",
@@ -4510,136 +4511,179 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           ultimoChangeOrder &&
           ultimoChangeOrder.status !==
             "pending" && (
-          <section
-            className={`mt-6 rounded-3xl border-2 p-6 shadow-sm ${
-              ultimoChangeOrder.status ===
-              "accepted"
-                ? "border-emerald-300 bg-emerald-50"
-                : ultimoChangeOrder.status ===
-                  "rejected"
-                ? "border-red-300 bg-red-50"
-                : "border-slate-300 bg-slate-50"
-            }`}
-          >
-            <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("Decisión")}</span>
-            </div>
-            <p
-              className={`text-sm font-black uppercase tracking-wide ${
-                ultimoChangeOrder.status ===
-                "accepted"
-                  ? "text-emerald-700"
-                  : ultimoChangeOrder.status ===
-                    "rejected"
-                  ? "text-red-700"
-                  : "text-slate-600"
+          <details className="group mt-6">
+            <summary
+              className={`cursor-pointer list-none rounded-2xl border-2 px-5 py-4 shadow-sm ${
+                ultimoChangeOrder.status === "rejected"
+                  ? "border-red-300 bg-red-50"
+                  : "border-blue-300 bg-blue-50"
               }`}
             >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p
+                    className={`text-xs font-black uppercase tracking-wide ${
+                      ultimoChangeOrder.status === "rejected"
+                        ? "text-red-700"
+                        : "text-blue-700"
+                    }`}
+                  >
+                    {T("Cambio de presupuesto")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {ultimoChangeOrder.status === "accepted" &&
+                    ultimoChangeOrder.payment_status === "paid"
+                      ? T("✓ Cambio pagado")
+                      : ultimoChangeOrder.status === "accepted"
+                      ? T("✓ Cambio de presupuesto aceptado")
+                      : ultimoChangeOrder.status === "rejected"
+                      ? T("✕ Cambio de presupuesto rechazado")
+                      : T("Cambio de presupuesto cancelado")}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="hidden text-right sm:block">
+                    <p className="text-xs font-bold text-slate-500">
+                      {T("Nuevo total propuesto")}
+                    </p>
+                    <p className="font-black text-slate-950">
+                      ${Number(
+                        ultimoChangeOrder.new_total_amount
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">
+                    ›
+                  </span>
+                </div>
+              </div>
+            </summary>
+
+            <section
+              className={`mt-2 rounded-3xl border-2 p-6 shadow-sm ${
+                ultimoChangeOrder.status === "rejected"
+                  ? "border-red-300 bg-red-50"
+                  : "border-blue-300 bg-blue-50"
+              }`}
+            >
+              <div className="mb-5 font-extrabold text-slate-900">
+                <span>{T("Cambio de presupuesto")}</span>
+              </div>
+
+              <p
+                className={`text-sm font-black uppercase tracking-wide ${
+                  ultimoChangeOrder.status === "rejected"
+                    ? "text-red-700"
+                    : "text-blue-700"
+                }`}
+              >
+                {ultimoChangeOrder.status ===
+                "accepted"
+                  ? T("✓ Cambio de presupuesto aceptado")
+                  : ultimoChangeOrder.status ===
+                    "rejected"
+                  ? T("✕ Cambio de presupuesto rechazado")
+                  : T("Cambio de presupuesto cancelado")}
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm text-slate-600">
+                    {T("Adicional solicitado")}
+                  </p>
+                  <p className="text-xl font-black text-slate-950">
+                    ${Number(
+                      ultimoChangeOrder.additional_amount
+                    ).toFixed(2)}
+                  </p>
+                </div>
+
+                <div className="sm:text-right">
+                  <p className="text-sm text-slate-600">
+                    {T("Nuevo total propuesto")}
+                  </p>
+                  <p className="text-xl font-black text-slate-950">
+                    ${Number(
+                      ultimoChangeOrder.new_total_amount
+                    ).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
               {ultimoChangeOrder.status ===
-              "accepted"
-                ? T("✓ Cambio de presupuesto aceptado")
-                : ultimoChangeOrder.status ===
-                  "rejected"
-                ? T("✕ Cambio de presupuesto rechazado")
-                : T("Cambio de presupuesto cancelado")}
-            </p>
+                "accepted" &&
+                ultimoChangeOrder.payment_status ===
+                  "paid" && (
+                  <div className="mt-4 rounded-2xl border border-blue-200 bg-white/80 p-4">
+                    <p className="font-black text-blue-800">
+                      {T("✓ Cambio pagado")}
+                    </p>
+                    <p className="mt-1 text-sm font-bold leading-6 text-blue-800">
+                      {language === "en"
+                        ? `Stripe confirmed the additional payment of $${Number(
+                            ultimoChangeOrder.additional_customer_total_amount ||
+                              0
+                          ).toFixed(2)}. This amount is already included in the job total summary.`
+                        : `Stripe confirmó el pago adicional de $${Number(
+                            ultimoChangeOrder.additional_customer_total_amount ||
+                              0
+                          ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.`}
+                    </p>
+                  </div>
+                )}
 
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm text-slate-600">
-                  {T("Adicional solicitado")}
-                </p>
-                <p className="text-xl font-black text-slate-950">
-                  ${Number(
-                    ultimoChangeOrder.additional_amount
-                  ).toFixed(2)}
-                </p>
-              </div>
-
-              <div className="sm:text-right">
-                <p className="text-sm text-slate-600">
-                  {T("Nuevo total propuesto")}
-                </p>
-                <p className="text-xl font-black text-slate-950">
-                  ${Number(
-                    ultimoChangeOrder.new_total_amount
-                  ).toFixed(2)}
-                </p>
-              </div>
-            </div>
-
-            {ultimoChangeOrder.status ===
-              "accepted" &&
-              ultimoChangeOrder.payment_status ===
-                "paid" && (
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white/70 p-4">
-                  <p className="font-black text-emerald-800">
-                    {T("✓ Cambio pagado")}
+              {ultimoChangeOrder.status ===
+                "accepted" &&
+                ultimoChangeOrder.payment_status !==
+                  "paid" && (
+                <div className="mt-4">
+                  <p className="text-sm font-bold leading-6 text-blue-800">
+                    {T("Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.")}
                   </p>
-                  <p className="mt-1 text-sm font-bold leading-6 text-emerald-800">
-                    {language === "en"
-                      ? `Stripe confirmed the additional payment of $${Number(
-                          ultimoChangeOrder.additional_customer_total_amount ||
-                            0
-                        ).toFixed(2)}. This amount is already included in the job total summary.`
-                      : `Stripe confirmó el pago adicional de $${Number(
-                          ultimoChangeOrder.additional_customer_total_amount ||
-                            0
-                        ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.`}
-                  </p>
+
+                  <button
+                    type="button"
+                    disabled={
+                      pagandoChangeOrderId !==
+                        null ||
+                      verificandoPagoChangeOrder
+                    }
+                    onClick={() =>
+                      pagarCambioPresupuesto(
+                        ultimoChangeOrder
+                      )
+                    }
+                    className="mt-4 w-full rounded-xl bg-blue-700 px-5 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    {pagandoChangeOrderId ===
+                    ultimoChangeOrder.id
+                      ? T("Abriendo pago seguro...")
+                      : `💳 Pagar adicional · $${redondearDinero(
+                          Number(
+                            ultimoChangeOrder.additional_amount
+                          ) +
+                            Number(
+                              ultimoChangeOrder.additional_amount
+                            ) *
+                              (Number(
+                                paymentSettings?.customer_service_fee_percent ||
+                                  0
+                              ) /
+                                100)
+                        ).toFixed(2)}`}
+                  </button>
                 </div>
               )}
 
-            {ultimoChangeOrder.status ===
-              "accepted" &&
-              ultimoChangeOrder.payment_status !==
-                "paid" && (
-              <div className="mt-4">
-                <p className="text-sm font-bold leading-6 text-emerald-800">
-                  {T("Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.")}
+              {ultimoChangeOrder.status ===
+                "rejected" && (
+                <p className="mt-4 text-sm font-bold leading-6 text-red-800">
+                  {T("El cambio fue rechazado. El presupuesto anterior permanece sin cambios.")}
                 </p>
-
-                <button
-                  type="button"
-                  disabled={
-                    pagandoChangeOrderId !==
-                      null ||
-                    verificandoPagoChangeOrder
-                  }
-                  onClick={() =>
-                    pagarCambioPresupuesto(
-                      ultimoChangeOrder
-                    )
-                  }
-                  className="mt-4 w-full rounded-xl bg-emerald-700 px-5 py-3.5 font-black text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  {pagandoChangeOrderId ===
-                  ultimoChangeOrder.id
-                    ? T("Abriendo pago seguro...")
-                    : `💳 Pagar adicional · $${redondearDinero(
-                        Number(
-                          ultimoChangeOrder.additional_amount
-                        ) +
-                          Number(
-                            ultimoChangeOrder.additional_amount
-                          ) *
-                            (Number(
-                              paymentSettings?.customer_service_fee_percent ||
-                                0
-                            ) /
-                              100)
-                      ).toFixed(2)}`}
-                </button>
-              </div>
-            )}
-
-            {ultimoChangeOrder.status ===
-              "rejected" && (
-              <p className="mt-4 text-sm font-bold leading-6 text-red-800">
-                {T("El cambio fue rechazado. El presupuesto anterior permanece sin cambios.")}
-              </p>
-            )}
-          </section>
+              )}
+            </section>
+          </details>
         )}
 
         {/* CANCELACIÓN DISPONIBLE — DEBAJO DEL CHANGE ORDER */}
@@ -4859,15 +4903,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {ofertaSeleccionada && (
           <details
-            key={trabajoFinalizadoConReview ? "profesional-cerrado" : "profesional-abierto"}
-            open={!panelesCerrados}
+            key={
+              panelesCerrados || ultimoChangeOrder
+                ? "profesional-cerrado"
+                : "profesional-abierto"
+            }
+            open={!panelesCerrados && !ultimoChangeOrder}
             className="group mt-6"
           >
-            <summary
-              className={panelesCerrados
-                ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                : "hidden"}
-            >
+            <summary className="cursor-pointer list-none rounded-2xl border-2 border-green-300 bg-green-50 px-5 py-4 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-green-700">
@@ -4880,9 +4924,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
               </div>
             </summary>
-            <section className={panelesCerrados
-              ? "mt-2 rounded-3xl border-2 border-green-300 bg-green-50 p-7"
-              : "rounded-3xl border-2 border-green-300 bg-green-50 p-7"}>
+            <section className="mt-2 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
             <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("✓ Profesional contratado")}</span>
             </div>
@@ -6188,5 +6230,6 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     </main>
   );
 }
+
 
 
