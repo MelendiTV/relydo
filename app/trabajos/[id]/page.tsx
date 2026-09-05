@@ -4648,8 +4648,35 @@ export default function TrabajoDetallePage() {
         {/* AVISO RECLAMO ACTIVO */}
 
         {reclamoActivo && (
+          <details open className="group mb-6">
+            <summary
+              className={`cursor-pointer list-none rounded-2xl border-2 px-5 py-4 shadow-sm ${
+                profesionalYaRespondio
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-amber-300 bg-amber-50"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className={`text-xs font-black uppercase tracking-wide ${
+                    profesionalYaRespondio ? "text-emerald-700" : "text-amber-700"
+                  }`}>
+                    {profesionalYaRespondio
+                      ? T("Respuesta enviada", "Response submitted")
+                      : T("Reclamo activo", "Active claim")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {profesionalYaRespondio
+                      ? T("Tu respuesta ya fue enviada a RELYDO", "Your response was submitted to RELYDO")
+                      : T("El cliente reportó un problema con este trabajo", "The customer reported a problem with this job")}
+                  </p>
+                </div>
+                <span className="text-xl text-slate-600 transition group-open:rotate-90">›</span>
+              </div>
+            </summary>
+            <div className="mt-3">
           <section
-            className={`mb-6 rounded-3xl border-2 p-7 shadow-lg ${
+            className={`rounded-3xl border-2 p-7 shadow-lg ${
               profesionalYaRespondio
                 ? "border-emerald-300 bg-emerald-50"
                 : "border-amber-300 bg-amber-50"
@@ -4752,6 +4779,8 @@ export default function TrabajoDetallePage() {
               </button>
             </div>
           </section>
+            </div>
+          </details>
         )}
 
         {/* DETALLE PRINCIPAL DESPLEGABLE */}
@@ -4948,9 +4977,7 @@ export default function TrabajoDetallePage() {
               "open" &&
               !ofertaRechazadaPorCliente && (
                 <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
-                  <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled")
-                    ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                    : "hidden"}>
+                  <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
@@ -4979,7 +5006,7 @@ export default function TrabajoDetallePage() {
                       <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                     </div>
                   </summary>
-                  <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
+                  <div className="mt-3">
               <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
 
                 <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
@@ -5945,9 +5972,25 @@ export default function TrabajoDetallePage() {
         {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
 
         {reclamo && (
+          <details open className="group mt-6 xl:col-span-2" id="reclamo-profesional">
+            <summary className="cursor-pointer list-none rounded-2xl border-2 border-rose-200 bg-rose-50 px-5 py-4 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-rose-700">
+                    {T("⚠️ Reclamo del cliente", "⚠️ Customer claim")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {profesionalYaRespondio
+                      ? T("Respuesta enviada al reclamo", "Claim response submitted")
+                      : T("Reclamo activo", "Active claim")}
+                  </p>
+                </div>
+                <span className="text-xl text-rose-700 transition group-open:rotate-90">›</span>
+              </div>
+            </summary>
+            <div className="mt-3">
           <section
-            id="reclamo-profesional"
-            className="mt-6 rounded-3xl border-2 border-rose-200 bg-white p-6 shadow-lg md:p-7 xl:col-span-2"
+            className="rounded-3xl border-2 border-rose-200 bg-white p-6 shadow-lg md:p-7"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -6299,13 +6342,15 @@ export default function TrabajoDetallePage() {
                 </div>
               )}
           </section>
+            </div>
+          </details>
         )}
 
 
             {/* INFORMACION */}
 
             <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
-              <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" : "hidden"}>
+              <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-extrabold text-slate-950">📝 {T("Información del trabajo", "Job information")}</p>
@@ -6314,7 +6359,7 @@ export default function TrabajoDetallePage() {
                   <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
                 </div>
               </summary>
-              <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
+              <div className="mt-3">
             <section
               className={
                 trabajo.status === "open"
@@ -6405,11 +6450,7 @@ export default function TrabajoDetallePage() {
                 className="group"
               >
                 <summary
-                  className={
-                    trabajo.status === "completed" || trabajo.status === "cancelled"
-                      ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                      : "hidden"
-                  }
+                  className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div>
@@ -6424,7 +6465,7 @@ export default function TrabajoDetallePage() {
                   </div>
                 </summary>
 
-                <div className={trabajo.status === "completed" || trabajo.status === "cancelled" ? "mt-3" : ""}>
+                <div className="mt-3">
                   <section
                     className={
                       trabajo.status === "open"
@@ -6523,7 +6564,7 @@ export default function TrabajoDetallePage() {
 
             {oferta && (
               <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
-                <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm" : "hidden"}>
+                <summary className="cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
@@ -6534,7 +6575,7 @@ export default function TrabajoDetallePage() {
                     <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
                   </div>
                 </summary>
-                <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
+                <div className="mt-3">
                   <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
                 <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -6918,7 +6959,7 @@ export default function TrabajoDetallePage() {
           trabajo.preferred_provider_id ===
             providerId && (
             <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group mt-6">
-              <summary className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl" : "hidden"}>
+              <summary className="cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-blue-300">{T("🔒 Comunicación protegida", "🔒 Protected communication")}</p>
@@ -6927,7 +6968,7 @@ export default function TrabajoDetallePage() {
                   <span className="text-xl text-white transition group-open:rotate-90">›</span>
                 </div>
               </summary>
-              <div className={(trabajo.status === "completed" || trabajo.status === "cancelled") ? "mt-3" : ""}>
+              <div className="mt-3">
             <section
               id="chat-relydo"
               className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
