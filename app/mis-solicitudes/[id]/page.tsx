@@ -4295,14 +4295,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           evidenciasFinales.length > 0
         ) && (
           <details
-            open={solicitud.status !== "cancelled"}
+            open
             className="group mt-6"
           >
-            <summary
-              className={solicitud.status === "cancelled"
-                ? "cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                : "hidden"}
-            >
+            <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="font-extrabold text-slate-950">
@@ -4315,9 +4311,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
               </div>
             </summary>
-            <section className={solicitud.status === "cancelled"
-              ? "mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
-              : "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"}>
+            <section className="mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <h2 className="text-xl font-extrabold text-slate-900">
               {T("📷 Fotos de la solicitud")}
             </h2>
