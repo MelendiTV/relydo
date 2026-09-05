@@ -346,6 +346,8 @@ export async function POST(request: NextRequest) {
         customer_id,
         provider_id,
         customer_total_amount,
+        job_amount,
+        customer_fee_amount,
         provider_net_amount,
         refunded_amount,
         currency,
@@ -399,12 +401,22 @@ export async function POST(request: NextRequest) {
     const customerTotal =
       dinero(payment.customer_total_amount);
 
+    const jobAmount =
+      dinero(payment.job_amount);
+
+    const customerFee =
+      dinero(payment.customer_fee_amount);
+
     const providerNet =
       dinero(payment.provider_net_amount);
 
     if (
       !Number.isFinite(customerTotal) ||
       customerTotal <= 0 ||
+      !Number.isFinite(jobAmount) ||
+      jobAmount <= 0 ||
+      !Number.isFinite(customerFee) ||
+      customerFee < 0 ||
       !Number.isFinite(providerNet) ||
       providerNet <= 0
     ) {
@@ -416,6 +428,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    /*
+      POLÍTICA ECONÓMICA DE RECLAMOS RELYDO:
+      - jobAmount es el monto disputable del servicio.
+      - customerFee es el service fee original de RELYDO y no es
+        reembolsable por defecto en una resolución de reclamo.
+      - No se añade un segundo fee por resolver el reclamo.
+      - El cliente nunca puede recibir más de jobAmount.
+      - El profesional nunca puede recibir más de providerNet.
+      - En una resolución compartida, cliente + profesional no
+        pueden superar jobAmount.
+    */
 
     const transferGroup =
       `relydo_request_${claim.request_id}`;
@@ -797,7 +821,7 @@ export async function POST(request: NextRequest) {
         dinero(payment.refunded_amount || 0);
 
       const remainingRefund =
-        dinero(customerTotal - previousRefunded);
+        dinero(jobAmount - previousRefunded);
 
       if (
         !Number.isFinite(remainingRefund) ||
@@ -806,7 +830,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Este pago ya está totalmente reembolsado.",
+              "El monto disputable del servicio ya fue totalmente reembolsado. El service fee original de RELYDO permanece protegido.",
           },
           { status: 409 }
         );
@@ -827,6 +851,10 @@ export async function POST(request: NextRequest) {
               claim_id: String(claim.id),
               resolution:
                 "refund_customer",
+              job_amount:
+                jobAmount.toFixed(2),
+              protected_customer_fee:
+                customerFee.toFixed(2),
             },
           },
           {
@@ -846,7 +874,7 @@ export async function POST(request: NextRequest) {
       } = await supabaseAdmin
         .from("payments")
         .update({
-          status: "refunded",
+          status: "partially_refunded",
           refunded_amount: totalRefunded,
           refunded_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -966,6 +994,8 @@ export async function POST(request: NextRequest) {
         action: "refund_customer",
         providerAwardAmount: 0,
         customerRefundAmount: totalRefunded,
+        protectedCustomerFee: customerFee,
+        disputableJobAmount: jobAmount,
         stripeRefundId: refund.id,
         refundStatus: refund.status,
       });
@@ -1031,13 +1061,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (customerRefundAmount > customerTotal) {
+    if (customerRefundAmount > jobAmount) {
       return NextResponse.json(
         {
           error:
-            `El cliente no puede recibir un reembolso mayor de $${customerTotal.toFixed(
+            `El cliente no puede recibir un reembolso mayor de $${jobAmount.toFixed(
               2
-            )}.`,
+            )}, que es el monto disputable del servicio. El service fee original de RELYDO no forma parte del reembolso del reclamo.`,
         },
         { status: 400 }
       );
@@ -1047,14 +1077,14 @@ export async function POST(request: NextRequest) {
       dinero(
         providerAwardAmount +
           customerRefundAmount
-      ) > customerTotal
+      ) > jobAmount
     ) {
       return NextResponse.json(
         {
           error:
-            `La suma destinada al profesional y al cliente no puede superar los $${customerTotal.toFixed(
+            `La suma destinada al profesional y al cliente no puede superar los $${jobAmount.toFixed(
               2
-            )} pagados por el cliente.`,
+            )} del monto disputable del servicio. El service fee original de RELYDO permanece fuera de la disputa.`,
         },
         { status: 400 }
       );
@@ -1262,11 +1292,11 @@ export async function POST(request: NextRequest) {
       }
 
       /*
-        IMPORTANTE:
-        En una resolución de Admin RELYDO asume sus costos
-        de procesamiento. Por eso la compensación se envía
-        desde el balance de la plataforma y no se limita al
-        neto restante del cargo después de un reembolso.
+        POLÍTICA DE RESOLUCIÓN COMPARTIDA:
+        La compensación del profesional forma parte del monto
+        disputable del servicio. El service fee original del
+        cliente queda protegido para RELYDO y no se utiliza
+        para aumentar ni el reembolso ni la compensación.
       */
 
       const transfer =
@@ -1306,6 +1336,12 @@ export async function POST(request: NextRequest) {
 
               customer_refund_amount:
                 customerRefundAmount.toFixed(2),
+
+              job_amount:
+                jobAmount.toFixed(2),
+
+              protected_customer_fee:
+                customerFee.toFixed(2),
             },
           },
           {
@@ -1387,6 +1423,12 @@ export async function POST(request: NextRequest) {
 
               customer_refund_amount:
                 customerRefundAmount.toFixed(2),
+
+              job_amount:
+                jobAmount.toFixed(2),
+
+              protected_customer_fee:
+                customerFee.toFixed(2),
 
               provider_award_amount:
                 providerAwardAmount.toFixed(2),
@@ -1702,6 +1744,12 @@ export async function POST(request: NextRequest) {
       providerAwardAmount,
 
       customerRefundAmount,
+
+      protectedCustomerFee:
+        customerFee,
+
+      disputableJobAmount:
+        jobAmount,
 
       stripeTransferId,
 
