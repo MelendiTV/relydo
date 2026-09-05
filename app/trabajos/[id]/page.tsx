@@ -332,8 +332,11 @@ function resolutionNoteText(
     .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
     .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
     .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replaceAll("[REEMBOLSO AL CLIENTE]", "[REFUND TO CUSTOMER]")
+    .replaceAll("[REEMBOLSO TOTAL AL CLIENTE]", "[FULL REFUND TO CUSTOMER]")
     .replace(/^Profesional:/gm, "Professional:")
-    .replace(/^Cliente:/gm, "Customer:");
+    .replace(/^Cliente:/gm, "Customer:")
+    .replace(/^Reembolso al cliente:/gim, "Customer refund:");
 }
 
 function formatearHoraChat(
@@ -4618,24 +4621,24 @@ export default function TrabajoDetallePage() {
         {/* AVISO CANCELADO */}
 
         {cancelado && (
-          <section className="mb-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-red-600 text-3xl text-white">
+          <section className="mb-5 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 shadow-sm sm:px-5">
+            <div className="flex items-start gap-3 sm:items-center">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-lg font-black text-white">
                 ✕
               </div>
 
-              <div>
-                <p className="text-sm font-black uppercase tracking-wider text-red-700">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wider text-red-700">
                   {T("Trabajo cancelado", "Job cancelled")}
                 </p>
 
-                <h2 className="mt-1 text-2xl font-black text-red-950">
+                <h2 className="mt-0.5 text-base font-black leading-tight text-red-950 sm:text-lg">
                   {canceladoPorRelydo
                     ? T("Trabajo cancelado por resolución de RELYDO", "Job cancelled by RELYDO resolution")
                     : T("El cliente canceló este trabajo", "The customer cancelled this job")}
                 </h2>
 
-                <p className="mt-2 leading-6 text-red-800">
+                <p className="mt-1 text-sm leading-5 text-red-800">
                   {canceladoPorRelydo
                     ? T("RELYDO resolvió el reclamo y cerró este trabajo. Ya no puedes continuar, actualizar el estado ni marcar el trabajo como completado.", "RELYDO resolved the claim and closed this job. You can no longer continue, update the status, or mark the job as completed.")
                     : T("Esta solicitud ya no está activa. No puedes continuar, actualizar el estado ni marcar el trabajo como completado.", "This request is no longer active. You cannot continue, update the status, or mark the job as completed.")}
@@ -6569,7 +6572,11 @@ export default function TrabajoDetallePage() {
                     <div>
                       <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
                       <p className="mt-1 text-sm font-bold text-emerald-800">
-                        {pago ? `$${Number(pago.provider_net_amount).toFixed(2)} ${T("neto a recibir", "net to receive")} · ${T("Pago registrado", "Payment recorded")}` : `$${Number(oferta.price).toFixed(2)}`}
+                        {pago
+                          ? cancelado
+                            ? `$${compensacionMostrada.toFixed(2)} ${T("compensación final", "final compensation")} · ${T("Resolución procesada", "Resolution processed")}`
+                            : `$${Number(pago.provider_net_amount).toFixed(2)} ${T("neto a recibir", "net to receive")} · ${T("Pago registrado", "Payment recorded")}`
+                          : `$${Number(oferta.price).toFixed(2)}`}
                       </p>
                     </div>
                     <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
@@ -6708,8 +6715,8 @@ export default function TrabajoDetallePage() {
                               </p>
                               <p className="mt-1 text-xs font-bold leading-5 text-violet-700">
                                 {language === "es"
-                                  ? `Este comprobante incluye ${cambiosPresupuestoPagados.length} cambio${cambiosPresupuestoPagados.length === 1 ? "" : "s"} pagado${cambiosPresupuestoPagados.length === 1 ? "" : "s"}`
-                                  : `This receipt includes ${cambiosPresupuestoPagados.length} paid budget change${cambiosPresupuestoPagados.length === 1 ? "" : "s"}`} por ${adicionalServicioPagado.toFixed(2)} adicionales. Tu neto adicional es ${netoAdicionalProfesional.toFixed(2)}.
+                                  ? `Este comprobante incluye ${cambiosPresupuestoPagados.length} cambio${cambiosPresupuestoPagados.length === 1 ? "" : "s"} pagado${cambiosPresupuestoPagados.length === 1 ? "" : "s"} por $${adicionalServicioPagado.toFixed(2)} adicionales. Tu neto adicional es $${netoAdicionalProfesional.toFixed(2)}.`
+                                  : `This receipt includes ${cambiosPresupuestoPagados.length} paid budget change${cambiosPresupuestoPagados.length === 1 ? "" : "s"} for an additional $${adicionalServicioPagado.toFixed(2)}. Your additional net amount is $${netoAdicionalProfesional.toFixed(2)}.`}
                               </p>
                             </div>
                           )}
@@ -6730,7 +6737,7 @@ export default function TrabajoDetallePage() {
                           </div>
 
                           <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
-                            Procesado
+                            {T("Procesado", "Processed")}
                           </span>
                         </div>
                       </>
