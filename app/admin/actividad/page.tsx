@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { hasAdminPermission, isAdminRole } from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type RequestRow = {
   id: string;
@@ -92,13 +92,25 @@ export default function AdminActividadPage() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (
-        authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
-      ) {
+      if (authError || !user) {
         router.replace("/login-profesional");
+        return;
+      }
+
+      const { data: adminProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role) ||
+        !hasAdminPermission(adminProfile.admin_role, "activity")
+      ) {
+        router.replace("/admin");
         return;
       }
 
@@ -195,7 +207,7 @@ export default function AdminActividadPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "No pudimos cargar la actividad de RELYDO."
+          : "No pudimos cargar la actividad de FixFlow."
       );
     } finally {
       setLoading(false);
@@ -377,7 +389,7 @@ export default function AdminActividadPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
         <div className="rounded-2xl bg-white px-8 py-7 font-bold text-slate-700 shadow">
-          Cargando actividad de RELYDO...
+          Cargando actividad de FixFlow...
         </div>
       </main>
     );
@@ -416,7 +428,7 @@ export default function AdminActividadPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-slate-300">
-            Observa cómo se mueve RELYDO: trabajos, contratación, finalización, ofertas, clientes y profesionales.
+            Observa cómo se mueve FixFlow: trabajos, contratación, finalización, ofertas, clientes y profesionales.
           </p>
         </section>
 
