@@ -57,6 +57,7 @@ type FotoTrabajo = {
   id: string;
   request_id: string;
   file_url: string;
+  signed_url?: string | null;
 };
 
 type EvidenciaFinal = {
@@ -1722,7 +1723,51 @@ export default function TrabajoDetallePage() {
         console.error(fotosResult.error);
         setFotos([]);
       } else {
-        setFotos(fotosResult.data || []);
+        const fotosBase =
+          (fotosResult.data || []) as FotoTrabajo[];
+
+        const fotosConUrls = await Promise.all(
+          fotosBase.map(async (foto) => {
+            const marker = "/request-photos/";
+            const markerIndex = foto.file_url.indexOf(marker);
+            const rawPath =
+              markerIndex >= 0
+                ? foto.file_url.slice(markerIndex + marker.length)
+                : foto.file_url;
+
+            let filePath = rawPath;
+
+            try {
+              filePath = decodeURIComponent(rawPath);
+            } catch {
+              filePath = rawPath;
+            }
+
+            const { data: signedData, error: signedError } =
+              await supabase.storage
+                .from("request-photos")
+                .createSignedUrl(filePath, 60 * 60);
+
+            if (signedError) {
+              console.error(
+                "Error creando URL segura para foto del cliente:",
+                signedError
+              );
+
+              return {
+                ...foto,
+                signed_url: null,
+              };
+            }
+
+            return {
+              ...foto,
+              signed_url: signedData?.signedUrl || null,
+            };
+          })
+        );
+
+        setFotos(fotosConUrls);
       }
 
       if (evidenciaFinalResult.error) {
@@ -4497,7 +4542,7 @@ export default function TrabajoDetallePage() {
 
   const fotosVisor = [
     ...fotos.map((foto, index) => ({
-      url: foto.file_url,
+      url: foto.signed_url || "",
       alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
     })),
     ...evidenciasFinales
@@ -6532,14 +6577,14 @@ export default function TrabajoDetallePage() {
                               type="button"
                               onClick={() =>
                                 setFotoAbierta({
-                                  url: foto.file_url,
+                                  url: foto.signed_url || "",
                                   alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
                                 })
                               }
                               className="group cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
                             >
                               <img
-                                src={foto.file_url}
+                                src={foto.signed_url || ""}
                                 alt={`${T("Foto del cliente", "Customer photo")} ${index + 1}`}
                                 className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
                               />
