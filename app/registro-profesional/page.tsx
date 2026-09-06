@@ -227,46 +227,7 @@ export default function RegistroProfesional() {
 
     try {
       /*
-        1. COMPROBAR SI EL EMAIL YA ESTÁ EN USO
-
-        Esta RPC revisa tanto Authentication como public.profiles.
-        Así RELYDO puede mostrar un mensaje claro antes de intentar
-        crear una segunda cuenta con el mismo correo.
-      */
-
-      const {
-        data: emailExiste,
-        error: emailCheckError,
-      } = await supabase.rpc(
-        "relydo_email_exists",
-        {
-          check_email: email,
-        }
-      );
-
-      if (emailCheckError) {
-        throw new Error(
-          T(
-            `No pudimos comprobar el correo: ${emailCheckError.message}`,
-            `We could not verify the email address: ${emailCheckError.message}`
-          )
-        );
-      }
-
-      if (emailExiste === true) {
-        setError(
-          T(
-            "Este correo ya está asociado a una cuenta en RELYDO. Inicia sesión o utiliza otro correo.",
-            "This email is already associated with a RELYDO account. Sign in or use a different email."
-          )
-        );
-
-        setEnviando(false);
-        return;
-      }
-
-      /*
-        2. CREAR USUARIO EN AUTH
+        CREAR USUARIO EN AUTH
 
         El trigger de Supabase que instalaremos crea inmediatamente:
         - profiles

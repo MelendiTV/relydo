@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Suspense,
@@ -571,29 +571,6 @@ function RegistroClienteContenido() {
 
     try {
       /*
-        PRIMERO:
-        COMPROBAR SI EL CORREO YA EXISTE MEDIANTE LA RPC SEGURA.
-      */
-
-      const { data: emailExiste, error: emailCheckError } =
-        await supabase.rpc("relydo_email_exists", {
-          check_email: correoLimpio,
-        });
-
-      if (emailCheckError) {
-        console.error("Error verificando correo:", emailCheckError);
-        setError(text.errorVerificandoCorreo);
-        setLoading(false);
-        return;
-      }
-
-      if (emailExiste === true) {
-        setError(text.correoYaRegistrado);
-        setLoading(false);
-        return;
-      }
-
-      /*
         CREAR USUARIO EN SUPABASE AUTH
 
         IMPORTANTE:
@@ -674,6 +651,25 @@ function RegistroClienteContenido() {
         throw new Error(
           text.usuarioNoCreado
         );
+      }
+
+      /*
+        Protección adicional:
+        con Confirm Email activado Supabase puede responder de forma
+        deliberadamente ambigua si el correo ya existía.
+        Una lista identities vacía indica que no se creó
+        una identidad nueva.
+      */
+
+      if (
+        Array.isArray(user.identities) &&
+        user.identities.length === 0
+      ) {
+        setError(
+          text.correoYaRegistrado
+        );
+        setLoading(false);
+        return;
       }
 
       /*
