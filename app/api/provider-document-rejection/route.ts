@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { hasAdminPermission, isAdminRole } from "../../lib/adminPermissions";
 
 export const runtime = "nodejs";
 
@@ -338,14 +339,22 @@ export async function POST(
     } =
       await supabase
         .from("profiles")
-        .select("id, role")
+        .select("id, role, admin_role")
         .eq("id", user.id)
         .maybeSingle();
 
     if (
       adminError ||
-      adminProfile?.role !==
-        "admin"
+      !adminProfile ||
+      adminProfile.role !==
+        "admin" ||
+      !isAdminRole(
+        adminProfile.admin_role
+      ) ||
+      !hasAdminPermission(
+        adminProfile.admin_role,
+        "providers"
+      )
     ) {
       return NextResponse.json(
         {
