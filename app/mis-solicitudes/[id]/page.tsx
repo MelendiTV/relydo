@@ -488,6 +488,39 @@ function detailText(language: "es" | "en", spanish: string) {
     : spanish;
 }
 
+function resolutionNoteText(
+  language: "es" | "en",
+  note: string | null
+) {
+  if (!note || language !== "en") {
+    return note || "";
+  }
+
+  return note
+    .replaceAll(
+      "[A FAVOR DEL PROFESIONAL - CONTINUAR TRABAJO]",
+      "[IN FAVOR OF PROFESSIONAL - CONTINUE WORK]"
+    )
+    .replaceAll(
+      "[A FAVOR DEL PROFESIONAL - PAGO LIBERADO]",
+      "[IN FAVOR OF PROFESSIONAL - PAYMENT RELEASED]"
+    )
+    .replaceAll(
+      "[A FAVOR DEL CLIENTE - TRABAJO CANCELADO]",
+      "[IN FAVOR OF CUSTOMER - JOB CANCELLED]"
+    )
+    .replaceAll("[PAGO AL PROFESIONAL]", "[PAYMENT TO PROFESSIONAL]")
+    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replaceAll("[REEMBOLSO AL CLIENTE]", "[REFUND TO CUSTOMER]")
+    .replaceAll("[REEMBOLSO TOTAL AL CLIENTE]", "[FULL REFUND TO CUSTOMER]")
+    .replace(/^Profesional:/gm, "Professional:")
+    .replace(/^Cliente:/gm, "Customer:")
+    .replace(/^Reembolso al cliente:/gim, "Customer refund:");
+}
+
 function nombreOficio(
   trade: string | null
 ) {
@@ -4257,7 +4290,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             {T("Nota de resolución")}
                           </p>
                           <p className="mt-2 whitespace-pre-wrap font-semibold leading-6 text-slate-800">
-                            {claim.resolution_notes}
+                            {resolutionNoteText(language, claim.resolution_notes)}
                           </p>
                         </div>
                       )}
@@ -5438,7 +5471,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           {T("Resolución de RELYDO")}
                         </p>
                         <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
-                          {claim.resolution_notes}
+                          {resolutionNoteText(language, claim.resolution_notes)}
                         </p>
                       </div>
                     )}

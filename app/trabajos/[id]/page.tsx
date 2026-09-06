@@ -311,8 +311,12 @@ function claimReasonText(
   const normalized = reason.trim().toLowerCase();
 
   const en: Record<string, string> = {
+    "trabajo incompleto": "Incomplete job",
     "calidad del trabajo": "Work quality",
+    "daños durante el servicio": "Damage during service",
     "cobro adicional no acordado": "Unapproved additional charge",
+    "conducta del profesional": "Professional conduct",
+    "otro problema": "Other problem",
   };
 
   return en[normalized] || reason;
@@ -328,6 +332,19 @@ function resolutionNoteText(
   }
 
   return note
+    .replaceAll(
+      "[A FAVOR DEL PROFESIONAL - CONTINUAR TRABAJO]",
+      "[IN FAVOR OF PROFESSIONAL - CONTINUE WORK]"
+    )
+    .replaceAll(
+      "[A FAVOR DEL PROFESIONAL - PAGO LIBERADO]",
+      "[IN FAVOR OF PROFESSIONAL - PAYMENT RELEASED]"
+    )
+    .replaceAll(
+      "[A FAVOR DEL CLIENTE - TRABAJO CANCELADO]",
+      "[IN FAVOR OF CUSTOMER - JOB CANCELLED]"
+    )
+    .replaceAll("[PAGO AL PROFESIONAL]", "[PAYMENT TO PROFESSIONAL]")
     .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
     .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
     .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
@@ -4987,7 +5004,17 @@ export default function TrabajoDetallePage() {
                         <p className="mt-1 font-extrabold text-slate-950">
                           {cancelado
                             ? `🚫 ${T("Trabajo cancelado", "Job cancelled")}`
-                            : `✅ ${T("Trabajo completado", "Job completed")}`}
+                            : trabajo.status === "completed"
+                            ? `✅ ${T("Trabajo completado", "Job completed")}`
+                            : trabajo.completion_review_status === "pending"
+                            ? `⏳ ${T("Trabajo en revisión", "Job under review")}`
+                            : trabajo.job_stage === "working"
+                            ? `🛠️ ${T("Trabajo iniciado", "Work started")}`
+                            : trabajo.job_stage === "arrived"
+                            ? `📍 ${T("Profesional en el lugar", "Professional arrived")}`
+                            : trabajo.job_stage === "on_the_way"
+                            ? `🚗 ${T("Profesional en camino", "Professional on the way")}`
+                            : `📋 ${T("Trabajo contratado", "Job hired")}`}
                         </p>
                         {(trabajo.submitted_for_review_at || trabajo.completion_approved_at) && (
                           <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-500">
@@ -5112,7 +5139,7 @@ export default function TrabajoDetallePage() {
                             </p>
                             <h3 className="mt-1 text-lg font-black text-slate-950">
                               {reclamoActivo
-                                ? T("Orden bajo revisión de RELYDO", "Order under RELYDO review")
+                                ? T("Reclamo bajo revisión de RELYDO", "Claim under RELYDO review")
                                 : etapaActual ===
                                   1
                                 ? T("Trabajo contratado", "Job hired")
@@ -5130,7 +5157,15 @@ export default function TrabajoDetallePage() {
                             </h3>
 
                             <p className="mt-1 text-sm leading-6 text-slate-500">
-                              {T("El cliente puede ver el avance del servicio en tiempo real.", "The customer can see the service progress in real time.")}
+                              {reclamoActivo
+                                ? T(
+                                    "Las acciones del trabajo están bloqueadas temporalmente mientras RELYDO revisa el reclamo. La etapa del trabajo no ha cambiado.",
+                                    "Job actions are temporarily locked while RELYDO reviews the claim. The job stage has not changed."
+                                  )
+                                : T(
+                                    "El cliente puede ver el avance del servicio en tiempo real.",
+                                    "The customer can see the service progress in real time."
+                                  )}
                             </p>
                           </div>
                         </div>
@@ -5425,7 +5460,7 @@ export default function TrabajoDetallePage() {
                               </p>
                               <p className="mt-1 text-sm text-amber-800">
                                 {reclamoActivo
-                                  ? T("Se abrió un reclamo para este trabajo. RELYDO está revisando el caso antes de tomar una decisión.", "A claim was opened for this job. RELYDO is reviewing the case before making a decision.")
+                                  ? T("El trabajo ya fue enviado a revisión final y además existe un reclamo activo. RELYDO está revisando el caso antes de tomar una decisión.", "The job was already submitted for final review and there is also an active claim. RELYDO is reviewing the case before making a decision.")
                                   : T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}
                               </p>
                             </div>
@@ -5489,7 +5524,7 @@ export default function TrabajoDetallePage() {
                               </p>
                               <p className="mt-1 text-sm text-amber-800">
                                 {reclamoActivo
-                                  ? T("Se abrió un reclamo para este trabajo. RELYDO está revisando el caso antes de tomar una decisión.", "A claim was opened for this job. RELYDO is reviewing the case before making a decision.")
+                                  ? T("El trabajo ya fue enviado a revisión final y además existe un reclamo activo. RELYDO está revisando el caso antes de tomar una decisión.", "The job was already submitted for final review and there is also an active claim. RELYDO is reviewing the case before making a decision.")
                                   : T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}
                               </p>
                             </div>
