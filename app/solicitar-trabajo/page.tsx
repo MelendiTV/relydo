@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Suspense,
@@ -884,16 +884,6 @@ function SolicitarTrabajoContenido() {
               );
             }
 
-            const {
-              data:
-                publicUrlData,
-            } =
-              supabase.storage
-                .from("request-photos")
-                .getPublicUrl(
-                  filePath
-                );
-
             return {
               ok: true as const,
               filePath,
@@ -902,7 +892,7 @@ function SolicitarTrabajoContenido() {
                   requestId,
 
                 file_url:
-                  publicUrlData.publicUrl,
+                  filePath,
               },
             };
           } catch (error) {
