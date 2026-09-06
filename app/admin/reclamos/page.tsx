@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type Provider = {
   user_id: string;
@@ -207,13 +210,28 @@ export default function AdminReclamosPage() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (
-        authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
-      ) {
+      if (authError || !user) {
         router.replace("/login-profesional");
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role) ||
+        !hasAdminPermission(adminProfile.admin_role, "claims")
+      ) {
+        router.replace("/admin");
         return;
       }
 
@@ -408,142 +426,6 @@ export default function AdminReclamosPage() {
     }
   }
 
-  async function reabrirReclamo(
-    reclamo: JobClaim
-  ) {
-    setError("");
-    setMensaje("");
-
-    if (
-      reclamo.status !==
-        "resolved" &&
-      reclamo.status !==
-        "rejected"
-    ) {
-      setError(
-        "Solo puedes reabrir un reclamo que ya esté cerrado."
-      );
-      return;
-    }
-
-    const confirmar =
-      window.confirm(
-        "¿Reabrir este caso para revisión administrativa?\n\nLa resolución económica anterior NO se revierte ni se volverá a ejecutar automáticamente. El caso se abrirá únicamente para revisión y seguimiento."
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setProcesando(
-      reclamo.id
-    );
-
-    try {
-      const {
-        error,
-      } =
-        await supabase
-          .from(
-            "job_claims"
-          )
-          .update({
-            status:
-              "reviewing",
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            reclamo.id
-          );
-
-      if (error) {
-        throw new Error(
-          error.message
-        );
-      }
-
-      setMensaje(
-        "Caso reabierto para revisión administrativa. La resolución económica anterior se conserva."
-      );
-
-      await cargar();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo reabrir el reclamo."
-      );
-    } finally {
-      setProcesando(
-        null
-      );
-    }
-  }
-
-  async function cerrarRevisionReabierta(
-    reclamo: JobClaim
-  ) {
-    setError("");
-    setMensaje("");
-
-    const confirmar =
-      window.confirm(
-        "¿Cerrar nuevamente esta revisión? Se conservará exactamente la resolución económica anterior."
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setProcesando(
-      reclamo.id
-    );
-
-    try {
-      const {
-        error,
-      } =
-        await supabase
-          .from(
-            "job_claims"
-          )
-          .update({
-            status:
-              "resolved",
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            reclamo.id
-          );
-
-      if (error) {
-        throw new Error(
-          error.message
-        );
-      }
-
-      setMensaje(
-        "Revisión reabierta cerrada. Se conservó la resolución económica anterior."
-      );
-
-      await cargar();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo cerrar nuevamente el reclamo."
-      );
-    } finally {
-      setProcesando(
-        null
-      );
-    }
-  }
-
   async function abrirParcial(
     reclamo: JobClaim
   ) {
@@ -557,8 +439,6 @@ export default function AdminReclamosPage() {
         .from("payments")
         .select(`
           provider_net_amount,
-          job_amount,
-          customer_fee_amount,
           customer_total_amount
         `)
         .eq("request_id", reclamo.request_id)
@@ -580,11 +460,9 @@ export default function AdminReclamosPage() {
         );
       }
 
-      // En una resolución parcial solo se disputa el subtotal del trabajo.
-      // El fee original del cliente permanece protegido para RELYDO.
       const total =
         Number(
-          pago.data.job_amount
+          pago.data.customer_total_amount
         );
 
       const maxProfesional =
@@ -889,16 +767,11 @@ export default function AdminReclamosPage() {
 
       await cargar();
     } catch (err) {
-      const mensajeError =
+      setError(
         err instanceof Error
           ? err.message
-          : "No se pudo resolver el reclamo.";
-
-      if (action === "partial") {
-        setErrorParcial(mensajeError);
-      } else {
-        setError(mensajeError);
-      }
+          : "No se pudo resolver el reclamo."
+      );
     } finally {
       setProcesando(null);
     }
@@ -1088,13 +961,6 @@ export default function AdminReclamosPage() {
               const activo =
                 reclamo.status === "open" ||
                 reclamo.status === "reviewing";
-
-              const esReabierto =
-                reclamo.status === "reviewing" &&
-                Boolean(
-                  reclamo.resolved_at ||
-                  reclamo.resolution_type
-                );
 
               return (
                 <details
@@ -1315,21 +1181,10 @@ export default function AdminReclamosPage() {
                       </div>
                     )}
 
-                    {esReabierto && (
-                      <div className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-5 text-purple-950">
-                        <p className="font-black">
-                          ↻ Caso reabierto para revisión administrativa
-                        </p>
-                        <p className="mt-2 text-sm leading-6">
-                          La resolución económica anterior se conserva. Para evitar pagos o reembolsos duplicados, las acciones económicas permanecen bloqueadas en esta revisión reabierta.
-                        </p>
-                      </div>
-                    )}
-
-                    {activo && !esReabierto && (
+                    {activo && (
                       <div className="mt-5">
-                        {reclamo.status === "open" ? (
-                          <div className="flex justify-center">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          {reclamo.status === "open" && (
                             <button
                               type="button"
                               disabled={
@@ -1341,111 +1196,63 @@ export default function AdminReclamosPage() {
                                   reclamo
                                 )
                               }
-                              className="w-full max-w-sm rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                              className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-white disabled:opacity-50"
                             >
                               🔎 Pasar a revisión
                             </button>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <button
-                              type="button"
-                              disabled={
-                                procesando ===
-                                reclamo.id
-                              }
-                              onClick={() =>
-                                resolver(
-                                  reclamo,
-                                  "pay_provider"
-                                )
-                              }
-                              className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                            >
-                              💰 Pagar profesional
-                            </button>
+                          )}
 
-                            <button
-                              type="button"
-                              disabled={
-                                procesando ===
-                                reclamo.id
-                              }
-                              onClick={() =>
-                                resolver(
-                                  reclamo,
-                                  "refund_customer"
-                                )
-                              }
-                              className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                            >
-                              ↩️ Reembolsar cliente
-                            </button>
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                              reclamo.id
+                            }
+                            onClick={() =>
+                              resolver(
+                                reclamo,
+                                "pay_provider"
+                              )
+                            }
+                            className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            💰 Pagar profesional
+                          </button>
 
-                            <button
-                              type="button"
-                              disabled={
-                                procesando ===
-                                  reclamo.id ||
-                                cargandoParcial
-                              }
-                              onClick={() =>
-                                abrirParcial(
-                                  reclamo
-                                )
-                              }
-                              className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                            >
-                              ⚖️ Resolución parcial
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                              reclamo.id
+                            }
+                            onClick={() =>
+                              resolver(
+                                reclamo,
+                                "refund_customer"
+                              )
+                            }
+                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            ↩️ Reembolsar cliente
+                          </button>
 
-                    {esReabierto && (
-                      <div className="mt-5">
-                        <button
-                          type="button"
-                          disabled={
-                            procesando ===
-                            reclamo.id
-                          }
-                          onClick={() =>
-                            cerrarRevisionReabierta(
-                              reclamo
-                            )
-                          }
-                          className="w-full rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white transition hover:bg-purple-800 disabled:opacity-50"
-                        >
-                          {procesando ===
-                          reclamo.id
-                            ? "Procesando..."
-                            : "✓ Cerrar revisión reabierta"}
-                        </button>
-                      </div>
-                    )}
-
-                    {!activo && (
-                      <div className="mt-5">
-                        <button
-                          type="button"
-                          disabled={
-                            procesando ===
-                            reclamo.id
-                          }
-                          onClick={() =>
-                            reabrirReclamo(
-                              reclamo
-                            )
-                          }
-                          className="w-full rounded-xl border-2 border-purple-600 bg-purple-50 px-5 py-3 font-extrabold text-purple-800 transition hover:bg-purple-100 disabled:opacity-50"
-                        >
-                          {procesando ===
-                          reclamo.id
-                            ? "Procesando..."
-                            : "↻ Reabrir caso"}
-                        </button>
+                          <button
+                            type="button"
+                            disabled={
+                              procesando ===
+                                reclamo.id ||
+                              cargandoParcial
+                            }
+                            onClick={() =>
+                              abrirParcial(
+                                reclamo
+                              )
+                            }
+                            className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                          >
+                            ⚖️ Resolución parcial
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1504,7 +1311,7 @@ export default function AdminReclamosPage() {
                     e.target.value
                   )
                 }
-                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none placeholder:text-slate-500 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-100"
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-bold"
               />
             </label>
 
@@ -1529,7 +1336,7 @@ export default function AdminReclamosPage() {
                   )
                 }
                 rows={4}
-                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-slate-50 px-4 py-3 font-semibold text-slate-950 outline-none placeholder:text-slate-500 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-100"
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
               />
             </label>
 
@@ -1646,178 +1453,63 @@ function GrupoEvidencias({
   evidencias: ClaimEvidence[];
   clase: string;
 }) {
-  const imagenes = evidencias.filter(
-    (item) =>
-      item.file_type === "image" &&
-      Boolean(item.signed_url)
-  );
-
-  const [visorIndex, setVisorIndex] =
-    useState<number | null>(null);
-
-  function abrirVisor(id: string) {
-    const index = imagenes.findIndex(
-      (item) => item.id === id
-    );
-
-    if (index >= 0) {
-      setVisorIndex(index);
-    }
-  }
-
-  function moverVisor(direccion: -1 | 1) {
-    setVisorIndex((actual) => {
-      if (
-        actual === null ||
-        imagenes.length === 0
-      ) {
-        return actual;
-      }
-
-      return (
-        actual +
-        direccion +
-        imagenes.length
-      ) % imagenes.length;
-    });
-  }
-
   return (
-    <>
-      <div className={`rounded-2xl border p-5 ${clase}`}>
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="font-black text-slate-950">
-            {titulo}
-          </h4>
-          <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-slate-700">
-            {evidencias.length}
-          </span>
-        </div>
-
-        {evidencias.length === 0 ? (
-          <p className="mt-4 rounded-xl bg-white p-4 text-sm font-semibold text-slate-500">
-            No se adjuntó evidencia.
-          </p>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {evidencias.map((item) => (
-              <div
-                key={item.id}
-                className="overflow-hidden rounded-xl bg-white"
-              >
-                {item.signed_url ? (
-                  item.file_type === "video" ? (
-                    <video
-                      src={item.signed_url}
-                      controls
-                      className="aspect-video w-full bg-black object-contain"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        abrirVisor(item.id)
-                      }
-                      className="block w-full cursor-zoom-in"
-                      aria-label="Abrir evidencia en visor"
-                    >
-                      <img
-                        src={item.signed_url}
-                        alt="Evidencia del reclamo"
-                        className="aspect-video w-full object-cover transition hover:opacity-95"
-                      />
-                    </button>
-                  )
-                ) : (
-                  <div className="flex aspect-video items-center justify-center text-sm text-slate-500">
-                    Archivo no disponible
-                  </div>
-                )}
-
-                <p className="px-3 py-2 text-sm font-bold text-slate-700">
-                  {item.file_type === "video"
-                    ? "🎥 Video"
-                    : "📷 Foto"}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+    <div className={`rounded-2xl border p-5 ${clase}`}>
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="font-black text-slate-950">
+          {titulo}
+        </h4>
+        <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-slate-700">
+          {evidencias.length}
+        </span>
       </div>
 
-      {visorIndex !== null &&
-        imagenes[visorIndex]?.signed_url && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Visor de evidencia"
-            onClick={() =>
-              setVisorIndex(null)
-            }
-          >
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setVisorIndex(null);
-              }}
-              className="absolute right-5 top-5 rounded-full bg-white/10 px-4 py-2 text-2xl font-black text-white hover:bg-white/20"
-              aria-label="Cerrar visor"
-            >
-              ×
-            </button>
-
-            {imagenes.length > 1 && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moverVisor(-1);
-                }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-4xl font-black text-white hover:bg-white/20 md:left-8"
-                aria-label="Imagen anterior"
-              >
-                ‹
-              </button>
-            )}
-
+      {evidencias.length === 0 ? (
+        <p className="mt-4 rounded-xl bg-white p-4 text-sm font-semibold text-slate-500">
+          No se adjuntó evidencia.
+        </p>
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {evidencias.map((item) => (
             <div
-              className="flex max-h-[90vh] max-w-[90vw] flex-col items-center"
-              onClick={(event) =>
-                event.stopPropagation()
-              }
+              key={item.id}
+              className="overflow-hidden rounded-xl bg-white"
             >
-              <img
-                src={
-                  imagenes[visorIndex]
-                    .signed_url as string
-                }
-                alt="Evidencia del reclamo ampliada"
-                className="max-h-[82vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl"
-              />
+              {item.signed_url ? (
+                item.file_type === "video" ? (
+                  <video
+                    src={item.signed_url}
+                    controls
+                    className="aspect-video w-full bg-black object-contain"
+                  />
+                ) : (
+                  <a
+                    href={item.signed_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <img
+                      src={item.signed_url}
+                      alt="Evidencia del reclamo"
+                      className="aspect-video w-full object-cover"
+                    />
+                  </a>
+                )
+              ) : (
+                <div className="flex aspect-video items-center justify-center text-sm text-slate-500">
+                  Archivo no disponible
+                </div>
+              )}
 
-              <div className="mt-3 rounded-full bg-black/50 px-4 py-2 text-sm font-bold text-white">
-                {visorIndex + 1} /{" "}
-                {imagenes.length}
-              </div>
+              <p className="px-3 py-2 text-sm font-bold text-slate-700">
+                {item.file_type === "video"
+                  ? "🎥 Video"
+                  : "📷 Foto"}
+              </p>
             </div>
-
-            {imagenes.length > 1 && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moverVisor(1);
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-4xl font-black text-white hover:bg-white/20 md:right-8"
-                aria-label="Imagen siguiente"
-              >
-                ›
-              </button>
-            )}
-          </div>
-        )}
-    </>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
