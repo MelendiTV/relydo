@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type PaymentSettings = {
   id: string;
@@ -95,14 +98,34 @@ export default function ConfiguracionFinancieraPage() {
 
       if (
         authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !==
-          ADMIN_EMAIL.toLowerCase()
+        !user
       ) {
         router.replace(
           "/login-profesional"
         );
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role) ||
+        !hasAdminPermission(
+          adminProfile.admin_role,
+          "financial_settings"
+        )
+      ) {
+        router.replace("/admin");
         return;
       }
 
@@ -352,7 +375,7 @@ export default function ConfiguracionFinancieraPage() {
       providerPercent) /
       100;
 
-  const  ejemploRelydo =
+  const ejemploFixFlow =
     ejemploServicio *
       (providerPercent / 100) +
     ejemploServicio *
@@ -388,7 +411,7 @@ export default function ConfiguracionFinancieraPage() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-slate-300">
-              Administra las comisiones de RELYDO, la tarifa de servicio al cliente y las reglas económicas de cancelación.
+              Administra las comisiones de FixFlow, la tarifa de servicio al cliente y las reglas económicas de cancelación.
             </p>
           </div>
 
@@ -513,11 +536,11 @@ export default function ConfiguracionFinancieraPage() {
 
                 <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                   <p className="font-extrabold text-emerald-900">
-                    Ingreso estimado de RELYDO en un trabajo de $300
+                    Ingreso estimado de FixFlow en un trabajo de $300
                   </p>
 
                   <p className="mt-2 text-3xl font-black text-emerald-800">
-                    ${ejemploRelydo.toFixed(2)}
+                    ${ejemploFixFlow.toFixed(2)}
                   </p>
                 </div>
 
@@ -597,7 +620,7 @@ export default function ConfiguracionFinancieraPage() {
                   </div>
 
                   <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">
-                    Contratado: cancelación gratis · Trabajo iniciado: no se cancela, pasa a reclamo · El resto de la penalidad corresponde a RELYDO.
+                    Contratado: cancelación gratis · Trabajo iniciado: no se cancela, pasa a reclamo · El resto de la penalidad corresponde a FixFlow.
                   </div>
                 </div>
 
