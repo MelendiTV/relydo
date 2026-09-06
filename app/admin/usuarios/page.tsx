@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type Profile = {
   id: string;
@@ -85,13 +88,28 @@ export default function AdminUsuariosPage() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (
-        authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
-      ) {
+      if (authError || !user) {
         router.replace("/login-profesional");
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role) ||
+        !hasAdminPermission(adminProfile.admin_role, "users")
+      ) {
+        router.replace("/admin");
         return;
       }
 
@@ -249,7 +267,7 @@ export default function AdminUsuariosPage() {
             Gestión de usuarios
           </h1>
           <p className="mt-3 max-w-3xl text-slate-300">
-            Consulta clientes y profesionales, sus datos de contacto y su actividad dentro de RELYDO.
+            Consulta clientes y profesionales, sus datos de contacto y su actividad dentro de FixFlow.
           </p>
         </section>
 
@@ -336,25 +354,7 @@ export default function AdminUsuariosPage() {
               return (
                 <article
                   key={profile.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() =>
-                    router.push(
-                      `/admin/usuarios/${profile.id}`
-                    )
-                  }
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" ||
-                      e.key === " "
-                    ) {
-                      e.preventDefault();
-                      router.push(
-                        `/admin/usuarios/${profile.id}`
-                      );
-                    }
-                  }}
-                  className="cursor-pointer rounded-3xl border border-slate-200 bg-white p-6 shadow transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow"
                 >
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
@@ -362,7 +362,7 @@ export default function AdminUsuariosPage() {
                         <h2 className="text-xl font-black text-slate-950">
                           {profile.full_name ||
                             provider?.business_name ||
-                            "Usuario RELYDO"}
+                            "Usuario FixFlow"}
                         </h2>
 
                         <span
@@ -433,10 +433,6 @@ export default function AdminUsuariosPage() {
                       <p className="mt-3 break-all text-xs font-semibold text-slate-400">
                         ID: {profile.id}
                       </p>
-
-                      <p className="mt-4 text-sm font-black text-cyan-700">
-                        Abrir expediente completo →
-                      </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
@@ -444,7 +440,6 @@ export default function AdminUsuariosPage() {
                         <>
                           <a
                             href={`tel:${contacto.telefono}`}
-                            onClick={(e) => e.stopPropagation()}
                             className="rounded-xl bg-green-700 px-4 py-2.5 text-sm font-black text-white hover:bg-green-800"
                           >
                             📞 Llamar
@@ -452,7 +447,6 @@ export default function AdminUsuariosPage() {
 
                           <a
                             href={`sms:${contacto.telefono}`}
-                            onClick={(e) => e.stopPropagation()}
                             className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-800"
                           >
                             💬 Mensaje
@@ -463,7 +457,6 @@ export default function AdminUsuariosPage() {
                       {contacto.email && (
                         <a
                           href={`mailto:${contacto.email}`}
-                          onClick={(e) => e.stopPropagation()}
                           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50"
                         >
                           ✉️ Email
