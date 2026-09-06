@@ -6360,10 +6360,16 @@ export default function TrabajoDetallePage() {
                           "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
                           "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
                         )
-                      : T(
-                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
-                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
-                        )}
+                      : trabajo.status === "completed" ||
+                          trabajo.completion_review_status === "approved"
+                        ? T(
+                            "RELYDO cerró este reclamo y dio por completado el trabajo. El pago correspondiente al profesional fue liberado según la resolución.",
+                            "RELYDO closed this claim and completed the job. The professional's payment was released according to the resolution."
+                          )
+                        : T(
+                            "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
+                            "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
+                          )}
                   </p>
 
                   {reclamo.resolution_notes && (
