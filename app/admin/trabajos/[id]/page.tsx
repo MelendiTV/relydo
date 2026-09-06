@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useParams, useRouter } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 type Solicitud = {
   id: string;
@@ -266,11 +269,32 @@ export default function AdminTrabajoDetallePage() {
 
       if (
         authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
+        !user
       ) {
         router.replace("/login-profesional");
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role) ||
+        !hasAdminPermission(
+          adminProfile.admin_role,
+          "orders"
+        )
+      ) {
+        router.replace("/admin");
         return;
       }
 
