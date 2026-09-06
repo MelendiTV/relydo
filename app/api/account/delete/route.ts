@@ -77,7 +77,29 @@ export async function DELETE(request: NextRequest) {
     const pending: string[] = [];
 
     // =========================================================
-    // 1. TRABAJOS ACTIVOS
+    // PERFIL / ROL ACTUAL
+    // =========================================================
+    //
+    // Se usa únicamente para saber si además de las
+    // comprobaciones generales del cliente debemos comprobar
+    // obligaciones activas como profesional.
+    // =========================================================
+
+    const {
+      data: profile,
+      error: profileLookupError,
+    } = await admin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileLookupError) {
+      throw profileLookupError;
+    }
+
+    // =========================================================
+    // 1. TRABAJOS ACTIVOS COMO CLIENTE
     // =========================================================
 
     const {
@@ -101,7 +123,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // =========================================================
-    // 2. RECLAMOS ACTIVOS
+    // 2. RECLAMOS ACTIVOS COMO CLIENTE
     // =========================================================
 
     const {
@@ -124,6 +146,63 @@ export async function DELETE(request: NextRequest) {
       pending.push(`Open claims: ${activeClaims}`);
     }
 
+    // =========================================================
+    // 3. OBLIGACIONES ACTIVAS COMO PROFESIONAL
+    // =========================================================
+    //
+    // Si la cuenta es Provider, además comprobamos el lado Pro.
+    //
+    // No contamos solicitudes "open" como trabajos activos del
+    // profesional. Una solicitud abierta puede estar disponible
+    // nuevamente y ya no ser responsabilidad de ese Pro.
+    // =========================================================
+
+    if (profile?.role === "provider") {
+      const {
+        count: activeProviderJobs,
+        error: activeProviderJobsError,
+      } = await admin
+        .from("service_requests")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("preferred_provider_id", user.id)
+        .eq("status", "in_progress");
+
+      if (activeProviderJobsError) {
+        throw activeProviderJobsError;
+      }
+
+      if ((activeProviderJobs || 0) > 0) {
+        pending.push(
+          `Active professional jobs: ${activeProviderJobs}`
+        );
+      }
+
+      const {
+        count: activeProviderClaims,
+        error: activeProviderClaimsError,
+      } = await admin
+        .from("job_claims")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("provider_id", user.id)
+        .in("status", ACTIVE_CLAIM_STATUSES);
+
+      if (activeProviderClaimsError) {
+        throw activeProviderClaimsError;
+      }
+
+      if ((activeProviderClaims || 0) > 0) {
+        pending.push(
+          `Open professional claims: ${activeProviderClaims}`
+        );
+      }
+    }
+
     // Si tiene algo pendiente, no eliminamos todavía.
     if (pending.length > 0) {
       return NextResponse.json(
@@ -136,7 +215,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // =========================================================
-    // 3. ELIMINAR AVATAR DEL STORAGE
+    // 4. ELIMINAR AVATAR DEL STORAGE
     // =========================================================
 
     const {
@@ -169,11 +248,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // =========================================================
-    // 4. ANONIMIZAR PERFIL
+    // 5. ANONIMIZAR PERFIL
     // =========================================================
     //
     // Conservamos el UUID para no romper referencias históricas,
-    // pero eliminamos los datos personales del cliente.
+    // pero eliminamos los datos personales del usuario.
     //
     // IMPORTANTE:
     // Esto permite que en el futuro el usuario pueda volver a
@@ -214,7 +293,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // =========================================================
-    // 5. ELIMINAR CUENTA DE SUPABASE AUTH
+    // 6. ELIMINAR CUENTA DE SUPABASE AUTH
     // =========================================================
 
     const { error: deleteUserError } =
