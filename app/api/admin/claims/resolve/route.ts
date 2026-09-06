@@ -268,6 +268,10 @@ export async function POST(request: NextRequest) {
         title,
         status,
         job_stage,
+        completion_review_status,
+        submitted_for_review_at,
+        completion_approved_at,
+        completed_at,
         customer_id,
         preferred_provider_id
       `)
@@ -298,20 +302,30 @@ export async function POST(request: NextRequest) {
       serviceRequest.status ===
       "completed";
 
+    const trabajoEnRevisionFinal =
+      serviceRequest.status ===
+        "in_progress" &&
+      serviceRequest.job_stage ===
+        "working" &&
+      serviceRequest.completion_review_status ===
+        "pending";
+
     const trabajoIniciado =
       serviceRequest.status ===
         "in_progress" &&
       serviceRequest.job_stage ===
-        "working";
+        "working" &&
+      !trabajoEnRevisionFinal;
 
     if (
       !trabajoCompletado &&
-      !trabajoIniciado
+      !trabajoIniciado &&
+      !trabajoEnRevisionFinal
     ) {
       return NextResponse.json(
         {
           error:
-            "Este reclamo solo puede resolverse cuando el trabajo está completado o cuando ya fue iniciado.",
+            "Este reclamo solo puede resolverse cuando el trabajo está completado, iniciado o enviado a revisión final.",
         },
         { status: 400 }
       );
@@ -567,6 +581,59 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ====================================================
+      // REVISIÓN FINAL:
+      // Antes de que Admin sustituya la aprobación del cliente
+      // y libere el pago, verificamos que el Pro realmente haya
+      // entregado evidencia final y enviado el trabajo a revisión.
+      // ====================================================
+
+      if (trabajoEnRevisionFinal) {
+        if (!serviceRequest.submitted_for_review_at) {
+          return NextResponse.json(
+            {
+              error:
+                "El trabajo figura en revisión, pero no encontramos la fecha de envío a revisión. No se liberará el pago.",
+            },
+            { status: 409 }
+          );
+        }
+
+        const {
+          data: completionEvidence,
+          error: completionEvidenceError,
+        } = await supabaseAdmin
+          .from("job_completion_evidence")
+          .select("id, file_type")
+          .eq("request_id", claim.request_id)
+          .eq("provider_id", claim.provider_id);
+
+        if (completionEvidenceError) {
+          return NextResponse.json(
+            {
+              error:
+                `No pudimos verificar la evidencia final del trabajo: ${completionEvidenceError.message}`,
+            },
+            { status: 500 }
+          );
+        }
+
+        const tieneFotoFinal =
+          (completionEvidence || []).some(
+            (item) => item.file_type === "image"
+          );
+
+        if (!tieneFotoFinal) {
+          return NextResponse.json(
+            {
+              error:
+                "No se puede completar y pagar este trabajo desde el reclamo porque no existe al menos una foto de evidencia final del profesional.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       const alreadyRefunded =
         dinero(payment.refunded_amount || 0);
 
@@ -733,6 +800,40 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Si el Pro ya había entregado el trabajo para revisión final,
+      // la resolución de Admin a su favor sustituye la aprobación
+      // del cliente: se completa el trabajo y se libera el pago.
+      // El reclamo se cierra DESPUÉS de este paso para que, si falla
+      // la actualización del trabajo, el caso siga reintentable.
+      if (trabajoEnRevisionFinal) {
+        const {
+          error: completeRequestError,
+        } = await supabaseAdmin
+          .from("service_requests")
+          .update({
+            status: "completed",
+            job_stage: "completed",
+            completion_review_status: "approved",
+            completion_approved_at: releasedAt,
+            completed_at:
+              serviceRequest.completed_at || releasedAt,
+          })
+          .eq("id", claim.request_id);
+
+        if (completeRequestError) {
+          return NextResponse.json(
+            {
+              error:
+                "Stripe procesó la transferencia y RELYDO registró el pago, pero no pudo marcar el trabajo como completado. El reclamo sigue abierto para poder reconciliar el estado; no crees una nueva transferencia.",
+              stripeTransferId: transferId,
+              paymentReleased: true,
+              workCompletionPending: true,
+            },
+            { status: 500 }
+          );
+        }
+      }
+
       const {
         error: updateClaimError,
       } = await supabaseAdmin
@@ -743,7 +844,9 @@ export async function POST(request: NextRequest) {
           provider_award_amount: providerNet,
           customer_refund_amount: 0,
           resolution_notes:
-            `[PAGO AL PROFESIONAL]\n${notes}`,
+            trabajoEnRevisionFinal
+              ? `[A FAVOR DEL PROFESIONAL - PAGO LIBERADO]\n${notes}`
+              : `[PAGO AL PROFESIONAL]\n${notes}`,
           resolved_at:
             new Date().toISOString(),
           resolved_by: user.id,
@@ -770,8 +873,12 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolvió el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
-            messageEn: `RELYDO resolved the claim in favor of the professional. ${serviceRequest.title || "RELYDO job"}.`,
+            message: trabajoEnRevisionFinal
+              ? `RELYDO resolvió el reclamo a favor del profesional. El trabajo quedó completado y el pago fue liberado. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolvió el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: trabajoEnRevisionFinal
+              ? `RELYDO resolved the claim in favor of the professional. The job was completed and payment was released. ${serviceRequest.title || "RELYDO job"}.`
+              : `RELYDO resolved the claim in favor of the professional. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/mis-solicitudes/${claim.request_id}`,
           }),
@@ -780,8 +887,12 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolvió el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
-            messageEn: `RELYDO resolved the claim in your favor. $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
+            message: trabajoEnRevisionFinal
+              ? `RELYDO resolvió el reclamo a tu favor. El trabajo quedó completado y se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolvió el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: trabajoEnRevisionFinal
+              ? `RELYDO resolved the claim in your favor. The job was completed and $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`
+              : `RELYDO resolved the claim in your favor. $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
           }),
@@ -796,6 +907,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         action: "pay_provider",
+        workCompletedByAdmin: trabajoEnRevisionFinal,
+        paymentReleased: true,
         providerAwardAmount: providerNet,
         customerRefundAmount: 0,
         stripeTransferId: transferId,
@@ -1584,7 +1697,48 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-6. CERRAR EL RECLAMO
+    // 7C-6. CERRAR / COMPLETAR ESTADO OPERATIVO
+    // ======================================================
+
+    // Si la disputa parcial ocurrió DESPUÉS de que el Pro entregó
+    // el trabajo para revisión, la decisión económica de Admin
+    // también pone fin al flujo operativo. El trabajo queda
+    // completado; la distribución de dinero ya fue definida arriba.
+    if (trabajoEnRevisionFinal) {
+      const partialCompletedAt =
+        new Date().toISOString();
+
+      const {
+        error: completePartialRequestError,
+      } = await supabaseAdmin
+        .from("service_requests")
+        .update({
+          status: "completed",
+          job_stage: "completed",
+          completion_review_status: "approved",
+          completion_approved_at: partialCompletedAt,
+          completed_at:
+            serviceRequest.completed_at || partialCompletedAt,
+        })
+        .eq("id", claim.request_id);
+
+      if (completePartialRequestError) {
+        return NextResponse.json(
+          {
+            error:
+              "La distribución económica fue procesada, pero RELYDO no pudo marcar el trabajo en revisión como completado. No repitas movimientos de dinero; vuelve a intentar para reconciliar el estado.",
+            stripeTransferId,
+            stripeRefundId,
+            partialProcessing: true,
+            workCompletionPending: true,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // ======================================================
+    // 7C-7. CERRAR EL RECLAMO
     // ======================================================
 
     const {
@@ -1640,7 +1794,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-7. SI EL TRABAJO ESTABA INICIADO, CANCELARLO
+    // 7C-8. SI EL TRABAJO ESTABA INICIADO, CANCELARLO
     // ======================================================
 
     let workCancelled =
@@ -1688,7 +1842,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-8. NOTIFICAR RESOLUCIÓN
+    // 7C-9. NOTIFICAR RESOLUCIÓN
     // ======================================================
 
     try {
