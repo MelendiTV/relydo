@@ -10,7 +10,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
-const ADMIN_EMAIL = "info@melendivip.com";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -418,17 +417,6 @@ export default function CompletarVerificacion() {
 
     if (userError || !user) {
       router.replace("/login-profesional");
-      return;
-    }
-
-    const userEmail =
-      user.email?.toLowerCase() || "";
-
-    if (
-      userEmail ===
-      ADMIN_EMAIL.toLowerCase()
-    ) {
-      router.replace("/admin");
       return;
     }
 
