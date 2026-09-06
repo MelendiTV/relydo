@@ -12,14 +12,15 @@ import {
   useParams,
   useRouter,
 } from "next/navigation";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "@/app/lib/adminPermissions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
-
-const ADMIN_EMAIL =
-  "info@melendivip.com";
 
 type AnyRow =
   Record<string, any>;
@@ -193,18 +194,6 @@ AdminUsuarioDetallePage() {
     useState<AnyRow[]>([]);
 
   const [
-    openingDocumentId,
-    setOpeningDocumentId,
-  ] =
-    useState<string | null>(null);
-
-  const [
-    documentError,
-    setDocumentError,
-  ] =
-    useState("");
-
-  const [
     notifications,
     setNotifications,
   ] =
@@ -248,14 +237,36 @@ AdminUsuarioDetallePage() {
 
       if (
         authError ||
-        !user ||
-        !user.email ||
-        user.email.toLowerCase() !==
-          ADMIN_EMAIL.toLowerCase()
+        !user
       ) {
         router.replace(
           "/login-profesional"
         );
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role, admin_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        profileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(
+          adminProfile.admin_role
+        ) ||
+        !hasAdminPermission(
+          adminProfile.admin_role,
+          "users"
+        )
+      ) {
+        router.replace("/admin");
         return;
       }
 
@@ -630,87 +641,6 @@ AdminUsuarioDetallePage() {
       );
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function abrirDocumento(
-    row: AnyRow
-  ) {
-    if (!row?.file_path) {
-      setDocumentError(
-        "Este registro no tiene un archivo asociado."
-      );
-      return;
-    }
-
-    setDocumentError("");
-    setOpeningDocumentId(
-      String(row.id || row.file_path)
-    );
-
-    /*
-      El bucket provider-documents es privado.
-      Generamos una URL firmada temporal de 5 minutos
-      únicamente cuando Admin solicita abrir el archivo.
-    */
-
-    const nuevaVentana =
-      window.open(
-        "",
-        "_blank"
-      );
-
-    if (!nuevaVentana) {
-      setOpeningDocumentId(null);
-      setDocumentError(
-        "El navegador bloqueó la nueva ventana. Permite ventanas emergentes para RELYDO e inténtalo nuevamente."
-      );
-      return;
-    }
-
-    try {
-      nuevaVentana.document.title =
-        "Abriendo documento RELYDO...";
-
-      nuevaVentana.document.body.innerHTML =
-        '<div style="font-family:Arial,sans-serif;padding:32px;color:#0f172a">Abriendo documento de forma segura...</div>';
-
-      const {
-        data,
-        error: signedUrlError,
-      } =
-        await supabase.storage
-          .from(
-            "provider-documents"
-          )
-          .createSignedUrl(
-            row.file_path,
-            60 * 5
-          );
-
-      if (
-        signedUrlError ||
-        !data?.signedUrl
-      ) {
-        throw new Error(
-          signedUrlError?.message ||
-            "No se pudo generar el acceso temporal al documento."
-        );
-      }
-
-      nuevaVentana.opener = null;
-      nuevaVentana.location.href =
-        data.signedUrl;
-    } catch (err) {
-      nuevaVentana.close();
-
-      setDocumentError(
-        err instanceof Error
-          ? `No pudimos abrir el documento: ${err.message}`
-          : "No pudimos abrir el documento."
-      );
-    } finally {
-      setOpeningDocumentId(null);
     }
   }
 
@@ -1119,94 +1049,31 @@ AdminUsuarioDetallePage() {
               titulo={`Documentos (${documents.length})`}
               subtitulo="Documentación de verificación cargada."
             >
-              {documentError && (
-                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-                  {documentError}
-                </div>
-              )}
-
               <ListaGenerica
                 rows={documents}
                 empty="No hay documentos registrados."
-                renderer={(row) => {
-                  const documentId =
-                    String(
-                      row.id ||
-                        row.file_path ||
-                        ""
-                    );
-
-                  const opening =
-                    openingDocumentId ===
-                    documentId;
-
-                  return (
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="font-black text-slate-900">
-                          {row.document_type ||
-                            row.type ||
-                            row.name ||
-                            "Documento"}
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-600">
-                          Estado:{" "}
-                          <b>
-                            {textoEstado(
-                              row.status ||
-                                row.verification_status
-                            )}
-                          </b>
-                        </p>
-
-                        {row.rejection_reason && (
-                          <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-                            Motivo de rechazo:{" "}
-                            {row.rejection_reason}
-                          </p>
-                        )}
-
-                        <p className="mt-2 text-xs text-slate-400">
-                          Subido:{" "}
-                          {fecha(
-                            row.created_at
-                          )}
-                        </p>
-
-                        {row.reviewed_at && (
-                          <p className="mt-1 text-xs text-slate-400">
-                            Revisado:{" "}
-                            {fecha(
-                              row.reviewed_at
-                            )}
-                          </p>
-                        )}
-                      </div>
-
-                      {row.file_path ? (
-                        <button
-                          type="button"
-                          disabled={opening}
-                          onClick={() =>
-                            abrirDocumento(
-                              row
-                            )
-                          }
-                          className="w-fit rounded-xl border-2 border-blue-700 bg-white px-4 py-2.5 font-black text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {opening
-                            ? "Abriendo..."
-                            : "📄 Ver documento"}
-                        </button>
-                      ) : (
-                        <span className="text-sm font-bold text-slate-400">
-                          Sin archivo
-                        </span>
+                renderer={(row) => (
+                  <>
+                    <p className="font-black text-slate-900">
+                      {row.document_type ||
+                        row.type ||
+                        row.name ||
+                        "Documento"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Estado:{" "}
+                      {textoEstado(
+                        row.status ||
+                          row.verification_status
                       )}
-                    </div>
-                  );
-                }}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {fecha(
+                        row.created_at
+                      )}
+                    </p>
+                  </>
+                )}
               />
             </Bloque>
           </section>
@@ -1250,7 +1117,7 @@ AdminUsuarioDetallePage() {
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/admin/trabajos/${row.id}`
+                          `/admin/ordenes/${row.id}`
                         )
                       }
                       className="w-fit rounded-xl border-2 border-blue-700 bg-white px-4 py-2 font-black text-blue-700 hover:bg-blue-50"
