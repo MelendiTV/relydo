@@ -557,6 +557,8 @@ export default function AdminReclamosPage() {
         .from("payments")
         .select(`
           provider_net_amount,
+          job_amount,
+          customer_fee_amount,
           customer_total_amount
         `)
         .eq("request_id", reclamo.request_id)
@@ -578,9 +580,11 @@ export default function AdminReclamosPage() {
         );
       }
 
+      // En una resolución parcial solo se disputa el subtotal del trabajo.
+      // El fee original del cliente permanece protegido para RELYDO.
       const total =
         Number(
-          pago.data.customer_total_amount
+          pago.data.job_amount
         );
 
       const maxProfesional =
@@ -885,11 +889,16 @@ export default function AdminReclamosPage() {
 
       await cargar();
     } catch (err) {
-      setError(
+      const mensajeError =
         err instanceof Error
           ? err.message
-          : "No se pudo resolver el reclamo."
-      );
+          : "No se pudo resolver el reclamo.";
+
+      if (action === "partial") {
+        setErrorParcial(mensajeError);
+      } else {
+        setError(mensajeError);
+      }
     } finally {
       setProcesando(null);
     }
@@ -1495,7 +1504,7 @@ export default function AdminReclamosPage() {
                     e.target.value
                   )
                 }
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-bold"
+                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none placeholder:text-slate-500 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-100"
               />
             </label>
 
@@ -1520,7 +1529,7 @@ export default function AdminReclamosPage() {
                   )
                 }
                 rows={4}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                className="mt-2 w-full rounded-xl border-2 border-slate-400 bg-slate-50 px-4 py-3 font-semibold text-slate-950 outline-none placeholder:text-slate-500 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-100"
               />
             </label>
 
