@@ -7,10 +7,6 @@ import {
 } from "react";
 
 import {
-  createClient,
-} from "@supabase/supabase-js";
-
-import {
   usePathname,
   useRouter,
 } from "next/navigation";
@@ -21,10 +17,7 @@ import {
   permissionForAdminPath,
 } from "@/app/lib/adminPermissions";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+import { supabase } from "@/app/lib/supabaseBrowser";
 
 export default function AdminLayout({
   children,
