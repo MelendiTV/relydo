@@ -1,289 +1,265 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
-  AdminRole,
-  hasAdminPermission,
-  isAdminRole,
-} from "@/app/lib/adminPermissions";
-import {
-  getProviderRequirements,
-  requirementLabel,
-} from "@/app/lib/providerRequirements";
+  useParams,
+  useRouter,
+} from "next/navigation";
+import { supabase } from "@/app/lib/supabaseBrowser";
+import { useLanguage } from "@/app/components/LanguageProvider";
+import NotificationsBell from "@/app/components/NotificationsBell";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+function serviceLabel(slug: string | null, language: "es" | "en") {
+  if (!slug) return language === "es" ? "No indicado" : "Not specified";
+  const es: Record<string, string> = {
+    plumbing: "Plomería", electrical: "Electricidad", painting: "Pintura", landscaping: "Jardinería", cleaning: "Limpieza",
+    hvac: "HVAC / Aire acondicionado", ac_rental: "Renta de aires acondicionados", carpentry: "Carpintería", moving: "Mudanzas",
+    appliance_repair: "Reparación de electrodomésticos", handyman: "Handyman", locksmith: "Cerrajería", roofing: "Techado", flooring: "Pisos",
+    tile: "Azulejos y losas", drywall: "Drywall", masonry: "Concreto y albañilería", doors_windows: "Puertas y ventanas", garage_doors: "Garajes",
+    fencing: "Cercas", pool_spa: "Piscinas y spas", pest_control: "Control de plagas", pressure_washing: "Lavado a presión",
+    carpet_cleaning: "Limpieza de alfombras", junk_removal: "Retiro de basura", furniture_assembly: "Montaje de muebles", smart_home: "TV y hogar inteligente", other: "Otros servicios",
+  };
+  const en: Record<string, string> = {
+    plumbing: "Plumbing", electrical: "Electrical", painting: "Painting", landscaping: "Landscaping", cleaning: "Cleaning",
+    hvac: "HVAC / Air conditioning", ac_rental: "Air conditioner rental", carpentry: "Carpentry", moving: "Moving",
+    appliance_repair: "Appliance repair", handyman: "Handyman", locksmith: "Locksmith", roofing: "Roofing", flooring: "Flooring",
+    tile: "Tile", drywall: "Drywall", masonry: "Concrete & masonry", doors_windows: "Doors & windows", garage_doors: "Garage doors",
+    fencing: "Fencing", pool_spa: "Pools & spas", pest_control: "Pest control", pressure_washing: "Pressure washing",
+    carpet_cleaning: "Carpet cleaning", junk_removal: "Junk removal", furniture_assembly: "Furniture assembly", smart_home: "TV & smart home", other: "Other services",
+  };
+  return (language === "es" ? es : en)[slug] || slug;
+}
 
-type Provider = {
-  user_id: string;
-  business_name: string | null;
-  bio: string | null;
-  trade: string | null;
-
-  legal_name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address_line1?: string | null;
-  address_line2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-  zip_code?: string | null;
-
-  years_experience: number | null;
-  service_radius_miles: number | null;
-
-  license_required: boolean | null;
-  license_number: string | null;
-  license_state: string | null;
-  license_expiration: string | null;
-
-  insured: boolean | null;
-  insurance_company: string | null;
-  insurance_expiration: string | null;
-
-  bonded: boolean | null;
-
-  verification_status: string | null;
-  verified: boolean | null;
-  active: boolean | null;
-
-  average_rating: number | null;
-  completed_jobs: number | null;
-
-  created_at?: string | null;
-};
-
-type ProviderContact = {
+type Trabajo = {
   id: string;
-  full_name?: string | null;
-  legal_name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  address_line1?: string | null;
-  address_line2?: string | null;
-  apartment?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-  zip_code?: string | null;
-};
-
-type DocumentRow = {
-  id?: string;
-  user_id: string;
-  document_type: string;
-  file_path: string;
-  status: string | null;
-  rejection_reason?: string | null;
-  created_at?: string | null;
-  reviewed_at?: string | null;
-  expiration_date?: string | null;
-  approved_at?: string | null;
-  reviewed_by?: string | null;
-};
-
-type ProviderDocumentRequest = {
-  id: string;
-  provider_id: string;
-  requested_by: string | null;
-  request_type: string;
-  document_type: string | null;
-  message: string;
-  status: string;
-  requested_at: string;
-  submitted_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type ReassignmentHistory = {
-  id: string;
-  request_id: string;
-  provider_id: string | null;
-  action: string;
-  reason: string | null;
-  created_at: string;
-};
-
-type TrabajoHistorial = {
-  id: string;
-  title: string;
-  city: string;
-  state: string;
-  status: string;
-};
-
-type ProviderHistorial = {
-  user_id: string;
-  business_name: string | null;
-  trade: string | null;
-};
-
-type HistorialCompleto = ReassignmentHistory & {
-  trabajo: TrabajoHistorial | null;
-  profesional: ProviderHistorial | null;
-};
-
-type SolicitudAdmin = {
-  id: string;
-  customer_id: string | null;
   title: string;
   description: string;
+  service_id: string | null;
   address_line1: string | null;
-  address_line2: string | null;
   city: string;
   state: string;
   zip_code: string;
   preferred_date: string | null;
   preferred_time: string | null;
   status: string;
-  created_at: string;
-  customer_name: string | null;
-  customer_phone: string | null;
-  customer_email: string | null;
-  preferred_provider_id: string | null;
   job_stage: string | null;
+  customer_name: string | null;
+  customer_id: string;
+  preferred_provider_id: string | null;
   cancellation_reason: string | null;
-  cancelled_at: string | null;
+  completed_at: string | null;
+  completion_review_status: "pending" | "approved" | null;
+  submitted_for_review_at: string | null;
+  completion_approved_at: string | null;
 };
 
-type JobClaim = {
+type FotoTrabajo = {
+  id: string;
+  request_id: string;
+  file_url: string;
+};
+
+type EvidenciaFinal = {
+  id: string;
+  request_id: string;
+  provider_id: string;
+  file_type: "image" | "video";
+  file_path: string;
+  file_url: string | null;
+  created_at: string;
+  signed_url?: string | null;
+};
+
+type Oferta = {
+  id: string;
+  request_id: string;
+  professional_id: string;
+  price: number;
+  arrival_minutes: number | null;
+  estimated_job_minutes: number | null;
+  message: string | null;
+  status: string;
+  created_at: string;
+};
+
+type Pago = {
+  id: string;
+  request_id: string;
+  offer_id: string | null;
+  provider_id: string;
+  job_amount: number;
+  provider_commission_percent: number;
+  provider_commission_amount: number;
+  provider_net_amount: number;
+  status: string;
+  paid_at: string | null;
+  cancellation_stage: string | null;
+  cancellation_penalty_percent: number | null;
+  cancellation_penalty_amount: number | null;
+  cancellation_provider_amount: number | null;
+  cancellation_platform_amount: number | null;
+  cancellation_processed_at: string | null;
+};
+
+type ReclamoTrabajo = {
   id: string;
   request_id: string;
   customer_id: string;
   provider_id: string;
   reason: string;
   description: string | null;
-  customer_evidence_note: string | null;
   provider_response: string | null;
   provider_response_deadline: string | null;
   provider_responded_at: string | null;
-  status: "open" | "reviewing" | "resolved" | "rejected";
+  status: string;
+  resolution_type: string | null;
   resolution_notes: string | null;
-  resolution_type:
-    | "pay_provider"
-    | "refund_customer"
-    | "partial"
-    | null;
   provider_award_amount: number | null;
   customer_refund_amount: number | null;
   resolved_at: string | null;
-  resolved_by: string | null;
   created_at: string;
-  updated_at: string;
 };
 
-type ClaimEvidenceAdmin = {
+type EvidenciaReclamo = {
   id: string;
   claim_id: string;
   uploaded_by: string;
   uploaded_by_role: "customer" | "provider";
   file_type: "image" | "video";
-  file_url: string;
   file_path: string;
   created_at: string;
-  signed_url: string | null;
 };
 
-type FiltroOrden =
-  | "todas"
-  | "open"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+type ChangeOrder = {
+  id: string;
+  request_id: string;
+  provider_id: string;
+  customer_id: string;
+  reason: string;
+  description: string | null;
+  original_amount: number;
+  additional_amount: number;
+  new_total_amount: number;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  accepted_at: string | null;
+  rejected_at: string | null;
+  payment_status: "unpaid" | "paid" | string;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  additional_customer_fee_percent: number | null;
+  additional_customer_fee_amount: number | null;
+  additional_customer_total_amount: number | null;
+  additional_provider_commission_percent: number | null;
+  additional_provider_commission_amount: number | null;
+  additional_provider_net_amount: number | null;
+  additional_platform_revenue_amount: number | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
-type FiltroProfesional =
-  | "todos"
-  | "activos"
-  | "suspendidos"
-  | "pendientes"
-  | "rechazados";
+type JobMessage = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  sender_role: "customer" | "provider" | "admin";
+  message: string;
+  read_at: string | null;
+  created_at: string;
+};
 
-type FiltroReclamo =
-  | "todos"
-  | "open"
-  | "reviewing"
-  | "closed";
-
-function nombreOficio(
-  trade: string | null
+function mostrarMinutos(
+  minutos: number | null,
+  language: "es" | "en"
 ) {
-  const nombres: Record<string, string> = {
-    plumbing: "Plomería",
-    electrical: "Electricidad",
-    hvac: "HVAC / Aire acondicionado",
-    carpentry: "Carpintería",
-    painting: "Pintura",
-    landscaping: "Jardinería",
-    cleaning: "Limpieza",
-    moving: "Mudanzas",
-    other: "Otros servicios",
-  };
-
-  if (!trade) {
-    return "No indicado";
+  if (
+    minutos === null ||
+    minutos === undefined
+  ) {
+    return language === "es"
+      ? "No indicado"
+      : "Not specified";
   }
 
-  return nombres[trade] || trade;
+  if (minutos < 60) {
+    return `${minutos} min`;
+  }
+
+  const horas =
+    Math.floor(
+      minutos / 60
+    );
+
+  const restantes =
+    minutos % 60;
+
+  if (restantes === 0) {
+    return language === "es"
+      ? `${horas} ${horas === 1 ? "hora" : "horas"}`
+      : `${horas} ${horas === 1 ? "hour" : "hours"}`;
+  }
+
+  return `${horas} h ${restantes} min`;
 }
 
 function formatearFecha(
-  fecha: string | null | undefined
+  fecha: string | null,
+  language: "es" | "en"
 ) {
   if (!fecha) {
-    return "Sin fecha";
+    return language === "es"
+      ? "Flexible"
+      : "Flexible";
   }
 
-  const valor = String(fecha).trim();
-  if (!valor) {
-    return "Sin fecha";
-  }
+  const date =
+    new Date(
+      `${fecha}T12:00:00`
+    );
 
-  const fechaObj = new Date(valor);
-  if (Number.isNaN(fechaObj.getTime())) {
-    return "Fecha no disponible";
-  }
-
-  try {
-    return new Intl.DateTimeFormat(
-      "es-US",
-      {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }
-    ).format(fechaObj);
-  } catch {
-    return "Fecha no disponible";
-  }
+  return new Intl.DateTimeFormat(
+    language === "es"
+      ? "es-US"
+      : "en-US",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  ).format(date);
 }
 
-function calcularEstadoPlazoProfesional(
-  deadline: string | null,
-  providerResponse: string | null
+function formatearFechaHora(
+  fecha: string,
+  language: "es" | "en"
 ) {
-  if (providerResponse) {
-    return {
-      vencido: false,
-      puedeResolver: true,
-      texto: "Profesional respondió",
-    };
-  }
+  return new Intl.DateTimeFormat(
+    language === "es"
+      ? "es-US"
+      : "en-US",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  ).format(
+    new Date(fecha)
+  );
+}
 
+function calcularTiempoRestante(
+  deadline: string | null,
+  language: "es" | "en"
+) {
   if (!deadline) {
     return {
       vencido: false,
-      puedeResolver: false,
-      texto: "Esperando fecha límite",
+      texto:
+        language === "es"
+          ? "24 horas"
+          : "24 hours",
     };
   }
 
@@ -294,8 +270,10 @@ function calcularEstadoPlazoProfesional(
   if (diferencia <= 0) {
     return {
       vencido: true,
-      puedeResolver: true,
-      texto: "Plazo vencido",
+      texto:
+        language === "es"
+          ? "Plazo vencido"
+          : "Deadline expired",
     };
   }
 
@@ -314,335 +292,199 @@ function calcularEstadoPlazoProfesional(
 
   return {
     vencido: false,
-    puedeResolver: false,
     texto:
       horas > 0
-        ? `${horas} h ${minutos} min restantes`
-        : `${minutos} min restantes`,
+        ? `${horas} h ${minutos} min`
+        : `${minutos} min`,
   };
 }
 
-function nombreAccion(
-  action: string
+
+function claimReasonText(
+  language: "es" | "en",
+  reason: string
 ) {
-  if (
-    action ===
-    "provider_released"
-  ) {
-    return "Profesional liberó el trabajo";
+  if (language !== "en") {
+    return reason;
   }
 
-  return action;
+  const normalized = reason.trim().toLowerCase();
+
+  const en: Record<string, string> = {
+    "calidad del trabajo": "Work quality",
+    "cobro adicional no acordado": "Unapproved additional charge",
+  };
+
+  return en[normalized] || reason;
 }
 
-function nombreEstadoReclamo(
-  status: JobClaim["status"]
+
+function resolutionNoteText(
+  language: "es" | "en",
+  note: string | null
 ) {
-  if (status === "open") {
-    return "Abierto";
+  if (!note || language !== "en") {
+    return note || "";
   }
 
-  if (status === "reviewing") {
-    return "En revisión";
-  }
-
-  if (status === "resolved") {
-    return "Resuelto";
-  }
-
-  return "Rechazado";
+  return note
+    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replaceAll("[REEMBOLSO AL CLIENTE]", "[REFUND TO CUSTOMER]")
+    .replaceAll("[REEMBOLSO TOTAL AL CLIENTE]", "[FULL REFUND TO CUSTOMER]")
+    .replace(/^Profesional:/gm, "Professional:")
+    .replace(/^Cliente:/gm, "Customer:")
+    .replace(/^Reembolso al cliente:/gim, "Customer refund:");
 }
 
-function estiloEstadoReclamo(
-  status: JobClaim["status"]
+function formatearHoraChat(
+  fecha: string,
+  language: "es" | "en"
 ) {
-  if (status === "open") {
-    return "bg-red-100 text-red-800";
-  }
-
-  if (status === "reviewing") {
-    return "bg-amber-100 text-amber-800";
-  }
-
-  if (status === "resolved") {
-    return "bg-green-100 text-green-800";
-  }
-
-  return "bg-slate-200 text-slate-700";
-}
-
-function nombreEstadoCuenta(
-  provider: Provider
-) {
-  if (
-    provider.verification_status ===
-    "rejected"
-  ) {
-    return "Rechazado";
-  }
-
-  if (
-    provider.verified === true &&
-    provider.active === true
-  ) {
-    return "Activo";
-  }
-
-  if (
-    provider.verified === true &&
-    provider.active !== true
-  ) {
-    return "Suspendido";
-  }
-
-  if (
-    provider.verification_status ===
-    "pending"
-  ) {
-    return "Pendiente";
-  }
-
-  return "Inactivo";
-}
-
-function estiloEstadoCuenta(
-  provider: Provider
-) {
-  if (
-    provider.verification_status ===
-    "rejected"
-  ) {
-    return "bg-red-100 text-red-800";
-  }
-
-  if (
-    provider.verified === true &&
-    provider.active === true
-  ) {
-    return "bg-green-100 text-green-800";
-  }
-
-  if (
-    provider.verified === true &&
-    provider.active !== true
-  ) {
-    return "bg-amber-100 text-amber-800";
-  }
-
-  if (
-    provider.verification_status ===
-    "pending"
-  ) {
-    return "bg-blue-100 text-blue-800";
-  }
-
-  return "bg-slate-100 text-slate-700";
-}
-
-function nombreEstadoOrden(
-  status: string,
-  jobStage: string | null
-) {
-  if (status === "open") {
-    return "Abierta";
-  }
-
-  if (status === "completed") {
-    return "Completada";
-  }
-
-  if (status === "cancelled") {
-    return "Cancelada";
-  }
-
-  if (status === "in_progress") {
-    if (jobStage === "on_the_way") {
-      return "Profesional en camino";
+  return new Intl.DateTimeFormat(
+    language === "es"
+      ? "es-US"
+      : "en-US",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+      month: "short",
+      day: "numeric",
     }
-
-    if (jobStage === "arrived") {
-      return "Profesional llegó";
-    }
-
-    if (jobStage === "working") {
-      return "Trabajo iniciado";
-    }
-
-    return "Profesional contratado";
-  }
-
-  return status;
+  ).format(
+    new Date(fecha)
+  );
 }
 
-function estiloEstadoOrden(
-  status: string,
-  jobStage: string | null
-) {
-  if (status === "open") {
-    return "bg-blue-100 text-blue-800";
-  }
+export default function TrabajoDetallePage() {
+  const params =
+    useParams<{
+      id: string;
+    }>();
 
-  if (status === "completed") {
-    return "bg-green-100 text-green-800";
-  }
-
-  if (status === "cancelled") {
-    return "bg-red-100 text-red-800";
-  }
-
-  if (status === "in_progress") {
-    if (jobStage === "working") {
-      return "bg-amber-100 text-amber-800";
-    }
-
-    if (jobStage === "arrived") {
-      return "bg-purple-100 text-purple-800";
-    }
-
-    if (jobStage === "on_the_way") {
-      return "bg-sky-100 text-sky-800";
-    }
-
-    return "bg-emerald-100 text-emerald-800";
-  }
-
-  return "bg-slate-100 text-slate-700";
-}
-
-export default function AdminPage() {
   const router =
     useRouter();
 
-  /*
-    PROFESIONALES PENDIENTES
-  */
+  const { language } =
+    useLanguage();
+
+  const T = (
+    es: string,
+    en: string
+  ) =>
+    language === "es"
+      ? es
+      : en;
+
+  const id =
+    params.id;
 
   const [
-    providers,
-    setProviders,
+    trabajo,
+    setTrabajo,
   ] =
-    useState<Provider[]>([]);
+    useState<Trabajo | null>(
+      null
+    );
 
-  /*
-    TODOS LOS PROFESIONALES
-  */
+  const [serviceSlug, setServiceSlug] =
+    useState<string | null>(null);
 
   const [
-    todosProviders,
-    setTodosProviders,
+    fotos,
+    setFotos,
   ] =
-    useState<Provider[]>([]);
+    useState<FotoTrabajo[]>([]);
 
   const [
-    providerContacts,
-    setProviderContacts,
+    oferta,
+    setOferta,
   ] =
-    useState<Record<string, ProviderContact>>({});
-
-  const [
-    documents,
-    setDocuments,
-  ] =
-    useState<DocumentRow[]>([]);
-
-  const [
-    solicitudesDocumentos,
-    setSolicitudesDocumentos,
-  ] =
-    useState<ProviderDocumentRequest[]>([]);
-
-  const [
-    expedientesAbiertos,
-    setExpedientesAbiertos,
-  ] =
-    useState<string[]>([]);
-
-  const [
-    gestionProfesionalesAbierta,
-    setGestionProfesionalesAbierta,
-  ] = useState(false);
-
-  const [
-    historial,
-    setHistorial,
-  ] =
-    useState<HistorialCompleto[]>(
-      []
+    useState<Oferta | null>(
+      null
     );
 
   const [
-    solicitudesAdmin,
-    setSolicitudesAdmin,
+    pago,
+    setPago,
   ] =
-    useState<SolicitudAdmin[]>(
-      []
+    useState<Pago | null>(
+      null
     );
 
   const [
-    reclamos,
-    setReclamos,
-  ] =
-    useState<JobClaim[]>(
-      []
-    );
-
-  const [
-    evidenciasReclamos,
-    setEvidenciasReclamos,
-  ] =
-    useState<ClaimEvidenceAdmin[]>(
-      []
-    );
-
-  const [
-    filtroReclamo,
-    setFiltroReclamo,
-  ] =
-    useState<FiltroReclamo>(
-      "todos"
-    );
-
-  const [
-    procesandoReclamo,
-    setProcesandoReclamo,
+    providerId,
+    setProviderId,
   ] =
     useState<string | null>(
       null
     );
 
   const [
-    relojReclamos,
-    setRelojReclamos,
-  ] =
-    useState(
-      Date.now()
-    );
-
-  const [
-    buscandoOrden,
-    setBuscandoOrden,
-  ] =
-    useState("");
-
-  const [
-    filtroOrden,
-    setFiltroOrden,
-  ] =
-    useState<FiltroOrden>(
-      "todas"
-    );
-
-  const [
-    loading,
-    setLoading,
+    cargando,
+    setCargando,
   ] =
     useState(true);
 
   const [
-    verificandoAdmin,
-    setVerificandoAdmin,
+    enviando,
+    setEnviando,
   ] =
-    useState(true);
+    useState(false);
+
+  const [
+    pagosConfigurados,
+    setPagosConfigurados,
+  ] =
+    useState<boolean | null>(
+      null
+    );
+
+  const [
+    cambiandoEstado,
+    setCambiandoEstado,
+  ] =
+    useState(false);
+
+  const [
+    completando,
+    setCompletando,
+  ] =
+    useState(false);
+
+  const [
+    evidenciasFinales,
+    setEvidenciasFinales,
+  ] =
+    useState<EvidenciaFinal[]>([]);
+
+  const [
+    fotoAbierta,
+    setFotoAbierta,
+  ] = useState<{
+    url: string;
+    alt: string;
+  } | null>(null);
+
+  const [
+    archivosEvidenciaFinal,
+    setArchivosEvidenciaFinal,
+  ] =
+    useState<File[]>([]);
+
+  const [
+    subiendoEvidenciaFinal,
+    setSubiendoEvidenciaFinal,
+  ] =
+    useState(false);
+
+  const [
+    liberandoTrabajo,
+    setLiberandoTrabajo,
+  ] =
+    useState(false);
 
   const [
     error,
@@ -651,163 +493,544 @@ export default function AdminPage() {
     useState("");
 
   const [
-    adminEmail,
-    setAdminEmail,
-  ] =
-    useState("");
-
-  const [
-    adminRole,
-    setAdminRole,
-  ] =
-    useState<AdminRole | null>(
-      null
-    );
-
-  const [
     mensaje,
     setMensaje,
   ] =
     useState("");
 
   const [
-    procesando,
-    setProcesando,
+    reclamo,
+    setReclamo,
   ] =
-    useState<string | null>(
+    useState<ReclamoTrabajo | null>(
       null
     );
 
   const [
-    buscando,
-    setBuscando,
+    evidenciasReclamo,
+    setEvidenciasReclamo,
+  ] =
+    useState<EvidenciaReclamo[]>(
+      []
+    );
+
+  const [
+    archivosReclamo,
+    setArchivosReclamo,
+  ] =
+    useState<File[]>(
+      []
+    );
+
+  const [
+    subiendoEvidencia,
+    setSubiendoEvidencia,
+  ] =
+    useState(false);
+
+  const [
+    explicacionEvidencia,
+    setExplicacionEvidencia,
   ] =
     useState("");
 
   const [
-    filtro,
-    setFiltro,
+    ahora,
+    setAhora,
   ] =
-    useState<FiltroProfesional>(
-      "todos"
+    useState(
+      Date.now()
     );
 
-  /*
-    SOLICITAR DOCUMENTOS AL PROFESIONAL
-  */
+  const [
+    cambiosPresupuesto,
+    setCambiosPresupuesto,
+  ] =
+    useState<ChangeOrder[]>(
+      []
+    );
 
   const [
-    solicitudDocsProvider,
-    setSolicitudDocsProvider,
+    mostrarCambioPresupuesto,
+    setMostrarCambioPresupuesto,
   ] =
-    useState<Provider | null>(
+    useState(false);
+
+  const [
+    mostrarConfirmacionInicio,
+    setMostrarConfirmacionInicio,
+  ] =
+    useState(false);
+
+  const [
+    enviandoCambioPresupuesto,
+    setEnviandoCambioPresupuesto,
+  ] =
+    useState(false);
+
+  const [
+    motivoCambioPresupuesto,
+    setMotivoCambioPresupuesto,
+  ] =
+    useState("");
+
+  const [
+    descripcionCambioPresupuesto,
+    setDescripcionCambioPresupuesto,
+  ] =
+    useState("");
+
+  const [
+    montoAdicional,
+    setMontoAdicional,
+  ] =
+    useState("");
+
+  const [
+    archivosCambioPresupuesto,
+    setArchivosCambioPresupuesto,
+  ] =
+    useState<File[]>(
+      []
+    );
+
+  const [
+    usuarioChatId,
+    setUsuarioChatId,
+  ] = useState<string | null>(null);
+
+  const [
+    mensajesChat,
+    setMensajesChat,
+  ] = useState<JobMessage[]>([]);
+
+  const [
+    mensajeChat,
+    setMensajeChat,
+  ] = useState("");
+
+  const [
+    cargandoChat,
+    setCargandoChat,
+  ] = useState(true);
+
+  const [
+    enviandoMensajeChat,
+    setEnviandoMensajeChat,
+  ] = useState(false);
+
+  const [
+    chatRealtimeConectado,
+    setChatRealtimeConectado,
+  ] = useState(false);
+
+  const finalChatRef =
+    useRef<HTMLDivElement | null>(
       null
     );
 
-  const [
-    solicitudDocsTipo,
-    setSolicitudDocsTipo,
-  ] =
-    useState<
-      | "all"
-      | "license"
-      | "insurance"
-      | "bond"
-      | "other"
-    >("all");
-
-  const [
-    solicitudDocsMensaje,
-    setSolicitudDocsMensaje,
-  ] =
-    useState("");
-
-  const [
-    solicitudDocsError,
-    setSolicitudDocsError,
-  ] =
-    useState("");
-
-  const [
-    solicitandoDocs,
-    setSolicitandoDocs,
-  ] =
-    useState(false);
-
-  const [
-    solicitudDocsPorEmail,
-    setSolicitudDocsPorEmail,
-  ] =
-    useState(true);
-
-  const [
-    solicitudDocsPorSms,
-    setSolicitudDocsPorSms,
-  ] =
-    useState(false);
-
-
-  /*
-    MODAL DE RESOLUCIÓN PARCIAL
-  */
-
-  const [
-    reclamoParcial,
-    setReclamoParcial,
-  ] =
-    useState<JobClaim | null>(
-      null
-    );
-
-  const [
-    totalPagoParcial,
-    setTotalPagoParcial,
-  ] =
-    useState(0);
-
-  const [
-    maxProfesionalParcial,
-    setMaxProfesionalParcial,
-  ] =
-    useState(0);
-
-  const [
-    montoProfesionalParcial,
-    setMontoProfesionalParcial,
-  ] =
-    useState("");
-
-  const [
-    notaParcial,
-    setNotaParcial,
-  ] =
-    useState("");
-
-  const [
-    errorParcial,
-    setErrorParcial,
-  ] =
-    useState("");
-
-  const [
-    cargandoParcial,
-    setCargandoParcial,
-  ] =
-    useState(false);
+  const ofertaRechazadaPorCliente =
+    oferta?.status === "rejected" &&
+    trabajo?.preferred_provider_id !== providerId;
 
   /*
     CARGA INICIAL
+    + REALTIME
   */
 
   useEffect(() => {
-    verificarAdmin();
-  }, []);
+    if (!id) {
+      return;
+    }
+
+    let mounted = true;
+    let refreshTimer: number | null = null;
+
+    const programarRecarga = () => {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+
+        if (mounted) {
+          cargarTodo();
+        }
+      }, 250);
+    };
+
+    cargarTodo();
+
+    const channel = supabase
+      .channel(
+        `trabajo-detalle-${id}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "service_requests",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          console.log(
+            "Cambio recibido en trabajo:",
+            payload
+          );
+
+          if (!mounted) {
+            return;
+          }
+
+          const nuevo =
+            payload.new as Trabajo;
+
+          setTrabajo(
+            (actual) => {
+              if (!actual) {
+                return nuevo;
+              }
+
+              return {
+                ...actual,
+                ...nuevo,
+              };
+            }
+          );
+
+          // La aprobación final del cliente cambia el trabajo a completed.
+          // Aplicamos ese estado inmediatamente en la pantalla PRO y la
+          // recarga completa de abajo sincroniza el resto de tablas.
+          if (
+            nuevo.status === "completed" ||
+            nuevo.completion_review_status === "approved"
+          ) {
+            setTrabajo(
+              (actual) =>
+                actual
+                  ? {
+                      ...actual,
+                      ...nuevo,
+                      status: "completed",
+                      completion_review_status: "approved",
+                    }
+                  : nuevo
+            );
+          }
+
+          if (
+            nuevo.status ===
+            "cancelled"
+          ) {
+            setMensaje("");
+            setError("");
+          }
+
+          // La contratación inicial actualiza varias tablas (solicitud,
+          // oferta y pago). Refrescamos el detalle completo para que la
+          // pantalla PRO no se quede mostrando "OPEN / presupuesto pendiente"
+          // después de que el cliente ya pagó.
+          programarRecarga();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "offers",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          programarRecarga();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payments",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          programarRecarga();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "change_orders",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          programarRecarga();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "job_claims",
+          filter: `request_id=eq.${id}`,
+        },
+        () => {
+          if (!mounted) {
+            return;
+          }
+
+          programarRecarga();
+        }
+      )
+      .subscribe(
+        (status) => {
+          console.log(
+            "Realtime trabajo:",
+            status
+          );
+        }
+      );
+
+    return () => {
+      mounted = false;
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      supabase.removeChannel(
+        channel
+      );
+    };
+  }, [id]);
+
+  /*
+    RESPALDO DE SINCRONIZACIÓN DE APROBACIÓN FINAL
+
+    Supabase Realtime permanece suscrito, pero en producción el UPDATE
+    que aprueba la revisión final puede no llegar a esta pantalla.
+    Mientras el trabajo esté únicamente "pending", comprobamos la misma
+    fila de service_requests y detenemos la comprobación en cuanto cambia.
+  */
+  useEffect(() => {
+    if (
+      !id ||
+      trabajo?.status !== "in_progress" ||
+      trabajo?.completion_review_status !== "pending"
+    ) {
+      return;
+    }
+
+    let activo = true;
+
+    const comprobarAprobacionFinal = async () => {
+      const { data, error: estadoError } = await supabase
+        .from("service_requests")
+        .select(`
+          status,
+          job_stage,
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
+        `)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (
+        !activo ||
+        estadoError ||
+        !data
+      ) {
+        return;
+      }
+
+      if (
+        data.status === "completed" ||
+        data.completion_review_status === "approved"
+      ) {
+        setTrabajo((actual) =>
+          actual
+            ? {
+                ...actual,
+                status: data.status,
+                job_stage: data.job_stage,
+                completed_at: data.completed_at,
+                completion_review_status: data.completion_review_status,
+                submitted_for_review_at: data.submitted_for_review_at,
+                completion_approved_at: data.completion_approved_at,
+              }
+            : actual
+        );
+      }
+    };
+
+    comprobarAprobacionFinal();
+
+    const timer = window.setInterval(
+      comprobarAprobacionFinal,
+      1500
+    );
+
+    return () => {
+      activo = false;
+      window.clearInterval(timer);
+    };
+  }, [
+    id,
+    trabajo?.status,
+    trabajo?.completion_review_status,
+  ]);
+
+  /*
+    CHAT PRIVADO RELYDO
+  */
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    let activo = true;
+
+    async function iniciarChat() {
+      setCargandoChat(true);
+
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } =
+          await supabase.auth.getUser();
+
+        if (
+          userError ||
+          !user ||
+          !activo
+        ) {
+          return;
+        }
+
+        setUsuarioChatId(
+          user.id
+        );
+
+        const {
+          data,
+          error: mensajesError,
+        } = await supabase
+          .from("job_messages")
+          .select(`
+            id,
+            request_id,
+            sender_id,
+            sender_role,
+            message,
+            read_at,
+            created_at
+          `)
+          .eq("request_id", id)
+          .order("created_at", {
+            ascending: true,
+          });
+
+        if (mensajesError) {
+          console.error(
+            "Error cargando chat:",
+            mensajesError
+          );
+        } else if (activo) {
+          setMensajesChat(
+            (data || []) as JobMessage[]
+          );
+        }
+      } finally {
+        if (activo) {
+          setCargandoChat(false);
+        }
+      }
+    }
+
+    iniciarChat();
+
+    const canalChat =
+      supabase
+        .channel(
+          `chat-profesional-${id}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "job_messages",
+            filter:
+              `request_id=eq.${id}`,
+          },
+          (payload) => {
+            const nuevo =
+              payload.new as JobMessage;
+
+            setMensajesChat(
+              (actuales) =>
+                actuales.some(
+                  (item) =>
+                    item.id === nuevo.id
+                )
+                  ? actuales
+                  : [
+                      ...actuales,
+                      nuevo,
+                    ]
+            );
+          }
+        )
+        .subscribe(
+          (status) => {
+            setChatRealtimeConectado(
+              status === "SUBSCRIBED"
+            );
+          }
+        );
+
+    return () => {
+      activo = false;
+
+      supabase.removeChannel(
+        canalChat
+      );
+    };
+  }, [id]);
+
+  useEffect(() => {
+    finalChatRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [mensajesChat.length]);
 
   useEffect(() => {
     const timer =
       window.setInterval(
         () => {
-          setRelojReclamos(
+          setAhora(
             Date.now()
           );
         },
@@ -821,253 +1044,630 @@ export default function AdminPage() {
     };
   }, []);
 
-  /*
-    VERIFICAR ADMIN
-  */
 
-  async function verificarAdmin() {
-    setVerificandoAdmin(
-      true
-    );
+  async function notificarEventoTrabajo(
+    event: string,
+    extra: Record<string, unknown> = {}
+  ) {
+    try {
+      const {
+        data: {
+          session,
+        },
+      } =
+        await supabase.auth.getSession();
 
-    setError("");
+      const accessToken =
+        session?.access_token;
 
-    const {
-      data: {
-        user,
-      },
-      error:
-        authError,
-    } =
-      await supabase.auth.getUser();
+      if (!accessToken) {
+        console.warn(
+          "RELYDO: no encontramos access token para notificar el evento.",
+          event
+        );
+        return;
+      }
 
-    if (
-      authError ||
-      !user
-    ) {
-      router.replace(
-        "/login-admin"
+      const response =
+        await fetch(
+          "/api/notifications/job-event",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+            body:
+              JSON.stringify({
+                event,
+                requestId: id,
+                ...extra,
+              }),
+          }
+        );
+
+      const result =
+        await response
+          .json()
+          .catch(() => null);
+
+      if (!response.ok) {
+        console.warn(
+          "RELYDO: el evento ocurrió, pero la notificación no pudo enviarse:",
+          event,
+          result
+        );
+        return;
+      }
+
+      console.log(
+        "RELYDO: notificación enviada:",
+        event,
+        result
       );
-
-      return;
-    }
-
-    const {
-      data: adminProfile,
-      error: adminProfileError,
-    } = await supabase
-      .from("profiles")
-      .select(`
-        id,
-        role,
-        email,
-        admin_role
-      `)
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (
-      adminProfileError ||
-      !adminProfile ||
-      adminProfile.role !== "admin" ||
-      !isAdminRole(adminProfile.admin_role)
-    ) {
-      await supabase.auth.signOut();
-
-      router.replace(
-        "/login-admin"
+    } catch (notificationError) {
+      console.warn(
+        "RELYDO: error enviando notificación del evento:",
+        event,
+        notificationError
       );
-
-      return;
     }
-
-    if (
-      !hasAdminPermission(
-        adminProfile.admin_role,
-        "providers"
-      )
-    ) {
-      router.replace("/admin");
-      return;
-    }
-
-    setAdminEmail(
-      user.email ||
-      adminProfile.email ||
-      "Administrador"
-    );
-
-    setAdminRole(
-      adminProfile.admin_role
-    );
-
-    setVerificandoAdmin(
-      false
-    );
-
-    await cargarDatos();
   }
 
-  /*
-    CARGAR DATOS
-  */
-
-  async function cargarDatos(mostrarLoading = true) {
-    if (mostrarLoading) {
-      setLoading(
-        true
-      );
-    }
-
+  async function cargarTodo() {
+    setCargando(true);
     setError("");
 
     try {
-
       /*
-        TODOS LOS PROFESIONALES
-
-        Esta primera consulta debe terminar antes porque sus IDs
-        se usan para cargar los datos personales de contacto.
+        USUARIO ACTUAL
       */
 
       const {
-        data:
-          todosProviderData,
+        data: {
+          user,
+        },
         error:
-          todosProviderError,
+          userError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        userError ||
+        !user
+      ) {
+        router.replace(
+          "/login-profesional"
+        );
+
+        return;
+      }
+
+      /*
+        PERFIL PROFESIONAL
+      */
+
+      const {
+        data: provider,
+        error:
+          providerError,
       } = await supabase
         .from(
           "provider_profiles"
         )
-        .select("*")
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+        .select(`
+          verification_status,
+          verified,
+          active
+        `)
+        .eq(
+          "user_id",
+          user.id
+        )
+        .maybeSingle();
 
       if (
-        todosProviderError
+        providerError ||
+        !provider
       ) {
         throw new Error(
-          `Error cargando profesionales: ${todosProviderError.message}`
+          T("No se encontró tu perfil profesional.", "We could not find your professional profile.")
         );
       }
 
-      const todos =
-        (todosProviderData ||
-          []) as Provider[];
-
-      setTodosProviders(
-        todos
-      );
-
-      const pendientes =
-        todos.filter(
-          (provider) =>
-            provider.verification_status ===
-            "pending"
+      if (
+        provider.verification_status !==
+          "verified" ||
+        provider.verified !==
+          true ||
+        provider.active !==
+          true
+      ) {
+        throw new Error(
+          T("Tu cuenta debe estar verificada y activa para acceder a trabajos.", "Your account must be verified and active to access jobs.")
         );
+      }
 
-      setProviders(
-        pendientes
+      setProviderId(
+        user.id
       );
-
-      const providerIds = todos
-        .map((provider) => provider.user_id)
-        .filter(Boolean);
 
       /*
-        CARGA PRINCIPAL EN PARALELO
+        ESTADO DE PAGOS DEL PROFESIONAL
 
-        Una vez conocemos los profesionales, estas consultas son
-        independientes entre sí. Ejecutarlas juntas evita esperar
-        una ronda de red completa por cada bloque.
+        El profesional puede ver el trabajo aunque Stripe todavía
+        no esté configurado. Esta comprobación solo decide si puede
+        enviar un presupuesto.
+      */
+
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        setPagosConfigurados(false);
+      } else {
+        try {
+          const stripeStatusResponse =
+            await fetch(
+              "/api/stripe/connect/status",
+              {
+                method: "GET",
+                headers: {
+                  Authorization:
+                    `Bearer ${sessionData.session.access_token}`,
+                },
+                cache: "no-store",
+              }
+            );
+
+          const stripeStatus =
+            await stripeStatusResponse
+              .json()
+              .catch(() => null);
+
+          const pagosListos =
+            stripeStatusResponse.ok &&
+            stripeStatus?.connected === true &&
+            stripeStatus?.onboardingComplete === true &&
+            stripeStatus?.payoutsEnabled === true &&
+            stripeStatus?.transfersCapability === "active";
+
+          setPagosConfigurados(
+            pagosListos
+          );
+        } catch (stripeError) {
+          console.error(
+            "Error comprobando Stripe Connect:",
+            stripeError
+          );
+
+          // Si no podemos verificar Stripe, no permitimos enviar
+          // presupuestos hasta poder confirmar el estado.
+          setPagosConfigurados(false);
+        }
+      }
+
+      /*
+        ACCESO HISTÓRICO DEL PROFESIONAL
+
+        Antes de cargar el trabajo comprobamos si este profesional
+        ya envió un presupuesto para esta solicitud. Esto permite
+        que un presupuesto rechazado siga abriendo su detalle en
+        modo historial, aunque el trabajo haya sido asignado a otro
+        profesional.
+      */
+
+      const {
+        data: ofertaAcceso,
+        error: ofertaAccesoError,
+      } = await supabase
+        .from("offers")
+        .select(`
+          id,
+          status
+        `)
+        .eq("request_id", id)
+        .eq("professional_id", user.id)
+        .maybeSingle();
+
+      if (ofertaAccesoError) {
+        console.error(
+          "Error comprobando acceso histórico del profesional:",
+          ofertaAccesoError
+        );
+      }
+
+      const tieneAccesoHistorico =
+        Boolean(ofertaAcceso);
+
+      /*
+        TRABAJO
+      */
+
+      const resultadoDirecto = await supabase
+        .from(
+          "service_requests"
+        )
+        .select(`
+          id,
+          title,
+          description,
+          service_id,
+          address_line1,
+          city,
+          state,
+          zip_code,
+          preferred_date,
+          preferred_time,
+          status,
+          job_stage,
+          customer_name,
+          customer_id,
+          preferred_provider_id,
+          cancellation_reason,
+          completed_at,
+          completion_review_status,
+          submitted_for_review_at,
+          completion_approved_at
+        `)
+        .eq(
+          "id",
+          id
+        )
+        .maybeSingle();
+
+      let trabajoData =
+        resultadoDirecto.data as Trabajo | null;
+
+      /*
+        Un trabajo abierto puede aparecer correctamente en /trabajos mediante
+        get_provider_open_requests_safe y, al mismo tiempo, quedar oculto por
+        RLS en una lectura directa de service_requests. En ese caso usamos la
+        misma RPC segura de la lista para abrir solamente los datos públicos
+        del trabajo. La dirección exacta y el customer_id NO se exponen aquí.
+      */
+      if (!trabajoData) {
+        const {
+          data: trabajosAbiertosSeguros,
+          error: trabajosAbiertosError,
+        } = await supabase.rpc(
+          "get_provider_open_requests_safe"
+        );
+
+        if (trabajosAbiertosError) {
+          console.error(
+            "Error cargando trabajo abierto mediante RPC segura:",
+            trabajosAbiertosError
+          );
+        }
+
+        let trabajosAbiertosNormalizados: Array<Record<string, unknown>> = [];
+
+        if (Array.isArray(trabajosAbiertosSeguros)) {
+          trabajosAbiertosNormalizados =
+            trabajosAbiertosSeguros as Array<Record<string, unknown>>;
+        } else if (typeof trabajosAbiertosSeguros === "string") {
+          try {
+            const parsed = JSON.parse(trabajosAbiertosSeguros);
+
+            if (Array.isArray(parsed)) {
+              trabajosAbiertosNormalizados =
+                parsed as Array<Record<string, unknown>>;
+            }
+          } catch (parseError) {
+            console.error(
+              "Error interpretando respuesta de get_provider_open_requests_safe:",
+              parseError
+            );
+          }
+        } else if (
+          trabajosAbiertosSeguros &&
+          typeof trabajosAbiertosSeguros === "object"
+        ) {
+          trabajosAbiertosNormalizados = [
+            trabajosAbiertosSeguros as Record<string, unknown>,
+          ];
+        }
+
+        const trabajoAbiertoSeguro =
+          trabajosAbiertosNormalizados.find(
+            (item) =>
+              String(item.id || "") === String(id)
+          ) as
+            | {
+                id: string;
+                title: string;
+                description: string;
+                service_id?: string | null;
+                city: string;
+                state: string;
+                zip_code: string;
+                preferred_date: string | null;
+                preferred_time: string | null;
+                status: string;
+                customer_name: string | null;
+                preferred_provider_id: string | null;
+              }
+            | undefined;
+
+        if (trabajoAbiertoSeguro) {
+          trabajoData = {
+            id: trabajoAbiertoSeguro.id,
+            title: trabajoAbiertoSeguro.title,
+            description: trabajoAbiertoSeguro.description,
+            service_id: trabajoAbiertoSeguro.service_id || null,
+            address_line1: null,
+            city: trabajoAbiertoSeguro.city,
+            state: trabajoAbiertoSeguro.state,
+            zip_code: trabajoAbiertoSeguro.zip_code,
+            preferred_date: trabajoAbiertoSeguro.preferred_date,
+            preferred_time: trabajoAbiertoSeguro.preferred_time,
+            status: trabajoAbiertoSeguro.status,
+            job_stage: null,
+            customer_name: trabajoAbiertoSeguro.customer_name,
+            customer_id: "",
+            preferred_provider_id:
+              trabajoAbiertoSeguro.preferred_provider_id,
+            cancellation_reason: null,
+            completed_at: null,
+            completion_review_status: null,
+            submitted_for_review_at: null,
+            completion_approved_at: null,
+          };
+        }
+      }
+
+      /*
+        Si RLS oculta un trabajo cancelado, cargamos únicamente
+        su versión histórica segura, sin address_line1 ni customer_id.
+      */
+      if (!trabajoData && tieneAccesoHistorico) {
+        const {
+          data: trabajoHistoricoSeguro,
+          error: trabajoHistoricoError,
+        } = await supabase.rpc(
+          "get_provider_request_history_safe",
+          {
+            p_request_id: id,
+          }
+        );
+
+        if (trabajoHistoricoError) {
+          console.error(
+            "Error cargando historial seguro del trabajo:",
+            trabajoHistoricoError
+          );
+        }
+
+        const historial =
+          trabajoHistoricoSeguro &&
+          typeof trabajoHistoricoSeguro === "object" &&
+          !Array.isArray(trabajoHistoricoSeguro)
+            ? trabajoHistoricoSeguro as Record<string, unknown>
+            : null;
+
+        if (historial?.id) {
+          trabajoData = {
+            id: String(historial.id),
+            title: String(historial.title || ""),
+            description: String(historial.description || ""),
+            service_id: historial.service_id ? String(historial.service_id) : null,
+            address_line1: null,
+            city: String(historial.city || ""),
+            state: String(historial.state || ""),
+            zip_code: String(historial.zip_code || ""),
+            preferred_date:
+              historial.preferred_date
+                ? String(historial.preferred_date)
+                : null,
+            preferred_time:
+              historial.preferred_time
+                ? String(historial.preferred_time)
+                : null,
+            status: String(historial.status || ""),
+            job_stage:
+              historial.job_stage
+                ? String(historial.job_stage)
+                : null,
+            customer_name:
+              historial.customer_name
+                ? String(historial.customer_name)
+                : null,
+            customer_id: "",
+            preferred_provider_id:
+              historial.preferred_provider_id
+                ? String(historial.preferred_provider_id)
+                : null,
+            cancellation_reason:
+              historial.cancellation_reason
+                ? String(historial.cancellation_reason)
+                : null,
+            completed_at:
+              historial.completed_at
+                ? String(historial.completed_at)
+                : null,
+            completion_review_status:
+              historial.completion_review_status
+                ? String(historial.completion_review_status)
+                : null,
+            submitted_for_review_at:
+              historial.submitted_for_review_at
+                ? String(historial.submitted_for_review_at)
+                : null,
+            completion_approved_at:
+              historial.completion_approved_at
+                ? String(historial.completion_approved_at)
+                : null,
+          } as Trabajo;
+        }
+      }
+
+      if (!trabajoData) {
+        throw new Error(
+          T("Este trabajo no existe o no tienes permiso para verlo.", "This job does not exist or you do not have permission to view it.")
+        );
+      }
+
+      /*
+        CONTROL DE ACCESO
+      */
+
+      if (
+        trabajoData.status !==
+          "open" &&
+        trabajoData.preferred_provider_id &&
+        trabajoData.preferred_provider_id !==
+          user.id &&
+        !tieneAccesoHistorico
+      ) {
+        throw new Error(
+          T("Este trabajo fue asignado a otro profesional.", "This job was assigned to another professional.")
+        );
+      }
+
+      if (
+        trabajoData.status ===
+          "open" &&
+        trabajoData.preferred_provider_id &&
+        trabajoData.preferred_provider_id !==
+          user.id &&
+        !tieneAccesoHistorico
+      ) {
+        throw new Error(
+          T("Esta solicitud está dirigida a otro profesional.", "This request is directed to another professional.")
+        );
+      }
+
+      setTrabajo(
+        trabajoData as Trabajo
+      );
+
+      /*
+        DATOS INDEPENDIENTES DEL DETALLE
+
+        Una vez validado el acceso al trabajo, estas consultas no dependen
+        entre sí. Las cargamos en paralelo para evitar una cascada de esperas.
       */
 
       const [
-        providerContactResult,
-        documentResult,
-        solicitudesDocumentosResult,
-        solicitudesResult,
-        reclamosResult,
-        evidenciasResult,
-        historialResult,
+        serviceResult,
+        fotosResult,
+        evidenciaFinalResult,
+        ofertaResult,
+        pagoResult,
+        cambiosResult,
+        reclamoResult,
       ] = await Promise.all([
-        providerIds.length > 0
+        trabajoData.service_id
           ? supabase
-              .from("profiles")
-              .select("*")
-              .in("id", providerIds)
-          : Promise.resolve({
-              data: [],
-              error: null,
-            }),
-
+              .from("services")
+              .select("slug")
+              .eq("id", trabajoData.service_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
         supabase
-          .from(
-            "provider_documents"
-          )
-          .select("*"),
-
-        supabase
-          .from(
-            "provider_document_requests"
-          )
+          .from("request_photos")
           .select(`
             id,
+            request_id,
+            file_url
+          `)
+          .eq("request_id", id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("job_completion_evidence")
+          .select(`
+            id,
+            request_id,
             provider_id,
-            requested_by,
-            request_type,
-            document_type,
+            file_type,
+            file_path,
+            file_url,
+            created_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("offers")
+          .select(`
+            id,
+            request_id,
+            professional_id,
+            price,
+            arrival_minutes,
+            estimated_job_minutes,
             message,
             status,
-            requested_at,
-            submitted_at,
-            completed_at,
+            created_at
+          `)
+          .eq("request_id", id)
+          .eq("professional_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("payments")
+          .select(`
+            id,
+            request_id,
+            offer_id,
+            provider_id,
+            job_amount,
+            provider_commission_percent,
+            provider_commission_amount,
+            provider_net_amount,
+            status,
+            paid_at,
+            cancellation_stage,
+            cancellation_penalty_percent,
+            cancellation_penalty_amount,
+            cancellation_provider_amount,
+            cancellation_platform_amount,
+            cancellation_processed_at
+          `)
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("change_orders")
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            customer_id,
+            reason,
+            description,
+            original_amount,
+            additional_amount,
+            new_total_amount,
+            status,
+            accepted_at,
+            rejected_at,
+            payment_status,
+            stripe_checkout_session_id,
+            stripe_payment_intent_id,
+            additional_customer_fee_percent,
+            additional_customer_fee_amount,
+            additional_customer_total_amount,
+            additional_provider_commission_percent,
+            additional_provider_commission_amount,
+            additional_provider_net_amount,
+            additional_platform_revenue_amount,
+            paid_at,
             created_at,
             updated_at
           `)
-          .order(
-            "requested_at",
-            { ascending: false }
-          ),
-
-        supabase
-          .from(
-            "service_requests"
-          )
-          .select(`
-            id,
-            customer_id,
-            title,
-            description,
-            address_line1,
-            address_line2,
-            city,
-            state,
-            zip_code,
-            preferred_date,
-            preferred_time,
-            status,
-            created_at,
-            customer_name,
-            customer_phone,
-            customer_email,
-            preferred_provider_id,
-            job_stage,
-            cancellation_reason,
-            cancelled_at
-          `)
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            }
-          )
-          .limit(1000),
-
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false }),
         supabase
           .from("job_claims")
           .select(`
@@ -1077,1421 +1677,402 @@ export default function AdminPage() {
             provider_id,
             reason,
             description,
-            customer_evidence_note,
             provider_response,
             provider_response_deadline,
             provider_responded_at,
             status,
-            resolution_notes,
             resolution_type,
+            resolution_notes,
             provider_award_amount,
             customer_refund_amount,
             resolved_at,
-            resolved_by,
-            created_at,
-            updated_at
-          `)
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            }
-          )
-          .limit(500),
-
-        supabase
-          .from("claim_evidence")
-          .select(`
-            id,
-            claim_id,
-            uploaded_by,
-            uploaded_by_role,
-            file_type,
-            file_url,
-            file_path,
             created_at
           `)
-          .order(
-            "created_at",
-            {
-              ascending: true,
-            }
-          )
-          .limit(2000),
-
-        supabase
-          .from(
-            "job_reassignment_history"
-          )
-          .select(`
-            id,
-            request_id,
-            provider_id,
-            action,
-            reason,
-            created_at
-          `)
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            }
-          )
-          .limit(500),
+          .eq("request_id", id)
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
-      /*
-        DATOS PERSONALES / CONTACTO DE PROFESIONALES
-      */
+      if (serviceResult.error) {
+        console.error("Error cargando servicio:", serviceResult.error);
+      } else if (serviceResult.data?.slug) {
+        setServiceSlug(serviceResult.data.slug);
+      }
 
-      if (providerContactResult.error) {
-        console.error(
-          "No se pudo cargar la información personal de los profesionales:",
-          providerContactResult.error
-        );
-
-        setProviderContacts({});
+      if (fotosResult.error) {
+        console.error(fotosResult.error);
+        setFotos([]);
       } else {
-        const contactos =
-          (providerContactResult.data || []) as ProviderContact[];
-
-        const contactosPorId = contactos.reduce<
-          Record<string, ProviderContact>
-        >((acumulado, contacto) => {
-          acumulado[contacto.id] = contacto;
-          return acumulado;
-        }, {});
-
-        setProviderContacts(contactosPorId);
+        setFotos(fotosResult.data || []);
       }
 
-      /*
-        DOCUMENTOS
-      */
-
-      if (documentResult.error) {
-        throw new Error(
-          `Error cargando documentos: ${documentResult.error.message}`
-        );
-      }
-
-      setDocuments(
-        (documentResult.data || []) as DocumentRow[]
-      );
-
-      /*
-        SOLICITUDES DE DOCUMENTACIÓN
-      */
-
-      if (solicitudesDocumentosResult.error) {
-        throw new Error(
-          `Error cargando solicitudes de documentación: ${solicitudesDocumentosResult.error.message}`
-        );
-      }
-
-      setSolicitudesDocumentos(
-        (solicitudesDocumentosResult.data ||
-          []) as ProviderDocumentRequest[]
-      );
-
-      /*
-        TODAS LAS ÓRDENES
-        DE LA PLATAFORMA
-      */
-
-      if (solicitudesResult.error) {
-        throw new Error(
-          `Error cargando órdenes: ${solicitudesResult.error.message}`
-        );
-      }
-
-      setSolicitudesAdmin(
-        (solicitudesResult.data ||
-          []) as SolicitudAdmin[]
-      );
-
-      /*
-        RECLAMOS
-      */
-
-      if (reclamosResult.error) {
-        throw new Error(
-          `Error cargando reclamos: ${reclamosResult.error.message}`
-        );
-      }
-
-      setReclamos(
-        (reclamosResult.data || []) as JobClaim[]
-      );
-
-      /*
-        EVIDENCIAS DE RECLAMOS
-
-        Solo guardamos metadatos. EvidenciaAdminCard genera la URL
-        firmada de cada archivo cuando realmente entra en pantalla.
-      */
-
-      if (evidenciasResult.error) {
+      if (evidenciaFinalResult.error) {
         console.error(
-          "Error cargando evidencias de reclamos:",
-          evidenciasResult.error
+          "Error cargando evidencia final:",
+          evidenciaFinalResult.error
         );
-
-        setEvidenciasReclamos([]);
+        setEvidenciasFinales([]);
       } else {
-        const evidenciasBase =
-          (evidenciasResult.data ||
-            []) as Omit<
-              ClaimEvidenceAdmin,
-              "signed_url"
-            >[];
+        const evidenciaBase =
+          (evidenciaFinalResult.data || []) as EvidenciaFinal[];
 
-        setEvidenciasReclamos(
-          evidenciasBase.map(
-            (evidencia) => ({
-              ...evidencia,
-              signed_url: null,
-            })
-          )
-        );
-      }
+        const evidenciaConUrls = await Promise.all(
+          evidenciaBase.map(async (item) => {
+            const { data: signedData, error: signedError } =
+              await supabase.storage
+                .from("job-completion-evidence")
+                .createSignedUrl(item.file_path, 60 * 60);
 
-      /*
-        HISTORIAL
-      */
+            if (signedError) {
+              console.error(
+                "Error creando URL segura para evidencia final:",
+                signedError
+              );
 
-      if (historialResult.error) {
-        throw new Error(
-          `Error cargando historial de reasignaciones: ${historialResult.error.message}`
-        );
-      }
+              return {
+                ...item,
+                signed_url: null,
+              };
+            }
 
-      const historialBase =
-        (historialResult.data ||
-          []) as ReassignmentHistory[];
-
-      if (
-        historialBase.length ===
-        0
-      ) {
-        setHistorial(
-          []
-        );
-
-        return;
-      }
-
-      const requestIds = [
-        ...new Set(
-          historialBase.map(
-            (item) =>
-              item.request_id
-          )
-        ),
-      ];
-
-      const historialProviderIds: string[] = [
-        ...new Set(
-          historialBase.flatMap((item) =>
-            item.provider_id ? [item.provider_id] : []
-          )
-        ),
-      ];
-
-      /*
-        COMPLETAR HISTORIAL EN PARALELO
-
-        Los trabajos y profesionales asociados al historial tampoco
-        dependen entre sí, por lo que se cargan al mismo tiempo.
-      */
-
-      const [
-        trabajosResult,
-        profesionalesResult,
-      ] = await Promise.all([
-        requestIds.length > 0
-          ? supabase
-              .from(
-                "service_requests"
-              )
-              .select(`
-                id,
-                title,
-                city,
-                state,
-                status
-              `)
-              .in(
-                "id",
-                requestIds
-              )
-          : Promise.resolve({
-              data: [],
-              error: null,
-            }),
-
-        historialProviderIds.length > 0
-          ? supabase
-              .from(
-                "provider_profiles"
-              )
-              .select(`
-                user_id,
-                business_name,
-                trade
-              `)
-              .in(
-                "user_id",
-                historialProviderIds
-              )
-          : Promise.resolve({
-              data: [],
-              error: null,
-            }),
-      ]);
-
-      let trabajos:
-        TrabajoHistorial[] =
-        [];
-
-      if (trabajosResult.error) {
-        console.error(
-          "No se pudo cargar información de los trabajos:",
-          trabajosResult.error
-        );
-      } else {
-        trabajos =
-          (trabajosResult.data ||
-            []) as TrabajoHistorial[];
-      }
-
-      let profesionales:
-        ProviderHistorial[] =
-        [];
-
-      if (profesionalesResult.error) {
-        console.error(
-          "No se pudo cargar información de los profesionales:",
-          profesionalesResult.error
-        );
-      } else {
-        profesionales =
-          (profesionalesResult.data ||
-            []) as ProviderHistorial[];
-      }
-
-      /*
-        COMBINAR HISTORIAL
-
-        Usamos mapas para evitar recorrer las mismas colecciones
-        una y otra vez por cada elemento del historial.
-      */
-
-      const trabajosPorId =
-        new Map(
-          trabajos.map(
-            (trabajo) => [
-              trabajo.id,
-              trabajo,
-            ] as const
-          )
-        );
-
-      const profesionalesPorId =
-        new Map(
-          profesionales.map(
-            (profesional) => [
-              profesional.user_id,
-              profesional,
-            ] as const
-          )
-        );
-
-      const historialCompleto =
-        historialBase.map(
-          (item) => ({
-            ...item,
-
-            trabajo:
-              trabajosPorId.get(
-                item.request_id
-              ) || null,
-
-            profesional:
-              item.provider_id
-                ? profesionalesPorId.get(
-                    item.provider_id
-                  ) || null
-                : null,
+            return {
+              ...item,
+              signed_url: signedData?.signedUrl || null,
+            };
           })
         );
 
-      setHistorial(
-        historialCompleto
-      );
+        setEvidenciasFinales(evidenciaConUrls);
+      }
+
+      if (ofertaResult.error) {
+        console.error(ofertaResult.error);
+      }
+      setOferta(ofertaResult.data as Oferta | null);
+
+      if (pagoResult.error) {
+        console.error(
+          "Error cargando pago del profesional:",
+          pagoResult.error
+        );
+        setPago(null);
+      } else {
+        setPago(pagoResult.data as Pago | null);
+      }
+
+      if (cambiosResult.error) {
+        console.error(
+          "Error cargando cambios de presupuesto:",
+          cambiosResult.error
+        );
+        setCambiosPresupuesto([]);
+      } else {
+        setCambiosPresupuesto(
+          (cambiosResult.data || []) as ChangeOrder[]
+        );
+      }
+
+      if (reclamoResult.error) {
+        console.error(
+          "Error cargando reclamo del trabajo:",
+          reclamoResult.error
+        );
+        setReclamo(null);
+        setEvidenciasReclamo([]);
+      } else {
+        const reclamoActual =
+          reclamoResult.data as ReclamoTrabajo | null;
+
+        setReclamo(reclamoActual);
+
+        if (reclamoActual) {
+          const {
+            data: evidenciasData,
+            error: evidenciasError,
+          } = await supabase
+            .from("claim_evidence")
+            .select(`
+              id,
+              claim_id,
+              uploaded_by,
+              uploaded_by_role,
+              file_type,
+              file_path,
+              created_at
+            `)
+            .eq("claim_id", reclamoActual.id)
+            .eq("uploaded_by", user.id)
+            .eq("uploaded_by_role", "provider")
+            .order("created_at", { ascending: true });
+
+          if (evidenciasError) {
+            console.error(
+              "Error cargando evidencia del profesional:",
+              evidenciasError
+            );
+            setEvidenciasReclamo([]);
+          } else {
+            setEvidenciasReclamo(
+              (evidenciasData || []) as EvidenciaReclamo[]
+            );
+          }
+        } else {
+          setEvidenciasReclamo([]);
+        }
+      }
     } catch (err) {
       console.error(
-        "Error cargando admin:",
         err
       );
 
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : T("Ocurrió un error inesperado.", "An unexpected error occurred.")
       );
     } finally {
-      if (mostrarLoading) {
-        setLoading(
-          false
-        );
-      }
-    }
-  }
-
-  /*
-    CONTAR LIBERACIONES
-  */
-
-  function contarLiberaciones(
-    providerId: string
-  ) {
-    return historial.filter(
-      (item) =>
-        item.provider_id ===
-          providerId &&
-        item.action ===
-          "provider_released"
-    ).length;
-  }
-
-  function datosContactoProfesional(
-    provider: Provider
-  ) {
-    const profile =
-      providerContacts[provider.user_id] || null;
-
-    const nombre =
-      profile?.full_name ||
-      profile?.legal_name ||
-      provider.legal_name ||
-      "No registrado";
-
-    const email =
-      profile?.email ||
-      provider.email ||
-      "No registrado";
-
-    const phone =
-      profile?.phone ||
-      provider.phone ||
-      "No registrado";
-
-    const addressLine1 =
-      profile?.address_line1 ||
-      profile?.address ||
-      provider.address_line1 ||
-      "";
-
-    const addressLine2 =
-      profile?.address_line2 ||
-      profile?.apartment ||
-      provider.address_line2 ||
-      "";
-
-    const city =
-      profile?.city ||
-      provider.city ||
-      "";
-
-    const state =
-      profile?.state ||
-      provider.state ||
-      "";
-
-    const zip =
-      profile?.zip ||
-      profile?.zip_code ||
-      provider.zip ||
-      provider.zip_code ||
-      "";
-
-    const direccionPartes = [
-      addressLine1,
-      addressLine2,
-    ].filter((parte) => String(parte || "").trim());
-
-    return {
-      nombre,
-      email,
-      phone,
-      direccion:
-        direccionPartes.length > 0
-          ? direccionPartes.join(", ")
-          : "No registrada",
-      city: city || "No registrada",
-      state: state || "No registrado",
-      zip: zip || "No registrado",
-    };
-  }
-
-  function direccionRegistradaLimpia(contacto: {
-    direccion: string;
-    city: string;
-    state: string;
-    zip: string;
-  }) {
-    let direccion = String(contacto.direccion || "").trim();
-
-    const partesUbicacion = [
-      contacto.city,
-      contacto.state,
-      contacto.zip,
-    ].filter(
-      (valor) =>
-        valor &&
-        !String(valor).toLowerCase().startsWith("no ")
-    );
-
-    const sufijo = partesUbicacion.join(", ");
-
-    if (
-      sufijo &&
-      direccion.toLowerCase().endsWith(
-        sufijo.toLowerCase()
-      )
-    ) {
-      direccion = direccion
-        .slice(0, direccion.length - sufijo.length)
-        .replace(/,\s*$/, "")
-        .trim();
-    }
-
-    return direccion || "No registrada";
-  }
-
-  /*
-    DOCUMENTOS USUARIO
-  */
-
-  function docsDelUsuario(
-    userId: string
-  ) {
-    return documents.filter(
-      (doc) =>
-        doc.user_id ===
-        userId
-    );
-  }
-
-
-  function documentosOrdenados(userId: string) {
-    return docsDelUsuario(userId).slice().sort((a, b) =>
-      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-    );
-  }
-
-  function fechaDocumentoVencida(
-    fecha: string | null | undefined
-  ) {
-    const valor =
-      String(fecha || "").trim();
-
-    if (!valor) {
-      return false;
-    }
-
-    const fechaObj =
-      /^\d{4}-\d{2}-\d{2}$/.test(valor)
-        ? new Date(
-            `${valor}T23:59:59.999`
-          )
-        : new Date(valor);
-
-    if (
-      Number.isNaN(
-        fechaObj.getTime()
-      )
-    ) {
-      return false;
-    }
-
-    return (
-      fechaObj.getTime() <
-      Date.now()
-    );
-  }
-
-  function vencimientoDocumentoBase(
-    doc: DocumentRow,
-    provider?: Provider | null
-  ) {
-    if (doc.expiration_date) {
-      return doc.expiration_date;
-    }
-
-    if (
-      provider &&
-      doc.document_type === "license"
-    ) {
-      return provider.license_expiration;
-    }
-
-    if (
-      provider &&
-      doc.document_type === "insurance"
-    ) {
-      return provider.insurance_expiration;
-    }
-
-    return null;
-  }
-
-  function documentoAprobadoYVigente(
-    doc: DocumentRow,
-    provider?: Provider | null
-  ) {
-    if (
-      doc.status !== "approved"
-    ) {
-      return false;
-    }
-
-    const vencimiento =
-      vencimientoDocumentoBase(
-        doc,
-        provider
-      );
-
-    return !fechaDocumentoVencida(
-      vencimiento
-    );
-  }
-
-  function documentoVigente(
-    userId: string,
-    tipo: string,
-    provider?: Provider | null
-  ) {
-    return (
-      documentosOrdenados(userId).find(
-        (doc) =>
-          doc.document_type === tipo &&
-          documentoAprobadoYVigente(
-            doc,
-            provider
-          )
-      ) || null
-    );
-  }
-
-  function requisitosProfesional(
-    provider: Provider
-  ) {
-    return getProviderRequirements({
-      trade: provider.trade,
-      state: provider.state,
-      declaredLicenseRequired:
-        provider.license_required,
-      declaredInsured:
-        provider.insured,
-      declaredBonded:
-        provider.bonded,
-    });
-  }
-
-  function documentoEsRequerido(
-    provider: Provider,
-    tipo: string
-  ) {
-    const requisitos =
-      requisitosProfesional(provider);
-
-    if (tipo === "license") {
-      return requisitos.effectiveLicenseRequired;
-    }
-
-    if (tipo === "insurance") {
-      return requisitos.effectiveInsuranceRequired;
-    }
-
-    if (tipo === "bond") {
-      return requisitos.effectiveBondRequired;
-    }
-
-    return false;
-  }
-
-  function tiposDocumentosRequeridos(
-    provider: Provider
-  ) {
-    return ["license", "insurance", "bond"].filter(
-      (tipo) => documentoEsRequerido(provider, tipo)
-    );
-  }
-
-  function documentosRequeridosFaltantes(
-    provider: Provider
-  ) {
-    return tiposDocumentosRequeridos(provider).filter(
-      (tipo) =>
-        !documentoVigente(
-          provider.user_id,
-          tipo,
-          provider
-        )
-    );
-  }
-
-  function documentosPendientesRevision(userId: string) {
-    return documentosOrdenados(userId).filter(
-      (doc) => doc.status === "pending" || doc.status === "submitted"
-    );
-  }
-
-  function documentosHistoricos(
-    userId: string,
-    provider?: Provider | null
-  ) {
-    const ordenados =
-      documentosOrdenados(userId);
-
-    const vigentes =
-      new Set<string>();
-
-    for (
-      const tipo of [
-        "license",
-        "insurance",
-        "bond",
-        "other",
-      ]
-    ) {
-      const actual =
-        documentoVigente(
-          userId,
-          tipo,
-          provider
-        );
-
-      if (actual?.id) {
-        vigentes.add(actual.id);
-      }
-    }
-
-    return ordenados.filter(
-      (doc) =>
-        doc.status !== "pending" &&
-        doc.status !== "submitted" &&
-        (
-          !doc.id ||
-          !vigentes.has(doc.id)
-        )
-    );
-  }
-
-  async function revisarDocumento(
-    doc: DocumentRow,
-    decision: "approved" | "rejected"
-  ) {
-    if (!doc.id) {
-      setError(
-        "Este documento no tiene un ID válido."
-      );
-      return;
-    }
-
-    let motivo = "";
-
-    if (decision === "rejected") {
-      const respuesta =
-        window.prompt(
-          "Escribe el motivo del rechazo para que el profesional pueda corregirlo:"
-        );
-
-      if (respuesta === null) {
-        return;
-      }
-
-      motivo =
-        respuesta.trim();
-
-      if (!motivo) {
-        setError(
-          "Debes escribir el motivo del rechazo."
-        );
-        return;
-      }
-    }
-
-    const confirmar =
-      window.confirm(
-        decision === "approved"
-          ? `¿Aprobar este documento de ${nombreTipoDocumento(
-              doc.document_type
-            )}? Se convertirá en el documento vigente.`
-          : `¿Rechazar este documento de ${nombreTipoDocumento(
-              doc.document_type
-            )}?`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setProcesando(
-      doc.id
-    );
-
-    setError("");
-    setMensaje("");
-
-    try {
-      const {
-        data: {
-          user,
-        },
-        error:
-          authError,
-      } =
-        await supabase.auth.getUser();
-
-      if (
-        authError ||
-        !user
-      ) {
-        throw new Error(
-          "No pudimos verificar tu sesión de administrador."
-        );
-      }
-
-      const ahora =
-        new Date().toISOString();
-
-      const {
-        error:
-          docError,
-      } =
-        await supabase
-          .from(
-            "provider_documents"
-          )
-          .update({
-            status:
-              decision,
-            rejection_reason:
-              decision ===
-              "rejected"
-                ? motivo
-                : null,
-            reviewed_at:
-              ahora,
-            reviewed_by:
-              user.id,
-            approved_at:
-              decision ===
-              "approved"
-                ? ahora
-                : null,
-          })
-          .eq(
-            "id",
-            doc.id
-          );
-
-      if (docError) {
-        throw new Error(
-          `No se pudo actualizar el documento: ${docError.message}`
-        );
-      }
-
-      const solicitudesRelacionadas =
-        solicitudesDocsDelUsuario(
-          doc.user_id
-        ).filter(
-          (solicitud) =>
-            (
-              solicitud.status ===
-                "submitted" ||
-              solicitud.status ===
-                "pending"
-            ) &&
-            (
-              solicitud.document_type ===
-                doc.document_type ||
-              solicitud.document_type ===
-                null
-            )
-        );
-
-      let solicitudRelacionada:
-        ProviderDocumentRequest | null =
-        null;
-
-      if (
-        solicitudesRelacionadas.length >
-        0
-      ) {
-        solicitudRelacionada =
-          solicitudesRelacionadas[0];
-
-        const {
-          error:
-            solicitudError,
-        } =
-          await supabase
-            .from(
-              "provider_document_requests"
-            )
-            .update(
-              decision ===
-                "approved"
-                ? {
-                    status:
-                      "completed",
-                    completed_at:
-                      ahora,
-                    updated_at:
-                      ahora,
-                  }
-                : {
-                    status:
-                      "pending",
-                    submitted_at:
-                      null,
-                    completed_at:
-                      null,
-                    updated_at:
-                      ahora,
-                  }
-            )
-            .eq(
-              "id",
-              solicitudRelacionada.id
-            );
-
-        if (solicitudError) {
-          throw new Error(
-            `El documento cambió, pero no pudimos actualizar la solicitud: ${solicitudError.message}`
-          );
-        }
-      }
-
-      let avisoNotificacion =
-        "";
-
-      if (
-        decision === "rejected"
-      ) {
-        try {
-          const {
-            data: {
-              session,
-            },
-          } =
-            await supabase.auth.getSession();
-
-          if (
-            !session?.access_token
-          ) {
-            throw new Error(
-              "La sesión de Admin no tiene un token disponible."
-            );
-          }
-
-          const response =
-            await fetch(
-              "/api/provider-document-rejection",
-              {
-                method:
-                  "POST",
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                  Authorization:
-                    `Bearer ${session.access_token}`,
-                },
-                body:
-                  JSON.stringify({
-                    requestId:
-                      solicitudRelacionada?.id ||
-                      null,
-                    providerId:
-                      doc.user_id,
-                    sendEmail:
-                      true,
-                    sendSms:
-                      false,
-                    notificationType:
-                      "rejection",
-                    documentType:
-                      doc.document_type,
-                    rejectionReason:
-                      motivo,
-                  }),
-              }
-            );
-
-          const resultado =
-            await response
-              .json()
-              .catch(
-                () => ({})
-              );
-
-          if (
-            !response.ok ||
-            !resultado?.email?.sent
-          ) {
-            throw new Error(
-              resultado?.email?.error ||
-                resultado?.error ||
-                "No se pudo enviar el correo de rechazo."
-            );
-          }
-
-          avisoNotificacion =
-            " Correo de rechazo enviado al profesional.";
-        } catch (
-          notificationError
-        ) {
-          console.error(
-            "Documento rechazado, pero falló la notificación al profesional:",
-            notificationError
-          );
-
-          avisoNotificacion =
-            ` ATENCIÓN: el documento fue rechazado, pero el correo no pudo enviarse: ${
-              notificationError instanceof
-              Error
-                ? notificationError.message
-                : "error de notificación"
-            }`;
-        }
-      }
-
-      setMensaje(
-        decision === "approved"
-          ? `${nombreTipoDocumento(
-              doc.document_type
-            )} aprobado. Ya es el documento vigente.`
-          : `${nombreTipoDocumento(
-              doc.document_type
-            )} rechazado. El profesional deberá enviarlo nuevamente.${avisoNotificacion}`
-      );
-
-      await cargarDatos(
+      setCargando(
         false
       );
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo revisar el documento."
-      );
-    } finally {
-      setProcesando(
-        null
-      );
     }
   }
 
-  function solicitudesDocsDelUsuario(
-    userId: string
-  ) {
-    return solicitudesDocumentos.filter(
-      (solicitud) =>
-        solicitud.provider_id ===
-        userId
-    );
-  }
+  /*
+    ENVIAR PRESUPUESTO
+  */
 
-  async function eliminarSolicitudDocumentos(
-    solicitud: ProviderDocumentRequest
+  async function enviarOferta(
+    e: React.FormEvent<HTMLFormElement>
   ) {
-    const confirmar =
-      window.confirm(
-        solicitud.status ===
-          "submitted"
-          ? "¿Eliminar esta solicitud de documentos? El documento que el profesional ya haya subido NO se eliminará del expediente."
-          : "¿Eliminar esta solicitud de documentos? El profesional dejará de verla como solicitud pendiente."
-      );
+    e.preventDefault();
 
-    if (!confirmar) {
+    if (
+      !providerId ||
+      !trabajo ||
+      trabajo.status !==
+        "open" ||
+      oferta
+    ) {
       return;
     }
 
-    setProcesando(
-      solicitud.id
-    );
+    setEnviando(true);
     setError("");
     setMensaje("");
 
     try {
-      const {
-        error:
-          deleteError,
-      } =
-        await supabase
-          .from(
-            "provider_document_requests"
+      const form =
+        e.currentTarget;
+
+      const formData =
+        new FormData(
+          form
+        );
+
+      const price =
+        Number(
+          formData.get(
+            "price"
           )
-          .delete()
-          .eq(
-            "id",
-            solicitud.id
-          );
+        );
 
-      if (deleteError) {
+      const arrivalMinutes =
+        Number(
+          formData.get(
+            "arrival_minutes"
+          )
+        );
+
+      const estimatedJobMinutes =
+        Number(
+          formData.get(
+            "estimated_job_minutes"
+          )
+        );
+
+      const message =
+        String(
+          formData.get(
+            "message"
+          ) || ""
+        ).trim();
+
+      if (
+        !Number.isFinite(
+          price
+        ) ||
+        price <= 0
+      ) {
         throw new Error(
-          `No se pudo eliminar la solicitud: ${deleteError.message}`
+          T("Introduce un precio válido.", "Enter a valid price.")
         );
       }
 
-      setMensaje(
-        "Solicitud de documentación eliminada correctamente."
-      );
+      if (
+        !Number.isInteger(
+          arrivalMinutes
+        ) ||
+        arrivalMinutes < 0
+      ) {
+        throw new Error(
+          T("Introduce un tiempo de llegada válido.", "Enter a valid arrival time.")
+        );
+      }
 
-      await cargarDatos(false);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo eliminar la solicitud de documentación."
-      );
-    } finally {
-      setProcesando(
-        null
-      );
-    }
-  }
+      if (
+        !Number.isInteger(
+          estimatedJobMinutes
+        ) ||
+        estimatedJobMinutes <=
+          0
+      ) {
+        throw new Error(
+          T("Introduce una duración estimada válida.", "Enter a valid estimated duration.")
+        );
+      }
 
-  function toggleExpediente(
-    userId: string
-  ) {
-    setExpedientesAbiertos(
-      (actuales) =>
-        actuales.includes(userId)
-          ? actuales.filter(
-              (id) => id !== userId
-            )
-          : [...actuales, userId]
-    );
-  }
+      if (!message) {
+        throw new Error(
+          T("Escribe un mensaje para el cliente.", "Write a message for the customer.")
+        );
+      }
 
-  function nombreTipoDocumento(
-    documentType: string | null
-  ) {
-    if (!documentType) {
-      return "Varios documentos / información adicional";
-    }
+      /*
+        BARRERA REAL DE STRIPE CONNECT
 
-    if (documentType === "license") {
-      return "Licencia";
-    }
+        Aunque alguien intentara saltarse la interfaz, volvemos a
+        comprobar Stripe justo antes de guardar el presupuesto.
+      */
 
-    if (documentType === "insurance") {
-      return "Seguro";
-    }
-
-    if (documentType === "bond") {
-      return "Bond / Fianza";
-    }
-
-    if (documentType === "other") {
-      return "Otro documento";
-    }
-
-    return documentType;
-  }
-
-  function fechaDocumento(
-    fecha: string | null | undefined
-  ) {
-    if (!fecha) {
-      return "Sin fecha";
-    }
-
-    const valor = String(fecha).trim();
-    if (!valor) {
-      return "Sin fecha";
-    }
-
-    const fechaObj = /^\d{4}-\d{2}-\d{2}$/.test(valor)
-      ? new Date(`${valor}T12:00:00`)
-      : new Date(valor);
-
-    if (Number.isNaN(fechaObj.getTime())) {
-      return "Fecha no disponible";
-    }
-
-    try {
-      return new Intl.DateTimeFormat(
-        "es-US",
-        {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        }
-      ).format(fechaObj);
-    } catch {
-      return "Fecha no disponible";
-    }
-  }
-
-  function vencimientoDocumento(
-    doc: DocumentRow,
-    provider: Provider
-  ) {
-    return vencimientoDocumentoBase(
-      doc,
-      provider
-    );
-  }
-
-  /*
-    ABRIR DOCUMENTO
-  */
-
-  async function abrirDocumento(
-    filePath: string | null | undefined
-  ) {
-    setError("");
-
-    const ruta = String(filePath || "").trim();
-
-    if (!ruta) {
-      setError(
-        "Este documento no tiene una ruta de archivo válida."
-      );
-      return;
-    }
-
-    const {
-      data,
-      error: signedUrlError,
-    } = await supabase.storage
-      .from("provider-documents")
-      .createSignedUrl(ruta, 60);
-
-    if (signedUrlError) {
-      setError(
-        `No se pudo abrir el documento: ${signedUrlError.message}`
-      );
-      return;
-    }
-
-    if (!data?.signedUrl) {
-      setError(
-        "No se pudo generar el enlace del documento."
-      );
-      return;
-    }
-
-    window.open(
-      data.signedUrl,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
-
-  /*
-    SOLICITAR DOCUMENTOS
-  */
-
-  function abrirSolicitudDocumentos(
-    provider: Provider
-  ) {
-    const contacto =
-      datosContactoProfesional(
-        provider
-      );
-
-    const tieneEmail =
-      contacto.email !==
-      "No registrado";
-
-    const tieneTelefono =
-      contacto.phone !==
-      "No registrado";
-
-    setSolicitudDocsProvider(
-      provider
-    );
-    setSolicitudDocsTipo(
-      "all"
-    );
-    setSolicitudDocsMensaje(
-      ""
-    );
-    setSolicitudDocsError(
-      ""
-    );
-
-    // Email queda seleccionado por defecto cuando existe.
-    // Si no hay email pero sí teléfono, usamos SMS por defecto.
-    setSolicitudDocsPorEmail(
-      tieneEmail
-    );
-    setSolicitudDocsPorSms(
-      !tieneEmail &&
-        tieneTelefono
-    );
-  }
-
-  function cerrarSolicitudDocumentos() {
-    if (solicitandoDocs) {
-      return;
-    }
-
-    setSolicitudDocsProvider(
-      null
-    );
-    setSolicitudDocsTipo(
-      "all"
-    );
-    setSolicitudDocsMensaje(
-      ""
-    );
-    setSolicitudDocsError(
-      ""
-    );
-    setSolicitudDocsPorEmail(
-      true
-    );
-    setSolicitudDocsPorSms(
-      false
-    );
-  }
-
-  async function solicitarDocumentos() {
-    if (!solicitudDocsProvider) {
-      return;
-    }
-
-    const mensajeSolicitud =
-      solicitudDocsMensaje.trim();
-
-    if (!mensajeSolicitud) {
-      setSolicitudDocsError(
-        "Escribe qué documento o información necesita enviar el profesional."
-      );
-      return;
-    }
-
-    const contacto =
-      datosContactoProfesional(
-        solicitudDocsProvider
-      );
-
-    const tieneEmail =
-      contacto.email !==
-      "No registrado";
-
-    const tieneTelefono =
-      contacto.phone !==
-      "No registrado";
-
-    if (
-      solicitudDocsPorEmail &&
-      !tieneEmail
-    ) {
-      setSolicitudDocsError(
-        "Este profesional no tiene un correo electrónico registrado."
-      );
-      return;
-    }
-
-    if (
-      solicitudDocsPorSms &&
-      !tieneTelefono
-    ) {
-      setSolicitudDocsError(
-        "Este profesional no tiene un teléfono registrado."
-      );
-      return;
-    }
-
-    setSolicitandoDocs(true);
-    setSolicitudDocsError(
-      ""
-    );
-    setError(
-      ""
-    );
-    setMensaje(
-      ""
-    );
-
-    try {
       const {
-        data: { user },
-        error: authError,
-      } =
-        await supabase.auth.getUser();
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (authError || !user) {
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
         throw new Error(
-          "No pudimos verificar tu sesión de administrador."
+          T(
+            "No pudimos verificar tu sesión para comprobar tus pagos.",
+            "We could not verify your session to check your payments."
+          )
         );
       }
 
-      const documentType =
-        solicitudDocsTipo ===
-        "all"
-          ? null
-          : solicitudDocsTipo;
+      const stripeStatusResponse =
+        await fetch(
+          "/api/stripe/connect/status",
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${sessionData.session.access_token}`,
+            },
+            cache: "no-store",
+          }
+        );
+
+      const stripeStatus =
+        await stripeStatusResponse
+          .json()
+          .catch(() => null);
+
+      if (!stripeStatusResponse.ok) {
+        throw new Error(
+          stripeStatus?.error ||
+            T(
+              "No pudimos comprobar tu configuración de pagos.",
+              "We could not verify your payment setup."
+            )
+        );
+      }
+
+      const pagosListos =
+        stripeStatus?.connected === true &&
+        stripeStatus?.onboardingComplete === true &&
+        stripeStatus?.payoutsEnabled === true &&
+        stripeStatus?.transfersCapability === "active";
+
+      setPagosConfigurados(
+        pagosListos
+      );
+
+      if (!pagosListos) {
+        throw new Error(
+          T(
+            "Antes de enviar presupuestos debes configurar tus pagos con Stripe Connect desde tu Panel Profesional.",
+            "Before sending quotes, you must set up Stripe Connect payments from your Professional Dashboard."
+          )
+        );
+      }
 
       const {
         data:
-          solicitudCreada,
+          nuevaOferta,
         error:
           insertError,
-      } =
-        await supabase
-          .from(
-            "provider_document_requests"
-          )
-          .insert({
-            provider_id:
-              solicitudDocsProvider.user_id,
-            requested_by:
-              user.id,
-            request_type:
-              "manual",
-            document_type:
-              documentType,
-            message:
-              mensajeSolicitud,
-            status:
-              "pending",
-          })
-          .select("id")
-          .single();
+      } = await supabase
+        .from(
+          "offers"
+        )
+        .insert({
+          request_id:
+            trabajo.id,
+
+          professional_id:
+            providerId,
+
+          price,
+
+          arrival_minutes:
+            arrivalMinutes,
+
+          estimated_job_minutes:
+            estimatedJobMinutes,
+
+          message,
+
+          status:
+            "pending",
+        })
+        .select(`
+          id,
+          request_id,
+          professional_id,
+          price,
+          arrival_minutes,
+          estimated_job_minutes,
+          message,
+          status,
+          created_at
+        `)
+        .single();
 
       if (
-        insertError ||
-        !solicitudCreada?.id
+        insertError
       ) {
         throw new Error(
-          `No se pudo crear la solicitud de documentos: ${
-            insertError?.message ||
-            "No se obtuvo el ID de la solicitud."
-          }`
+          insertError.message
         );
       }
 
-      const nombre =
-        solicitudDocsProvider.business_name ||
-        "el profesional";
+      setOferta(
+        nuevaOferta as Oferta
+      );
 
-      let avisoNotificacion =
-        "";
+      /*
+        PUSH AL CLIENTE:
+        NUEVO PRESUPUESTO RECIBIDO
 
-      if (
-        solicitudDocsPorEmail ||
-        solicitudDocsPorSms
-      ) {
+        Si el Push falla, el presupuesto
+        sigue guardado correctamente.
+      */
+
+      try {
         const {
           data: {
             session,
@@ -2499,4153 +2080,5409 @@ export default function AdminPage() {
         } =
           await supabase.auth.getSession();
 
-        if (!session?.access_token) {
-          avisoNotificacion =
-            " La solicitud quedó guardada, pero no se pudo iniciar el envío externo porque la sesión de Admin no tiene un token disponible.";
+        const accessToken =
+          session?.access_token;
+
+        if (accessToken) {
+          const pushResponse =
+            await fetch(
+              "/api/push/new-offer",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+
+                  Authorization:
+                    `Bearer ${accessToken}`,
+                },
+
+                body:
+                  JSON.stringify({
+                    offerId:
+                      nuevaOferta.id,
+                  }),
+              }
+            );
+
+          const pushResult =
+            await pushResponse
+              .json()
+              .catch(() => null);
+
+          if (!pushResponse.ok) {
+            console.warn(
+              "El presupuesto se guardó, pero el Push al cliente no pudo enviarse:",
+              pushResult
+            );
+          } else {
+            console.log(
+              "Push nuevo presupuesto:",
+              pushResult
+            );
+          }
         } else {
-          try {
-            const response =
-              await fetch(
-                "/api/provider-document-request",
+          console.warn(
+            "El presupuesto se guardó, pero no encontramos access token para enviar Push."
+          );
+        }
+      } catch (pushError) {
+        console.warn(
+          "El presupuesto se guardó, pero ocurrió un error enviando Push al cliente:",
+          pushError
+        );
+      }
+
+      form.reset();
+
+      setMensaje(
+        T("Presupuesto enviado correctamente.", "Quote sent successfully.")
+      );
+    } catch (err) {
+      console.error(
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No se pudo enviar el presupuesto.", "The quote could not be sent.")
+      );
+    } finally {
+      setEnviando(
+        false
+      );
+    }
+  }
+
+  /*
+    CAMBIAR ETAPA
+  */
+
+  async function cambiarEtapa(
+    nuevaEtapa: string
+  ) {
+    if (
+      !trabajo ||
+      !providerId
+    ) {
+      return;
+    }
+
+    /*
+      PROTECCIÓN CANCELACIÓN
+    */
+
+    if (
+      trabajo.status ===
+      "cancelled"
+    ) {
+      setError(
+        T("Este trabajo fue cancelado. Ya no puedes actualizar su estado.", "This job was cancelled. You can no longer update its status.")
+      );
+
+      return;
+    }
+
+    if (
+      trabajo.status !==
+        "in_progress" ||
+      trabajo.preferred_provider_id !==
+        providerId
+    ) {
+      setError(
+        T("No puedes cambiar el estado de este trabajo.", "You cannot change the status of this job.")
+      );
+
+      return;
+    }
+
+    setCambiandoEstado(
+      true
+    );
+
+    setError("");
+    setMensaje("");
+
+    try {
+      /*
+        REVISAR ESTADO ACTUAL
+        ANTES DE MODIFICAR
+      */
+
+      const {
+        data:
+          estadoActual,
+        error:
+          estadoError,
+      } = await supabase
+        .from(
+          "service_requests"
+        )
+        .select(
+          "status, preferred_provider_id"
+        )
+        .eq(
+          "id",
+          trabajo.id
+        )
+        .single();
+
+      if (
+        estadoError
+      ) {
+        throw new Error(
+          estadoError.message
+        );
+      }
+
+      if (
+        estadoActual.status ===
+        "cancelled"
+      ) {
+        setTrabajo(
+          (actual) =>
+            actual
+              ? {
+                  ...actual,
+                  status:
+                    "cancelled",
+                }
+              : actual
+        );
+
+        throw new Error(
+          T("Este trabajo fue cancelado. Ya no puedes continuar.", "This job was cancelled. You can no longer continue.")
+        );
+      }
+
+      if (
+        estadoActual.status !==
+          "in_progress" ||
+        estadoActual.preferred_provider_id !==
+          providerId
+      ) {
+        throw new Error(
+          T("Este trabajo ya no está disponible para actualizar.", "This job is no longer available to update.")
+        );
+      }
+
+      const {
+        error:
+          stageError,
+      } = await supabase.rpc(
+        "update_job_stage",
+        {
+          p_request_id:
+            trabajo.id,
+
+          p_job_stage:
+            nuevaEtapa,
+        }
+      );
+
+      if (
+        stageError
+      ) {
+        throw new Error(
+          stageError.message
+        );
+      }
+
+      setTrabajo(
+        (
+          actual
+        ) => {
+          if (!actual) {
+            return actual;
+          }
+
+          return {
+            ...actual,
+            job_stage:
+              nuevaEtapa,
+          };
+        }
+      );
+
+      await notificarEventoTrabajo(
+        "provider_stage_changed",
+        {
+          stage:
+            nuevaEtapa,
+        }
+      );
+
+      const textos:
+        Record<
+          string,
+          string
+        > = {
+        on_the_way:
+          T("El cliente ya puede ver que vas en camino.", "The customer can now see that you are on the way."),
+        arrived:
+          T("El cliente ya puede ver que llegaste.", "The customer can now see that you arrived."),
+        working:
+          T("El trabajo aparece ahora como iniciado.", "The job now appears as started."),
+      };
+
+      setMensaje(
+        textos[
+          nuevaEtapa
+        ] ||
+          T("Estado actualizado.", "Status updated.")
+      );
+    } catch (err) {
+      console.error(
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No se pudo actualizar el trabajo.", "The job could not be updated.")
+      );
+    } finally {
+      setCambiandoEstado(
+        false
+      );
+    }
+  }
+
+  /*
+    EVIDENCIA FINAL DEL TRABAJO
+  */
+
+  function seleccionarEvidenciaFinal(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const nuevos = Array.from(
+      event.target.files || []
+    );
+
+    if (nuevos.length === 0) {
+      return;
+    }
+
+    const permitidos = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+    ];
+
+    if (
+      nuevos.some(
+        (file) => !permitidos.includes(file.type)
+      )
+    ) {
+      setError(
+        T("Solo puedes subir fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.", "You can only upload JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (
+      nuevos.some(
+        (file) => file.size > 50 * 1024 * 1024
+      )
+    ) {
+      setError(
+        T("Cada foto o video debe pesar 50 MB o menos.", "Each photo or video must be 50 MB or less.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    const combinadosSinFiltrar = [
+      ...archivosEvidenciaFinal,
+      ...nuevos,
+    ];
+
+    // Evita seleccionar dos veces el mismo archivo en el mismo lote.
+    const archivosUnicos = new Map<string, File>();
+
+    for (const file of combinadosSinFiltrar) {
+      const clave = `${file.name}-${file.size}-${file.lastModified}-${file.type}`;
+
+      if (!archivosUnicos.has(clave)) {
+        archivosUnicos.set(clave, file);
+      }
+    }
+
+    const combinados = Array.from(archivosUnicos.values());
+
+    const fotosSeleccionadas =
+      combinados.filter((file) =>
+        file.type.startsWith("image/")
+      ).length;
+
+    const videosSeleccionados =
+      combinados.filter((file) =>
+        file.type.startsWith("video/")
+      ).length;
+
+    const fotosGuardadas =
+      evidenciasFinales.filter(
+        (item) => item.file_type === "image"
+      ).length;
+
+    const videosGuardados =
+      evidenciasFinales.filter(
+        (item) => item.file_type === "video"
+      ).length;
+
+    if (
+      fotosGuardadas + fotosSeleccionadas > 10
+    ) {
+      setError(
+        T("Puedes guardar un máximo de 10 fotos como evidencia final.", "You can save a maximum of 10 photos as final evidence.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (
+      videosGuardados + videosSeleccionados > 2
+    ) {
+      setError(
+        T("Puedes guardar un máximo de 2 videos como evidencia final.", "You can save a maximum of 2 videos as final evidence.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setArchivosEvidenciaFinal(combinados);
+    setError("");
+    event.target.value = "";
+  }
+
+  function quitarEvidenciaFinalSeleccionada(
+    index: number
+  ) {
+    setArchivosEvidenciaFinal(
+      (actuales) =>
+        actuales.filter((_, i) => i !== index)
+    );
+  }
+
+  async function guardarEvidenciaFinal() {
+    if (!trabajo || !providerId) {
+      return false;
+    }
+
+    if (
+      trabajo.status !== "in_progress" ||
+      trabajo.job_stage !== "working" ||
+      trabajo.preferred_provider_id !== providerId
+    ) {
+      setError(
+        T("Solo puedes subir evidencia final mientras el trabajo está iniciado y asignado a tu cuenta.", "You can only upload final evidence while the job is started and assigned to your account.")
+      );
+      return false;
+    }
+
+    if (archivosEvidenciaFinal.length === 0) {
+      setError(
+        T("Selecciona al menos una foto del trabajo terminado.", "Select at least one photo of the completed work.")
+      );
+      return false;
+    }
+
+    const totalFotos =
+      evidenciasFinales.filter(
+        (item) => item.file_type === "image"
+      ).length +
+      archivosEvidenciaFinal.filter((file) =>
+        file.type.startsWith("image/")
+      ).length;
+
+    if (totalFotos < 1) {
+      setError(
+        T("Para completar el trabajo debes guardar al menos 1 foto. Los videos son opcionales.", "To complete the job, you must save at least 1 photo. Videos are optional.")
+      );
+      return false;
+    }
+
+    setSubiendoEvidenciaFinal(true);
+    setError("");
+    setMensaje("");
+
+    const guardadas: EvidenciaFinal[] = [];
+
+    try {
+      for (
+        const [index, file] of
+        archivosEvidenciaFinal.entries()
+      ) {
+        const nombreSeguro = file.name
+          .replace(/[^a-zA-Z0-9._-]/g, "-")
+          .slice(0, 80);
+
+        const ruta =
+          `${trabajo.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
+
+        const { error: uploadError } =
+          await supabase.storage
+            .from("job-completion-evidence")
+            .upload(ruta, file, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: file.type,
+            });
+
+        if (uploadError) {
+          throw new Error(
+            `${T("No pudimos subir", "We could not upload")} "${file.name}": ${uploadError.message}`
+          );
+        }
+
+        const fileType: "image" | "video" =
+          file.type.startsWith("video/")
+            ? "video"
+            : "image";
+
+        const {
+          data: evidenciaData,
+          error: evidenciaError,
+        } = await supabase
+          .from("job_completion_evidence")
+          .insert({
+            request_id: trabajo.id,
+            provider_id: providerId,
+            file_type: fileType,
+            file_path: ruta,
+            file_url: ruta,
+          })
+          .select(`
+            id,
+            request_id,
+            provider_id,
+            file_type,
+            file_path,
+            file_url,
+            created_at
+          `)
+          .single();
+
+        if (evidenciaError) {
+          await supabase.storage
+            .from("job-completion-evidence")
+            .remove([ruta]);
+
+          throw new Error(
+            `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+          );
+        }
+
+        const evidenciaGuardadaBase =
+          evidenciaData as EvidenciaFinal;
+
+        const { data: signedData, error: signedError } =
+          await supabase.storage
+            .from("job-completion-evidence")
+            .createSignedUrl(evidenciaGuardadaBase.file_path, 60 * 60);
+
+        if (signedError) {
+          console.error(
+            "Error creando URL segura para evidencia final recién guardada:",
+            signedError
+          );
+        }
+
+        const evidenciaGuardada: EvidenciaFinal = {
+          ...evidenciaGuardadaBase,
+          signed_url: signedData?.signedUrl || null,
+        };
+
+        guardadas.push(evidenciaGuardada);
+
+        // Registrar inmediatamente cada archivo que sí terminó correctamente.
+        // Si un archivo posterior falla, los ya guardados desaparecen de la
+        // cola pendiente y un reintento no vuelve a insertarlos.
+        setEvidenciasFinales((actuales) =>
+          actuales.some(
+            (item) => item.id === evidenciaGuardada.id
+          )
+            ? actuales
+            : [...actuales, evidenciaGuardada]
+        );
+
+        setArchivosEvidenciaFinal((actuales) =>
+          actuales.filter((item) => item !== file)
+        );
+      }
+
+      // Cada evidencia se añadió al estado inmediatamente después de
+      // confirmarse en la base de datos. Al llegar aquí, la cola pendiente
+      // debe quedar vacía.
+      setArchivosEvidenciaFinal([]);
+
+      setMensaje(
+        guardadas.length === 1
+          ? T("Evidencia final guardada. Ya puedes pasar el trabajo a revisión.", "Final evidence saved. You can now submit the job for review.")
+          : language === "es"
+            ? `${guardadas.length} archivos de evidencia final guardados. Ya puedes pasar el trabajo a revisión.`
+            : `${guardadas.length} final evidence files saved. You can now submit the job for review.`
+      );
+
+      return true;
+    } catch (err) {
+      console.error(
+        "Error guardando evidencia final:",
+        err
+      );
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No se pudo guardar la evidencia final.", "The final evidence could not be saved.")
+      );
+      return false;
+    } finally {
+      setSubiendoEvidenciaFinal(false);
+    }
+  }
+
+  /*
+    COMPLETAR
+  */
+
+  async function pasarARevision() {
+    if (!trabajo || !providerId) return;
+
+    if (reclamoActivo) {
+      setError(T("Este trabajo tiene un reclamo activo. No puede pasar a revisión.", "This job has an active claim. It cannot be submitted for review."));
+      return;
+    }
+
+    if (
+      trabajo.status !== "in_progress" ||
+      trabajo.job_stage !== "working" ||
+      trabajo.preferred_provider_id !== providerId
+    ) {
+      setError(T("Este trabajo no puede pasar a revisión.", "This job cannot be submitted for review."));
+      return;
+    }
+
+    if (trabajo.completion_review_status === "pending") return;
+
+    const tieneFotoFinal = evidenciasFinales.some((item) => item.file_type === "image");
+    if (!tieneFotoFinal) {
+      setError(T("Antes de pasar a revisión debes guardar al menos 1 foto como evidencia final.", "Before submitting for review, you must save at least 1 photo as final evidence."));
+      return;
+    }
+
+    if (!window.confirm(T("¿Confirmas que terminaste el trabajo y deseas enviarlo al cliente para revisión?", "Do you confirm the job is finished and want to send it to the customer for review?"))) return;
+
+    setCompletando(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const { error: reviewError } = await supabase.rpc("submit_job_for_completion_review", {
+        p_request_id: trabajo.id,
+      });
+      if (reviewError) throw new Error(reviewError.message);
+
+      setTrabajo((actual) => actual ? {
+        ...actual,
+        completion_review_status: "pending",
+        submitted_for_review_at: actual.submitted_for_review_at || new Date().toISOString(),
+      } : actual);
+
+      await notificarEventoTrabajo(
+        "job_submitted_for_review"
+      );
+
+      await cargarTodo();
+      setMensaje(T("Trabajo enviado al cliente para revisión.", "Job sent to the customer for review."));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : T("No se pudo pasar el trabajo a revisión.", "The job could not be submitted for review."));
+      await cargarTodo();
+    } finally {
+      setCompletando(false);
+    }
+  }
+
+  /*
+    LIBERAR TRABAJO
+    POR EL PROFESIONAL
+
+    La solicitud vuelve a quedar abierta
+    para que otro profesional pueda
+    enviar un presupuesto.
+  */
+
+  async function liberarTrabajo() {
+    if (
+      !trabajo ||
+      !providerId
+    ) {
+      return;
+    }
+
+    if (
+      trabajo.status !==
+        "in_progress" ||
+      trabajo.preferred_provider_id !==
+        providerId
+    ) {
+      setError(
+        T("Este trabajo ya no está asignado a tu cuenta.", "This job is no longer assigned to your account.")
+      );
+
+      return;
+    }
+
+    if (
+      trabajo.job_stage ===
+      "working"
+    ) {
+      setError(
+        T("No puedes liberar el trabajo después de haberlo iniciado.", "You cannot release the job after it has been started.")
+      );
+
+      return;
+    }
+
+    const confirmar =
+      window.confirm(
+        T("¿Seguro que no puedes realizar este trabajo?\n\nLa solicitud volverá a estar disponible para que otro profesional pueda atender al cliente.", "Are you sure you cannot perform this job?\n\nThe request will become available again so another professional can help the customer.")
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setLiberandoTrabajo(
+      true
+    );
+
+    setError("");
+    setMensaje("");
+
+    try {
+      /*
+        COMPROBAR EL ESTADO ACTUAL
+        JUSTO ANTES DE LIBERARLO
+      */
+
+      const {
+        data:
+          estadoActual,
+        error:
+          estadoError,
+      } = await supabase
+        .from(
+          "service_requests"
+        )
+        .select(`
+          status,
+          job_stage,
+          preferred_provider_id
+        `)
+        .eq(
+          "id",
+          trabajo.id
+        )
+        .single();
+
+      if (
+        estadoError
+      ) {
+        throw new Error(
+          estadoError.message
+        );
+      }
+
+      if (
+        estadoActual.status ===
+        "cancelled"
+      ) {
+        setTrabajo(
+          (actual) =>
+            actual
+              ? {
+                  ...actual,
+                  status:
+                    "cancelled",
+                }
+              : actual
+        );
+
+        throw new Error(
+          T("Este trabajo fue cancelado antes de que pudieras liberarlo.", "This job was cancelled before you could release it.")
+        );
+      }
+
+      if (
+        estadoActual.status !==
+          "in_progress" ||
+        estadoActual.preferred_provider_id !==
+          providerId
+      ) {
+        throw new Error(
+          T("Este trabajo ya no está asignado a tu cuenta.", "This job is no longer assigned to your account.")
+        );
+      }
+
+      if (
+        estadoActual.job_stage ===
+        "working"
+      ) {
+        throw new Error(
+          T("El trabajo ya fue iniciado y no puede liberarse de esta manera.", "The job has already started and cannot be released this way.")
+        );
+      }
+
+      /*
+        RPC SEGURA EN SUPABASE
+      */
+
+      const {
+        error:
+          releaseError,
+      } = await supabase.rpc(
+        "release_job_by_provider",
+        {
+          p_request_id:
+            trabajo.id,
+        }
+      );
+
+      if (
+        releaseError
+      ) {
+        throw new Error(
+          releaseError.message
+        );
+      }
+
+      /*
+        La función SQL:
+        - vuelve status a open
+        - borra preferred_provider_id
+        - borra job_stage
+        - rechaza la oferta de este profesional
+        - registra este trabajo en provider_released_jobs
+      */
+
+      await notificarEventoTrabajo(
+        "provider_released_job"
+      );
+
+      router.replace(
+        "/panel-profesional"
+      );
+    } catch (err) {
+      console.error(
+        "Error liberando trabajo:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : T("No se pudo liberar el trabajo.", "The job could not be released.")
+      );
+    } finally {
+      setLiberandoTrabajo(
+        false
+      );
+    }
+  }
+
+  /*
+    EVIDENCIA DEL PROFESIONAL EN RECLAMOS
+  */
+
+  function seleccionarArchivosReclamo(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const nuevos =
+      Array.from(
+        event.target.files ||
+        []
+      );
+
+    if (
+      nuevos.length === 0
+    ) {
+      return;
+    }
+
+    const permitidos = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+    ];
+
+    const invalidos =
+      nuevos.filter(
+        (file) =>
+          !permitidos.includes(
+            file.type
+          )
+      );
+
+    if (
+      invalidos.length > 0
+    ) {
+      setError(
+        T("Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.", "You can only attach JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    const grandes =
+      nuevos.filter(
+        (file) =>
+          file.size >
+          50 * 1024 * 1024
+      );
+
+    if (
+      grandes.length > 0
+    ) {
+      setError(
+        T("Cada foto o video debe pesar 50 MB o menos.", "Each photo or video must be 50 MB or less.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    const existentesImagenes =
+      evidenciasReclamo.filter(
+        (item) =>
+          item.file_type ===
+          "image"
+      ).length;
+
+    const existentesVideos =
+      evidenciasReclamo.filter(
+        (item) =>
+          item.file_type ===
+          "video"
+      ).length;
+
+    const combinados = [
+      ...archivosReclamo,
+      ...nuevos,
+    ];
+
+    const nuevasImagenes =
+      combinados.filter(
+        (file) =>
+          file.type.startsWith(
+            "image/"
+          )
+      ).length;
+
+    const nuevosVideos =
+      combinados.filter(
+        (file) =>
+          file.type.startsWith(
+            "video/"
+          )
+      ).length;
+
+    if (
+      existentesImagenes +
+        nuevasImagenes >
+      10
+    ) {
+      setError(
+        T("Puedes adjuntar un máximo total de 10 fotos en este reclamo.", "You can attach a maximum total of 10 photos to this claim.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (
+      existentesVideos +
+        nuevosVideos >
+      2
+    ) {
+      setError(
+        T("Puedes adjuntar un máximo total de 2 videos en este reclamo.", "You can attach a maximum total of 2 videos to this claim.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setArchivosReclamo(
+      combinados
+    );
+
+    setError("");
+    event.target.value = "";
+  }
+
+  function quitarArchivoReclamo(
+    index: number
+  ) {
+    setArchivosReclamo(
+      (actuales) =>
+        actuales.filter(
+          (_, i) =>
+            i !== index
+        )
+    );
+  }
+
+  async function subirEvidenciaReclamo() {
+    if (
+      !reclamo ||
+      !providerId
+    ) {
+      setError(
+        T("No encontramos un reclamo activo para este trabajo.", "We could not find an active claim for this job.")
+      );
+      return;
+    }
+
+    if (
+      reclamo.status !== "open" &&
+      reclamo.status !== "reviewing"
+    ) {
+      setError(
+        T("Este reclamo ya está cerrado y no admite nueva evidencia.", "This claim is already closed and does not accept new evidence.")
+      );
+      return;
+    }
+
+    if (
+      reclamo.provider_response ||
+      reclamo.provider_responded_at ||
+      evidenciasReclamo.length > 0
+    ) {
+      setError(
+        T("Ya enviaste tu respuesta y evidencia para este reclamo. No se pueden hacer cambios después de enviarla.", "You already submitted your response and evidence for this claim. Changes cannot be made after submission.")
+      );
+      return;
+    }
+
+    const tiempoRespuesta =
+      calcularTiempoRestante(
+        reclamo.provider_response_deadline,
+        language
+      );
+
+    if (
+      tiempoRespuesta.vencido
+    ) {
+      setError(
+        T("El plazo de 24 horas para responder este reclamo ya venció.", "The 24-hour deadline to respond to this claim has expired.")
+      );
+      return;
+    }
+
+    if (
+      archivosReclamo.length ===
+      0
+    ) {
+      setError(
+        T("Selecciona al menos una foto o video.", "Select at least one photo or video.")
+      );
+      return;
+    }
+
+    if (
+      !explicacionEvidencia.trim()
+    ) {
+      setError(
+        T("Escribe una explicación de la evidencia antes de enviarla.", "Write an explanation of the evidence before submitting it.")
+      );
+      return;
+    }
+
+    setSubiendoEvidencia(
+      true
+    );
+
+    setError("");
+    setMensaje("");
+
+    try {
+      // Confirmar contra la base de datos que el profesional no haya
+      // respondido ya desde otra pestaña, dispositivo o intento anterior.
+      const {
+        data: reclamoActualDb,
+        error: reclamoActualError,
+      } = await supabase
+        .from("job_claims")
+        .select(`
+          id,
+          provider_response,
+          provider_responded_at
+        `)
+        .eq("id", reclamo.id)
+        .eq("provider_id", providerId)
+        .maybeSingle();
+
+      if (reclamoActualError) {
+        throw new Error(
+          `${T(
+            "No pudimos comprobar el estado actual del reclamo",
+            "We could not verify the current claim status"
+          )}: ${reclamoActualError.message}`
+        );
+      }
+
+      const {
+        data: evidenciaExistenteDb,
+        error: evidenciaExistenteError,
+      } = await supabase
+        .from("claim_evidence")
+        .select("id")
+        .eq("claim_id", reclamo.id)
+        .eq("uploaded_by", providerId)
+        .eq("uploaded_by_role", "provider")
+        .limit(1);
+
+      if (evidenciaExistenteError) {
+        throw new Error(
+          `${T(
+            "No pudimos comprobar la evidencia ya enviada",
+            "We could not verify the evidence already submitted"
+          )}: ${evidenciaExistenteError.message}`
+        );
+      }
+
+      if (
+        reclamoActualDb?.provider_response ||
+        reclamoActualDb?.provider_responded_at ||
+        (evidenciaExistenteDb && evidenciaExistenteDb.length > 0)
+      ) {
+        await cargarTodo();
+        throw new Error(
+          T(
+            "Ya enviaste tu respuesta y evidencia para este reclamo. No se permiten segundos envíos.",
+            "You already submitted your response and evidence for this claim. A second submission is not allowed."
+          )
+        );
+      }
+
+      const nuevasEvidencias:
+        EvidenciaReclamo[] =
+        [];
+
+      const rutasSubidas:
+        string[] =
+        [];
+
+      try {
+        for (
+          const [
+            index,
+            file,
+          ] of archivosReclamo.entries()
+        ) {
+          const nombreSeguro =
+            file.name
+              .replace(
+                /[^a-zA-Z0-9._-]/g,
+                "-"
+              )
+              .slice(
+                0,
+                80
+              );
+
+          const ruta =
+            `${reclamo.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
+
+          const {
+            error:
+              uploadError,
+          } =
+            await supabase.storage
+              .from(
+                "claim-evidence"
+              )
+              .upload(
+                ruta,
+                file,
                 {
-                  method:
-                    "POST",
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                    Authorization:
-                      `Bearer ${session.access_token}`,
-                  },
-                  body:
-                    JSON.stringify({
-                      requestId:
-                        solicitudCreada.id,
-                      sendEmail:
-                        solicitudDocsPorEmail,
-                      sendSms:
-                        solicitudDocsPorSms,
-                    }),
+                  cacheControl:
+                    "3600",
+                  upsert: false,
+                  contentType:
+                    file.type,
                 }
               );
 
-            const resultado =
-              await response.json();
+          if (
+            uploadError
+          ) {
+            throw new Error(
+              `${T("No pudimos subir", "We could not upload")} "${file.name}": ${uploadError.message}`
+            );
+          }
 
-            if (!response.ok) {
-              avisoNotificacion =
-                ` La solicitud quedó guardada, pero hubo un problema enviando la notificación: ${
-                  resultado?.error ||
-                  "Error de notificación."
-                }`;
-            } else {
-              const partes:
-                string[] =
-                [];
+          rutasSubidas.push(
+            ruta
+          );
 
-              if (
-                solicitudDocsPorEmail
-              ) {
-                partes.push(
-                  resultado?.email?.sent
-                    ? "correo enviado"
-                    : `correo no enviado${
-                        resultado?.email?.error
-                          ? ` (${resultado.email.error})`
-                          : ""
-                      }`
-                );
-              }
+          const fileType:
+            "image" | "video" =
+            file.type.startsWith(
+              "video/"
+            )
+              ? "video"
+              : "image";
 
-              if (
-                solicitudDocsPorSms
-              ) {
-                partes.push(
-                  resultado?.sms?.sent
-                    ? "SMS enviado"
-                    : `SMS no enviado${
-                        resultado?.sms?.error
-                          ? ` (${resultado.sms.error})`
-                          : ""
-                      }`
-                );
-              }
+          const {
+            data:
+              evidenciaData,
+            error:
+              evidenciaError,
+          } =
+            await supabase
+              .from(
+                "claim_evidence"
+              )
+              .insert({
+                claim_id:
+                  reclamo.id,
+                uploaded_by:
+                  providerId,
+                uploaded_by_role:
+                  "provider",
+                file_type:
+                  fileType,
+                file_url:
+                  ruta,
+                file_path:
+                  ruta,
+              })
+              .select(`
+                id,
+                claim_id,
+                uploaded_by,
+                uploaded_by_role,
+                file_type,
+                file_path,
+                created_at
+              `)
+              .single();
 
-              if (
-                partes.length >
-                0
-              ) {
-                avisoNotificacion =
-                  ` Notificación: ${partes.join(
-                    " · "
-                  )}.`;
-              }
-            }
-          } catch (notificationError) {
-            console.error(
-              "Error enviando notificación de documentos:",
-              notificationError
+          if (
+            evidenciaError
+          ) {
+            throw new Error(
+              `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+            );
+          }
+
+          nuevasEvidencias.push(
+            evidenciaData as EvidenciaReclamo
+          );
+        }
+
+        /*
+          Marcamos la respuesta como enviada SOLO después de que
+          toda la evidencia quedó guardada. Así una subida fallida
+          no bloquea el reintento del profesional.
+        */
+        const {
+          data:
+            respuestaGuardada,
+          error:
+            respuestaError,
+        } = await supabase
+          .from("job_claims")
+          .update({
+            provider_response:
+              explicacionEvidencia.trim(),
+            provider_responded_at:
+              new Date().toISOString(),
+          })
+          .eq("id", reclamo.id)
+          .eq(
+            "provider_id",
+            providerId
+          )
+          .is(
+            "provider_responded_at",
+            null
+          )
+          .select("id")
+          .maybeSingle();
+
+        if (
+          respuestaError ||
+          !respuestaGuardada
+        ) {
+          throw new Error(
+            respuestaError
+              ? `${T("No pudimos guardar tu explicación", "We could not save your explanation")}: ${respuestaError.message}`
+              : T(
+                  "El reclamo cambió mientras enviabas la evidencia. Intenta actualizar la página.",
+                  "The claim changed while you were submitting evidence. Refresh the page and try again."
+                )
+          );
+        }
+      } catch (
+        evidenciaSubmitError
+      ) {
+        /*
+          Rollback compensatorio:
+          si cualquier paso falla, eliminamos los registros y archivos
+          creados por este intento para que el profesional pueda reintentar.
+        */
+        if (
+          nuevasEvidencias.length > 0
+        ) {
+          const ids =
+            nuevasEvidencias.map(
+              (item) =>
+                item.id
             );
 
-            avisoNotificacion =
-              " La solicitud quedó guardada, pero no se pudo completar el envío externo.";
+          const {
+            error:
+              cleanupDbError,
+          } = await supabase
+            .from(
+              "claim_evidence"
+            )
+            .delete()
+            .in(
+              "id",
+              ids
+            );
+
+          if (
+            cleanupDbError
+          ) {
+            console.error(
+              "No pudimos revertir claim_evidence después de un fallo:",
+              cleanupDbError
+            );
           }
         }
+
+        if (
+          rutasSubidas.length > 0
+        ) {
+          const {
+            error:
+              cleanupStorageError,
+          } = await supabase.storage
+            .from(
+              "claim-evidence"
+            )
+            .remove(
+              rutasSubidas
+            );
+
+          if (
+            cleanupStorageError
+          ) {
+            console.error(
+              "No pudimos revertir archivos de claim-evidence después de un fallo:",
+              cleanupStorageError
+            );
+          }
+        }
+
+        throw evidenciaSubmitError;
       }
 
-      setMensaje(
-        `Solicitud de documentos creada correctamente para ${nombre}.${avisoNotificacion}`
+      setEvidenciasReclamo(
+        (actuales) => [
+          ...actuales,
+          ...nuevasEvidencias,
+        ]
       );
 
-      setSolicitudDocsProvider(
-        null
+      setArchivosReclamo(
+        []
       );
-      setSolicitudDocsTipo(
-        "all"
+
+      setReclamo(
+        (actual) =>
+          actual
+            ? {
+                ...actual,
+                provider_response:
+                  explicacionEvidencia.trim(),
+                provider_responded_at:
+                  new Date().toISOString(),
+              }
+            : actual
       );
-      setSolicitudDocsMensaje(
+
+      setExplicacionEvidencia(
         ""
       );
-      setSolicitudDocsError(
-        ""
-      );
-      setSolicitudDocsPorEmail(
-        true
-      );
-      setSolicitudDocsPorSms(
-        false
-      );
 
-      await cargarDatos(false);
-    } catch (err) {
-      setSolicitudDocsError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo enviar la solicitud de documentos."
-      );
-    } finally {
-      setSolicitandoDocs(
-        false
-      );
-    }
-  }
-
-  /*
-    APROBAR / RECHAZAR
-  */
-
-  async function cambiarEstado(
-    userId: string,
-    nuevoEstado:
-      | "verified"
-      | "rejected"
-  ) {
-    setError("");
-    setMensaje("");
-
-    const userDocs = docsDelUsuario(userId);
-    const docsPendientes = documentosPendientesRevision(userId);
-    const solicitudesPendientes = solicitudesDocsDelUsuario(userId).filter(
-      (solicitud) =>
-        solicitud.status === "pending" ||
-        solicitud.status === "submitted"
-    );
-
-    const provider =
-      todosProviders.find(
-        (item) => item.user_id === userId
-      ) ||
-      providers.find(
-        (item) => item.user_id === userId
-      ) ||
-      null;
-
-    if (
-      nuevoEstado === "verified" &&
-      !provider
-    ) {
-      setError(
-        "No pudimos cargar la información del profesional para validar sus requisitos."
-      );
-      return;
-    }
-
-    const requeridosFaltantes =
-      provider
-        ? documentosRequeridosFaltantes(
-            provider
-          )
-        : [];
-
-    const requisitos =
-      provider
-        ? requisitosProfesional(provider)
-        : null;
-
-    if (
-      nuevoEstado === "verified" &&
-      requisitos?.manualReview === true &&
-      adminRole !== "super_admin"
-    ) {
-      setError(
-        "Este oficio requiere revisión manual. Solo el Super Admin puede aprobar manualmente este expediente después de revisar sus requisitos."
-      );
-      return;
-    }
-
-    if (
-      nuevoEstado === "verified" &&
-      requeridosFaltantes.length > 0
-    ) {
-      setError(
-        `Faltan documentos obligatorios aprobados: ${requeridosFaltantes
-          .map((tipo) => nombreTipoDocumento(tipo))
-          .join(", ")}.`
-      );
-      return;
-    }
-
-    if (nuevoEstado === "verified" && docsPendientes.length > 0) {
-      setError(
-        "Todavía hay documentos pendientes de revisión. Apruébalos o recházalos antes de aprobar al profesional."
-      );
-      return;
-    }
-
-    if (nuevoEstado === "verified" && solicitudesPendientes.length > 0) {
-      setError(
-        "Todavía hay solicitudes de documentación abiertas. Complétalas antes de aprobar al profesional."
-      );
-      return;
-    }
-
-    const requiereOverrideManual =
-      nuevoEstado === "verified" &&
-      requisitos?.manualReview === true &&
-      adminRole === "super_admin";
-
-    const confirmar =
-      window.confirm(
-        nuevoEstado ===
-          "verified"
-          ? requiereOverrideManual
-            ? "Este expediente requiere revisión manual. Como Super Admin puedes tomar la decisión final. ¿Confirmas que revisaste los requisitos y deseas aprobar este profesional?"
-            : "¿Seguro que deseas aprobar este profesional?"
-          : "¿Seguro que deseas rechazar este profesional?"
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    let motivoRechazo = "";
-
-    if (nuevoEstado === "rejected") {
-      const motivo = window.prompt(
-        "Escribe la razón concreta del rechazo. Esta explicación será enviada al profesional:"
-      );
-
-      if (motivo === null) {
-        return;
-      }
-
-      motivoRechazo = motivo.trim();
-
-      if (motivoRechazo.length < 5) {
-        setError("Debes escribir una razón de rechazo clara antes de continuar.");
-        return;
-      }
-    }
-
-    setProcesando(
-      userId
-    );
-
-    setError("");
-    setMensaje("");
-
-    try {
-      const esVerificado =
-        nuevoEstado ===
-        "verified";
-
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-
-      if (sessionError || !sessionData.session) {
-        throw new Error("No pudimos verificar tu sesión administrativa.");
-      }
-
-      const verificationResponse = await fetch(
-        "/api/admin/provider-verification",
+      await notificarEventoTrabajo(
+        "claim_provider_responded",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-          },
-          body: JSON.stringify({
-            providerId: userId,
-            status: nuevoEstado,
-            reason: motivoRechazo,
-          }),
+          claimId:
+            reclamo.id,
         }
       );
-
-      const verificationData = await verificationResponse.json();
-
-      if (!verificationResponse.ok) {
-        throw new Error(
-          verificationData?.error || "No se pudo actualizar el profesional."
-        );
-      }
-
-      // Los documentos se revisan individualmente. Aprobar la cuenta NO debe
-      // aprobar automáticamente archivos pendientes o previamente rechazados.
-      if (!esVerificado && userDocs.length > 0) {
-        const { error: documentError } = await supabase
-          .from("provider_documents")
-          .update({ status: "rejected" })
-          .eq("user_id", userId)
-          .in("status", ["pending", "submitted"]);
-
-        if (documentError) {
-          throw new Error(
-            `El perfil cambió, pero hubo un problema actualizando los documentos pendientes: ${documentError.message}`
-          );
-        }
-      }
 
       setMensaje(
-        esVerificado
-          ? "Profesional verificado correctamente."
-          : "Profesional rechazado correctamente."
+        nuevasEvidencias.length === 1
+          ? T(
+              "Respuesta y evidencia enviadas correctamente. El envío quedó cerrado para revisión de RELYDO.",
+              "Your response and evidence were submitted successfully. The submission is now closed for RELYDO review."
+            )
+          : language === "es"
+            ? `${nuevasEvidencias.length} archivos de evidencia y tu respuesta fueron enviados. El envío quedó cerrado para revisión de RELYDO.`
+            : `${nuevasEvidencias.length} evidence files and your response were submitted. The submission is now closed for RELYDO review.`
+      );
+    } catch (err) {
+      console.error(
+        "Error subiendo evidencia del profesional:",
+        err
       );
 
-      await cargarDatos(false);
-    } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : T("No se pudo subir la evidencia.", "The evidence could not be uploaded.")
       );
     } finally {
-      setProcesando(
-        null
+      setSubiendoEvidencia(
+        false
       );
     }
   }
 
   /*
-    REABRIR VERIFICACIÓN
+    CAMBIO DE PRESUPUESTO
   */
 
-  async function reabrirVerificacion(
-    provider: Provider
+  function seleccionarArchivosCambioPresupuesto(
+    event: React.ChangeEvent<HTMLInputElement>
   ) {
-    setError("");
-    setMensaje("");
-
-    if (
-      provider.verification_status !==
-      "rejected"
-    ) {
-      setError(
-        "Solo puedes reabrir un expediente que esté rechazado."
+    const nuevos =
+      Array.from(
+        event.target.files || []
       );
+
+    if (nuevos.length === 0) {
       return;
     }
 
-    const nombre =
-      provider.business_name ||
-      "este profesional";
+    const permitidos = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+    ];
 
-    const confirmar =
-      window.confirm(
-        `¿Reabrir la verificación de ${nombre}? El profesional volverá a estado pendiente y seguirá sin poder operar hasta que sea aprobado nuevamente.`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setProcesando(
-      provider.user_id
-    );
-
-    try {
-      const { error: profileError } =
-        await supabase
-          .from(
-            "provider_profiles"
+    const invalidos =
+      nuevos.filter(
+        (file) =>
+          !permitidos.includes(
+            file.type
           )
-          .update({
-            verification_status:
-              "pending",
-            verified: false,
-            active: false,
-          })
-          .eq(
-            "user_id",
-            provider.user_id
-          );
-
-      if (profileError) {
-        throw new Error(
-          `No se pudo reabrir la verificación: ${profileError.message}`
-        );
-      }
-
-      // Reabrir el expediente NO borra ni modifica documentos anteriores.
-      // Tampoco aprueba la cuenta: el profesional permanece bloqueado en pending.
-      setMensaje(
-        `Verificación reabierta para ${nombre}. El expediente volvió a estado pendiente.`
       );
 
-      await cargarDatos(false);
-    } catch (err) {
+    if (invalidos.length > 0) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo reabrir la verificación."
+        T("Solo puedes adjuntar fotos JPG, PNG o WEBP y videos MP4, WEBM o MOV.", "You can only attach JPG, PNG, or WEBP photos and MP4, WEBM, or MOV videos.")
       );
-    } finally {
-      setProcesando(
-        null
-      );
+      event.target.value = "";
+      return;
     }
+
+    const grandes =
+      nuevos.filter(
+        (file) =>
+          file.size >
+          50 * 1024 * 1024
+      );
+
+    if (grandes.length > 0) {
+      setError(
+        T("Cada foto o video debe pesar 50 MB o menos.", "Each photo or video must be 50 MB or less.")
+      );
+      event.target.value = "";
+      return;
+    }
+
+    const combinados = [
+      ...archivosCambioPresupuesto,
+      ...nuevos,
+    ];
+
+    const imagenes =
+      combinados.filter(
+        (file) =>
+          file.type.startsWith(
+            "image/"
+          )
+      );
+
+    const videos =
+      combinados.filter(
+        (file) =>
+          file.type.startsWith(
+            "video/"
+          )
+      );
+
+    if (imagenes.length > 10) {
+      setError(
+        T(
+          "Puedes adjuntar un máximo de 10 fotos.",
+          "You can attach a maximum of 10 photos."
+        )
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (videos.length > 2) {
+      setError(
+        T(
+          "Puedes adjuntar un máximo de 2 videos.",
+          "You can attach a maximum of 2 videos."
+        )
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setArchivosCambioPresupuesto(
+      combinados
+    );
+    setError("");
+    event.target.value = "";
   }
 
-  /*
-    SUSPENDER / REACTIVAR
-  */
-
-  async function cambiarActivo(
-    provider: Provider,
-    nuevoActivo: boolean
+  function quitarArchivoCambioPresupuesto(
+    index: number
   ) {
-    setError("");
-    setMensaje("");
+    setArchivosCambioPresupuesto(
+      (actuales) =>
+        actuales.filter(
+          (_, i) => i !== index
+        )
+    );
+  }
+
+  async function enviarCambioPresupuesto(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
+    e.preventDefault();
 
     if (
-      provider.verified !==
-      true
+      !trabajo ||
+      !providerId ||
+      !oferta
     ) {
       setError(
-        "Solo puedes suspender o reactivar profesionales que ya estén verificados."
-      );
-
-      return;
-    }
-
-    const nombre =
-      provider.business_name ||
-      "este profesional";
-
-    const confirmar =
-      window.confirm(
-        nuevoActivo
-          ? `¿Seguro que deseas reactivar a ${nombre}?`
-          : `¿Seguro que deseas suspender a ${nombre}? Mientras esté suspendido no podrá acceder a nuevos trabajos.`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setProcesando(
-      provider.user_id
-    );
-
-    try {
-      const {
-        error:
-          updateError,
-      } = await supabase
-        .from(
-          "provider_profiles"
+        T(
+          "No encontramos los datos necesarios del trabajo o del presupuesto.",
+          "We could not find the required job or quote information."
         )
-        .update({
-          active:
-            nuevoActivo,
-        })
-        .eq(
-          "user_id",
-          provider.user_id
-        );
-
-      if (
-        updateError
-      ) {
-        throw new Error(
-          `No se pudo actualizar la cuenta: ${updateError.message}`
-        );
-      }
-
-      setMensaje(
-        nuevoActivo
-          ? `${nombre} fue reactivado correctamente.`
-          : `${nombre} fue suspendido correctamente.`
       );
-
-      await cargarDatos(false);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo cambiar el estado del profesional."
-      );
-    } finally {
-      setProcesando(
-        null
-      );
-    }
-  }
-
-  /*
-    PASAR RECLAMO A REVISIÓN
-  */
-
-  async function pasarReclamoARevision(
-    reclamo: JobClaim
-  ) {
-    setError("");
-    setMensaje("");
-
-    const confirmar =
-      window.confirm(
-        "¿Marcar este reclamo como En revisión? El pago continuará retenido."
-      );
-
-    if (!confirmar) {
       return;
     }
 
-    setProcesandoReclamo(
-      reclamo.id
+    if (
+      trabajo.status !== "in_progress" ||
+      !["arrived", "working"].includes(trabajo.job_stage || "") ||
+      trabajo.preferred_provider_id !== providerId
+    ) {
+      setError(
+        T(
+          "Solo puedes solicitar un cambio de presupuesto después de llegar al lugar o mientras el trabajo está iniciado.",
+          "You can only request a budget change after arriving at the job site or while the job is in progress."
+        )
+      );
+      return;
+    }
+
+    if (reclamoActivo) {
+      setError(
+        T(
+          "No puedes solicitar un cambio de presupuesto mientras exista un reclamo activo.",
+          "You cannot request a budget change while there is an active claim."
+        )
+      );
+      return;
+    }
+
+    const pendiente =
+      cambiosPresupuesto.find(
+        (cambio) =>
+          cambio.status === "pending"
+      );
+
+    if (pendiente) {
+      setError(
+        T(
+          "Ya tienes un cambio de presupuesto pendiente de respuesta del cliente.",
+          "You already have a budget change waiting for the customer's response."
+        )
+      );
+      return;
+    }
+
+    const adicional =
+      Number(montoAdicional);
+
+    if (
+      !Number.isFinite(adicional) ||
+      adicional <= 0
+    ) {
+      setError(
+        T(
+          "Introduce un monto adicional válido.",
+          "Enter a valid additional amount."
+        )
+      );
+      return;
+    }
+
+    if (!motivoCambioPresupuesto.trim()) {
+      setError(
+        T(
+          "Selecciona el motivo del cambio de presupuesto.",
+          "Select the reason for the budget change."
+        )
+      );
+      return;
+    }
+
+    if (
+      descripcionCambioPresupuesto
+        .trim()
+        .length < 5
+    ) {
+      setError(
+        T(
+          "Explica brevemente por qué es necesario aumentar el presupuesto.",
+          "Briefly explain why the budget needs to be increased."
+        )
+      );
+      return;
+    }
+
+    const ultimoAceptadoPagado =
+      cambiosPresupuesto.find(
+        (cambio) =>
+          cambio.status === "accepted" &&
+          cambio.payment_status === "paid"
+      );
+
+    const montoOriginal =
+      Number(
+        ultimoAceptadoPagado?.new_total_amount ??
+        pago?.job_amount ??
+        oferta.price ??
+        0
+      );
+
+    const nuevoTotal =
+      Math.round(
+        (montoOriginal +
+          adicional +
+          Number.EPSILON) *
+          100
+      ) / 100;
+
+    setEnviandoCambioPresupuesto(
+      true
     );
+    setError("");
+    setMensaje("");
 
     try {
       const {
-        error: updateError,
+        data: nuevoCambio,
+        error: cambioError,
       } = await supabase
-        .from("job_claims")
-        .update({
-          status: "reviewing",
-          updated_at:
-            new Date().toISOString(),
+        .from("change_orders")
+        .insert({
+          request_id: trabajo.id,
+          provider_id: providerId,
+          customer_id:
+            trabajo.customer_id,
+          reason:
+            motivoCambioPresupuesto.trim(),
+          description:
+            descripcionCambioPresupuesto.trim(),
+          original_amount:
+            montoOriginal,
+          additional_amount:
+            adicional,
+          new_total_amount:
+            nuevoTotal,
+          status: "pending",
         })
-        .eq(
-          "id",
-          reclamo.id
-        );
+        .select(`
+          id,
+          request_id,
+          provider_id,
+          customer_id,
+          reason,
+          description,
+          original_amount,
+          additional_amount,
+          new_total_amount,
+          status,
+          accepted_at,
+          rejected_at,
+          payment_status,
+          stripe_checkout_session_id,
+          stripe_payment_intent_id,
+          additional_customer_fee_percent,
+          additional_customer_fee_amount,
+          additional_customer_total_amount,
+          additional_provider_commission_percent,
+          additional_provider_commission_amount,
+          additional_provider_net_amount,
+          additional_platform_revenue_amount,
+          paid_at,
+          created_at,
+          updated_at
+        `)
+        .single();
 
-      if (updateError) {
+      if (cambioError) {
         throw new Error(
-          updateError.message
+          cambioError.message
         );
       }
 
-      setMensaje(
-        "Reclamo marcado como En revisión. El pago continúa retenido."
-      );
+      const cambio =
+        nuevoCambio as ChangeOrder;
 
-      await cargarDatos(false);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo actualizar el reclamo."
-      );
-    } finally {
-      setProcesandoReclamo(
-        null
-      );
-    }
-  }
+      const rutasCambioSubidas:
+        string[] =
+        [];
 
-  /*
-    ABRIR RESOLUCIÓN PARCIAL
-  */
+      try {
+        for (
+          const [
+            index,
+            file,
+          ] of archivosCambioPresupuesto.entries()
+        ) {
+          const nombreSeguro =
+            file.name
+              .replace(
+                /[^a-zA-Z0-9._-]/g,
+                "-"
+              )
+              .slice(0, 80);
 
-  async function abrirResolucionParcial(
-    reclamo: JobClaim
-  ) {
-    setError("");
-    setMensaje("");
-    setErrorParcial("");
-    setNotaParcial("");
-    setMontoProfesionalParcial("");
-    setCargandoParcial(true);
+          const ruta =
+            `${cambio.id}/${providerId}/${Date.now()}-${index}-${nombreSeguro}`;
 
-    try {
-      const pago =
-        await supabase
-          .from("payments")
-          .select(`
-            provider_net_amount,
-            customer_total_amount
-          `)
+          const {
+            error: uploadError,
+          } =
+            await supabase.storage
+              .from(
+                "change-order-evidence"
+              )
+              .upload(
+                ruta,
+                file,
+                {
+                  cacheControl:
+                    "3600",
+                  upsert: false,
+                  contentType:
+                    file.type,
+                }
+              );
+
+          if (uploadError) {
+            throw new Error(
+              `${T(
+                "No pudimos subir la evidencia del cambio de presupuesto",
+                "We could not upload the budget-change evidence"
+              )} "${file.name}": ${uploadError.message}`
+            );
+          }
+
+          rutasCambioSubidas.push(
+            ruta
+          );
+
+          const fileType:
+            "image" | "video" =
+            file.type.startsWith(
+              "video/"
+            )
+              ? "video"
+              : "image";
+
+          const {
+            error: evidenciaError,
+          } =
+            await supabase
+              .from(
+                "change_order_evidence"
+              )
+              .insert({
+                change_order_id:
+                  cambio.id,
+                uploaded_by:
+                  providerId,
+                uploaded_by_role:
+                  "provider",
+                file_type:
+                  fileType,
+                file_path:
+                  ruta,
+                file_url:
+                  ruta,
+              });
+
+          if (evidenciaError) {
+            throw new Error(
+              `${T("El archivo subió, pero no pudimos registrarlo", "The file was uploaded, but we could not register it")}: ${evidenciaError.message}`
+            );
+          }
+        }
+      } catch (
+        evidenciaCambioError
+      ) {
+        /*
+          El Change Order y su evidencia deben comportarse como una sola
+          operación. Si una evidencia falla, revertimos este intento para
+          que no quede un cambio parcial que el profesional no pueda reintentar.
+        */
+        const {
+          error:
+            cleanupEvidenceDbError,
+        } = await supabase
+          .from(
+            "change_order_evidence"
+          )
+          .delete()
           .eq(
-            "request_id",
-            reclamo.request_id
+            "change_order_id",
+            cambio.id
+          );
+
+        if (
+          cleanupEvidenceDbError
+        ) {
+          console.error(
+            "No pudimos revertir change_order_evidence:",
+            cleanupEvidenceDbError
+          );
+        }
+
+        if (
+          rutasCambioSubidas.length > 0
+        ) {
+          const {
+            error:
+              cleanupStorageError,
+          } = await supabase.storage
+            .from(
+              "change-order-evidence"
+            )
+            .remove(
+              rutasCambioSubidas
+            );
+
+          if (
+            cleanupStorageError
+          ) {
+            console.error(
+              "No pudimos revertir archivos de change-order-evidence:",
+              cleanupStorageError
+            );
+          }
+        }
+
+        const {
+          error:
+            cleanupChangeOrderError,
+        } = await supabase
+          .from(
+            "change_orders"
+          )
+          .delete()
+          .eq(
+            "id",
+            cambio.id
           )
           .eq(
             "provider_id",
-            reclamo.provider_id
+            providerId
           )
           .eq(
-            "customer_id",
-            reclamo.customer_id
-          )
-          .order(
-            "updated_at",
-            {
-              ascending: false,
-            }
-          )
-          .limit(1)
-          .maybeSingle();
+            "status",
+            "pending"
+          );
 
-      if (pago.error) {
-        throw new Error(
-          `No pudimos consultar los importes del pago: ${pago.error.message}`
-        );
+        if (
+          cleanupChangeOrderError
+        ) {
+          console.error(
+            "No pudimos revertir el Change Order parcial:",
+            cleanupChangeOrderError
+          );
+        }
+
+        throw evidenciaCambioError;
       }
 
-      if (!pago.data) {
-        throw new Error(
-          "No encontramos el pago relacionado con este reclamo."
-        );
-      }
-
-      const total =
-        Number(
-          pago.data.customer_total_amount
-        );
-
-      const maxProfesional =
-        Number(
-          pago.data.provider_net_amount
-        );
-
-      if (
-        !Number.isFinite(total) ||
-        total <= 0 ||
-        !Number.isFinite(
-          maxProfesional
-        ) ||
-        maxProfesional <= 0
-      ) {
-        throw new Error(
-          "Los importes guardados del pago no son válidos."
-        );
-      }
-
-      setTotalPagoParcial(
-        Math.round(
-          (total +
-            Number.EPSILON) *
-            100
-        ) / 100
+      setCambiosPresupuesto(
+        (actuales) => [
+          cambio,
+          ...actuales,
+        ]
       );
 
-      setMaxProfesionalParcial(
-        Math.round(
-          (maxProfesional +
-            Number.EPSILON) *
-            100
-        ) / 100
+      setMostrarCambioPresupuesto(
+        false
+      );
+      setMotivoCambioPresupuesto(
+        ""
+      );
+      setDescripcionCambioPresupuesto(
+        ""
+      );
+      setMontoAdicional(
+        ""
+      );
+      setArchivosCambioPresupuesto(
+        []
       );
 
-      setReclamoParcial(
-        reclamo
+      await notificarEventoTrabajo(
+        "change_order_requested",
+        {
+          changeOrderId:
+            cambio.id,
+        }
+      );
+
+      setMensaje(
+        language === "es"
+          ? `Cambio de presupuesto enviado. Solicitaste $${adicional.toFixed(
+              2
+            )} adicionales. El nuevo total propuesto es $${nuevoTotal.toFixed(
+              2
+            )}.`
+          : `Budget change sent. You requested an additional $${adicional.toFixed(
+              2
+            )}. The new proposed total is $${nuevoTotal.toFixed(
+              2
+            )}.`
       );
     } catch (err) {
+      console.error(
+        "Error creando cambio de presupuesto:",
+        err
+      );
+
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo abrir la resolución parcial."
+          : T(
+              "No se pudo crear el cambio de presupuesto.",
+              "The budget change could not be created."
+            )
       );
+
+      await cargarTodo();
     } finally {
-      setCargandoParcial(false);
+      setEnviandoCambioPresupuesto(
+        false
+      );
     }
   }
 
-  function cerrarResolucionParcial() {
-    if (procesandoReclamo) {
+
+  /*
+    DIRECCIÓN
+  */
+
+  function abrirDireccion() {
+    if (!trabajo) {
       return;
     }
 
-    setReclamoParcial(null);
-    setMontoProfesionalParcial("");
-    setNotaParcial("");
-    setErrorParcial("");
-    setTotalPagoParcial(0);
-    setMaxProfesionalParcial(0);
-  }
+    const direccion =
+      [
+        trabajo.address_line1,
+        trabajo.city,
+        trabajo.state,
+        trabajo.zip_code,
+      ]
+        .filter(Boolean)
+        .join(", ");
 
-  function montoProfesionalParcialNumero() {
-    const numero =
-      Number(
-        montoProfesionalParcial
-      );
-
-    if (
-      !Number.isFinite(numero)
-    ) {
-      return 0;
-    }
-
-    return Math.round(
-      (numero +
-        Number.EPSILON) *
-        100
-    ) / 100;
-  }
-
-  function reembolsoClienteParcialNumero() {
-    const profesional =
-      montoProfesionalParcialNumero();
-
-    return Math.max(
-      0,
-      Math.round(
-        (
-          totalPagoParcial -
-          profesional +
-          Number.EPSILON
-        ) *
-          100
-      ) / 100
-    );
-  }
-
-  async function confirmarResolucionParcial() {
-    if (!reclamoParcial) {
-      return;
-    }
-
-    setErrorParcial("");
-
-    const profesional =
-      montoProfesionalParcialNumero();
-
-    const cliente =
-      reembolsoClienteParcialNumero();
-
-    if (
-      !montoProfesionalParcial.trim()
-    ) {
-      setErrorParcial(
-        "Escribe cuánto recibirá el profesional."
-      );
-      return;
-    }
-
-    if (
-      !Number.isFinite(
-        profesional
-      ) ||
-      profesional < 0
-    ) {
-      setErrorParcial(
-        "El importe para el profesional no es válido."
-      );
-      return;
-    }
-
-    if (
-      profesional >
-      maxProfesionalParcial
-    ) {
-      setErrorParcial(
-        `El profesional no puede recibir más de $${maxProfesionalParcial.toFixed(
-          2
-        )}.`
-      );
-      return;
-    }
-
-    if (
-      profesional >
-      totalPagoParcial
-    ) {
-      setErrorParcial(
-        `El profesional no puede recibir más de los $${totalPagoParcial.toFixed(
-          2
-        )} disponibles.`
-      );
-      return;
-    }
-
-    if (!notaParcial.trim()) {
-      setErrorParcial(
-        "Escribe una nota explicando la resolución."
-      );
-      return;
-    }
-
-    const confirmar =
-      window.confirm(
-        `¿Confirmas esta resolución?\n\nProfesional: $${profesional.toFixed(
-          2
-        )}\nCliente: $${cliente.toFixed(
-          2
-        )}\nTotal: $${totalPagoParcial.toFixed(
-          2
-        )}`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    await resolverReclamo(
-      reclamoParcial,
-      "partial",
-      {
-        notes:
-          notaParcial.trim(),
-        providerAwardAmount:
-          profesional,
-        customerRefundAmount:
-          cliente,
-      }
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        direccion
+      )}`,
+      "_blank",
+      "noopener,noreferrer"
     );
   }
 
   /*
-    RESOLVER RECLAMO CON DECISIÓN ECONÓMICA
+    PROGRESO
   */
 
-  async function resolverReclamo(
-    reclamo: JobClaim,
-    action:
-      | "pay_provider"
-      | "refund_customer"
-      | "partial",
-    partialData?: {
-      notes: string;
-      providerAwardAmount: number;
-      customerRefundAmount: number;
-    }
-  ) {
-    setError("");
-    setMensaje("");
-
-    const estadoPlazo =
-      calcularEstadoPlazoProfesional(
-        reclamo.provider_response_deadline,
-        reclamo.provider_response
-      );
-
-    const requiereOverridePlazo =
-      !reclamo.provider_response &&
-      !estadoPlazo.vencido;
-
-    let overrideResponseWindow =
-      false;
-
-    if (requiereOverridePlazo) {
-      const confirmarAnticipado =
-        window.confirm(
-          `El profesional todavía está dentro de su plazo de 24 horas para responder (${estadoPlazo.texto}).\n\n¿Deseas resolver este reclamo ahora de todos modos?`
-        );
-
-      if (!confirmarAnticipado) {
-        return;
-      }
-
-      overrideResponseWindow =
-        true;
+  function numeroEtapa() {
+    if (
+      trabajo?.status ===
+      "completed"
+    ) {
+      return 6;
     }
 
-    let notes = "";
-    let providerAwardAmount:
-      number | undefined;
-    let customerRefundAmount:
-      number | undefined;
-
-    if (action === "pay_provider") {
-      const respuesta =
-        window.prompt(
-          "Escribe una nota explicando por qué el pago debe liberarse al profesional:"
-        );
-
-      if (respuesta === null) {
-        return;
-      }
-
-      notes =
-        respuesta.trim();
-
-      if (!notes) {
-        setError(
-          "Debes escribir una nota para resolver el reclamo."
-        );
-        return;
-      }
-
-      const confirmar =
-        window.confirm(
-          "¿Confirmas que deseas cerrar el reclamo y liberar al profesional el importe que le corresponde?"
-        );
-
-      if (!confirmar) {
-        return;
-      }
+    if (trabajo?.completion_review_status === "pending") {
+      return 5;
     }
 
-    if (action === "refund_customer") {
-      const respuesta =
-        window.prompt(
-          "Escribe una nota explicando por qué el cliente recibirá un reembolso completo:"
-        );
-
-      if (respuesta === null) {
-        return;
-      }
-
-      notes =
-        respuesta.trim();
-
-      if (!notes) {
-        setError(
-          "Debes escribir una nota para resolver el reclamo."
-        );
-        return;
-      }
-
-      const confirmar =
-        window.confirm(
-          "¿Confirmas que deseas cerrar el reclamo y reembolsar al cliente el total pagado?"
-        );
-
-      if (!confirmar) {
-        return;
-      }
+    if (
+      trabajo?.job_stage ===
+      "working"
+    ) {
+      return 4;
     }
 
-    if (action === "partial") {
-      if (!partialData) {
-        await abrirResolucionParcial(
-          reclamo
-        );
-        return;
-      }
-
-      notes =
-        partialData.notes;
-
-      providerAwardAmount =
-        partialData.providerAwardAmount;
-
-      customerRefundAmount =
-        partialData.customerRefundAmount;
+    if (
+      trabajo?.job_stage ===
+      "arrived"
+    ) {
+      return 3;
     }
 
-    setProcesandoReclamo(
-      reclamo.id
+    if (
+      trabajo?.job_stage ===
+      "on_the_way"
+    ) {
+      return 2;
+    }
+
+    return 1;
+  }
+
+  const reclamoActivoChat =
+    Boolean(
+      reclamo &&
+        (
+          reclamo.status === "open" ||
+          reclamo.status === "reviewing" ||
+          reclamo.status === "in_review"
+        )
     );
+
+  /*
+    Si RELYDO ya resolvió el reclamo, el chat NO vuelve a abrirse.
+    La resolución administrativa tiene prioridad sobre la ventana normal
+    de 12 horas que existe después de completar un trabajo sin reclamo.
+  */
+  const reclamoResueltoChat =
+    Boolean(
+      reclamo &&
+        !reclamoActivoChat &&
+        (
+          Boolean(reclamo.resolved_at) ||
+          reclamo.status === "resolved" ||
+          reclamo.status === "closed"
+        )
+    );
+
+  const chatDentroDe12Horas =
+    Boolean(
+      trabajo?.status ===
+        "completed" &&
+        trabajo.completed_at &&
+        ahora -
+          new Date(
+            trabajo.completed_at
+          ).getTime() <
+          12 * 60 * 60 * 1000
+    );
+
+  const chatPuedeEnviar =
+    Boolean(
+      trabajo &&
+        !reclamoActivoChat &&
+        !reclamoResueltoChat &&
+        (
+          trabajo.status ===
+            "in_progress" ||
+          chatDentroDe12Horas
+        )
+    );
+
+  function motivoChatBloqueado() {
+    if (reclamoActivoChat) {
+      return T("Chat bloqueado porque existe un reclamo activo. RELYDO Admin gestiona el caso desde este momento.", "Chat is blocked because there is an active claim. RELYDO Admin is managing the case from this point forward.");
+    }
+
+    if (reclamoResueltoChat) {
+      return T("Este reclamo ya fue resuelto por RELYDO. La comunicación de este trabajo quedó cerrada permanentemente.", "This claim has already been resolved by RELYDO. Communication for this job is now permanently closed.");
+    }
+
+    if (
+      trabajo?.status ===
+        "completed"
+    ) {
+      if (!trabajo.completed_at) {
+        return T("El trabajo está completado y el chat ya está cerrado.", "The job is completed and the chat is now closed.");
+      }
+
+      return T("El período de 12 horas después de completar el trabajo terminó. El historial permanece disponible.", "The 12-hour period after job completion has ended. The chat history remains available.");
+    }
+
+    if (
+      trabajo?.status ===
+        "cancelled"
+    ) {
+      return T("Este trabajo fue cancelado. El chat está cerrado.", "This job was cancelled. The chat is closed.");
+    }
+
+    return T("El chat estará disponible cuando seas el profesional contratado.", "Chat will be available when you are the hired professional.");
+  }
+
+  async function enviarMensajeChat() {
+    const texto =
+      mensajeChat.trim();
+
+    if (
+      !texto ||
+      !usuarioChatId ||
+      !trabajo ||
+      !chatPuedeEnviar
+    ) {
+      return;
+    }
+
+    setEnviandoMensajeChat(true);
+    setError("");
 
     try {
       const {
-        data: sessionData,
-        error: sessionError,
-      } =
-        await supabase.auth.getSession();
+        data,
+        error: insertError,
+      } = await supabase
+        .from("job_messages")
+        .insert({
+          request_id:
+            trabajo.id,
+          sender_id:
+            usuarioChatId,
+          sender_role:
+            "provider",
+          message:
+            texto,
+        })
+        .select(`
+          id,
+          request_id,
+          sender_id,
+          sender_role,
+          message,
+          read_at,
+          created_at
+        `)
+        .single();
 
-      if (
-        sessionError ||
-        !sessionData.session
-      ) {
+      if (insertError) {
         throw new Error(
-          "No pudimos verificar tu sesión de administrador."
+          `${T("No se pudo enviar el mensaje", "The message could not be sent")}: ${insertError.message}`
         );
       }
 
-      const response =
-        await fetch(
-          "/api/admin/claims/resolve",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${sessionData.session.access_token}`,
-            },
-            body: JSON.stringify({
-              claimId:
-                reclamo.id,
-              action,
-              notes,
-              providerAwardAmount,
-              customerRefundAmount,
-              overrideResponseWindow,
-            }),
-          }
+      setMensajeChat("");
+
+      if (data) {
+        const nuevo =
+          data as JobMessage;
+
+        setMensajesChat(
+          (actuales) =>
+            actuales.some(
+              (item) =>
+                item.id === nuevo.id
+            )
+              ? actuales
+              : [
+                  ...actuales,
+                  nuevo,
+                ]
         );
 
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "No se pudo resolver el reclamo."
-        );
+        void notificarEventoTrabajo("job_message_sent");
       }
-
-      if (
-        action === "pay_provider"
-      ) {
-        setMensaje(
-          `Reclamo resuelto. Se liberaron $${Number(
-            data.providerAwardAmount
-          ).toFixed(
-            2
-          )} al profesional.`
-        );
-      } else if (
-        action ===
-        "refund_customer"
-      ) {
-        setMensaje(
-          `Reclamo resuelto. Se reembolsaron $${Number(
-            data.customerRefundAmount
-          ).toFixed(
-            2
-          )} al cliente.`
-        );
-      } else {
-        setMensaje(
-          `Resolución parcial completada. Profesional: $${Number(
-            data.providerAwardAmount
-          ).toFixed(
-            2
-          )} · Cliente: $${Number(
-            data.customerRefundAmount
-          ).toFixed(
-            2
-          )}.`
-        );
-
-        setReclamoParcial(
-          null
-        );
-        setMontoProfesionalParcial(
-          ""
-        );
-        setNotaParcial(
-          ""
-        );
-        setErrorParcial(
-          ""
-        );
-        setTotalPagoParcial(
-          0
-        );
-        setMaxProfesionalParcial(
-          0
-        );
-      }
-
-      await cargarDatos(false);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo resolver el reclamo."
+          : T("No se pudo enviar el mensaje.", "The message could not be sent.")
       );
     } finally {
-      setProcesandoReclamo(
-        null
-      );
+      setEnviandoMensajeChat(false);
     }
   }
 
-
-  /*
-    NAVEGACIÓN RÁPIDA DEL ADMIN
-  */
-
-  function irASeccionAdmin(
-    id: string
-  ) {
-    window.setTimeout(() => {
-      document
-        .getElementById(id)
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 50);
+  if (cargando) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="rounded-2xl bg-white px-8 py-6 font-bold text-slate-700 shadow-xl">
+          {T("Cargando trabajo...", "Loading job...")}
+        </div>
+      </main>
+    );
   }
 
-  function abrirGestionProfesionales() {
-    if (gestionProfesionalesAbierta) {
-      setGestionProfesionalesAbierta(false);
+  if (
+    error &&
+    !trabajo
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-8 text-center shadow-xl">
+          <h1 className="text-2xl font-black text-red-700">
+            {T("Trabajo no disponible", "Job unavailable")}
+          </h1>
+
+          <p className="mt-4 text-slate-600">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/panel-profesional"
+              )
+            }
+            className="mt-6 rounded-xl bg-blue-700 px-6 py-3 font-bold text-white"
+          >
+            {T("Volver al panel", "Back to dashboard")}
+          </button>
+        </div>
+
+      </main>
+    );
+  }
+
+  if (!trabajo) {
+    return null;
+  }
+
+  const cambiosPresupuestoPagados =
+    cambiosPresupuesto.filter(
+      (cambio) =>
+        cambio.status === "accepted" &&
+        cambio.payment_status === "paid"
+    );
+
+  const adicionalServicioPagado =
+    Math.round(
+      (
+        cambiosPresupuestoPagados.reduce(
+          (total, cambio) =>
+            total +
+            Number(
+              cambio.additional_amount ||
+                0
+            ),
+          0
+        ) +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const comisionAdicionalProfesional =
+    Math.round(
+      (
+        cambiosPresupuestoPagados.reduce(
+          (total, cambio) =>
+            total +
+            Number(
+              cambio.additional_provider_commission_amount ||
+                0
+            ),
+          0
+        ) +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const netoAdicionalProfesional =
+    Math.round(
+      (
+        cambiosPresupuestoPagados.reduce(
+          (total, cambio) =>
+            total +
+            Number(
+              cambio.additional_provider_net_amount ||
+                0
+            ),
+          0
+        ) +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const valorServicioProfesional =
+    Math.round(
+      (
+        Number(
+          pago?.job_amount ||
+            oferta?.price ||
+            0
+        ) +
+        adicionalServicioPagado +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const comisionTotalProfesional =
+    Math.round(
+      (
+        Number(
+          pago?.provider_commission_amount ||
+            0
+        ) +
+        comisionAdicionalProfesional +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const netoTotalProfesional =
+    Math.round(
+      (
+        Number(
+          pago?.provider_net_amount ||
+            0
+        ) +
+        netoAdicionalProfesional +
+        Number.EPSILON
+      ) *
+        100
+    ) / 100;
+
+  const etapaActual =
+    numeroEtapa();
+
+  const cancelado =
+    trabajo.status ===
+    "cancelled";
+
+  const motivoCancelacion =
+    trabajo.cancellation_reason || "";
+
+  const canceladoPorRelydo =
+    cancelado &&
+    motivoCancelacion
+      .toLowerCase()
+      .includes("reclamo resuelto");
+
+  const contratado =
+    trabajo.status ===
+      "in_progress" &&
+    trabajo.preferred_provider_id ===
+      providerId;
+
+  const cambioPresupuestoPendiente =
+    cambiosPresupuesto.find(
+      (cambio) =>
+        cambio.status === "pending"
+    ) || null;
+
+  const ultimoCambioPresupuesto =
+    cambiosPresupuesto[0] || null;
+
+  const reclamoActivo =
+    !!reclamo &&
+    (
+      reclamo.status === "open" ||
+      reclamo.status === "reviewing" ||
+      reclamo.status === "in_review"
+    );
+
+  const profesionalYaRespondio =
+    !!reclamo &&
+    Boolean(
+      reclamo.provider_response ||
+      reclamo.provider_responded_at ||
+      evidenciasReclamo.length > 0
+    );
+
+  const puedeSolicitarCambioPresupuesto =
+    contratado &&
+    ["arrived", "working"].includes(trabajo.job_stage || "") &&
+    !reclamoActivo &&
+    trabajo.completion_review_status !== "pending" &&
+    !cambioPresupuestoPendiente;
+
+  const reclamoResuelto =
+    reclamo?.status === "resolved";
+
+  const compensacionPorReclamo =
+    reclamoResuelto
+      ? Number(
+          reclamo?.provider_award_amount || 0
+        )
+      : 0;
+
+  const reembolsoClientePorReclamo =
+    reclamoResuelto
+      ? Number(
+          reclamo?.customer_refund_amount || 0
+        )
+      : 0;
+
+  const compensacionMostrada =
+    canceladoPorRelydo &&
+    reclamoResuelto
+      ? compensacionPorReclamo
+      : Number(
+          pago?.cancellation_provider_amount || 0
+        );
+
+  const tiempoRespuestaReclamo =
+    reclamo
+      ? calcularTiempoRestante(
+          reclamo.provider_response_deadline,
+          language
+        )
+      : {
+          vencido: false,
+          texto: "",
+        };
+
+  void ahora;
+
+  const fotosVisor = [
+    ...fotos.map((foto, index) => ({
+      url: foto.file_url,
+      alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
+    })),
+    ...evidenciasFinales
+      .filter(
+        (item) =>
+          item.file_type === "image" &&
+          Boolean(item.signed_url)
+      )
+      .map((item, index) => ({
+        url: item.signed_url as string,
+        alt: `${T("Foto final del profesional", "Professional final photo")} ${index + 1}`,
+      })),
+  ];
+
+  const indiceFotoAbierta =
+    fotoAbierta
+      ? fotosVisor.findIndex(
+          (item) => item.url === fotoAbierta.url
+        )
+      : -1;
+
+  const cambiarFotoAbierta = (direccion: -1 | 1) => {
+    if (
+      fotosVisor.length < 2 ||
+      indiceFotoAbierta < 0
+    ) {
       return;
     }
 
-    setGestionProfesionalesAbierta(true);
-    irASeccionAdmin("profesionales-admin");
-  }
+    const siguienteIndice =
+      (indiceFotoAbierta + direccion + fotosVisor.length) %
+      fotosVisor.length;
 
-  /*
-    CERRAR SESIÓN
-  */
-
-  async function cerrarSesion() {
-    await supabase.auth.signOut();
-
-    router.replace(
-      "/login-admin"
+    setFotoAbierta(
+      fotosVisor[siguienteIndice]
     );
-  }
+  };
 
-  /*
-    CONTADORES
-  */
-
-  const totalActivos =
-    todosProviders.filter(
-      (provider) =>
-        provider.verified ===
-          true &&
-        provider.active ===
-          true
-    ).length;
-
-  const totalSuspendidos =
-    todosProviders.filter(
-      (provider) =>
-        provider.verified ===
-          true &&
-        provider.active !==
-          true
-    ).length;
-
-  const totalRechazados =
-    todosProviders.filter(
-      (provider) =>
-        provider.verification_status ===
-        "rejected"
-    ).length;
-
-  const totalPendientes =
-    todosProviders.filter(
-      (provider) =>
-        provider.verification_status ===
-        "pending"
-    ).length;
-
-
-  const totalDocumentosPendientesRevision =
-    documents.filter(
-      (doc) =>
-        doc.status === "pending" ||
-        doc.status === "submitted"
-    ).length;
-
-  const totalAlertasProfesionales =
-    totalPendientes + totalDocumentosPendientesRevision;
-
-  const profesionalesPorOficio = [
-    "plumbing",
-    "electrical",
-    "hvac",
-    "carpentry",
-    "painting",
-    "landscaping",
-    "cleaning",
-    "moving",
-    "other",
-  ]
-    .map((trade) => ({
-      trade,
-      nombre: nombreOficio(trade),
-      total: todosProviders.filter(
-        (provider) =>
-          provider.trade === trade
-      ).length,
-    }))
-    .filter(
-      (item) => item.total > 0
-    )
-    .sort(
-      (a, b) =>
-        b.total - a.total
-    );
-
-  const totalReclamosActivos =
-    reclamos.filter(
-      (reclamo) =>
-        reclamo.status === "open" ||
-        reclamo.status === "reviewing"
-    ).length;
-
-  const totalReclamosAbiertos =
-    reclamos.filter(
-      (reclamo) =>
-        reclamo.status === "open"
-    ).length;
-
-  const totalReclamosRevision =
-    reclamos.filter(
-      (reclamo) =>
-        reclamo.status === "reviewing"
-    ).length;
-
-  const totalReclamosCerrados =
-    reclamos.filter(
-      (reclamo) =>
-        reclamo.status === "resolved" ||
-        reclamo.status === "rejected"
-    ).length;
-
-  const totalOrdenesAbiertas =
-    solicitudesAdmin.filter(
-      (solicitud) =>
-        solicitud.status ===
-        "open"
-    ).length;
-
-  const totalOrdenesProgreso =
-    solicitudesAdmin.filter(
-      (solicitud) =>
-        solicitud.status ===
-        "in_progress"
-    ).length;
-
-  const totalOrdenesCompletadas =
-    solicitudesAdmin.filter(
-      (solicitud) =>
-        solicitud.status ===
-        "completed"
-    ).length;
-
-  const totalOrdenesCanceladas =
-    solicitudesAdmin.filter(
-      (solicitud) =>
-        solicitud.status ===
-        "cancelled"
-    ).length;
-
-  const reclamosFiltrados =
-    useMemo(
-      () => {
-        if (
-          filtroReclamo ===
-          "open"
-        ) {
-          return reclamos.filter(
-            (reclamo) =>
-              reclamo.status ===
-              "open"
-          );
-        }
-
-        if (
-          filtroReclamo ===
-          "reviewing"
-        ) {
-          return reclamos.filter(
-            (reclamo) =>
-              reclamo.status ===
-              "reviewing"
-          );
-        }
-
-        if (
-          filtroReclamo ===
-          "closed"
-        ) {
-          return reclamos.filter(
-            (reclamo) =>
-              reclamo.status ===
-                "resolved" ||
-              reclamo.status ===
-                "rejected"
-          );
-        }
-
-        return reclamos;
-      },
-      [
-        reclamos,
-        filtroReclamo,
-      ]
-    );
-
-  const ordenesFiltradas =
-    useMemo(
-      () => {
-        const texto =
-          buscandoOrden
-            .trim()
-            .toLowerCase();
-
-        return solicitudesAdmin.filter(
-          (solicitud) => {
-            if (
-              filtroOrden !==
-                "todas" &&
-              solicitud.status !==
-                filtroOrden
-            ) {
-              return false;
-            }
-
-            if (!texto) {
-              return true;
-            }
-
-            const profesional =
-              solicitud.preferred_provider_id
-                ? todosProviders.find(
-                    (provider) =>
-                      provider.user_id ===
-                      solicitud.preferred_provider_id
-                  )
-                : null;
-
-            const campos = [
-              solicitud.title,
-              solicitud.description,
-              solicitud.customer_name || "",
-              solicitud.customer_email || "",
-              solicitud.customer_phone || "",
-              solicitud.city,
-              solicitud.state,
-              solicitud.zip_code,
-              solicitud.id,
-              solicitud.customer_id || "",
-              solicitud.preferred_provider_id || "",
-              profesional?.business_name || "",
-              profesional?.trade || "",
-            ]
-              .join(" ")
-              .toLowerCase();
-
-            return campos.includes(
-              texto
-            );
-          }
-        );
-      },
-      [
-        solicitudesAdmin,
-        buscandoOrden,
-        filtroOrden,
-        todosProviders,
-      ]
-    );
-
-  /*
-    FILTRAR PROFESIONALES
-  */
-
-  const profesionalesFiltrados =
-    useMemo(
-      () => {
-        const texto =
-          buscando
-            .trim()
-            .toLowerCase();
-
-        return todosProviders.filter(
-          (provider) => {
-            /*
-              FILTRO ESTADO
-            */
-
-            let pasaFiltro =
-              true;
-
-            if (
-              filtro ===
-              "activos"
-            ) {
-              pasaFiltro =
-                provider.verified ===
-                  true &&
-                provider.active ===
-                  true;
-            }
-
-            if (
-              filtro ===
-              "suspendidos"
-            ) {
-              pasaFiltro =
-                provider.verified ===
-                  true &&
-                provider.active !==
-                  true;
-            }
-
-            if (
-              filtro ===
-              "pendientes"
-            ) {
-              pasaFiltro =
-                provider.verification_status ===
-                "pending";
-            }
-
-            if (
-              filtro ===
-              "rechazados"
-            ) {
-              pasaFiltro =
-                provider.verification_status ===
-                "rejected";
-            }
-
-            if (
-              !pasaFiltro
-            ) {
-              return false;
-            }
-
-            /*
-              BUSCADOR
-            */
-
-            if (!texto) {
-              return true;
-            }
-
-            const nombre =
-              (
-                provider.business_name ||
-                ""
-              ).toLowerCase();
-
-            const oficio =
-              nombreOficio(
-                provider.trade
-              ).toLowerCase();
-
-            const id =
-              provider.user_id.toLowerCase();
-
-            return (
-              nombre.includes(
-                texto
-              ) ||
-              oficio.includes(
-                texto
-              ) ||
-              id.includes(
-                texto
-              )
-            );
-          }
-        );
-      },
-      [
-        todosProviders,
-        buscando,
-        filtro,
-      ]
-    );
-
-  /*
-    CARGANDO
-  */
-
-  if (
-    verificandoAdmin
-  ) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-8 py-7 shadow-lg">
-
-          <p className="font-bold text-slate-800">
-            Verificando acceso de administrador...
-          </p>
-
-        </div>
-
-      </main>
-    );
-  }
-
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-8 py-7 shadow-lg">
-
-          <p className="font-bold text-slate-800">
-            Cargando panel...
-          </p>
-
-        </div>
-
-      </main>
-    );
-  }
+  const etapas = [
+    {
+      numero: 1,
+      icono: "🤝",
+      titulo: T("Contratado", "Hired"),
+      texto:
+        T("Aceptaste el trabajo", "You accepted the job"),
+    },
+    {
+      numero: 2,
+      icono: "🚗",
+      titulo: T("En camino", "On the way"),
+      texto:
+        T("Vas rumbo al lugar", "You are heading to the location"),
+    },
+    {
+      numero: 3,
+      icono: "📍",
+      titulo: T("Llegué", "Arrived"),
+      texto:
+        T("Has llegado al lugar", "You arrived at the location"),
+    },
+    {
+      numero: 4,
+      icono: "🛠️",
+      titulo:
+        T("Trabajo iniciado", "Work started"),
+      texto:
+        T("Comenzaste el trabajo", "You started the job"),
+    },
+    {
+      numero: 5,
+      icono: "🔎",
+      titulo: T("En revisión", "Under review"),
+      texto: T("Esperando aprobación del cliente", "Waiting for customer approval"),
+    },
+    {
+      numero: 6,
+      icono: "✅",
+      titulo: T("Completado", "Completed"),
+      texto: T("Trabajo terminado", "Job finished"),
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8">
+    <main className="min-h-screen bg-slate-50">
+      <div className="hidden" aria-hidden="true">
+        <NotificationsBell modo="profesional" />
+      </div>
 
-      <div className="mx-auto max-w-6xl">
 
-        {/* HEADER */}
+      {/* BARRA SUPERIOR */}
 
-        <div className="mb-6 rounded-3xl bg-blue-700 px-8 py-7 text-white shadow-lg">
-
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-
-            <div>
-
-              <div className="text-2xl font-black">
-                RELYDO
-              </div>
-
-              <h1 className="mt-2 text-3xl font-extrabold">
-                Panel de administrador
-              </h1>
-
-              <p className="mt-2 text-blue-100">
-                Verifica profesionales, supervisa su actividad y controla la plataforma.
-              </p>
-
+      <header className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 text-white shadow-lg">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-2xl">
+              🔧
             </div>
 
-            <div className="flex flex-col items-start gap-3 md:items-end">
+            <div>
+              <p className="text-2xl font-black tracking-tight">
+                RELYDO
+              </p>
 
-              <div className="rounded-xl bg-blue-800 px-4 py-2 text-sm font-semibold">
-                Administrador
+              <p className="text-xs font-semibold text-blue-200">
+                {T("Panel profesional", "Professional dashboard")}
+              </p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <p className="text-xs text-blue-200">
+              {T("Profesional", "Professional")}
+            </p>
+
+            <p className="font-bold">
+              {T("Mi cuenta", "My account")}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+
+        {/* VOLVER */}
+
+        <button
+          type="button"
+          onClick={() =>
+            router.push(
+              "/panel-profesional"
+            )
+          }
+          className="mb-6 flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
+        >
+          ← {T("Volver al panel", "Back to dashboard")}
+        </button>
+
+        {/* AVISO CANCELADO */}
+
+        {cancelado && (
+          <section className="mb-5 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 shadow-sm sm:px-5">
+            <div className="flex items-start gap-3 sm:items-center">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-lg font-black text-white">
+                ✕
               </div>
 
-              <div className="text-sm text-blue-100">
-                {adminEmail || "Administrador"}
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wider text-red-700">
+                  {T("Trabajo cancelado", "Job cancelled")}
+                </p>
+
+                <h2 className="mt-0.5 text-base font-black leading-tight text-red-950 sm:text-lg">
+                  {canceladoPorRelydo
+                    ? T("Trabajo cancelado por resolución de RELYDO", "Job cancelled by RELYDO resolution")
+                    : T("El cliente canceló este trabajo", "The customer cancelled this job")}
+                </h2>
+
+                <p className="mt-1 text-sm leading-5 text-red-800">
+                  {canceladoPorRelydo
+                    ? T("RELYDO resolvió el reclamo y cerró este trabajo. Ya no puedes continuar, actualizar el estado ni marcar el trabajo como completado.", "RELYDO resolved the claim and closed this job. You can no longer continue, update the status, or mark the job as completed.")
+                    : T("Esta solicitud ya no está activa. No puedes continuar, actualizar el estado ni marcar el trabajo como completado.", "This request is no longer active. You cannot continue, update the status, or mark the job as completed.")}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* AVISO RECLAMO ACTIVO */}
+
+        {reclamoActivo && (
+          <details open className="group mb-6">
+            <summary
+              className={`cursor-pointer list-none rounded-2xl border-2 px-5 py-4 shadow-sm ${
+                profesionalYaRespondio
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-amber-300 bg-amber-50"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className={`text-xs font-black uppercase tracking-wide ${
+                    profesionalYaRespondio ? "text-emerald-700" : "text-amber-700"
+                  }`}>
+                    {profesionalYaRespondio
+                      ? T("Respuesta enviada", "Response submitted")
+                      : T("Reclamo activo", "Active claim")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {profesionalYaRespondio
+                      ? T("Tu respuesta ya fue enviada a RELYDO", "Your response was submitted to RELYDO")
+                      : T("El cliente reportó un problema con este trabajo", "The customer reported a problem with this job")}
+                  </p>
+                </div>
+                <span className="text-xl text-slate-600 transition group-open:rotate-90">›</span>
+              </div>
+            </summary>
+            <div className="mt-3">
+          <section
+            className={`rounded-3xl border-2 p-7 shadow-lg ${
+              profesionalYaRespondio
+                ? "border-emerald-300 bg-emerald-50"
+                : "border-amber-300 bg-amber-50"
+            }`}
+          >
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl text-white ${
+                    profesionalYaRespondio
+                      ? "bg-emerald-600"
+                      : "bg-amber-500"
+                  }`}
+                >
+                  {profesionalYaRespondio ? "✅" : "⚠️"}
+                </div>
+
+                <div>
+                  <p
+                    className={`text-sm font-black uppercase tracking-[0.16em] ${
+                      profesionalYaRespondio
+                        ? "text-emerald-700"
+                        : "text-amber-700"
+                    }`}
+                  >
+                    {profesionalYaRespondio
+                      ? T("Respuesta enviada", "Response submitted")
+                      : T("Reclamo activo", "Active claim")}
+                  </p>
+
+                  <h2
+                    className={`mt-1 text-2xl font-black ${
+                      profesionalYaRespondio
+                        ? "text-emerald-950"
+                        : "text-amber-950"
+                    }`}
+                  >
+                    {profesionalYaRespondio
+                      ? T("Tu respuesta ya fue enviada a RELYDO", "Your response was submitted to RELYDO")
+                      : T("El cliente reportó un problema con este trabajo", "The customer reported a problem with this job")}
+                  </h2>
+
+                  <p
+                    className={`mt-2 max-w-3xl leading-7 ${
+                      profesionalYaRespondio
+                        ? "text-emerald-900"
+                        : "text-amber-900"
+                    }`}
+                  >
+                    {profesionalYaRespondio
+                      ? T("Tu respuesta y evidencia quedaron registradas. El pago permanece retenido mientras RELYDO revisa el caso y toma una decisión.", "Your response and evidence were recorded. The payment remains held while RELYDO reviews the case and makes a decision.")
+                      : T("El pago permanece retenido mientras RELYDO revisa el caso. No puedes marcar el trabajo como completado hasta que el reclamo sea resuelto.", "The payment remains held while RELYDO reviews the case. You cannot mark the job as completed until the claim is resolved.")}
+                  </p>
+
+                  {!profesionalYaRespondio && (
+                    <p className="mt-3 font-bold text-amber-900">
+                      {language === "es"
+                        ? `Tienes ${tiempoRespuestaReclamo.texto} para responder y adjuntar tu evidencia.`
+                        : `You have ${tiempoRespuestaReclamo.texto} to respond and attach your evidence.`}
+                    </p>
+                  )}
+
+                  {profesionalYaRespondio &&
+                    reclamo?.provider_responded_at && (
+                      <p className="mt-3 text-sm font-bold text-emerald-800">
+                        {T("Respuesta enviada", "Response submitted")}{" "}
+                        {formatearFechaHora(
+                          reclamo.provider_responded_at,
+                          language
+                        )}
+                      </p>
+                    )}
+                </div>
               </div>
 
               <button
                 type="button"
-                onClick={
-                  cerrarSesion
-                }
-                className="rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
-              >
-                Cerrar sesión
-              </button>
+                onClick={() => {
+                  const seccion =
+                    document.getElementById(
+                      "reclamo-profesional"
+                    );
 
+                  if (seccion) {
+                    seccion.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }
+                }}
+                className={`shrink-0 rounded-xl px-6 py-3.5 font-black text-white transition ${
+                  profesionalYaRespondio
+                    ? "bg-emerald-700 hover:bg-emerald-800"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                {profesionalYaRespondio
+                  ? T("Ver reclamo", "View claim")
+                  : T("Ver y responder reclamo", "View and respond to claim")}
+              </button>
+            </div>
+          </section>
+            </div>
+          </details>
+        )}
+
+        {/* DETALLE PRINCIPAL DESPLEGABLE */}
+
+        <details
+          open
+          className={
+            trabajo.status === "open"
+              ? "group rounded-3xl border border-slate-200 bg-white shadow-lg"
+              : "group"
+          }
+        >
+          <summary
+            className={
+              trabajo.status === "open"
+                ? "cursor-pointer list-none px-7 py-5 md:px-8"
+                : "hidden"
+            }
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                  {T("Detalle del trabajo", "Job details")}
+                </p>
+                <p className="mt-1 truncate text-lg font-black text-slate-950">
+                  {trabajo.title}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {trabajo.city}, {trabajo.state} {trabajo.zip_code}
+                </p>
+              </div>
+
+              <span className="shrink-0 text-2xl text-slate-500 transition group-open:rotate-90">
+                ›
+              </span>
+            </div>
+          </summary>
+
+          <div
+            className={
+              trabajo.status === "open"
+                ? "border-t border-slate-200 px-1 pb-1"
+                : ""
+            }
+          >
+        {/* CABECERA */}
+
+        <section
+          className={`p-5 sm:p-6 ${
+            trabajo.status === "open"
+              ? "bg-transparent"
+              : `rounded-3xl border bg-white shadow-lg ${
+                  cancelado
+                    ? "border-red-200"
+                    : "border-slate-200"
+                }`
+          }`}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1">
+              <div className="flex flex-wrap gap-2">
+
+                <span
+                  className={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-wide ${
+                    oferta?.status === "rejected"
+                      ? "bg-slate-200 text-slate-700"
+                      : cancelado
+                      ? "bg-red-600 text-white"
+                      : trabajo.status ===
+                        "completed"
+                      ? "bg-green-100 text-green-800"
+                      : trabajo.status ===
+                        "in_progress"
+                      ? "bg-green-600 text-white"
+                      : "bg-blue-700 text-white"
+                  }`}
+                >
+                  {oferta?.status === "rejected"
+                    ? T(
+                        "Presupuesto rechazado por el cliente",
+                        "Quote rejected by the customer"
+                      )
+                    : cancelado
+                    ? T("Cancelado", "Cancelled")
+                    : trabajo.status ===
+                      "completed"
+                    ? T("Completado", "Completed")
+                    : reclamoActivo
+                    ? T("Bajo revisión de RELYDO", "Under RELYDO review")
+                    : trabajo.status ===
+                      "in_progress"
+                    ? T("En progreso", "In progress")
+                    : T("Abierto", "Open")}
+                </span>
+
+                {contratado && (
+                  <span className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-2 text-xs font-black uppercase text-amber-800">
+                    {T("Contratado", "Hired")}
+                  </span>
+                )}
+              </div>
+
+              <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                {trabajo.title}
+              </h1>
+
+              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+                {trabajo.description}
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
+                <Info
+                  icono="📍"
+                  titulo={T("Ubicación", "Location")}
+                  valor={`${trabajo.city}, ${trabajo.state} ${trabajo.zip_code}`}
+                />
+
+                <Info
+                  icono="📅"
+                  titulo={T("Fecha preferida", "Preferred date")}
+                  valor={formatearFecha(
+                    trabajo.preferred_date,
+                    language
+                  )}
+                />
+
+                <Info
+                  icono="🕐"
+                  titulo={T("Hora preferida", "Preferred time")}
+                  valor={
+                    trabajo.preferred_time ||
+                    "Flexible"
+                  }
+                />
+
+                <Info
+                  icono="👤"
+                  titulo={T("Cliente", "Customer")}
+                  valor={
+                    trabajo.customer_name ||
+                    T("Cliente RELYDO", "RELYDO Customer")
+                  }
+                />
+              </div>
             </div>
 
+            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 lg:w-60">
+              <p className="text-center text-sm text-slate-500">
+                {T("ID del trabajo", "Job ID")}
+              </p>
+
+              <p className="mt-2 text-center font-black text-slate-900">
+                #
+                {trabajo.id
+                  .slice(0, 10)
+                  .toUpperCase()}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  window.scrollTo({
+                    top:
+                      document.body
+                        .scrollHeight,
+                    behavior:
+                      "smooth",
+                  })
+                }
+                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2.5 font-extrabold text-white transition hover:bg-blue-800"
+              >
+                {T("Ver detalle completo", "View full details")}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* GRID PRINCIPAL */}
+
+        <div className={`grid grid-cols-1 ${
+          trabajo.status === "open" ? "gap-0" : "mt-5 gap-4 sm:mt-6 sm:gap-6"
+        } ${
+          (trabajo.status === "completed" || trabajo.status === "cancelled") ? "" : "xl:grid-cols-2"
+        }`}>
+
+          {/* IZQUIERDA */}
+
+          <div className={trabajo.status === "open" || trabajo.status === "completed" || trabajo.status === "cancelled" ? "space-y-4 sm:space-y-6" : "contents"}>
+
+            {/* SEGUIMIENTO */}
+
+            {trabajo.status !==
+              "open" &&
+              !ofertaRechazadaPorCliente && (
+                <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
+                  <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-700">{T("Seguimiento del trabajo", "Job tracking")}</p>
+                        <p className="mt-1 font-extrabold text-slate-950">
+                          {cancelado
+                            ? `🚫 ${T("Trabajo cancelado", "Job cancelled")}`
+                            : `✅ ${T("Trabajo completado", "Job completed")}`}
+                        </p>
+                        {(trabajo.submitted_for_review_at || trabajo.completion_approved_at) && (
+                          <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-500">
+                            {trabajo.submitted_for_review_at && (
+                              <p>
+                                {T("Enviado a revisión", "Sent for review")}:{" "}
+                                {formatearFechaHora(trabajo.submitted_for_review_at, language)}
+                              </p>
+                            )}
+                            {trabajo.completion_approved_at && (
+                              <p>
+                                {T("Aprobado por el cliente", "Approved by customer")}:{" "}
+                                {formatearFechaHora(trabajo.completion_approved_at, language)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    </div>
+                  </summary>
+                  <div className="mt-3">
+              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
+
+                <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                    📋
+                  </span>
+                  {T("Seguimiento del trabajo", "Job tracking")}
+                </h2>
+
+                {cancelado ? (
+                  <div className="mt-6 rounded-2xl border-2 border-red-200 bg-red-50 p-6 text-center">
+                    <div className="text-5xl">
+                      🚫
+                    </div>
+
+                    <h3 className="mt-4 text-2xl font-black text-red-900">
+                      {T("Trabajo cancelado", "Job cancelled")}
+                    </h3>
+
+                    <p className="mt-2 text-red-700">
+                      {canceladoPorRelydo
+                        ? T("RELYDO canceló el trabajo como resultado de la resolución del reclamo. El seguimiento ha sido detenido.", "RELYDO cancelled the job as a result of the claim resolution. Tracking has been stopped.")
+                        : T("El cliente canceló la solicitud y el seguimiento ha sido detenido.", "The customer cancelled the request and tracking has been stopped.")}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-5 grid grid-cols-3 gap-x-1 gap-y-5 sm:mt-6 sm:grid-cols-6 sm:gap-y-0">
+                      {etapas.map(
+                        (etapa) => {
+                          const activo =
+                            etapa.numero <=
+                            etapaActual;
+
+                          return (
+                            <div
+                              key={
+                                etapa.numero
+                              }
+                              className="relative text-center"
+                            >
+                              {etapa.numero <
+                                6 && (
+                                <div
+                                  className={`absolute left-1/2 top-5 hidden h-1 w-full sm:block ${
+                                    etapa.numero === 5
+                                      ? etapaActual >= 6
+                                        ? "bg-green-500"
+                                        : "bg-green-200"
+                                      : etapa.numero <
+                                        etapaActual
+                                      ? "bg-blue-600"
+                                      : "bg-slate-200"
+                                  }`}
+                                />
+                              )}
+
+                              <div
+                                className={`relative z-10 mx-auto flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-black ${
+                                  activo
+                                    ? "border-blue-700 bg-blue-700 text-white"
+                                    : "border-slate-300 bg-white text-slate-500"
+                                }`}
+                              >
+                                {
+                                  etapa.numero
+                                }
+                              </div>
+
+                              <div className="relative z-10 mt-3 text-xl">
+                                {
+                                  etapa.icono
+                                }
+                              </div>
+
+                              <p className="mt-1 text-xs font-black text-slate-900 sm:text-sm">
+                                {
+                                  etapa.titulo
+                                }
+                              </p>
+
+                              <p className="mt-1 hidden text-xs text-slate-500 sm:block">
+                                {
+                                  etapa.texto
+                                }
+                              </p>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    {contratado && (
+                      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                              {T("Acciones del trabajo", "Job actions")}
+                            </p>
+                            <h3 className="mt-1 text-lg font-black text-slate-950">
+                              {reclamoActivo
+                                ? T("Orden bajo revisión de RELYDO", "Order under RELYDO review")
+                                : etapaActual ===
+                                  1
+                                ? T("Trabajo contratado", "Job hired")
+                                : etapaActual ===
+                                  2
+                                ? T("Vas en camino", "You are on the way")
+                                : etapaActual ===
+                                  3
+                                ? T("Ya llegaste", "You arrived")
+                                : etapaActual === 4
+                                ? T("Trabajo iniciado", "Work started")
+                                : etapaActual === 5
+                                ? T("Trabajo en revisión", "Job under review")
+                                : T("Trabajo completado", "Job completed")}
+                            </h3>
+
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
+                              {T("El cliente puede ver el avance del servicio en tiempo real.", "The customer can see the service progress in real time.")}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
+                          {etapaActual ===
+                            1 && (
+                            <button
+                              type="button"
+                              disabled={
+                                cambiandoEstado
+                              }
+                              onClick={() =>
+                                cambiarEtapa(
+                                  "on_the_way"
+                                )
+                              }
+                              className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:opacity-50"
+                            >
+                              🚗 {T("Estoy en camino", "I'm on my way")}
+                            </button>
+                          )}
+
+                          {etapaActual ===
+                            2 && (
+                            <button
+                              type="button"
+                              disabled={
+                                cambiandoEstado
+                              }
+                              onClick={() =>
+                                cambiarEtapa(
+                                  "arrived"
+                                )
+                              }
+                              className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:opacity-50"
+                            >
+                              {T("📍 Ya llegué", "📍 I arrived")}
+                            </button>
+                          )}
+
+                          {etapaActual ===
+                            3 &&
+                            ultimoCambioPresupuesto?.status !== "rejected" && (
+                            <div>
+                              <button
+                                type="button"
+                                disabled={
+                                  cambiandoEstado ||
+                                  ultimoCambioPresupuesto?.status === "pending" ||
+                                  (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status !== "paid"
+                                  )
+                                }
+                                onClick={async () => {
+                                  if (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status === "paid"
+                                  ) {
+                                    setMostrarConfirmacionInicio(false);
+                                    setError("");
+                                    setMensaje("");
+                                    await cambiarEtapa("working");
+                                    return;
+                                  }
+
+                                  setMostrarConfirmacionInicio(true);
+                                  setError("");
+                                  setMensaje("");
+                                }}
+                                className={`h-12 w-full rounded-xl px-4 font-extrabold transition disabled:cursor-not-allowed ${
+                                  ultimoCambioPresupuesto?.status === "pending" ||
+                                  (
+                                    ultimoCambioPresupuesto?.status === "accepted" &&
+                                    ultimoCambioPresupuesto.payment_status !== "paid"
+                                  )
+                                    ? "bg-slate-300 text-slate-500"
+                                    : "bg-amber-500 text-white hover:bg-amber-600"
+                                }`}
+                              >
+                                {T("🛠️ Iniciar trabajo", "🛠️ Start job")}
+                              </button>
+
+                              {ultimoCambioPresupuesto?.status === "pending" && (
+                                <p className="mt-2 text-center text-xs font-bold text-slate-600">
+                                  {T(
+                                    "Esperando respuesta del cliente",
+                                    "Waiting for customer response"
+                                  )}
+                                </p>
+                              )}
+
+                              {ultimoCambioPresupuesto?.status === "accepted" &&
+                                ultimoCambioPresupuesto.payment_status !== "paid" && (
+                                <p className="mt-2 text-center text-xs font-bold text-amber-700">
+                                  {T(
+                                    "Esperando confirmación de pago",
+                                    "Waiting for payment confirmation"
+                                  )}
+                                </p>
+                              )}
+
+                              {ultimoCambioPresupuesto?.status === "accepted" &&
+                                ultimoCambioPresupuesto.payment_status === "paid" && (
+                                <p className="mt-2 text-center text-xs font-bold text-emerald-700">
+                                  {T(
+                                    "✓ Pago confirmado",
+                                    "✓ Payment confirmed"
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {etapaActual === 3 &&
+                            !ultimoCambioPresupuesto &&
+                            mostrarConfirmacionInicio && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-950">
+                                {T(
+                                  "Confirma el alcance antes de comenzar",
+                                  "Confirm the job scope before starting"
+                                )}
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-amber-900">
+                                {T(
+                                  "¿El trabajo que encontraste coincide razonablemente con lo presupuestado?",
+                                  "Does the job you found reasonably match the agreed quote?"
+                                )}
+                              </p>
+
+                              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  disabled={cambiandoEstado}
+                                  onClick={async () => {
+                                    setMostrarConfirmacionInicio(false);
+                                    await cambiarEtapa("working");
+                                  }}
+                                  className="h-12 rounded-xl bg-amber-500 px-4 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                                >
+                                  {T("Sí, iniciar trabajo", "Yes, start job")}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={!puedeSolicitarCambioPresupuesto}
+                                  onClick={() => {
+                                    setMostrarConfirmacionInicio(false);
+                                    setMostrarCambioPresupuesto(true);
+                                    setError("");
+                                    setMensaje("");
+                                  }}
+                                  className="h-12 rounded-xl border-2 border-violet-300 bg-white px-4 font-extrabold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {T(
+                                    "Necesito ajustar el presupuesto",
+                                    "I need to adjust the quote"
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {etapaActual === 4 && !reclamoActivo && trabajo.status === "in_progress" ? (
+                            <div className="sm:col-span-2 xl:col-span-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)] xl:items-start">
+                            <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+                              <div className="grid min-w-0 grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                                <div className="min-w-0 p-5 md:p-6">
+                                  <div className="flex min-w-0 items-start gap-4">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-2xl">
+                                      📷
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <h3 className="text-lg font-black text-slate-950">
+                                        {T("Evidencia final (obligatoria)", "Final evidence (required)")}
+                                      </h3>
+                                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                                        {T("Sube al menos 1 foto del trabajo terminado.", "Upload at least 1 photo of the completed work.")}
+                                      </p>
+                                      <p className="mt-1 text-sm text-slate-500">
+                                        {T("1 foto obligatoria · hasta 10 fotos y 2 videos", "1 photo required · up to 10 photos and 2 videos")}
+                                      </p>
+
+                                      {evidenciasFinales.length > 0 && (
+                                        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                                          <p className="text-sm font-black text-emerald-800">
+                                            {language === "es"
+                                              ? `✓ Evidencia guardada: ${evidenciasFinales.filter((item) => item.file_type === "image").length} foto(s) · ${evidenciasFinales.filter((item) => item.file_type === "video").length} video(s)`
+                                              : `✓ Evidence saved: ${evidenciasFinales.filter((item) => item.file_type === "image").length} photo(s) · ${evidenciasFinales.filter((item) => item.file_type === "video").length} video(s)`}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      <div className="mt-5">
+                                        <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-blue-300 bg-white px-4 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
+                                          {T("📷 Abrir cámara", "📷 Open camera")}
+                                          <input
+                                            type="file"
+                                            accept="image/*,video/*"
+                                            capture="environment"
+                                            onChange={seleccionarEvidenciaFinal}
+                                            className="hidden"
+                                          />
+                                        </label>
+
+                                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                                          {T("La evidencia final debe capturarse desde la cámara del dispositivo para reducir el uso de fotos o videos de otros trabajos.", "Final evidence must be captured with the device camera to reduce the use of photos or videos from other jobs.")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {archivosEvidenciaFinal.length > 0 && (
+                                    <div className="mt-5 space-y-2 border-t border-slate-100 pt-5">
+                                      {archivosEvidenciaFinal.map((file, index) => (
+                                        <div
+                                          key={`${file.name}-${index}`}
+                                          className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3"
+                                        >
+                                          <p className="min-w-0 truncate text-sm font-bold text-slate-800">
+                                            {file.type.startsWith("video/") ? "🎥" : "📷"} {file.name}
+                                          </p>
+                                          <button
+                                            type="button"
+                                            onClick={() => quitarEvidenciaFinalSeleccionada(index)}
+                                            className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1 text-sm font-bold text-red-700 hover:bg-red-50"
+                                          >
+                                            Quitar
+                                          </button>
+                                        </div>
+                                      ))}
+
+                                      <button
+                                        type="button"
+                                        disabled={subiendoEvidenciaFinal}
+                                        onClick={guardarEvidenciaFinal}
+                                        className="w-full rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {subiendoEvidenciaFinal ? T("Guardando evidencia...", "Saving evidence...") : T("Guardar evidencia", "Save evidence")}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="min-w-0 border-t border-slate-100 bg-slate-50/70 p-5 xl:border-l xl:border-t-0 md:p-6">
+                                  <div className="flex items-center gap-3">
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xl">🛡️</span>
+                                    <h3 className="font-black text-slate-950">{T("Consejo RELYDO", "RELYDO tip")}</h3>
+                                  </div>
+                                  <p className="mt-4 text-sm leading-7 text-slate-600">
+                                    {T("La evidencia protege tanto al cliente como a ti. Asegúrate de mostrar claramente el resultado final.", "The evidence protects both the customer and you. Make sure the final result is clearly shown.")}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                              <div className="space-y-3">
+                          {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
+                            <button
+                              type="button"
+                              disabled={
+                                completando ||
+                                reclamoActivo ||
+                                !evidenciasFinales.some((item) => item.file_type === "image")
+                              }
+                              onClick={pasarARevision}
+                              className={`min-h-16 w-full rounded-xl border-2 px-5 py-3 font-extrabold transition disabled:cursor-not-allowed ${
+                                reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
+                                  ? "border-slate-200 bg-slate-200 text-slate-500"
+                                  : "border-green-600 bg-green-600 text-white hover:bg-green-700"
+                              }`}
+                            >
+                              {reclamoActivo
+                                ? T("🔒 Bloqueado por reclamo", "🔒 Blocked by claim")
+                                : !evidenciasFinales.some((item) => item.file_type === "image")
+                                ? T("🔒 Pasar a revisión\nSube y guarda al menos 1 foto para habilitar", "🔒 Submit for review\nUpload and save at least 1 photo to enable")
+                                : completando
+                                ? T("Enviando a revisión...", "Submitting for review...")
+                                : T("✓ Pasar a revisión", "✓ Submit for review")}
+                            </button>
+                          )}
+
+                          {trabajo.completion_review_status === "pending" && (
+                            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-900">
+                                {reclamoActivo
+                                  ? T("⚖️ Orden bajo revisión de RELYDO", "⚖️ Order under RELYDO review")
+                                  : T("⏳ Trabajo en revisión del cliente", "⏳ Job under customer review")}
+                              </p>
+                              <p className="mt-1 text-sm text-amber-800">
+                                {reclamoActivo
+                                  ? T("Se abrió un reclamo para este trabajo. RELYDO está revisando el caso antes de tomar una decisión.", "A claim was opened for this job. RELYDO is reviewing the case before making a decision.")
+                                  : T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}
+                              </p>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              document
+                                .getElementById(
+                                  "chat-relydo"
+                                )
+                                ?.scrollIntoView({
+                                  behavior:
+                                    "smooth",
+                                  block:
+                                    "start",
+                                })
+                            }
+                            className="mt-3 h-12 w-full rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            {T("💬 Chat con el cliente", "💬 Chat with customer")}
+                          </button>
+
+
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                          {etapaActual === 4 && trabajo.completion_review_status !== "pending" && (
+                            <button
+                              type="button"
+                              disabled={
+                                completando ||
+                                reclamoActivo ||
+                                !evidenciasFinales.some((item) => item.file_type === "image")
+                              }
+                              onClick={pasarARevision}
+                              className={`rounded-2xl border-2 px-5 py-4 font-extrabold transition disabled:cursor-not-allowed ${
+                                reclamoActivo || !evidenciasFinales.some((item) => item.file_type === "image")
+                                  ? "border-slate-200 bg-slate-200 text-slate-500"
+                                  : "border-green-600 bg-green-600 text-white hover:bg-green-700"
+                              }`}
+                            >
+                              {reclamoActivo
+                                ? T("🔒 Bloqueado por reclamo", "🔒 Blocked by claim")
+                                : !evidenciasFinales.some((item) => item.file_type === "image")
+                                ? T("🔒 Pasar a revisión\nSube y guarda al menos 1 foto para habilitar", "🔒 Submit for review\nUpload and save at least 1 photo to enable")
+                                : completando
+                                ? T("Enviando a revisión...", "Submitting for review...")
+                                : T("✓ Pasar a revisión", "✓ Submit for review")}
+                            </button>
+                          )}
+
+                          {trabajo.completion_review_status === "pending" && (
+                            <div className="sm:col-span-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
+                              <p className="font-black text-amber-900">
+                                {reclamoActivo
+                                  ? T("⚖️ Orden bajo revisión de RELYDO", "⚖️ Order under RELYDO review")
+                                  : T("⏳ Trabajo en revisión del cliente", "⏳ Job under customer review")}
+                              </p>
+                              <p className="mt-1 text-sm text-amber-800">
+                                {reclamoActivo
+                                  ? T("Se abrió un reclamo para este trabajo. RELYDO está revisando el caso antes de tomar una decisión.", "A claim was opened for this job. RELYDO is reviewing the case before making a decision.")
+                                  : T("Ya enviaste la evidencia final. El cliente debe aprobar el trabajo o reportar un problema.", "You already submitted the final evidence. The customer must approve the job or report a problem.")}
+                              </p>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              document
+                                .getElementById(
+                                  "chat-relydo"
+                                )
+                                ?.scrollIntoView({
+                                  behavior:
+                                    "smooth",
+                                  block:
+                                    "start",
+                                })
+                            }
+                            className="h-12 rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            {T("💬 Chat con el cliente", "💬 Chat with customer")}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={abrirDireccion}
+                            className="sm:col-span-2 h-12 rounded-xl border-2 border-blue-300 bg-white px-4 font-extrabold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            {T("📍 Ver dirección en el mapa", "📍 View address on map")}
+                          </button>
+
+
+                            </>
+                          )}
+
+                          {etapaActual <
+                            4 &&
+                            !(etapaActual === 3 && ultimoCambioPresupuesto?.status === "rejected") && (
+                            <div className="sm:col-span-2 mt-2 rounded-2xl border border-red-200 bg-red-50 p-4">
+
+                              <p className="text-sm font-bold text-red-900">
+                                {T("¿Tuviste un problema y ya no puedes realizar este trabajo?", "Did you have a problem and can no longer perform this job?")}
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-red-700">
+                                {T("Puedes liberarlo para que la solicitud vuelva a estar disponible para otro profesional.", "You can release it so the request becomes available to another professional.")}
+                              </p>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  liberandoTrabajo ||
+                                  cambiandoEstado ||
+                                  completando
+                                }
+                                onClick={
+                                  liberarTrabajo
+                                }
+                                className="mt-4 w-full rounded-xl border-2 border-red-600 bg-white px-5 py-3 font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {liberandoTrabajo
+                                  ? T("Liberando trabajo...", "Releasing job...")
+                                  : T("⚠️ No puedo realizar este trabajo", "⚠️ I can’t perform this job")}
+                              </button>
+
+                            </div>
+                          )}
+                        </div>
+
+                        {cambioPresupuestoPendiente && (
+                          <div className="mt-6 rounded-2xl border-2 border-violet-200 bg-violet-50 p-5">
+                            <p className="text-sm font-black uppercase tracking-wide text-violet-700">
+                              {T("⏳ Cambio de presupuesto pendiente", "⏳ Budget change pending")}
+                            </p>
+
+                            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <div className="rounded-xl bg-white p-4">
+                                <p className="text-xs font-bold text-slate-500">
+                                  {T("Total anterior", "Previous total")}
+                                </p>
+                                <p className="mt-1 text-xl font-black text-slate-950">
+                                  ${Number(
+                                    cambioPresupuestoPendiente.original_amount
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl bg-white p-4">
+                                <p className="text-xs font-bold text-slate-500">
+                                  {T("Adicional solicitado", "Additional amount requested")}
+                                </p>
+                                <p className="mt-1 text-xl font-black text-violet-700">
+                                  +${Number(
+                                    cambioPresupuestoPendiente.additional_amount
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl bg-white p-4">
+                                <p className="text-xs font-bold text-slate-500">
+                                  {T("Nuevo total propuesto", "New proposed total")}
+                                </p>
+                                <p className="mt-1 text-xl font-black text-slate-950">
+                                  ${Number(
+                                    cambioPresupuestoPendiente.new_total_amount
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <p className="mt-4 text-sm leading-6 text-violet-900">
+                              {T("El cliente debe aceptar o rechazar este cambio antes de que puedas enviar otro.", "The customer must accept or reject this change before you can send another one.")}
+                            </p>
+                          </div>
+                        )}
+
+                        {!cambioPresupuestoPendiente &&
+                          ultimoCambioPresupuesto &&
+                          ultimoCambioPresupuesto.status !== "pending" && (
+                          <div className={`mt-6 rounded-2xl border p-5 ${
+                            ultimoCambioPresupuesto.status === "accepted"
+                              ? "border-emerald-200 bg-emerald-50"
+                              : ultimoCambioPresupuesto.status === "rejected"
+                              ? "border-red-200 bg-red-50"
+                              : "border-slate-200 bg-slate-50"
+                          }`}>
+                            <p className={`font-black ${
+                              ultimoCambioPresupuesto.status === "accepted"
+                                ? "text-emerald-900"
+                                : ultimoCambioPresupuesto.status === "rejected"
+                                ? "text-red-900"
+                                : "text-slate-900"
+                            }`}>
+                              {ultimoCambioPresupuesto.status === "accepted" &&
+                              ultimoCambioPresupuesto.payment_status === "paid"
+                                ? T("✓ Último cambio aceptado y pagado", "✓ Latest change accepted and paid")
+                                : ultimoCambioPresupuesto.status === "accepted"
+                                ? T("⏳ Último cambio aceptado · pendiente de pago", "⏳ Latest change accepted · payment pending")
+                                : ultimoCambioPresupuesto.status === "rejected"
+                                ? T("✕ Último cambio rechazado por el cliente", "✕ Latest change rejected by the customer")
+                                : T("Último cambio de presupuesto cancelado", "Latest budget change cancelled")}
+                            </p>
+
+                            <p className="mt-2 text-sm text-slate-700">
+                              {T("Adicional", "Additional")}: ${Number(
+                                ultimoCambioPresupuesto.additional_amount
+                              ).toFixed(2)} · {T("Nuevo total", "New total")}: ${Number(
+                                ultimoCambioPresupuesto.new_total_amount
+                              ).toFixed(2)}
+                            </p>
+
+                            {ultimoCambioPresupuesto.status === "rejected" &&
+                              etapaActual === 3 && (
+                              <div className="mt-4 border-t border-red-200 pt-4">
+                                <p className="text-sm font-bold text-red-900">
+                                  {T(
+                                    "¿Qué deseas hacer ahora?",
+                                    "What would you like to do now?"
+                                  )}
+                                </p>
+
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      cambiandoEstado ||
+                                      liberandoTrabajo ||
+                                      completando
+                                    }
+                                    onClick={() => cambiarEtapa("working")}
+                                    className="rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {T(
+                                      "🛠️ Continuar con el presupuesto original",
+                                      "🛠️ Continue with the original quote"
+                                    )}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      liberandoTrabajo ||
+                                      cambiandoEstado ||
+                                      completando
+                                    }
+                                    onClick={liberarTrabajo}
+                                    className="rounded-xl border-2 border-red-600 bg-white px-4 py-3 font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {liberandoTrabajo
+                                      ? T(
+                                          "Liberando trabajo...",
+                                          "Releasing job..."
+                                        )
+                                      : T(
+                                          "⚠️ No puedo continuar con el presupuesto original",
+                                          "⚠️ I can’t continue with the original quote"
+                                        )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {ultimoCambioPresupuesto.status === "accepted" &&
+                              ultimoCambioPresupuesto.payment_status === "paid" && (
+                              <p className="mt-2 text-sm font-bold text-emerald-800">
+                                {T("Pago adicional confirmado por Stripe. Neto adicional para ti:", "Additional payment confirmed by Stripe. Additional net amount for you:")} $
+                                {Number(
+                                  ultimoCambioPresupuesto.additional_provider_net_amount ||
+                                    0
+                                ).toFixed(2)}.
+                              </p>
+                            )}
+
+                            {ultimoCambioPresupuesto.status === "accepted" &&
+                              ultimoCambioPresupuesto.payment_status !== "paid" && (
+                              <p className="mt-2 text-sm font-bold text-amber-700">
+                                {T("El cliente aceptó el cambio, pero el pago adicional todavía no está confirmado.", "The customer accepted the change, but the additional payment has not been confirmed yet.")}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {mostrarCambioPresupuesto &&
+                          (etapaActual === 3 || etapaActual === 4) &&
+                          !cambioPresupuestoPendiente && (
+                          <form
+                            onSubmit={
+                              enviarCambioPresupuesto
+                            }
+                            className="mt-6 rounded-2xl border-2 border-violet-300 bg-white p-5"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-black uppercase tracking-wide text-violet-700">
+                                  {T("💰 Cambio de presupuesto", "💰 Budget change")}
+                                </p>
+
+                                <h3 className="mt-1 text-xl font-black text-slate-950">
+                                  {T("Solicitar un monto adicional", "Request an additional amount")}
+                                </h3>
+
+                                <p className="mt-2 text-sm leading-6 text-slate-600">
+                                  {T("Explica qué cambió. El cliente verá el total anterior, el adicional y el nuevo total antes de decidir.", "Explain what changed. The customer will see the previous total, the additional amount, and the new total before deciding.")}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMostrarCambioPresupuesto(
+                                    false
+                                  );
+                                  setError("");
+                                }}
+                                className="rounded-lg px-3 py-2 font-black text-slate-500 hover:bg-slate-100"
+                              >
+                                ✕
+                              </button>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="text-sm font-black text-slate-800">
+                                  {T("Motivo", "Reason")}
+                                </label>
+
+                                <select
+                                  value={
+                                    motivoCambioPresupuesto
+                                  }
+                                  onChange={(e) =>
+                                    setMotivoCambioPresupuesto(
+                                      e.target.value
+                                    )
+                                  }
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-violet-500"
+                                >
+                                  <option value="">
+                                    {T("Selecciona un motivo", "Select a reason")}
+                                  </option>
+                                  <option value="problema_mayor">
+                                    {T("El problema es mayor de lo esperado", "The problem is bigger than expected")}
+                                  </option>
+                                  <option value="trabajo_adicional">
+                                    {T("Se necesita trabajo adicional", "Additional work is needed")}
+                                  </option>
+                                  <option value="materiales_adicionales">
+                                    {T("Se necesitan materiales adicionales", "Additional materials are needed")}
+                                  </option>
+                                  <option value="otro">
+                                    {T("Otro motivo", "Other reason")}
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="text-sm font-black text-slate-800">
+                                  {T("Monto adicional", "Additional amount")}
+                                </label>
+
+                                <div className="mt-2 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-violet-500">
+                                  <span className="flex items-center bg-slate-50 px-4 font-black text-slate-600">
+                                    $
+                                  </span>
+
+                                  <input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={
+                                      montoAdicional
+                                    }
+                                    onChange={(e) =>
+                                      setMontoAdicional(
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="0.00"
+                                    className="w-full px-4 py-3 font-bold text-slate-950 outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4">
+                              <label className="text-sm font-black text-slate-800">
+                                {T("Explicación", "Explanation")}
+                              </label>
+
+                              <textarea
+                                value={
+                                  descripcionCambioPresupuesto
+                                }
+                                onChange={(e) =>
+                                  setDescripcionCambioPresupuesto(
+                                    e.target.value
+                                  )
+                                }
+                                rows={4}
+                                placeholder={T("Explica qué descubriste, qué trabajo adicional hace falta y por qué cambia el precio.", "Explain what you discovered, what additional work is needed, and why the price changes.")}
+                                className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-violet-500"
+                              />
+                            </div>
+
+                            <div className="mt-4">
+                              <label className="text-sm font-black text-slate-800">
+                                {T("Fotos o videos (opcional)", "Photos or videos (optional)")}
+                              </label>
+
+                              <input
+                                type="file"
+                                multiple
+                                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                                onChange={
+                                  seleccionarArchivosCambioPresupuesto
+                                }
+                                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:font-bold file:text-slate-900"
+                              />
+
+                              <p className="mt-2 text-xs text-slate-500">
+                                {T("Máximo 10 fotos y 2 videos. Cada archivo debe pesar 50 MB o menos.", "Maximum 10 photos and 2 videos. Each file must be 50 MB or less.")}
+                              </p>
+                            </div>
+
+                            {archivosCambioPresupuesto.length > 0 && (
+                              <div className="mt-4 space-y-2">
+                                {archivosCambioPresupuesto.map(
+                                  (file, index) => (
+                                    <div
+                                      key={`${file.name}-${index}`}
+                                      className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-bold text-slate-800">
+                                          {file.type.startsWith("video/")
+                                            ? "🎥"
+                                            : "📷"}{" "}
+                                          {language === "en"
+                                            ? file.name.replace(/^Captura de pantalla/i, "Screenshot")
+                                            : file.name}
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          quitarArchivoCambioPresupuesto(
+                                            index
+                                          )
+                                        }
+                                        className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-black text-red-700 hover:bg-red-50"
+                                      >
+                                        {T("Quitar", "Remove")}
+                                      </button>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
+
+                            <div className="mt-5 rounded-2xl bg-violet-50 p-4">
+                              <div className="flex items-center justify-between gap-4">
+                                <span className="font-bold text-violet-900">
+                                  {T("Precio actual", "Current price")}
+                                </span>
+                                <strong className="text-violet-950">
+                                  ${Number(
+                                    cambiosPresupuesto.find(
+                                      (cambio) =>
+                                        cambio.status === "accepted"
+                                    )?.new_total_amount ??
+                                    pago?.job_amount ??
+                                    oferta?.price ??
+                                    0
+                                  ).toFixed(2)}
+                                </strong>
+                              </div>
+
+                              <div className="mt-2 flex items-center justify-between gap-4">
+                                <span className="font-bold text-violet-900">
+                                  {T("Adicional solicitado", "Additional amount requested")}
+                                </span>
+                                <strong className="text-violet-700">
+                                  +${Number(
+                                    montoAdicional || 0
+                                  ).toFixed(2)}
+                                </strong>
+                              </div>
+
+                              <div className="mt-3 border-t border-violet-200 pt-3">
+                                <div className="flex items-center justify-between gap-4">
+                                  <span className="font-black text-violet-950">
+                                    {T("Nuevo total propuesto", "New proposed total")}
+                                  </span>
+                                  <strong className="text-xl text-violet-950">
+                                    ${(
+                                      Number(
+                                        cambiosPresupuesto.find(
+                                          (cambio) =>
+                                            cambio.status === "accepted"
+                                        )?.new_total_amount ??
+                                        pago?.job_amount ??
+                                        oferta?.price ??
+                                        0
+                                      ) +
+                                      Number(
+                                        montoAdicional || 0
+                                      )
+                                    ).toFixed(2)}
+                                  </strong>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={
+                                enviandoCambioPresupuesto
+                              }
+                              className="mt-5 w-full rounded-xl bg-violet-600 px-5 py-3.5 font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {enviandoCambioPresupuesto
+                                ? T("Enviando cambio...", "Sending change...")
+                                : T("Enviar cambio al cliente", "Send change to customer")}
+                            </button>
+
+                            <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                              {T("El precio no cambia automáticamente. El cliente debe aceptar la solicitud antes de que RELYDO pueda cobrar el monto adicional.", "The price does not change automatically. The customer must accept the request before RELYDO can charge the additional amount.")}
+                            </p>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+
+                  </div>
+                </details>
+            )}
+
+        {/* RECLAMO / EVIDENCIA DEL PROFESIONAL */}
+
+        {reclamo && (
+          <details open className="group mt-6 xl:col-span-2" id="reclamo-profesional">
+            <summary className="cursor-pointer list-none rounded-2xl border-2 border-rose-200 bg-rose-50 px-5 py-4 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-rose-700">
+                    {T("⚠️ Reclamo del cliente", "⚠️ Customer claim")}
+                  </p>
+                  <p className="mt-1 font-extrabold text-slate-950">
+                    {profesionalYaRespondio
+                      ? T("Respuesta enviada al reclamo", "Claim response submitted")
+                      : T("Reclamo activo", "Active claim")}
+                  </p>
+                </div>
+                <span className="text-xl text-rose-700 transition group-open:rotate-90">›</span>
+              </div>
+            </summary>
+            <div className="mt-3">
+          <section
+            className="rounded-3xl border-2 border-rose-200 bg-white p-6 shadow-lg md:p-7"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-rose-700">
+                  {T("⚠️ Reclamo del cliente", "⚠️ Customer claim")}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black text-slate-950">
+                  {profesionalYaRespondio
+                    ? T("Respuesta enviada al reclamo", "Claim response submitted")
+                    : reclamo.status === "open" ||
+                      reclamo.status === "reviewing" ||
+                      reclamo.status === "in_review"
+                    ? T("Adjuntar evidencia al reclamo", "Attach evidence to claim")
+                    : T("Historial del reclamo", "Claim history")}
+                </h2>
+
+                <p className="mt-2 max-w-3xl text-slate-600">
+                  {profesionalYaRespondio
+                    ? T("Tu respuesta quedó registrada. Ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your response was recorded. You can no longer add, remove, or modify information for this claim.")
+                    : reclamo.status === "open" ||
+                      reclamo.status === "reviewing" ||
+                      reclamo.status === "in_review"
+                    ? T("Puedes enviar una sola respuesta con fotos o videos para que RELYDO tenga evidencia de ambas partes antes de resolver el reclamo.", "You can submit one response with photos or videos so RELYDO has evidence from both parties before resolving the claim.")
+                    : T("Consulta los detalles, la evidencia y la resolución final de este reclamo.", "Review the details, evidence, and final resolution of this claim.")}
+                </p>
+              </div>
+
+              <span
+                className={`w-fit rounded-full px-4 py-2 text-sm font-black ${
+                  reclamo.status === "open"
+                    ? "bg-red-100 text-red-800"
+                    : reclamo.status === "reviewing"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-green-100 text-green-800"
+                }`}
+              >
+                {reclamo.status === "open"
+                  ? T("Abierto", "Open")
+                  : reclamo.status === "reviewing"
+                  ? T("En revisión", "Under review")
+                  : "Cerrado"}
+              </span>
+            </div>
+
+            {(reclamo.status === "open" ||
+              reclamo.status === "reviewing" ||
+              reclamo.status === "in_review") &&
+              !profesionalYaRespondio && (
+              <div
+                className={`mt-5 rounded-2xl border p-5 ${
+                  tiempoRespuestaReclamo.vencido
+                    ? "border-red-300 bg-red-50"
+                    : "border-amber-300 bg-amber-50"
+                }`}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p
+                      className={`text-sm font-black uppercase tracking-wide ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-700"
+                          : "text-amber-700"
+                      }`}
+                    >
+                      {T("Tiempo para responder", "Time to respond")}
+                    </p>
+
+                    <p
+                      className={`mt-1 text-2xl font-black ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-950"
+                          : "text-amber-950"
+                      }`}
+                    >
+                      {tiempoRespuestaReclamo.texto}
+                    </p>
+
+                    <p
+                      className={`mt-2 text-sm ${
+                        tiempoRespuestaReclamo.vencido
+                          ? "text-red-800"
+                          : "text-amber-800"
+                      }`}
+                    >
+                      {tiempoRespuestaReclamo.vencido
+                        ? T("Ya no puedes enviar nueva evidencia desde el panel. Admin revisará el reclamo con la información disponible.", "You can no longer submit new evidence from the dashboard. Admin will review the claim using the available information.")
+                        : T("Tienes 24 horas desde que se abrió el reclamo para enviar tu respuesta, fotos o videos.", "You have 24 hours from when the claim was opened to submit your response, photos, or videos.")}
+                    </p>
+                  </div>
+
+                  {reclamo.provider_response_deadline && (
+                    <div className="rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
+                      <p className="font-bold text-slate-500">
+                        {T("Fecha límite", "Deadline")}
+                      </p>
+                      <p className="mt-1 font-black text-slate-900">
+                        {formatearFechaHora(
+                          reclamo.provider_response_deadline,
+                          language
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-5">
+              <p className="text-sm font-bold text-rose-700">
+                {T("Motivo del cliente", "Customer reason")}
+              </p>
+
+              <p className="mt-2 font-black text-rose-950">
+                {claimReasonText(language, reclamo.reason)}
+              </p>
+
+              {reclamo.description && (
+                <p className="mt-3 whitespace-pre-wrap leading-7 text-rose-900">
+                  {reclamo.description}
+                </p>
+              )}
+            </div>
+
+            {evidenciasReclamo.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="font-black text-slate-900">
+                  {T("Evidencia que ya enviaste", "Evidence you already submitted")}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  {evidenciasReclamo.filter(
+                    (item) =>
+                      item.file_type === "image"
+                  ).length}{" "}
+                  {T("foto(s)", "photo(s)")} ·{" "}
+                  {evidenciasReclamo.filter(
+                    (item) =>
+                      item.file_type === "video"
+                  ).length}{" "}
+                  {T("video(s)", "video(s)")}
+                </p>
+              </div>
+            )}
+
+            {(reclamo.status === "open" ||
+              reclamo.status === "reviewing") &&
+              !profesionalYaRespondio &&
+              !tiempoRespuestaReclamo.vencido && (
+              <>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-black text-slate-900">
+                        {T("Fotos o videos", "Photos or videos")}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-600">
+                        {T("Hasta 10 fotos y 2 videos en total. Máximo 50 MB por archivo.", "Up to 10 photos and 2 videos total. Maximum 50 MB per file.")}
+                      </p>
+                    </div>
+
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
+                      📎 {T("Adjuntar archivos", "Attach files")}
+
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                        onChange={
+                          seleccionarArchivosReclamo
+                        }
+                        disabled={
+                          subiendoEvidencia
+                        }
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {archivosReclamo.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {archivosReclamo.map(
+                        (file, index) => (
+                          <div
+                            key={`${file.name}-${file.size}-${index}`}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-900">
+                                {file.type.startsWith(
+                                  "video/"
+                                )
+                                  ? "🎥"
+                                  : "🖼️"}{" "}
+                                {file.name}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {(file.size /
+                                  1024 /
+                                  1024).toFixed(
+                                  2
+                                )}{" "}
+                                MB
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={
+                                subiendoEvidencia
+                              }
+                              onClick={() =>
+                                quitarArchivoReclamo(
+                                  index
+                                )
+                              }
+                              className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                  <label className="mb-2 block font-black text-slate-900">
+                    {T("Explicación de la evidencia *", "Evidence explanation *")}
+                  </label>
+
+                  <p className="mb-3 text-sm text-slate-600">
+                    {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar este reclamo.", "Describe what the photos or videos show and what RELYDO should consider when reviewing this claim.")}
+                  </p>
+
+                  <textarea
+                    value={explicacionEvidencia}
+                    onChange={(e) =>
+                      setExplicacionEvidencia(
+                        e.target.value
+                      )
+                    }
+                    rows={5}
+                    maxLength={1500}
+                    disabled={subiendoEvidencia}
+                    placeholder={T("Ejemplo: Estas fotos muestran que el trabajo sí fue terminado y que el daño reportado por el cliente ya existía antes de comenzar...", "Example: These photos show that the work was completed and that the damage reported by the customer already existed before the job started...")}
+                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
+                  />
+
+                  <p className="mt-2 text-right text-sm text-slate-500">
+                    {explicacionEvidencia.length}/1500
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={
+                    subiendoEvidencia ||
+                    archivosReclamo.length ===
+                      0 ||
+                    !explicacionEvidencia.trim()
+                  }
+                  onClick={
+                    subirEvidenciaReclamo
+                  }
+                  className="mt-5 w-full rounded-xl bg-rose-700 px-6 py-4 text-lg font-black text-white shadow transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {subiendoEvidencia
+                    ? T("Subiendo evidencia...", "Uploading evidence...")
+                    : T("Enviar evidencia al reclamo", "Submit evidence to claim")}
+                </button>
+
+                <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                  {T("Una vez enviada, la evidencia quedará asociada al reclamo para revisión de RELYDO.", "Once submitted, the evidence will be linked to the claim for RELYDO review.")}
+                </p>
+              </>
+            )}
+
+            {!profesionalYaRespondio &&
+              tiempoRespuestaReclamo.vencido && (
+                <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5">
+                  <p className="font-black text-red-900">
+                    {T("⏰ Plazo de respuesta vencido", "⏰ Response deadline expired")}
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-red-800">
+                    {T("Ya no puedes agregar comentarios, fotos o videos a este reclamo. RELYDO lo revisará con la evidencia disponible.", "You can no longer add comments, photos, or videos to this claim. RELYDO will review it using the available evidence.")}
+                  </p>
+                </div>
+              )}
+
+            {profesionalYaRespondio && (
+              <div className="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
+                <p className="font-black text-emerald-900">
+                  {T("✅ Tu respuesta ya fue enviada", "✅ Your response has already been submitted")}
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-emerald-800">
+                  {T("La evidencia y tu explicación quedaron registradas para revisión de RELYDO. Por seguridad, ya no puedes agregar, quitar ni modificar información de este reclamo.", "Your evidence and explanation were recorded for RELYDO review. For security, you can no longer add, remove, or modify information for this claim.")}
+                </p>
+
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
+                    {T("Tu explicación", "Your explanation")}
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                    {reclamo.provider_response ||
+                      T("El profesional envió evidencia para responder al reclamo.", "The professional submitted evidence in response to the claim.")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {reclamo.status !== "open" &&
+              reclamo.status !== "reviewing" &&
+              reclamo.status !== "in_review" && (
+                <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
+                  <p className="font-black text-green-900">
+                    {T("✅ Reclamo resuelto", "✅ Claim resolved")}
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-green-800">
+                    {cancelado
+                      ? T(
+                          "RELYDO cerró este reclamo y dio por finalizado el trabajo. El servicio no continuará. La resolución financiera indicada es definitiva.",
+                          "RELYDO closed this claim and ended the job. The service will not continue. The financial resolution shown is final."
+                        )
+                      : T(
+                          "RELYDO cerró este reclamo. El trabajo fue autorizado para continuar y ya puedes completar el servicio normalmente.",
+                          "RELYDO closed this claim. The job was authorized to continue and you can now complete the service normally."
+                        )}
+                  </p>
+
+                  {reclamo.resolution_notes && (
+                    <div className="mt-4 rounded-xl border border-green-200 bg-white p-4">
+                      <p className="text-xs font-black uppercase tracking-wide text-green-700">
+                        {T("Resolución de RELYDO", "RELYDO resolution")}
+                      </p>
+
+                      <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                        {resolutionNoteText(language, reclamo.resolution_notes)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+          </section>
+            </div>
+          </details>
+        )}
+
+
+            {/* INFORMACION */}
+
+            <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group">
+              <summary className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-extrabold text-slate-950">📝 {T("Información del trabajo", "Job information")}</p>
+                    <p className="mt-1 text-sm text-slate-600">{trabajo.city}, {trabajo.state}</p>
+                  </div>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className="mt-3">
+            <section
+              className={
+                trabajo.status === "open"
+                  ? "border-t border-slate-200 bg-transparent p-6"
+                  : "rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"
+              }
+            >
+
+              <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                  📝
+                </span>
+                {T("Información del trabajo", "Job information")}
+              </h2>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 p-5">
+
+                <p className="font-black text-slate-900">
+                  {T("Descripción del problema", "Problem description")}
+                </p>
+
+                <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-600">
+                  {trabajo.description}
+                </p>
+
+                {trabajo.address_line1 && trabajo.status !== "cancelled" && (
+                  <>
+                    <div className="my-5 border-t border-slate-200" />
+
+                    <p className="font-black text-slate-900">
+                      {T("Dirección del servicio", "Service address")}
+                    </p>
+
+                    <p className="mt-2 text-slate-600">
+                      {
+                        trabajo.address_line1
+                      }
+                      ,{" "}
+                      {
+                        trabajo.city
+                      }
+                      ,{" "}
+                      {
+                        trabajo.state
+                      }{" "}
+                      {
+                        trabajo.zip_code
+                      }
+                    </p>
+                  </>
+                )}
+
+                {trabajo.status === "cancelled" && (
+                  <>
+                    <div className="my-5 border-t border-slate-200" />
+
+                    <p className="font-black text-slate-900">
+                      {T("Ubicación del servicio", "Service location")}
+                    </p>
+
+                    <p className="mt-2 text-slate-600">
+                      {trabajo.city}, {trabajo.state} {trabajo.zip_code}
+                    </p>
+
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      {T(
+                        "La dirección exacta se oculta después de la cancelación.",
+                        "The exact address is hidden after cancellation."
+                      )}
+                    </p>
+                  </>
+                )}
+              </div>
+            </section>
+              </div>
+            </details>
           </div>
 
+          {/* DERECHA */}
+
+          <div className={trabajo.status === "open" || trabajo.status === "completed" || trabajo.status === "cancelled" ? "space-y-4 sm:space-y-6" : "contents"}>
+
+            {/* FOTOS */}
+
+            {(fotos.length > 0 || evidenciasFinales.length > 0) && (
+              <details
+                open={trabajo.status !== "completed" && trabajo.status !== "cancelled"}
+                className="group"
+              >
+                <summary
+                  className="cursor-pointer list-none rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-slate-950">
+                        📷 {T("Evidencia fotográfica", "Photo evidence")}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {fotos.length} {T("del cliente", "from customer")} · {evidenciasFinales.filter((item) => item.file_type === "image").length} {T("del profesional", "from professional")}
+                      </p>
+                    </div>
+                    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+
+                <div className="mt-3">
+                  <section
+                    className={
+                      trabajo.status === "open"
+                        ? "border-t border-slate-200 bg-transparent p-6 lg:border-l"
+                        : "rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"
+                    }
+                  >
+                    {fotos.length > 0 && (
+                      <div>
+                        <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">📷</span>
+                          {T("Fotos del cliente", "Customer photos")}
+                          <span className="text-slate-500">({fotos.length})</span>
+                        </h2>
+
+                        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {fotos.map((foto, index) => (
+                            <button
+                              key={foto.id}
+                              type="button"
+                              onClick={() =>
+                                setFotoAbierta({
+                                  url: foto.file_url,
+                                  alt: `${T("Foto del cliente", "Customer photo")} ${index + 1}`,
+                                })
+                              }
+                              className="group cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                            >
+                              <img
+                                src={foto.file_url}
+                                alt={`${T("Foto del cliente", "Customer photo")} ${index + 1}`}
+                                className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {evidenciasFinales.length > 0 && (
+                      <div className={fotos.length > 0 ? "mt-7 border-t border-slate-200 pt-7" : ""}>
+                        <h2 className="flex items-center gap-3 text-xl font-black text-slate-950">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">✓</span>
+                          {T("Evidencia final del trabajo terminado por el Pro", "Final evidence of the job completed by the Pro")}
+                          <span className="text-slate-500">({evidenciasFinales.length})</span>
+                        </h2>
+
+                        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {evidenciasFinales.map((item, index) => {
+                            const mediaUrl = item.signed_url;
+
+                            if (!mediaUrl) {
+                              return null;
+                            }
+
+                            if (item.file_type === "video") {
+                              return (
+                                <video
+                                  key={item.id}
+                                  src={mediaUrl}
+                                  controls
+                                  className="h-32 w-full rounded-2xl border border-slate-200 bg-black object-cover sm:h-40 lg:h-44"
+                                />
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() =>
+                                  setFotoAbierta({
+                                    url: mediaUrl,
+                                    alt: `${T("Foto final del profesional", "Professional final photo")} ${index + 1}`,
+                                  })
+                                }
+                                className="group cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-left"
+                              >
+                                <img
+                                  src={mediaUrl}
+                                  alt={`${T("Foto final del profesional", "Professional final photo")} ${index + 1}`}
+                                  className="h-32 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-40 lg:h-44"
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </details>
+            )}
+
+            {/* COMPROBANTE / PRESUPUESTO */}
+
+            {oferta && (
+              <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group xl:col-span-2">
+                <summary className="cursor-pointer list-none rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-extrabold text-emerald-950">💵 {T("Comprobante del servicio", "Service receipt")}</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-800">
+                        {pago
+                          ? cancelado
+                            ? `$${compensacionMostrada.toFixed(2)} ${T("compensación final", "final compensation")} · ${T("Resolución procesada", "Resolution processed")}`
+                            : `$${Number(pago.provider_net_amount).toFixed(2)} ${T("neto a recibir", "net to receive")} · ${T("Pago registrado", "Payment recorded")}`
+                          : `$${Number(oferta.price).toFixed(2)}`}
+                      </p>
+                    </div>
+                    <span className="text-xl text-emerald-700 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
+                <div className="mt-3">
+                  <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
+                <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm ring-1 ring-slate-200">
+                          🧾
+                        </span>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                            RELYDO
+                          </p>
+                          <h2 className="text-xl font-black text-slate-950">
+                            {pago
+                              ? cancelado
+                                ? canceladoPorRelydo
+                                  ? T("Resolución financiera de RELYDO", "RELYDO financial resolution")
+                                  : T("Compensación por cancelación", "Cancellation compensation")
+                                : T("Comprobante del servicio", "Service receipt")
+                              : T("Resumen de tu presupuesto", "Your quote summary")}
+                          </h2>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {T("Trabajo", "Job")}
+                      </p>
+                      <p className="mt-1 font-mono text-sm font-bold text-slate-700">
+                        #{trabajo.id.slice(0, 8).toUpperCase()}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatearFechaHora(oferta.created_at, language)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {pago ? (
+                    cancelado ? (
+                      <>
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                          <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+                            {canceladoPorRelydo
+                              ? T("Trabajo cancelado por resolución de RELYDO", "Job cancelled by RELYDO resolution")
+                              : T("Trabajo cancelado por el cliente", "Job cancelled by the customer")}
+                          </p>
+
+                          <div className="mt-4 flex items-end justify-between gap-4 rounded-xl bg-white p-5 ring-1 ring-amber-200">
+                            <div>
+                              <p className="text-sm font-black uppercase tracking-wide text-slate-500">
+                                {canceladoPorRelydo
+                                  ? T("Compensación definida por RELYDO", "Compensation determined by RELYDO")
+                                  : T("Compensación por cancelación", "Cancellation compensation")}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {canceladoPorRelydo
+                                  ? T("Importe asignado al profesional en la resolución final del reclamo.", "Amount assigned to the professional in the final claim resolution.")
+                                  : T("Importe que te corresponde por la etapa alcanzada antes de la cancelación.", "Amount owed to you based on the stage reached before cancellation.")}
+                              </p>
+                            </div>
+
+                            <p className="text-3xl font-black tracking-tight text-emerald-700">
+                              ${compensacionMostrada.toFixed(2)}
+                            </p>
+                          </div>
+
+                          {canceladoPorRelydo &&
+                            reclamoResuelto && (
+                              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                                  {T("Resultado del reclamo", "Claim result")}
+                                </p>
+
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <div className="rounded-lg bg-white p-3">
+                                    <p className="text-xs font-bold text-slate-500">
+                                      {T("Tu compensación", "Your compensation")}
+                                    </p>
+                                    <p className="mt-1 text-lg font-black text-emerald-700">
+                                      ${compensacionPorReclamo.toFixed(2)}
+                                    </p>
+                                  </div>
+
+                                  <div className="rounded-lg bg-white p-3">
+                                    <p className="text-xs font-bold text-slate-500">
+                                      {T("Reembolso al cliente", "Customer refund")}
+                                    </p>
+                                    <p className="mt-1 text-lg font-black text-blue-800">
+                                      ${reembolsoClientePorReclamo.toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {reclamo?.resolution_notes && (
+                                  <div className="mt-3 rounded-lg bg-white p-3">
+                                    <p className="text-xs font-bold text-slate-500">
+                                      {T("Resolución de RELYDO", "RELYDO resolution")}
+                                    </p>
+                                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                                      {resolutionNoteText(language, reclamo.resolution_notes)}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                          {Number(pago.cancellation_penalty_percent || 0) > 0 && (
+                            <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-white px-4 py-3">
+                              <span className="text-sm font-semibold text-slate-600">
+                                {T("Etapa de cancelación", "Cancellation stage")}
+                              </span>
+                              <span className="text-sm font-black text-slate-900">
+                                {pago.cancellation_stage === "on_the_way"
+                                  ? T("En camino", "On the way")
+                                  : pago.cancellation_stage === "arrived"
+                                  ? T("Llegaste al lugar", "Arrived")
+                                  : T("Antes de iniciar", "Before starting")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {cambiosPresupuestoPagados.length > 0 && (
+                            <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+                              <p className="text-sm font-black text-violet-900">
+                                {T("Cambio de presupuesto incluido", "Budget change included")}
+                              </p>
+                              <p className="mt-1 text-xs font-bold leading-5 text-violet-700">
+                                {language === "es"
+                                  ? `Este comprobante incluye ${cambiosPresupuestoPagados.length} cambio${cambiosPresupuestoPagados.length === 1 ? "" : "s"} pagado${cambiosPresupuestoPagados.length === 1 ? "" : "s"} por $${adicionalServicioPagado.toFixed(2)} adicionales. Tu neto adicional es $${netoAdicionalProfesional.toFixed(2)}.`
+                                  : `This receipt includes ${cambiosPresupuestoPagados.length} paid budget change${cambiosPresupuestoPagados.length === 1 ? "" : "s"} for an additional $${adicionalServicioPagado.toFixed(2)}. Your additional net amount is $${netoAdicionalProfesional.toFixed(2)}.`}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-sm">
+                              ✓
+                            </span>
+                            <div>
+                              <p className="text-sm font-black text-emerald-900">
+                                {T("Compensación procesada", "Compensation processed")}
+                              </p>
+                              <p className="text-xs text-emerald-700">
+                                {T("Este es el importe final correspondiente a esta cancelación.", "This is the final amount for this cancellation.")}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
+                            {T("Procesado", "Processed")}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-2">
+                          <div className="flex items-center justify-between gap-4 border-b border-dashed border-slate-300 py-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-600">
+                                {T("Valor del servicio", "Service value")}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {T("Presupuesto aceptado por el cliente", "Quote accepted by the customer")}
+                              </p>
+                            </div>
+                            <p className="text-lg font-black text-slate-950">
+                              ${valorServicioProfesional.toFixed(2)}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-4 border-b border-dashed border-slate-300 py-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-600">
+                                {T("Tarifa de servicio RELYDO", "RELYDO service fee")}
+                              </p>
+                            </div>
+                            <p className="font-bold text-slate-700">
+                              ${comisionTotalProfesional.toFixed(2)}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-4 py-5">
+                            <div>
+                              <p className="text-sm font-black uppercase tracking-wide text-slate-500">
+                                {T("Total a recibir", "Total to receive")}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {T("Neto después de la tarifa RELYDO", "Net after RELYDO fee")}
+                              </p>
+                            </div>
+                            <p className="text-3xl font-black tracking-tight text-slate-950">
+                              ${netoTotalProfesional.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-sm">
+                              ✓
+                            </span>
+                            <div>
+                              <p className="text-sm font-black text-emerald-900">
+                                {T("Pago del cliente registrado", "Customer payment recorded")}
+                              </p>
+                              <p className="text-xs text-emerald-700">
+                                {T("Tu importe neto ya está calculado.", "Your net amount has already been calculated.")}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
+                            {T("Registrado", "Recorded")}
+                          </span>
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-600">
+                            {T("Precio estimado", "Estimated price")}
+                          </p>
+                          <p
+                            className={`mt-1 text-xs font-bold ${
+                              oferta.status === "rejected"
+                                ? "text-red-600"
+                                : oferta.status === "selected"
+                                ? "text-green-600"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {oferta.status === "rejected"
+                              ? T(
+                                  "Rechazado por el cliente",
+                                  "Rejected by customer"
+                                )
+                              : oferta.status === "selected"
+                              ? T(
+                                  "Aceptado por el cliente",
+                                  "Accepted by customer"
+                                )
+                              : T(
+                                  "Pendiente de aceptación del cliente",
+                                  "Pending customer acceptance"
+                                )}
+                          </p>
+                        </div>
+                        <p className="text-2xl font-black text-slate-950">
+                          ${Number(oferta.price).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-6">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                      {T("Detalles del servicio", "Service details")}
+                    </p>
+
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold text-slate-500">
+                          {T("Oficio / categoría", "Trade / category")}
+                        </p>
+                        <p className="mt-1 font-black text-slate-900">
+                          {serviceLabel(serviceSlug, language)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold text-slate-500">
+                          {T("Tiempo para llegar", "Time to arrival")}
+                        </p>
+                        <p className="mt-1 font-black text-slate-900">
+                          {mostrarMinutos(oferta.arrival_minutes, language)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold text-slate-500">
+                          {T("Duración estimada", "Estimated duration")}
+                        </p>
+                        <p className="mt-1 font-black text-slate-900">
+                          {mostrarMinutos(oferta.estimated_job_minutes, language)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-slate-200 p-5">
+                    <p className="text-sm font-black text-slate-800">
+                      {T("Mensaje para el cliente", "Message to customer")}
+                    </p>
+                    <div className="mt-3 rounded-xl bg-slate-50 p-4 leading-6 text-slate-700">
+                      {oferta.message || T("Sin mensaje adicional.", "No additional message.")}
+                    </div>
+                  </div>
+
+                  {cancelado ? (
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
+                      ❌{" "}
+                      {canceladoPorRelydo
+                        ? T(
+                            "Trabajo cancelado por resolución de RELYDO.",
+                            "Job cancelled by RELYDO resolution."
+                          )
+                        : T(
+                            "El cliente canceló este trabajo.",
+                            "The customer cancelled this job."
+                          )}
+                    </div>
+                  ) : !pago ? (
+                    oferta.status === "rejected" ? (
+                      <div className="mt-4 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-xl">
+                            ❌
+                          </div>
+
+                          <div>
+                            <p className="text-base font-black text-red-900">
+                              {T(
+                                "Presupuesto rechazado",
+                                "Quote rejected"
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-sm font-semibold leading-6 text-red-700">
+                              {T(
+                                "El cliente rechazó tu presupuesto.",
+                                "The customer rejected your quote."
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`mt-4 rounded-xl border p-4 text-sm font-bold ${
+                          oferta.status === "selected"
+                            ? "border-green-200 bg-green-50 text-green-800"
+                            : "border-blue-200 bg-blue-50 text-blue-800"
+                        }`}
+                      >
+                        {oferta.status === "selected"
+                          ? T(
+                              "✅ Presupuesto aceptado por el cliente.",
+                              "✅ Quote accepted by the customer."
+                            )
+                          : T(
+                              "✓ Presupuesto enviado. Esperando decisión del cliente.",
+                              "✓ Quote sent. Waiting for the customer’s decision."
+                            )}
+                      </div>
+                    )
+                  ) : null}
+
+                  {pago && (
+                    <p className="mt-5 text-center text-xs leading-5 text-slate-400">
+                      {T("Este comprobante resume el valor del servicio y el importe neto correspondiente al profesional.", "This receipt summarizes the service value and the professional’s net amount.")}
+                    </p>
+                  )}
+                </div>
+              </section>
+                </div>
+              </details>
+            )}
+          </div>
         </div>
+
+        {/* CHAT PRIVADO RELYDO */}
+
+        {trabajo.status !==
+          "open" &&
+          trabajo.preferred_provider_id ===
+            providerId && (
+            <details open={trabajo.status !== "completed" && trabajo.status !== "cancelled"} className="group mt-6">
+              <summary className="cursor-pointer list-none rounded-2xl bg-slate-950 px-6 py-5 text-white shadow-xl">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">{T("🔒 Comunicación protegida", "🔒 Protected communication")}</p>
+                    <p className="mt-1 text-xl font-black">💬 {T("Chat con", "Chat with")} {trabajo.customer_name || T("el cliente", "the customer")}</p>
+                  </div>
+                  <span className="text-xl text-white transition group-open:rotate-90">›</span>
+                </div>
+              </summary>
+              <div className="mt-3">
+            <section
+              id="chat-relydo"
+              className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
+            >
+              <div className="border-b border-slate-200 bg-slate-950 px-4 py-4 text-white sm:px-6 sm:py-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">
+                      {T("🔒 Comunicación protegida", "🔒 Protected communication")}
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-black sm:text-2xl">
+                      Chat con{" "}
+                      {trabajo.customer_name ||
+                        T("el cliente", "the customer")}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-300">
+                      {T("RELYDO mantiene privado el número real del cliente.", "RELYDO keeps the customer’s real phone number private.")}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
+                      chatRealtimeConectado
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-700 text-slate-200"
+                    }`}
+                  >
+                    {chatRealtimeConectado
+                      ? T("● En tiempo real", "● Live")
+                      : T("Conectando...", "Connecting...")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[360px] min-h-[160px] overflow-y-auto bg-slate-50 p-4 sm:max-h-[430px] sm:min-h-[220px] sm:p-5">
+                {cargandoChat ? (
+                  <div className="flex min-h-[140px] items-center justify-center text-sm font-bold text-slate-500 sm:min-h-[190px]">
+                    {T("Cargando conversación...", "Loading conversation...")}
+                  </div>
+                ) : mensajesChat.length === 0 ? (
+                  <div className="flex min-h-[140px] flex-col items-center justify-center text-center sm:min-h-[190px]">
+                    <div className="text-4xl">
+                      💬
+                    </div>
+
+                    <p className="mt-3 font-black text-slate-800">
+                      {T("Todavía no hay mensajes", "There are no messages yet")}
+                    </p>
+
+                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
+                      {T("Coordina el servicio aquí sin pedir ni mostrar números personales.", "Coordinate the service here without asking for or displaying personal phone numbers.")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mensajesChat.map(
+                      (item) => {
+                        const mio =
+                          item.sender_id ===
+                          usuarioChatId;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex ${
+                              mio
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[72%] ${
+                                mio
+                                  ? "rounded-br-md bg-blue-700 text-white"
+                                  : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                              }`}
+                            >
+                              <p
+                                className={`text-xs font-black ${
+                                  mio
+                                    ? "text-blue-100"
+                                    : "text-blue-700"
+                                }`}
+                              >
+                                {mio
+                                  ? T("Tú", "You")
+                                  : item.sender_role ===
+                                    "admin"
+                                  ? "RELYDO Admin"
+                                  : trabajo.customer_name ||
+                                    T("Cliente", "Customer")}
+                              </p>
+
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                                {item.message}
+                              </p>
+
+                              <p
+                                className={`mt-1 text-right text-[11px] ${
+                                  mio
+                                    ? "text-blue-200"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {formatearHoraChat(
+                                  item.created_at,
+                                  language
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
+
+                    <div
+                      ref={finalChatRef}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 bg-white p-5">
+                {chatPuedeEnviar ? (
+                  <>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <textarea
+                        value={mensajeChat}
+                        onChange={(e) =>
+                          setMensajeChat(
+                            e.target.value
+                          )
+                        }
+                        onKeyDown={(e) => {
+                          if (
+                            e.key ===
+                              "Enter" &&
+                            !e.shiftKey
+                          ) {
+                            e.preventDefault();
+                            enviarMensajeChat();
+                          }
+                        }}
+                        rows={2}
+                        maxLength={1500}
+                        placeholder={T("Escribe un mensaje...", "Write a message...")}
+                        className="min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={
+                          enviandoMensajeChat ||
+                          !mensajeChat.trim()
+                        }
+                        onClick={
+                          enviarMensajeChat
+                        }
+                        className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {enviandoMensajeChat
+                          ? T("Enviando...", "Sending...")
+                          : T("Enviar", "Send")}
+                      </button>
+                    </div>
+
+                    {trabajo.status ===
+                      "completed" &&
+                      trabajo.completed_at && (
+                        <p className="mt-2 text-xs font-bold text-amber-700">
+                          {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.", "⏳ The chat will remain open for up to 12 hours after the job is completed.")}
+                        </p>
+                      )}
+
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {T("🔒 Los números personales no se muestran. Usa este chat para coordinar el trabajo dentro de RELYDO.", "🔒 Personal phone numbers are not displayed. Use this chat to coordinate the job within RELYDO.")}
+                    </p>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="font-black text-amber-950">
+                      {T("🔒 Chat bloqueado", "🔒 Chat locked")}
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      {motivoChatBloqueado()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+              </div>
+            </details>
+          )}
 
         {/* MENSAJES */}
 
+        {mensaje && !cancelado && (
+          <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 font-bold text-green-800 shadow-sm">
+            ✅ {mensaje}
+          </div>
+        )}
+
         {error && (
-          <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 font-medium text-red-700">
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 font-bold text-red-700 shadow-sm">
             {error}
           </div>
         )}
 
-        {mensaje && (
-          <div className="mb-6 rounded-xl border border-green-300 bg-green-50 p-4 font-medium text-green-700">
-            {mensaje}
-          </div>
-        )}
+        {/* ENVIAR PRESUPUESTO */}
 
-        {/* ACCESOS ADMINISTRATIVOS */}
+        {trabajo.status ===
+          "open" &&
+          oferta?.status !==
+            "rejected" && (
+          <section
+            className={
+              trabajo.status === "open"
+                ? "border-t border-slate-200 bg-transparent p-6 md:p-7"
+                : "mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg md:p-7"
+            }
+          >
 
-        <section className="mb-10">
-          <div className="mb-5">
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-              Accesos administrativos
-            </p>
-
-            <h2 className="mt-1 text-3xl font-extrabold text-slate-900">
-              Herramientas de control
+            <h2 className="flex items-center gap-3 text-2xl font-black text-slate-950">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                💵
+              </span>
+              {T("Enviar presupuesto", "Send quote")}
             </h2>
 
-            <p className="mt-2 text-slate-600">
-              Entra directamente a las áreas que necesitas administrar sin llenar el panel principal.
-            </p>
-          </div>
+            {oferta ? (
+              <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-6">
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/configuracion-financiera"
-                )
-              }
-              className="rounded-3xl border border-emerald-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-2xl">
-                  💰
-                </div>
-
-                <span className="text-xl font-black text-emerald-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Configuración financiera
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Comisiones, tarifa al cliente, cancelaciones y porcentajes para el profesional.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-emerald-700">
-                Administrar configuración
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/reclamos"
-                )
-              }
-              className="rounded-3xl border border-red-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-red-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-2xl">
-                  ⚠️
-                </div>
-
-                <span className="text-xl font-black text-red-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Reclamos de trabajos
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Revisa disputas abiertas, en revisión y reclamos ya resueltos.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-red-700">
-                {totalReclamosActivos} reclamo{totalReclamosActivos === 1 ? "" : "s"} activo{totalReclamosActivos === 1 ? "" : "s"}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/ordenes"
-                )
-              }
-              className="rounded-3xl border border-blue-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-2xl">
-                  📋
-                </div>
-
-                <span className="text-xl font-black text-blue-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Control de órdenes
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Consulta todas las órdenes y abre el expediente completo de cada trabajo.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-blue-700">
-                {solicitudesAdmin.length} orden{solicitudesAdmin.length === 1 ? "" : "es"} registrada{solicitudesAdmin.length === 1 ? "" : "s"}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/finanzas"
-                )
-              }
-              className="rounded-3xl border border-violet-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-2xl">
-                  📊
-                </div>
-
-                <span className="text-xl font-black text-violet-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Finanzas y ganancias
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Controla ingresos de RELYDO, volumen procesado, pagos al profesional, retenciones y reembolsos.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-violet-700">
-                Abrir panel financiero
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/usuarios"
-                )
-              }
-              className="rounded-3xl border border-cyan-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-100 text-2xl">
-                  👥
-                </div>
-
-                <span className="text-xl font-black text-cyan-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Gestión de usuarios
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Consulta clientes y profesionales, teléfonos, contacto y actividad dentro de RELYDO.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-cyan-700">
-                Abrir gestión de usuarios
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={abrirGestionProfesionales}
-              className="rounded-3xl border border-purple-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-purple-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-2xl">
-                  🧰
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {totalAlertasProfesionales > 0 && (
-                    <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-black text-white shadow-sm">
-                      {totalAlertasProfesionales} pendiente{totalAlertasProfesionales === 1 ? "" : "s"}
-                    </span>
-                  )}
-                  <span className="text-xl font-black text-purple-700">
-                    →
-                  </span>
-                </div>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Gestión de profesionales
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Controla cuántos profesionales tienes, su estado de aprobación y las categorías que cubren.
-              </p>
-
-              <div className="mt-5 grid grid-cols-2 gap-2 text-xs font-black">
-                <div className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700">
-                  Total: {todosProviders.length}
-                </div>
-
-                <div className="rounded-xl bg-green-50 px-3 py-2 text-green-700">
-                  Aprobados: {totalActivos}
-                </div>
-
-                <div className="rounded-xl bg-blue-50 px-3 py-2 text-blue-700">
-                  Pendientes: {totalPendientes}
-                </div>
-
-                <div className="rounded-xl bg-amber-50 px-3 py-2 text-amber-700">
-                  Suspendidos: {totalSuspendidos}
-                </div>
-              </div>
-
-              {totalAlertasProfesionales > 0 && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
-                  🔔 {totalAlertasProfesionales} elemento{totalAlertasProfesionales === 1 ? "" : "s"} requiere{totalAlertasProfesionales === 1 ? "" : "n"} revisión
-                </div>
-              )}
-
-              <p className="mt-5 text-sm font-black text-purple-700">
-                {gestionProfesionalesAbierta ? "Ocultar gestión profesional" : "Abrir gestión profesional"}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/alertas"
-                )
-              }
-              className="rounded-3xl border border-amber-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-2xl">
-                  🔔
-                </div>
-                <span className="text-xl font-black text-amber-700">→</span>
-              </div>
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Centro de alertas
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Revisa reclamos activos, profesionales pendientes y situaciones que requieren atención.
-              </p>
-              <p className="mt-5 text-sm font-black text-amber-700">
-                {totalReclamosActivos + providers.length} alerta{totalReclamosActivos + providers.length === 1 ? "" : "s"} pendiente{totalReclamosActivos + providers.length === 1 ? "" : "s"}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/admin/actividad"
-                )
-              }
-              className="rounded-3xl border border-indigo-200 bg-white p-6 text-left shadow transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-lg"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-2xl">
-                  📈
-                </div>
-
-                <span className="text-xl font-black text-indigo-700">
-                  →
-                </span>
-              </div>
-
-              <h3 className="mt-5 text-xl font-black text-slate-950">
-                Actividad de la plataforma
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Mide trabajos, ofertas, clientes, profesionales y el rendimiento operativo de RELYDO.
-              </p>
-
-              <p className="mt-5 text-sm font-black text-indigo-700">
-                Ver actividad
-              </p>
-            </button>
-          </div>
-        </section>
-
-        {gestionProfesionalesAbierta && (
-          <>
-        {/* CONTROL PROFESIONALES */}
-
-        <section id="profesionales-admin" className="mb-10 scroll-mt-6">
-
-          <div className="mb-5">
-
-            <p className="text-sm font-bold uppercase tracking-wide text-purple-700">
-              Control
-            </p>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-
-              <div>
-
-                <h2 className="mt-1 text-3xl font-extrabold text-slate-900">
-                  Control de profesionales
-                </h2>
-
-                <p className="mt-2 text-slate-600">
-                  Revisa actividad, calificaciones, liberaciones y estado de cada cuenta.
+                <p className="text-lg font-black text-green-900">
+                  {T("✅ Presupuesto enviado", "✅ Quote sent")}
                 </p>
 
+                <p className="mt-2 text-green-800">
+                  {T("El cliente ya puede comparar tu presupuesto con otras ofertas.", "The customer can now compare your quote with other offers.")}
+                </p>
               </div>
+            ) : pagosConfigurados === null ? (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="font-black text-slate-800">
+                  {T(
+                    "Comprobando configuración de pagos...",
+                    "Checking payment setup..."
+                  )}
+                </p>
+              </div>
+            ) : !pagosConfigurados ? (
+              <div className="mt-6 rounded-2xl border-2 border-red-300 bg-red-50 p-6">
+                <p className="text-lg font-black text-red-800">
+                  {T(
+                    "🔒 Configura tus pagos para enviar presupuestos",
+                    "🔒 Set up your payments to send quotes"
+                  )}
+                </p>
+
+                <p className="mt-2 leading-7 text-red-700">
+                  {T(
+                    "Puedes revisar todos los detalles de este trabajo, pero antes de enviar un presupuesto debes completar tu configuración de Stripe Connect.",
+                    "You can review all the details of this job, but before sending a quote you must complete your Stripe Connect setup."
+                  )}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/panel-profesional"
+                    )
+                  }
+                  className="mt-5 w-full rounded-xl bg-red-600 px-6 py-4 text-lg font-black text-white shadow-md transition hover:bg-red-700"
+                >
+                  {T(
+                    "Configurar pagos",
+                    "Set up payments"
+                  )}
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={
+                  enviarOferta
+                }
+                className="mt-6"
+              >
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-800">
+                      {T("Precio", "Price")}
+                    </label>
+
+                    <div className="flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-blue-500">
+                      <span className="flex items-center border-r border-slate-300 bg-slate-50 px-4 font-bold text-slate-500">
+                        $
+                      </span>
+
+                      <input
+                        name="price"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        required
+                        placeholder="Ej. 150.00"
+                        className="w-full p-4 text-slate-900 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-800">
+                      {T("Minutos para llegar", "Minutes to arrival")}
+                    </label>
+
+                    <input
+                      name="arrival_minutes"
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      placeholder="Ej. 30"
+                      className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-800">
+                      {T("Duración estimada", "Estimated duration")}
+                    </label>
+
+                    <input
+                      name="estimated_job_minutes"
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      placeholder="Ej. 60"
+                      className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5">
+
+                  <label className="mb-2 block text-sm font-bold text-slate-800">
+                    {T("Mensaje para el cliente", "Message to customer")}
+                  </label>
+
+                  <textarea
+                    name="message"
+                    rows={4}
+                    required
+                    placeholder={T("Escribe un mensaje para el cliente...", "Write a message for the customer...")}
+                    className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={
+                    enviando
+                  }
+                  className="mt-5 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-black text-white shadow-md transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {enviando
+                    ? T("Enviando presupuesto...", "Sending quote...")
+                    : T("Enviar presupuesto", "Send quote")}
+                </button>
+
+                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                  {T("💡 El cliente podrá comparar tu precio, tiempo de llegada y duración estimada con otros profesionales.", "💡 The customer can compare your price, arrival time, and estimated duration with other professionals.")}
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
+          </div>
+        </details>
+      </div>
+
+      {fotoAbierta && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={fotoAbierta.alt}
+          onClick={() => setFotoAbierta(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setFotoAbierta(null)}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-black text-slate-950 shadow-lg"
+            aria-label={T("Cerrar foto", "Close photo")}
+          >
+            ×
+          </button>
+
+          {fotosVisor.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cambiarFotoAbierta(-1);
+                }}
+                className="absolute left-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-black text-slate-950 shadow-lg transition hover:bg-white"
+                aria-label={T("Foto anterior", "Previous photo")}
+              >
+                ‹
+              </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  cargarDatos()
-                }
-                className="w-fit rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 hover:bg-blue-50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cambiarFotoAbierta(1);
+                }}
+                className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-black text-slate-950 shadow-lg transition hover:bg-white"
+                aria-label={T("Foto siguiente", "Next photo")}
               >
-                ↻ Actualizar
+                ›
               </button>
-
-            </div>
-
-          </div>
-
-          {/* RESUMEN DE LA RED PROFESIONAL */}
-
-          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-                Total
-              </p>
-              <p className="mt-1 text-3xl font-black text-slate-950">
-                {todosProviders.length}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-wide text-green-700">
-                Aprobados
-              </p>
-              <p className="mt-1 text-3xl font-black text-green-700">
-                {totalActivos}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Pendientes
-              </p>
-              <p className="mt-1 text-3xl font-black text-blue-700">
-                {totalPendientes}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                Suspendidos
-              </p>
-              <p className="mt-1 text-3xl font-black text-amber-700">
-                {totalSuspendidos}
-              </p>
-            </div>
-
-            <div className="col-span-2 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm md:col-span-1">
-              <p className="text-xs font-black uppercase tracking-wide text-red-700">
-                Rechazados
-              </p>
-              <p className="mt-1 text-3xl font-black text-red-700">
-                {totalRechazados}
-              </p>
-            </div>
-          </div>
-
-          <div className="mb-5 rounded-3xl border border-purple-200 bg-white p-5 shadow">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-purple-700">
-                  Cobertura por categoría
-                </p>
-
-                <p className="mt-1 text-sm text-slate-600">
-                  Cantidad de profesionales registrados en cada oficio.
-                </p>
-              </div>
-
-              <p className="text-sm font-black text-slate-500">
-                {profesionalesPorOficio.length} categoría{profesionalesPorOficio.length === 1 ? "" : "s"} con profesionales
-              </p>
-            </div>
-
-            {profesionalesPorOficio.length === 0 ? (
-              <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                Aún no hay profesionales clasificados por categoría.
-              </p>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {profesionalesPorOficio.map((item) => (
-                  <div
-                    key={item.trade}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
-                  >
-                    <p className="text-sm font-extrabold text-slate-800">
-                      {item.nombre}
-                    </p>
-
-                    <p className="mt-1 text-2xl font-black text-purple-700">
-                      {item.total}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* BUSCADOR */}
-
-          <div className="mb-5 rounded-3xl border border-slate-200 bg-white p-5 shadow">
-
-            <input
-              type="text"
-              value={
-                buscando
-              }
-              onChange={(e) =>
-                setBuscando(
-                  e.target.value
-                )
-              }
-              placeholder="Buscar por negocio, especialidad o ID..."
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
-            />
-
-            <div className="mt-4 flex flex-wrap gap-2">
-
-              <FiltroBoton
-                activo={
-                  filtro ===
-                  "todos"
-                }
-                texto="Todos"
-                onClick={() =>
-                  setFiltro(
-                    "todos"
-                  )
-                }
-              />
-
-              <FiltroBoton
-                activo={
-                  filtro ===
-                  "activos"
-                }
-                texto="Activos"
-                onClick={() =>
-                  setFiltro(
-                    "activos"
-                  )
-                }
-              />
-
-              <FiltroBoton
-                activo={
-                  filtro ===
-                  "suspendidos"
-                }
-                texto="Suspendidos"
-                onClick={() =>
-                  setFiltro(
-                    "suspendidos"
-                  )
-                }
-              />
-
-              <FiltroBoton
-                activo={
-                  filtro ===
-                  "pendientes"
-                }
-                texto="Pendientes"
-                onClick={() =>
-                  setFiltro(
-                    "pendientes"
-                  )
-                }
-              />
-
-              <FiltroBoton
-                activo={
-                  filtro ===
-                  "rechazados"
-                }
-                texto="Rechazados"
-                onClick={() =>
-                  setFiltro(
-                    "rechazados"
-                  )
-                }
-              />
-
-            </div>
-
-          </div>
-
-          {profesionalesFiltrados.length ===
-          0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center shadow">
-
-              <p className="font-bold text-slate-700">
-                No encontramos profesionales con esos filtros.
-              </p>
-
-            </div>
-          ) : (
-            <div className="space-y-4">
-
-              {profesionalesFiltrados.map(
-                (
-                  provider
-                ) => {
-                  const liberaciones =
-                    contarLiberaciones(
-                      provider.user_id
-                    );
-
-                  const userDocs =
-                    docsDelUsuario(
-                      provider.user_id
-                    );
-
-                  const userSolicitudes =
-                    solicitudesDocsDelUsuario(
-                      provider.user_id
-                    );
-
-                  const solicitudesPendientes =
-                    userSolicitudes.filter(
-                      (solicitud) =>
-                        solicitud.status ===
-                          "pending" ||
-                        solicitud.status ===
-                          "submitted"
-                    );
-
-                  const expedienteAbierto =
-                    expedientesAbiertos.includes(
-                      provider.user_id
-                    );
-
-                  const contacto =
-                    datosContactoProfesional(
-                      provider
-                    );
-
-                  return (
-                    <article
-                      key={
-                        provider.user_id
-                      }
-                      className="rounded-3xl border border-slate-200 bg-white p-6 shadow"
-                    >
-
-                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-
-                        <div>
-
-                          <h3 className="text-2xl font-extrabold text-slate-900">
-                            {provider.business_name ||
-                              "Profesional RELYDO"}
-                          </h3>
-
-                          <p className="mt-1 font-semibold text-blue-700">
-                            {nombreOficio(
-                              provider.trade
-                            )}
-                          </p>
-
-                          <p className="mt-2 break-all text-xs text-slate-400">
-                            {
-                              provider.user_id
-                            }
-                          </p>
-
-                        </div>
-
-                        <span
-                          className={`w-fit rounded-full px-4 py-2 text-sm font-extrabold ${estiloEstadoCuenta(
-                            provider
-                          )}`}
-                        >
-                          {nombreEstadoCuenta(
-                            provider
-                          )}
-                        </span>
-
-                      </div>
-
-                      {/* INFORMACIÓN PERSONAL Y DE CONTACTO */}
-
-                      <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-                              Información del profesional
-                            </p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              Datos de identidad, contacto y ubicación registrados en RELYDO.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre completo</p>
-                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.nombre}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Correo electrónico</p>
-                            <p className="mt-1 break-all font-extrabold text-slate-900">{contacto.email}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Teléfono</p>
-                            <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.phone}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4 sm:col-span-2 lg:col-span-3">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
-                            <p className="mt-1 break-words font-extrabold text-slate-900">{direccionRegistradaLimpia(contacto)}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Ciudad</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{contacto.city}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Estado</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{contacto.state}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-blue-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">ZIP</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{contacto.zip}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* INFORMACIÓN PROFESIONAL REGISTRADA */}
-
-                      <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
-                        <div>
-                          <p className="text-sm font-bold uppercase tracking-wide text-indigo-700">
-                            Información profesional registrada
-                          </p>
-                          <p className="mt-1 text-sm text-slate-600">
-                            Datos declarados por el profesional durante su registro en RELYDO.
-                          </p>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre del negocio</p>
-                            <p className="mt-1 break-words font-extrabold text-slate-900">{provider.business_name || "No indicado"}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Profesión / especialidad</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{nombreOficio(provider.trade)}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Años de experiencia</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{provider.years_experience ?? 0} años</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Radio de servicio</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{provider.service_radius_miles ?? 0} millas</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Licencia profesional</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{provider.license_required ? "Requerida / declarada" : "No requerida / no declarada"}</p>
-                            <p className="mt-1 text-sm text-slate-600">N.º: {provider.license_number || "No indicado"}</p>
-                            <p className="text-sm text-slate-600">Estado: {provider.license_state || "No indicado"}</p>
-                            <p className="text-sm text-slate-600">Vence: {provider.license_expiration ? fechaDocumento(provider.license_expiration) : "No indicado"}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Seguro de responsabilidad</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{provider.insured ? "Sí" : "No"}</p>
-                            <p className="mt-1 text-sm text-slate-600">Compañía: {provider.insurance_company || "No indicada"}</p>
-                            <p className="text-sm text-slate-600">Vence: {provider.insurance_expiration ? fechaDocumento(provider.insurance_expiration) : "No indicado"}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Bond / Fianza</p>
-                            <p className="mt-1 font-extrabold text-slate-900">{provider.bonded ? "Sí" : "No"}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:col-span-2">
-                            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Background check</p>
-                            <p className="mt-1 font-extrabold text-amber-900">Pendiente de implementación</p>
-                            <p className="mt-1 text-sm text-amber-800">
-                              Este espacio queda preparado para mostrar el resultado del proveedor de background check cuando se integre: pendiente, aprobado, revisión requerida o rechazado.
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl border border-indigo-100 bg-white p-4 sm:col-span-2 lg:col-span-3">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Sobre el profesional / negocio</p>
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{provider.bio || "No se registró una descripción."}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ESTADÍSTICAS */}
-
-                      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-
-                        <div className="rounded-2xl bg-green-50 p-5">
-
-                          <p className="text-sm font-bold text-green-700">
-                            ✅ Completados
-                          </p>
-
-                          <p className="mt-2 text-3xl font-black text-green-900">
-                            {provider.completed_jobs ??
-                              0}
-                          </p>
-
-                        </div>
-
-                        <div className="rounded-2xl bg-amber-50 p-5">
-
-                          <p className="text-sm font-bold text-amber-700">
-                            ⭐ Calificación
-                          </p>
-
-                          <p className="mt-2 text-3xl font-black text-amber-900">
-                            {Number(
-                              provider.average_rating ||
-                                0
-                            ).toFixed(
-                              1
-                            )}
-                          </p>
-
-                        </div>
-
-                        <div
-                          className={`rounded-2xl p-5 ${
-                            liberaciones >=
-                            3
-                              ? "border border-red-200 bg-red-50"
-                              : liberaciones >
-                                0
-                              ? "border border-amber-200 bg-amber-50"
-                              : "bg-slate-50"
-                          }`}
-                        >
-
-                          <p
-                            className={`text-sm font-bold ${
-                              liberaciones >=
-                              3
-                                ? "text-red-700"
-                                : liberaciones >
-                                  0
-                                ? "text-amber-700"
-                                : "text-slate-600"
-                            }`}
-                          >
-                            🔄 Trabajos liberados
-                          </p>
-
-                          <p className="mt-2 text-3xl font-black text-slate-900">
-                            {
-                              liberaciones
-                            }
-                          </p>
-
-                        </div>
-
-                        <div className="rounded-2xl bg-blue-50 p-5">
-
-                          <p className="text-sm font-bold text-blue-700">
-                            🛠️ Experiencia
-                          </p>
-
-                          <p className="mt-2 text-3xl font-black text-blue-900">
-                            {provider.years_experience ??
-                              0}
-                          </p>
-
-                          <p className="text-sm text-blue-700">
-                            años
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                      {/* ALERTA */}
-
-                      {liberaciones >=
-                        3 && (
-                        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
-
-                          <p className="font-extrabold text-red-800">
-                            ⚠️ Atención
-                          </p>
-
-                          <p className="mt-1 text-sm text-red-700">
-                            Este profesional ha liberado varias órdenes. Revisa su historial antes de decidir si debe continuar activo.
-                          </p>
-
-                        </div>
-                      )}
-
-                      {/* EXPEDIENTE DOCUMENTAL PERMANENTE */}
-
-                      <div className="mt-6 border-t border-slate-200 pt-5">
-
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-                          <div>
-                            <p className="text-sm font-bold uppercase tracking-wide text-purple-700">
-                              Expediente de verificación
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-600">
-                              Documentos, vencimientos y solicitudes de esta cuenta.
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-700">
-                              {userDocs.length} documentos
-                            </span>
-
-                            {solicitudesPendientes.length > 0 && (
-                              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">
-                                {solicitudesPendientes.length} solicitud(es) activa(s)
-                              </span>
-                            )}
-                          </div>
-
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            toggleExpediente(
-                              provider.user_id
-                            )
-                          }
-                          className="mt-4 w-full rounded-xl border-2 border-purple-200 bg-purple-50 px-5 py-3 font-extrabold text-purple-800 transition hover:bg-purple-100"
-                        >
-                          {expedienteAbierto
-                            ? "Ocultar expediente documental"
-                            : "📂 Ver expediente documental"}
-                        </button>
-
-                        {expedienteAbierto && (
-                          <div className="mt-5 space-y-5 rounded-2xl border border-purple-100 bg-slate-50 p-5">
-
-                            <div>
-                              <div className="flex items-center justify-between gap-3">
-                                <h4 className="font-extrabold text-slate-900">Documentos vigentes</h4>
-                                <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estiloEstadoCuenta(provider)}`}>
-                                  {nombreEstadoCuenta(provider)}
-                                </span>
-                              </div>
-
-                              <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                                {["license", "insurance", "bond", "other"].map((tipo) => {
-                                  const doc = documentoVigente(provider.user_id, tipo, provider);
-                                  const requerido = documentoEsRequerido(provider, tipo);
-                                  const vencimiento = doc ? vencimientoDocumento(doc, provider) : null;
-                                  return (
-                                    <div key={tipo} className="rounded-xl border border-slate-200 bg-white p-4">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                          <p className="font-extrabold text-slate-900">{nombreTipoDocumento(tipo)}</p>
-                                          {tipo !== "other" && (
-                                            <p className="mt-1 text-xs font-semibold text-slate-500">
-                                              Regla {requisitosProfesional(provider).jurisdiction}:{" "}
-                                              {requirementLabel(
-                                                tipo === "license"
-                                                  ? requisitosProfesional(provider).license
-                                                  : tipo === "insurance"
-                                                  ? requisitosProfesional(provider).insurance
-                                                  : requisitosProfesional(provider).bond,
-                                                "es"
-                                              )}
-                                            </p>
-                                          )}
-                                          <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-extrabold ${
-                                            doc
-                                              ? "bg-green-100 text-green-800"
-                                              : requerido
-                                              ? "bg-amber-100 text-amber-800"
-                                              : "bg-slate-100 text-slate-600"
-                                          }`}>
-                                            {doc
-                                              ? "Aprobado"
-                                              : requerido
-                                              ? "Documento requerido"
-                                              : "No requerido"}
-                                          </span>
-                                        </div>
-                                        {doc && (
-                                          <button type="button" onClick={() => abrirDocumento(doc.file_path)} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700">Ver</button>
-                                        )}
-                                      </div>
-                                      {doc && (
-                                        <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
-                                          <p><strong>Vence:</strong> {vencimiento ? fechaDocumento(vencimiento) : "No aplica / sin registrar"}</p>
-                                          <p><strong>Aprobado:</strong> {doc.approved_at ? formatearFecha(doc.approved_at) : "Sin registrar"}</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              {documentosPendientesRevision(provider.user_id).length > 0 && (
-                                <div className="mt-5 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                      <h4 className="font-extrabold text-amber-950">⚠️ Documentos pendientes de revisión</h4>
-                                      <p className="mt-1 text-sm text-amber-800">Los nuevos archivos no sustituyen al documento vigente hasta que los apruebes.</p>
-                                    </div>
-                                    <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-extrabold text-amber-900">{documentosPendientesRevision(provider.user_id).length} pendiente(s)</span>
-                                  </div>
-                                  <div className="mt-4 space-y-3">
-                                    {documentosPendientesRevision(provider.user_id).map((doc, index) => (
-                                      <div key={`${doc.id || doc.file_path}-${index}`} className="rounded-xl border border-amber-200 bg-white p-4">
-                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                          <div>
-                                            <p className="font-extrabold text-slate-900">{nombreTipoDocumento(doc.document_type)}</p>
-                                            <p className="mt-1 text-xs text-slate-500">Enviado: {doc.created_at ? formatearFecha(doc.created_at) : "Sin fecha"}</p>
-                                          </div>
-                                          <div className="flex flex-wrap gap-2">
-                                            <button type="button" onClick={() => abrirDocumento(doc.file_path)} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-extrabold text-white">Ver</button>
-                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "approved")} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✓ Aprobar</button>
-                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "rejected")} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✕ Rechazar</button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {documentosHistoricos(provider.user_id, provider).length > 0 && (
-                                <details className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                                  <summary className="cursor-pointer font-extrabold text-slate-700">Historial de documentos ({documentosHistoricos(provider.user_id, provider).length})</summary>
-                                  <div className="mt-3 space-y-2">
-                                    {documentosHistoricos(provider.user_id, provider).map((doc, index) => (
-                                      <div key={`${doc.id || doc.file_path}-hist-${index}`} className="flex flex-col gap-2 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div>
-                                          <p className="font-bold text-slate-800">{nombreTipoDocumento(doc.document_type)}</p>
-                                          <p className="text-xs text-slate-500">Estado: {doc.status || "sin estado"}{doc.rejection_reason ? ` · ${doc.rejection_reason}` : ""}</p>
-                                        </div>
-                                        <button type="button" onClick={() => abrirDocumento(doc.file_path)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Ver</button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              )}
-                            </div>
-
-                            <div className="border-t border-slate-200 pt-5">
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <h4 className="font-extrabold text-slate-900">
-                                  Solicitudes de documentación
-                                </h4>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    abrirSolicitudDocumentos(
-                                      provider
-                                    )
-                                  }
-                                  className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-2 text-sm font-extrabold text-amber-800 hover:bg-amber-100"
-                                >
-                                  📄 Solicitar documentos
-                                </button>
-                              </div>
-
-                              {userSolicitudes.length === 0 ? (
-                                <p className="mt-3 rounded-xl bg-white p-4 text-sm text-slate-600">
-                                  No hay solicitudes de documentación registradas.
-                                </p>
-                              ) : (
-                                <div className="mt-3 space-y-3">
-                                  {userSolicitudes.map(
-                                    (solicitud) => (
-                                      <div
-                                        key={solicitud.id}
-                                        className="rounded-xl border border-slate-200 bg-white p-4"
-                                      >
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                          <div className="min-w-0 flex-1">
-                                            <p className="font-extrabold text-slate-900">
-                                              {nombreTipoDocumento(
-                                                solicitud.document_type
-                                              )}
-                                            </p>
-
-                                            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                                              {solicitud.message}
-                                            </p>
-                                          </div>
-
-                                          <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                            <span
-                                              className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${
-                                                solicitud.status === "completed"
-                                                  ? "bg-green-100 text-green-800"
-                                                  : solicitud.status === "cancelled"
-                                                  ? "bg-slate-200 text-slate-700"
-                                                  : solicitud.status === "submitted"
-                                                  ? "bg-blue-100 text-blue-800"
-                                                  : "bg-amber-100 text-amber-800"
-                                              }`}
-                                            >
-                                              {solicitud.status === "completed"
-                                                ? "Completada"
-                                                : solicitud.status === "cancelled"
-                                                ? "Cancelada"
-                                                : solicitud.status === "submitted"
-                                                ? "Enviada"
-                                                : "Pendiente"}
-                                            </span>
-
-                                            <button
-                                              type="button"
-                                              disabled={
-                                                procesando ===
-                                                solicitud.id
-                                              }
-                                              onClick={() =>
-                                                eliminarSolicitudDocumentos(
-                                                  solicitud
-                                                )
-                                              }
-                                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                              {procesando ===
-                                              solicitud.id
-                                                ? "Eliminando..."
-                                                : "🗑 Eliminar"}
-                                            </button>
-                                          </div>
-                                        </div>
-
-                                        <p className="mt-3 text-xs text-slate-500">
-                                          Solicitado:{" "}
-                                          {formatearFecha(
-                                            solicitud.requested_at
-                                          )}
-                                        </p>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                          </div>
-                        )}
-
-                      </div>
-
-                      {/* DECISIÓN DE VERIFICACIÓN */}
-
-                      {provider.verified !== true &&
-                        provider.verification_status !== "rejected" && (
-                          <div className="mt-6 border-t border-slate-200 pt-5">
-                            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
-                              Decisión de verificación
-                            </p>
-
-                            {(() => {
-                              const requeridosFaltantes =
-                                documentosRequeridosFaltantes(
-                                  provider
-                                );
-                              const pendientesRevision = documentosPendientesRevision(
-                                provider.user_id
-                              );
-                              const solicitudesAbiertas = userSolicitudes.filter(
-                                (solicitud) =>
-                                  solicitud.status === "pending" ||
-                                  solicitud.status === "submitted"
-                              );
-                              const requisitos =
-                                requisitosProfesional(
-                                  provider
-                                );
-                              const puedeResolverRevisionManual =
-                                requisitos.manualReview === false ||
-                                adminRole === "super_admin";
-
-                              const puedeAprobar =
-                                puedeResolverRevisionManual &&
-                                requeridosFaltantes.length === 0 &&
-                                pendientesRevision.length === 0 &&
-                                solicitudesAbiertas.length === 0;
-
-                              return (
-                                <>
-                                  {requisitos.manualReview &&
-                                    adminRole === "super_admin" &&
-                                    requeridosFaltantes.length === 0 &&
-                                    pendientesRevision.length === 0 &&
-                                    solicitudesAbiertas.length === 0 && (
-                                      <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                                        <p className="font-extrabold">
-                                          Revisión manual requerida
-                                        </p>
-                                        <p className="mt-1">
-                                          La matriz de {requisitos.jurisdiction} no puede decidir automáticamente este caso. Como Super Admin puedes aprobarlo después de revisar el oficio y confirmar que el profesional cumple los requisitos aplicables.
-                                        </p>
-                                      </div>
-                                    )}
-
-                                  {!puedeAprobar && (
-                                    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                                      <p className="font-extrabold">Aprobación bloqueada temporalmente</p>
-                                      <p className="mt-1">
-                                        {requisitos.manualReview &&
-                                        adminRole !== "super_admin"
-                                          ? `La matriz de ${requisitos.jurisdiction} marca este oficio para revisión manual. Solo el Super Admin puede tomar la decisión final. `
-                                          : ""}
-                                        {requeridosFaltantes.length > 0
-                                          ? `Faltan documentos obligatorios aprobados: ${requeridosFaltantes
-                                              .map((tipo) => nombreTipoDocumento(tipo))
-                                              .join(", ")}. `
-                                          : ""}
-                                        {pendientesRevision.length > 0
-                                          ? `Hay ${pendientesRevision.length} documento(s) pendiente(s) de revisión. `
-                                          : ""}
-                                        {solicitudesAbiertas.length > 0
-                                          ? `Hay ${solicitudesAbiertas.length} solicitud(es) de documentación abierta(s).`
-                                          : ""}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  <div className="grid gap-3 md:grid-cols-3">
-                                    <button
-                                      type="button"
-                                      disabled={
-                                        procesando === provider.user_id || !puedeAprobar
-                                      }
-                                      onClick={() =>
-                                        cambiarEstado(provider.user_id, "verified")
-                                      }
-                                      className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      {procesando === provider.user_id
-                                        ? "Procesando..."
-                                        : puedeAprobar
-                                        ? "✅ Aprobar profesional"
-                                        : "Aprobación pendiente"}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      disabled={procesando === provider.user_id}
-                                      onClick={() => abrirSolicitudDocumentos(provider)}
-                                      className="rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-3 font-extrabold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-                                    >
-                                      📄 Solicitar documentos
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      disabled={procesando === provider.user_id}
-                                      onClick={() =>
-                                        cambiarEstado(provider.user_id, "rejected")
-                                      }
-                                      className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white transition hover:bg-red-700 disabled:opacity-50"
-                                    >
-                                      {procesando === provider.user_id
-                                        ? "Procesando..."
-                                        : "✕ Rechazar profesional"}
-                                    </button>
-                                  </div>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-
-                      {/* REABRIR VERIFICACIÓN RECHAZADA */}
-
-                      {provider.verification_status ===
-                        "rejected" && (
-                          <div className="mt-6 border-t border-slate-200 pt-5">
-                            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
-                              Verificación rechazada
-                            </p>
-
-                            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                              <p className="font-extrabold text-blue-950">
-                                Puedes reabrir este expediente
-                              </p>
-                              <p className="mt-1 text-sm text-blue-900">
-                                El profesional volverá a estado pendiente. Sus documentos e historial se conservarán y seguirá sin poder operar hasta que Admin lo apruebe nuevamente.
-                              </p>
-
-                              <button
-                                type="button"
-                                disabled={
-                                  procesando ===
-                                  provider.user_id
-                                }
-                                onClick={() =>
-                                  reabrirVerificacion(
-                                    provider
-                                  )
-                                }
-                                className="mt-4 w-full rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {procesando ===
-                                provider.user_id
-                                  ? "Procesando..."
-                                  : "↻ Reabrir verificación"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                      {/* CONTROLES ADMIN */}
-
-                      {provider.verified ===
-                        true &&
-                        provider.verification_status !==
-                          "rejected" && (
-                          <div className="mt-6 border-t border-slate-200 pt-5">
-
-                            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
-                              Control de cuenta
-                            </p>
-
-                            <div className="space-y-3">
-
-                              <button
-                                type="button"
-                                disabled={
-                                  procesando ===
-                                  provider.user_id
-                                }
-                                onClick={() =>
-                                  abrirSolicitudDocumentos(
-                                    provider
-                                  )
-                                }
-                                className="w-full rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-3 font-extrabold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-                              >
-                                📄 Solicitar documentos
-                              </button>
-
-                              {provider.active ===
-                              true ? (
-                                <button
-                                  type="button"
-                                  disabled={
-                                    procesando ===
-                                    provider.user_id
-                                  }
-                                  onClick={() =>
-                                    cambiarActivo(
-                                      provider,
-                                      false
-                                    )
-                                  }
-                                  className="w-full rounded-xl border-2 border-red-600 bg-white px-5 py-3 font-extrabold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                                >
-                                  {procesando ===
-                                  provider.user_id
-                                    ? "Procesando..."
-                                    : "⛔ Suspender profesional"}
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={
-                                    procesando ===
-                                    provider.user_id
-                                  }
-                                  onClick={() =>
-                                    cambiarActivo(
-                                      provider,
-                                      true
-                                    )
-                                  }
-                                  className="w-full rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white transition hover:bg-green-700 disabled:opacity-50"
-                                >
-                                  {procesando ===
-                                  provider.user_id
-                                    ? "Procesando..."
-                                    : "✅ Reactivar profesional"}
-                                </button>
-                              )}
-
-                            </div>
-
-                          </div>
-                        )}
-
-                    </article>
-                  );
-                }
-              )}
-
-            </div>
+            </>
           )}
 
-        </section>
-
-        {/* VERIFICACIONES PENDIENTES */}
-
-        <section>
-
-          <div className="mb-5">
-
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-              Verificación
-            </p>
-
-            <h2 className="mt-1 text-3xl font-extrabold text-slate-900">
-              Profesionales pendientes
-            </h2>
-
-            <p className="mt-2 text-slate-600">
-              Revisa los documentos antes de aprobar una cuenta profesional.
-            </p>
-
-          </div>
-
-          {providers.length ===
-          0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow">
-
-              <div className="text-5xl">
-                ✅
-              </div>
-
-              <h2 className="mt-4 text-2xl font-extrabold text-slate-900">
-                No hay verificaciones pendientes
-              </h2>
-
-              <p className="mt-2 text-slate-600">
-                Cuando un profesional complete su perfil y envíe sus documentos aparecerá aquí.
-              </p>
-
-            </div>
-          ) : (
-            <div className="space-y-6">
-
-              {providers.map(
-                (
-                  provider
-                ) => {
-                  const userDocs =
-                    docsDelUsuario(
-                      provider.user_id
-                    );
-
-                  const contacto =
-                    datosContactoProfesional(
-                      provider
-                    );
-
-                  return (
-                    <article
-                      key={
-                        provider.user_id
-                      }
-                      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"
-                    >
-
-                      <div className="border-b border-slate-200 bg-slate-50 px-7 py-5">
-
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-
-                          <div>
-
-                            <h2 className="text-2xl font-extrabold text-slate-900">
-                              {provider.business_name ||
-                                "Profesional sin nombre"}
-                            </h2>
-
-                            <p className="mt-1 break-all text-sm text-slate-500">
-                              ID:{" "}
-                              {
-                                provider.user_id
-                              }
-                            </p>
-
-                          </div>
-
-                          <span className="w-fit rounded-full bg-amber-100 px-4 py-2 text-sm font-bold text-amber-800">
-                            Pendiente
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                      <div className="grid gap-8 p-7 lg:grid-cols-2">
-
-                        {/* INFORMACIÓN */}
-
-                        <div>
-
-                          <h3 className="mb-4 text-lg font-extrabold text-blue-700">
-                            Información profesional
-                          </h3>
-
-                          <div className="space-y-3 text-slate-700">
-
-                            <div className="mb-5 grid gap-3 sm:grid-cols-2">
-                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre completo</p>
-                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.nombre}</p>
-                              </div>
-                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Correo electrónico</p>
-                                <p className="mt-1 break-all font-extrabold text-slate-900">{contacto.email}</p>
-                              </div>
-                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Teléfono</p>
-                                <p className="mt-1 break-words font-extrabold text-slate-900">{contacto.phone}</p>
-                              </div>
-                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección registrada</p>
-                                <p className="mt-1 break-words font-extrabold text-slate-900">{direccionRegistradaLimpia(contacto)}</p>
-                              </div>
-                            </div>
-
-                            <p>
-                              <strong>
-                                Especialidad:
-                              </strong>{" "}
-                              {nombreOficio(
-                                provider.trade
-                              )}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Experiencia:
-                              </strong>{" "}
-                              {provider.years_experience ??
-                                0}{" "}
-                              años
-                            </p>
-
-                            <p>
-                              <strong>
-                                Radio de servicio:
-                              </strong>{" "}
-                              {provider.service_radius_miles ??
-                                0}{" "}
-                              millas
-                            </p>
-
-                            <p>
-                              <strong>
-                                Licencia requerida:
-                              </strong>{" "}
-                              {provider.license_required
-                                ? "Sí"
-                                : "No"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Número de licencia:
-                              </strong>{" "}
-                              {provider.license_number ||
-                                "No indicado"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Estado licencia:
-                              </strong>{" "}
-                              {provider.license_state ||
-                                "No indicado"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Vencimiento licencia:
-                              </strong>{" "}
-                              {provider.license_expiration ||
-                                "No indicado"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Seguro:
-                              </strong>{" "}
-                              {provider.insured
-                                ? "Sí"
-                                : "No"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Aseguradora:
-                              </strong>{" "}
-                              {provider.insurance_company ||
-                                "No indicada"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Vencimiento seguro:
-                              </strong>{" "}
-                              {provider.insurance_expiration ||
-                                "No indicado"}
-                            </p>
-
-                            <p>
-                              <strong>
-                                Bond/Fianza:
-                              </strong>{" "}
-                              {provider.bonded
-                                ? "Sí"
-                                : "No"}
-                            </p>
-
-                          </div>
-
-                          {provider.bio && (
-                            <div className="mt-5 rounded-xl bg-slate-50 p-4">
-
-                              <p className="text-sm font-bold text-slate-900">
-                                Descripción
-                              </p>
-
-                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                                {
-                                  provider.bio
-                                }
-                              </p>
-
-                            </div>
-                          )}
-
-                        </div>
-
-                        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                          <p className="text-sm font-extrabold text-amber-900">Background check</p>
-                          <p className="mt-1 text-sm text-amber-800">
-                            Pendiente de implementación. Cuando integremos el proveedor de background check, aquí Admin verá su estado y resultado sin mezclarlo con la aprobación documental.
-                          </p>
-                        </div>
-
-                        {/* DOCUMENTOS */}
-
-                        <div>
-
-                          <h3 className="mb-4 text-lg font-extrabold text-blue-700">
-                            Documentos
-                          </h3>
-
-                          {userDocs.length ===
-                          0 ? (
-                            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
-
-                              <p className="font-bold">
-                                Sin documentos
-                              </p>
-
-                              <p className="mt-1 text-sm">
-                                Este profesional todavía no tiene documentos registrados y no puede ser aprobado.
-                              </p>
-
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-
-                              {userDocs.map(
-                                (
-                                  doc,
-                                  index
-                                ) => (
-                                  <div
-                                    key={`${doc.file_path}-${index}`}
-                                    className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-                                  >
-
-                                    <div>
-
-                                      <p className="font-bold text-slate-900">
-                                        {doc.document_type ===
-                                        "license"
-                                          ? "Licencia"
-                                          : doc.document_type ===
-                                            "insurance"
-                                          ? "Seguro"
-                                          : doc.document_type ===
-                                            "bond"
-                                          ? "Bond / Fianza"
-                                          : doc.document_type}
-                                      </p>
-
-                                      <p className="mt-1 text-xs text-slate-500">
-                                        Estado:{" "}
-                                        {doc.status ||
-                                          "pending"}
-                                      </p>
-
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        abrirDocumento(
-                                          doc.file_path
-                                        )
-                                      }
-                                      className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700"
-                                    >
-                                      Ver documento
-                                    </button>
-
-                                  </div>
-                                )
-                              )}
-
-                            </div>
-                          )}
-
-                        </div>
-
-                      </div>
-
-                      {/* APROBAR / SOLICITAR DOCUMENTOS / RECHAZAR */}
-
-                      <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-6 md:grid-cols-3">
-
-                        <button
-                          type="button"
-                          disabled={
-                            procesando ===
-                              provider.user_id ||
-                            userDocs.length ===
-                              0
-                          }
-                          onClick={() =>
-                            cambiarEstado(
-                              provider.user_id,
-                              "verified"
-                            )
-                          }
-                          className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {procesando ===
-                          provider.user_id
-                            ? "Procesando..."
-                            : userDocs.length ===
-                              0
-                            ? "Faltan documentos"
-                            : "Aprobar profesional"}
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={
-                            procesando ===
-                            provider.user_id
-                          }
-                          onClick={() =>
-                            abrirSolicitudDocumentos(
-                              provider
-                            )
-                          }
-                          className="rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-3 font-extrabold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          📄 Solicitar documentos
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={
-                            procesando ===
-                            provider.user_id
-                          }
-                          onClick={() =>
-                            cambiarEstado(
-                              provider.user_id,
-                              "rejected"
-                            )
-                          }
-                          className="rounded-xl bg-red-600 px-5 py-3 font-extrabold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {procesando ===
-                          provider.user_id
-                            ? "Procesando..."
-                            : "Rechazar profesional"}
-                        </button>
-
-                      </div>
-
-                    </article>
-                  );
-                }
-              )}
-
-            </div>
-          )}
-
-        </section>
-          </>
-        )}
-
-        {/* El historial de reasignaciones se gestiona ahora en /admin/ordenes */}
-
-        {/* DATOS EXTRA */}
-
-        {totalRechazados >
-          0 && (
-          <div className="mt-8 text-center text-sm text-slate-500">
-            Profesionales rechazados registrados:{" "}
-            {totalRechazados}
-          </div>
-        )}
-
-      </div>
-
-      {solicitudDocsProvider && (
-        <div
-          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-6"
-          onMouseDown={(e) => {
-            if (
-              e.target ===
-              e.currentTarget
-            ) {
-              cerrarSolicitudDocumentos();
-            }
-          }}
-        >
-
-          <div className="my-auto w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]">
-
-            <div className="bg-amber-500 px-7 py-6 text-slate-950">
-
-              <div className="flex items-start justify-between gap-4">
-
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wider">
-                    RELYDO · Verificación
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-black">
-                    Solicitar documentos
-                  </h2>
-
-                  <p className="mt-2 text-sm font-semibold text-amber-950/80">
-                    {solicitudDocsProvider.business_name ||
-                      "Profesional"}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={solicitandoDocs}
-                  onClick={cerrarSolicitudDocumentos}
-                  className="rounded-lg bg-white/40 px-3 py-2 font-black hover:bg-white/60 disabled:opacity-50"
-                  aria-label="Cerrar"
-                >
-                  ✕
-                </button>
-
-              </div>
-
-            </div>
-
-            <div className="space-y-5 p-7">
-
-              <div>
-                <label className="mb-2 block text-sm font-extrabold text-slate-700">
-                  Documento solicitado
-                </label>
-
-                <select
-                  value={solicitudDocsTipo}
-                  disabled={solicitandoDocs}
-                  onChange={(e) =>
-                    setSolicitudDocsTipo(
-                      e.target.value as
-                        | "all"
-                        | "license"
-                        | "insurance"
-                        | "bond"
-                        | "other"
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                >
-                  <option value="all">
-                    Varios documentos / información adicional
-                  </option>
-                  <option value="license">
-                    Licencia
-                  </option>
-                  <option value="insurance">
-                    Seguro
-                  </option>
-                  <option value="bond">
-                    Bond / Fianza
-                  </option>
-                  <option value="other">
-                    Otro documento
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-extrabold text-slate-700">
-                  Explica exactamente qué necesita RELYDO
-                </label>
-
-                <textarea
-                  value={solicitudDocsMensaje}
-                  disabled={solicitandoDocs}
-                  onChange={(e) =>
-                    setSolicitudDocsMensaje(
-                      e.target.value
-                    )
-                  }
-                  rows={6}
-                  maxLength={1500}
-                  placeholder="Ejemplo: La copia de la licencia está borrosa. Sube una imagen o PDF legible donde se vea el número y la fecha de vencimiento."
-                  className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100 disabled:bg-slate-100"
-                />
-
-                <div className="mt-2 text-right text-xs font-semibold text-slate-400">
-                  {solicitudDocsMensaje.length}/1500
-                </div>
-              </div>
-
-              {(() => {
-                const contacto =
-                  datosContactoProfesional(
-                    solicitudDocsProvider
-                  );
-
-                const tieneEmail =
-                  contacto.email !==
-                  "No registrado";
-
-                const tieneTelefono =
-                  contacto.phone !==
-                  "No registrado";
-
-                return (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="mb-2 text-sm font-extrabold text-slate-700">
-                        Enviar solicitud por
-                      </p>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label
-                          className={`flex items-start gap-3 rounded-xl border p-4 ${
-                            tieneEmail
-                              ? "cursor-pointer border-slate-300 bg-white"
-                              : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-60"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              solicitudDocsPorEmail &&
-                              tieneEmail
-                            }
-                            disabled={
-                              solicitandoDocs ||
-                              !tieneEmail
-                            }
-                            onChange={(e) =>
-                              setSolicitudDocsPorEmail(
-                                e.target.checked
-                              )
-                            }
-                            className="mt-1 h-4 w-4"
-                          />
-
-                          <span>
-                            <span className="block font-extrabold text-slate-900">
-                              ✉️ Correo electrónico
-                            </span>
-                            <span className="mt-1 block break-all text-sm text-slate-600">
-                              {tieneEmail
-                                ? contacto.email
-                                : "No hay correo registrado"}
-                            </span>
-                          </span>
-                        </label>
-
-                        <label
-                          className={`flex items-start gap-3 rounded-xl border p-4 ${
-                            tieneTelefono
-                              ? "cursor-pointer border-slate-300 bg-white"
-                              : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-60"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              solicitudDocsPorSms &&
-                              tieneTelefono
-                            }
-                            disabled={
-                              solicitandoDocs ||
-                              !tieneTelefono
-                            }
-                            onChange={(e) =>
-                              setSolicitudDocsPorSms(
-                                e.target.checked
-                              )
-                            }
-                            className="mt-1 h-4 w-4"
-                          />
-
-                          <span>
-                            <span className="block font-extrabold text-slate-900">
-                              📱 Mensaje de texto (SMS)
-                            </span>
-                            <span className="mt-1 block text-sm text-slate-600">
-                              {tieneTelefono
-                                ? contacto.phone
-                                : "No hay teléfono registrado"}
-                            </span>
-                          </span>
-                        </label>
-                      </div>
-
-                      <p className="mt-2 text-xs font-semibold text-slate-500">
-                        RELYDO detecta automáticamente el correo y el teléfono guardados por el profesional. No tienes que escribirlos manualmente.
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                      La solicitud siempre quedará registrada en RELYDO. Si seleccionas correo o SMS, el profesional recibirá un enlace para iniciar sesión y subir únicamente la documentación solicitada aunque su cuenta continúe en revisión.
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {solicitudDocsError && (
-                <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-700">
-                  {solicitudDocsError}
-                </div>
-              )}
-
-              <div className="grid gap-3 sm:grid-cols-2">
-
-                <button
-                  type="button"
-                  disabled={solicitandoDocs}
-                  onClick={cerrarSolicitudDocumentos}
-                  className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="button"
-                  disabled={
-                    solicitandoDocs ||
-                    !solicitudDocsMensaje.trim()
-                  }
-                  onClick={solicitarDocumentos}
-                  className="rounded-xl bg-amber-500 px-5 py-3 font-extrabold text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {solicitandoDocs
-                    ? "Enviando..."
-                    : "📄 Enviar solicitud"}
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
+          <img
+            src={fotoAbierta.url}
+            alt={fotoAbierta.alt}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl"
+          />
         </div>
       )}
-
-      {reclamoParcial && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
-          onMouseDown={(e) => {
-            if (
-              e.target ===
-              e.currentTarget
-            ) {
-              cerrarResolucionParcial();
-            }
-          }}
-        >
-          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-
-            <div className="bg-purple-700 px-6 py-5 text-white sm:px-8">
-              <div className="flex items-start justify-between gap-4">
-
-                <div>
-                  <p className="text-sm font-extrabold uppercase tracking-wide text-purple-200">
-                    ⚖️ Resolución parcial
-                  </p>
-
-                  <h3 className="mt-1 text-2xl font-black">
-                    Dividir el dinero del reclamo
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-6 text-purple-100">
-                    Escribe cuánto recibirá el profesional. RELYDO calcula automáticamente cuánto se devuelve al cliente.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    procesandoReclamo ===
-                    reclamoParcial.id
-                  }
-                  onClick={
-                    cerrarResolucionParcial
-                  }
-                  className="rounded-xl bg-white/10 px-3 py-2 text-xl font-black text-white hover:bg-white/20 disabled:opacity-50"
-                  aria-label="Cerrar"
-                >
-                  ×
-                </button>
-
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-                <div className="rounded-2xl bg-slate-100 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                    Total pagado
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-slate-900">
-                    ${totalPagoParcial.toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-green-50 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-green-700">
-                    Profesional
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-green-800">
-                    ${montoProfesionalParcialNumero().toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-blue-50 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">
-                    Cliente
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-blue-800">
-                    ${reembolsoClienteParcialNumero().toFixed(2)}
-                  </p>
-                </div>
-
-              </div>
-
-              <div className="mt-6">
-
-                <label className="block">
-
-                  <span className="text-sm font-extrabold text-slate-800">
-                    ¿Cuánto recibirá el profesional?
-                  </span>
-
-                  <div className="mt-2 flex items-center rounded-2xl border-2 border-slate-300 bg-white px-4 focus-within:border-purple-600">
-
-                    <span className="text-xl font-black text-slate-500">
-                      $
-                    </span>
-
-                    <input
-                      type="number"
-                      min="0"
-                      max={
-                        maxProfesionalParcial
-                      }
-                      step="0.01"
-                      inputMode="decimal"
-                      value={
-                        montoProfesionalParcial
-                      }
-                      onChange={(e) => {
-                        setMontoProfesionalParcial(
-                          e.target.value
-                        );
-                        setErrorParcial("");
-                      }}
-                      placeholder="0.00"
-                      className="w-full bg-transparent px-3 py-4 text-2xl font-black text-slate-900 outline-none"
-                      autoFocus
-                    />
-
-                  </div>
-
-                  <p className="mt-2 text-sm text-slate-500">
-                    Máximo que puede recibir el profesional:{" "}
-                    <span className="font-extrabold text-slate-700">
-                      ${maxProfesionalParcial.toFixed(2)}
-                    </span>
-                  </p>
-
-                </label>
-
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-5">
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
-                  <div>
-                    <p className="text-sm font-extrabold text-blue-900">
-                      Reembolso automático al cliente
-                    </p>
-                    <p className="mt-1 text-sm text-blue-700">
-                      Total pagado − pago al profesional
-                    </p>
-                  </div>
-
-                  <div className="text-3xl font-black text-blue-900">
-                    ${reembolsoClienteParcialNumero().toFixed(2)}
-                  </div>
-
-                </div>
-
-              </div>
-
-              <div className="mt-5">
-
-                <label className="block">
-
-                  <span className="text-sm font-extrabold text-slate-800">
-                    Nota de resolución *
-                  </span>
-
-                  <textarea
-                    value={
-                      notaParcial
-                    }
-                    onChange={(e) => {
-                      setNotaParcial(
-                        e.target.value
-                      );
-                      setErrorParcial("");
-                    }}
-                    rows={4}
-                    maxLength={1000}
-                    placeholder="Explica brevemente por qué se decidió esta distribución..."
-                    className="mt-2 w-full resize-none rounded-2xl border-2 border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-purple-600"
-                  />
-
-                  <div className="mt-1 text-right text-xs text-slate-400">
-                    {notaParcial.length}/1000
-                  </div>
-
-                </label>
-
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-bold text-slate-600">
-                    Comprobación
-                  </span>
-
-                  <span className="font-black text-slate-900">
-                    ${montoProfesionalParcialNumero().toFixed(2)}
-                    {" + "}
-                    ${reembolsoClienteParcialNumero().toFixed(2)}
-                    {" = "}
-                    ${totalPagoParcial.toFixed(2)}
-                  </span>
-                </div>
-
-              </div>
-
-              {errorParcial && (
-                <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 font-bold text-red-700">
-                  {errorParcial}
-                </div>
-              )}
-
-              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-                <button
-                  type="button"
-                  disabled={
-                    procesandoReclamo ===
-                    reclamoParcial.id
-                  }
-                  onClick={
-                    cerrarResolucionParcial
-                  }
-                  className="rounded-xl border-2 border-slate-300 bg-white px-6 py-3 font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="button"
-                  disabled={
-                    procesandoReclamo ===
-                    reclamoParcial.id
-                  }
-                  onClick={
-                    confirmarResolucionParcial
-                  }
-                  className="rounded-xl bg-purple-700 px-6 py-3 font-extrabold text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {procesandoReclamo ===
-                  reclamoParcial.id
-                    ? "Procesando..."
-                    : "⚖️ Confirmar resolución"}
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </main>
   );
 }
 
 /*
-  TARJETA RESUMEN
+  COMPONENTE INFO
 */
 
-function EvidenciaAdminCard({
-  evidencia,
+function Info({
+  icono,
+  titulo,
+  valor,
 }: {
-  evidencia: ClaimEvidenceAdmin;
+  icono: string;
+  titulo: string;
+  valor: string;
 }) {
-  const contenedorRef =
-    useRef<HTMLDivElement | null>(null);
-
-  const [url, setUrl] =
-    useState<string | null>(
-      evidencia.signed_url
-    );
-
-  const [cargando, setCargando] =
-    useState(false);
-
-  const [fallo, setFallo] =
-    useState(false);
-
-  useEffect(() => {
-    let activo = true;
-    let observer: IntersectionObserver | null = null;
-
-    setUrl(
-      evidencia.signed_url
-    );
-    setFallo(false);
-
-    if (evidencia.signed_url) {
-      return () => {
-        activo = false;
-      };
-    }
-
-    const ruta = String(
-      evidencia.file_path ||
-      evidencia.file_url ||
-      ""
-    ).trim();
-
-    if (!ruta) {
-      setFallo(true);
-      return () => {
-        activo = false;
-      };
-    }
-
-    const cargarUrlSegura =
-      async () => {
-        setCargando(true);
-
-        const {
-          data: signedData,
-          error: signedError,
-        } =
-          await supabase.storage
-            .from("claim-evidence")
-            .createSignedUrl(
-              ruta,
-              60 * 60
-            );
-
-        if (!activo) {
-          return;
-        }
-
-        if (
-          signedError ||
-          !signedData?.signedUrl
-        ) {
-          console.error(
-            "No se pudo crear URL firmada para evidencia:",
-            evidencia.id,
-            signedError
-          );
-          setFallo(true);
-          setCargando(false);
-          return;
-        }
-
-        setUrl(
-          signedData.signedUrl
-        );
-        setCargando(false);
-      };
-
-    const elemento =
-      contenedorRef.current;
-
-    if (
-      !elemento ||
-      typeof IntersectionObserver ===
-        "undefined"
-    ) {
-      void cargarUrlSegura();
-
-      return () => {
-        activo = false;
-      };
-    }
-
-    observer =
-      new IntersectionObserver(
-        (entries) => {
-          if (
-            entries.some(
-              (entry) =>
-                entry.isIntersecting
-            )
-          ) {
-            observer?.disconnect();
-            void cargarUrlSegura();
-          }
-        },
-        {
-          rootMargin: "250px",
-        }
-      );
-
-    observer.observe(elemento);
-
-    return () => {
-      activo = false;
-      observer?.disconnect();
-    };
-  }, [
-    evidencia.id,
-    evidencia.file_path,
-    evidencia.file_url,
-    evidencia.signed_url,
-  ]);
-
-  if (
-    !url &&
-    !fallo
-  ) {
-    return (
-      <div
-        ref={contenedorRef}
-        className="flex h-48 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-4 text-center"
-      >
-        <p className="text-sm font-bold text-slate-500">
-          {cargando
-            ? "Cargando evidencia segura..."
-            : "La evidencia se cargará al entrar en pantalla."}
-        </p>
-      </div>
-    );
-  }
-
-  if (!url) {
-    return (
-      <div
-        ref={contenedorRef}
-        className="rounded-xl border border-red-200 bg-red-50 p-4"
-      >
-        <p className="text-sm font-extrabold text-red-800">
-          No se pudo abrir este archivo.
-        </p>
-
-        <p className="mt-1 text-xs text-red-600">
-          Actualiza los reclamos para intentar generar un nuevo enlace seguro.
-        </p>
-      </div>
-    );
-  }
-
-  if (
-    evidencia.file_type ===
-    "video"
-  ) {
-    return (
-      <div
-        ref={contenedorRef}
-        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-      >
-        <video
-          controls
-          preload="metadata"
-          className="h-48 w-full bg-black object-contain"
-          src={url}
-        >
-          Tu navegador no puede reproducir este video.
-        </video>
-
-        <div className="p-3">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-extrabold text-white hover:bg-slate-700"
-          >
-            🎥 Abrir video
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div ref={contenedorRef}>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-      >
-        <img
-          src={url}
-          alt="Evidencia del reclamo"
-          loading="lazy"
-          className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
-        />
+    <div className="flex items-start gap-3">
 
-        <div className="p-3 text-center text-sm font-extrabold text-blue-700">
-          🖼️ Abrir foto
-        </div>
-      </a>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl">
+        {icono}
+      </div>
+
+      <div>
+        <p className="font-extrabold text-slate-900">
+          {valor}
+        </p>
+
+        <p className="mt-1 text-xs text-slate-500">
+          {titulo}
+        </p>
+      </div>
     </div>
   );
 }
 
-function TarjetaResumen({
+/*
+  FILAS RESUMEN
+*/
+
+function FilaResumen({
   titulo,
   valor,
-  clase,
-  onClick,
-  activo = false,
+  fuerte = false,
 }: {
   titulo: string;
-  valor: number;
-  clase: string;
-  onClick?: () => void;
-  activo?: boolean;
+  valor: string;
+  fuerte?: boolean;
 }) {
-  if (!onClick) {
-    return (
-      <div className="rounded-2xl bg-white p-6 shadow">
-
-        <p className="text-sm font-bold text-slate-500">
-          {titulo}
-        </p>
-
-        <p
-          className={`mt-2 text-3xl font-black ${clase}`}
-        >
-          {valor}
-        </p>
-
-      </div>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className={`group w-full cursor-pointer rounded-2xl bg-white p-6 text-left shadow transition duration-200 hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-100 ${
-        activo
-          ? "ring-2 ring-blue-500"
-          : ""
-      }`}
-      title={`Ver ${titulo}`}
-    >
+    <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 last:border-b-0">
 
-      <div className="flex items-start justify-between gap-3">
-
-        <p className="text-sm font-bold text-slate-500 transition group-hover:text-slate-800">
-          {titulo}
-        </p>
-
-        <span className="text-lg font-black text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600">
-          →
-        </span>
-
-      </div>
+      <p className="text-sm text-slate-600">
+        {titulo}
+      </p>
 
       <p
-        className={`mt-2 text-3xl font-black ${clase}`}
+        className={
+          fuerte
+            ? "text-xl font-black text-slate-950"
+            : "font-bold text-slate-900"
+        }
       >
         {valor}
       </p>
-
-    </button>
-  );
-}
-
-/*
-  BOTÓN FILTRO
-*/
-
-function FiltroBoton({
-  activo,
-  texto,
-  onClick,
-}: {
-  activo: boolean;
-  texto: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className={`rounded-xl px-4 py-2 text-sm font-extrabold transition ${
-        activo
-          ? "bg-blue-700 text-white"
-          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-      }`}
-    >
-      {texto}
-    </button>
+    </div>
   );
 }
