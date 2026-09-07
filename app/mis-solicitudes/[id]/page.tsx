@@ -315,6 +315,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Profesional": "Professional",
   "✓ Contratado": "✓ Hired",
   "No seleccionada": "Not selected",
+  "Cancelado por el profesional": "Cancelled by professional",
   "✓ Verificado": "✓ Verified",
   "Presupuesto": "Price",
   "🚗 Puede llegar": "🚗 Can arrive",
@@ -878,6 +879,11 @@ export default function MisSolicitudDetallePage() {
     useState<OfertaConProfesional[]>(
       []
     );
+
+  const [
+    profesionalesQueLiberaron,
+    setProfesionalesQueLiberaron,
+  ] = useState<string[]>([]);
 
   const [
     review,
@@ -1835,6 +1841,7 @@ export default function MisSolicitudDetallePage() {
         completionEvidenceResult,
         changeOrdersResult,
         ofertasResult,
+        releasedProvidersResult,
         reviewResult,
         claimResult,
       ] = await Promise.all([
@@ -1903,6 +1910,10 @@ export default function MisSolicitudDetallePage() {
           `)
           .eq("request_id", id)
           .order("price", { ascending: true }),
+        supabase
+          .from("provider_released_jobs")
+          .select("professional_id")
+          .eq("request_id", id),
         reviewPromise,
         supabase
           .from("job_claims")
@@ -2009,6 +2020,29 @@ export default function MisSolicitudDetallePage() {
         setChangeOrders([]);
       } else {
         setChangeOrders((changeOrdersData || []) as ChangeOrder[]);
+      }
+
+      const {
+        data: releasedProvidersData,
+        error: releasedProvidersError,
+      } = releasedProvidersResult;
+
+      if (releasedProvidersError) {
+        console.error(
+          "Error cargando profesionales que liberaron el trabajo:",
+          releasedProvidersError
+        );
+        setProfesionalesQueLiberaron([]);
+      } else {
+        setProfesionalesQueLiberaron(
+          Array.from(
+            new Set(
+              (releasedProvidersData || []).map(
+                (item) => item.professional_id
+              )
+            )
+          )
+        );
       }
 
       const { data: ofertasData, error: ofertasError } = ofertasResult;
@@ -3508,11 +3542,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     solicitud.status ===
       "open" &&
     !ofertaSeleccionada &&
-    ofertas.some(
-      (oferta) =>
-        oferta.status ===
-        "rejected"
-    );
+    profesionalesQueLiberaron.length > 0;
 
   const etapaActual =
     numeroEtapa(
@@ -5794,19 +5824,85 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     oferta.status ===
                     "rejected";
 
+                  const canceladaPorProfesional =
+                    rechazada &&
+                    profesionalesQueLiberaron.includes(
+                      oferta.professional_id
+                    );
+
                   return (
-                    <article
-                      key={
-                        oferta.id
-                      }
-                      className={`rounded-3xl border bg-white p-7 shadow-lg ${
+                    <details
+                      key={oferta.id}
+                      open={seleccionada}
+                      className={`group overflow-hidden rounded-3xl border bg-white shadow-lg ${
                         seleccionada
                           ? "border-green-400 ring-2 ring-green-100"
+                          : canceladaPorProfesional
+                          ? "border-amber-300"
                           : rechazada
-                          ? "border-slate-200 opacity-70"
+                          ? "border-slate-200 opacity-80"
                           : "border-slate-200"
                       }`}
                     >
+                      <summary className="cursor-pointer list-none px-5 py-4 sm:px-7">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-extrabold text-slate-950">
+                                {oferta.profesional?.business_name ||
+                                  T("Profesional RELYDO")}
+                              </p>
+
+                              {seleccionada && (
+                                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
+                                  {T("✓ Contratado")}
+                                </span>
+                              )}
+
+                              {canceladaPorProfesional ? (
+                                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">
+                                  {T("Cancelado por el profesional")}
+                                </span>
+                              ) : rechazada ? (
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                  {T("No seleccionada")}
+                                </span>
+                              ) : null}
+
+                              {oferta.profesional?.verified && (
+                                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
+                                  {T("✓ Verificado")}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="mt-1 text-sm font-semibold text-blue-700">
+                              {T(
+                                nombreOficio(
+                                  oferta.profesional?.trade ||
+                                    null
+                                )
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                {T("Presupuesto")}
+                              </p>
+                              <p className="text-xl font-black text-slate-950">
+                                ${Number(oferta.price).toFixed(2)}
+                              </p>
+                            </div>
+                            <span className="text-2xl text-slate-500 transition group-open:rotate-90">
+                              ›
+                            </span>
+                          </div>
+                        </div>
+                      </summary>
+
+                    <article className="border-t border-slate-200 p-7">
 
                       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
 
@@ -5824,11 +5920,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                               </span>
                             )}
 
-                            {rechazada && (
+                            {canceladaPorProfesional ? (
+                              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">
+                                {T("Cancelado por el profesional")}
+                              </span>
+                            ) : rechazada ? (
                               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                                 {T("No seleccionada")}
                               </span>
-                            )}
+                            ) : null}
 
                             {oferta.profesional?.verified && (
                               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
@@ -6021,6 +6121,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         )}
 
                     </article>
+                    </details>
                   );
                 }
               )}
