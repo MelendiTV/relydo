@@ -3850,8 +3850,11 @@ export default function PanelProfesional() {
 
                 <h2 className="mt-1 text-xl font-extrabold text-blue-950">
                   {trabajosActivos.length === 1
-                    ? "Tienes un trabajo activo"
-                    : `Tienes ${trabajosActivos.length} trabajos activos`}
+                    ? T("Tienes un trabajo activo", "You have one active job")
+                    : T(
+                        `Tienes ${trabajosActivos.length} trabajos activos`,
+                        `You have ${trabajosActivos.length} active jobs`
+                      )}
                 </h2>
 
                 <p className="mt-1 text-blue-800">
@@ -3865,8 +3868,11 @@ export default function PanelProfesional() {
                 className="shrink-0 rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white transition hover:bg-blue-800"
               >
                 {trabajosActivos.length === 1
-                  ? "Ver trabajo activo"
-                  : `Ver ${trabajosActivos.length} trabajos activos`}
+                  ? T("Ver trabajo activo", "View active job")
+                  : T(
+                      `Ver ${trabajosActivos.length} trabajos activos`,
+                      `View ${trabajosActivos.length} active jobs`
+                    )}
               </button>
             </div>
           </section>
