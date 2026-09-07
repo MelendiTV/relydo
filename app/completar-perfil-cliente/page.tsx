@@ -6,9 +6,7 @@ import {
   useState,
 } from "react";
 
-import {
-  createClient,
-} from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 
 import {
   useSearchParams,
@@ -17,11 +15,6 @@ import {
 import {
   useLanguage,
 } from "@/app/components/LanguageProvider";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 function obtenerDestinoSeguro(
   value: string | null
