@@ -5,9 +5,7 @@ import {
   useState,
 } from "react";
 
-import {
-  createClient,
-} from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 
 import {
   useRouter,
@@ -17,11 +15,6 @@ import {
 import {
   useLanguage,
 } from "@/app/components/LanguageProvider";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 function LoginClienteContenido() {
   const router = useRouter();
