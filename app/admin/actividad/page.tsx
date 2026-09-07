@@ -401,7 +401,7 @@ export default function AdminActividadPage() {
             }
             className="font-black text-blue-700 hover:underline"
           >
-            â† Volver al panel Admin
+            ← Volver al panel Admin
           </button>
 
           <button
@@ -409,13 +409,13 @@ export default function AdminActividadPage() {
             onClick={cargar}
             className="rounded-xl border-2 border-indigo-700 bg-white px-5 py-3 font-black text-indigo-700 hover:bg-indigo-50"
           >
-            â†» Actualizar actividad
+            ↻ Actualizar actividad
           </button>
         </div>
 
         <section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl">
           <p className="text-sm font-black uppercase tracking-widest text-indigo-300">
-            ðŸ“ˆ Rendimiento operativo
+            📈 Rendimiento operativo
           </p>
 
           <h1 className="mt-2 text-3xl font-black">
@@ -423,7 +423,7 @@ export default function AdminActividadPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-slate-300">
-            Observa cÃ³mo se mueve RELYDO: trabajos, contrataciÃ³n, finalizaciÃ³n, ofertas, clientes y profesionales.
+            Observa cómo se mueve RELYDO: trabajos, contratación, finalización, ofertas, clientes y profesionales.
           </p>
         </section>
 
@@ -435,7 +435,7 @@ export default function AdminActividadPage() {
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow">
           <p className="text-sm font-black uppercase tracking-wide text-slate-500">
-            PerÃ­odo
+            Período
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -444,7 +444,7 @@ export default function AdminActividadPage() {
                 ["hoy", "Hoy"],
                 ["semana", "Esta semana"],
                 ["mes", "Este mes"],
-                ["ano", "Este aÃ±o"],
+                ["ano", "Este año"],
                 ["todo", "Todo"],
               ] as const
             ).map(([valor, texto]) => (
@@ -470,7 +470,7 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="Trabajos creados"
             valor={String(metrics.total)}
-            descripcion="Solicitudes creadas en el perÃ­odo."
+            descripcion="Solicitudes creadas en el período."
           />
 
           <Tarjeta
@@ -488,17 +488,17 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="En progreso"
             valor={String(metrics.progreso)}
-            descripcion="Trabajos actualmente en ejecuciÃ³n."
+            descripcion="Trabajos actualmente en ejecución."
           />
 
           <Tarjeta
-            titulo="Tasa de contrataciÃ³n"
+            titulo="Tasa de contratación"
             valor={`${metrics.tasaContratacion}%`}
             descripcion="Porcentaje de solicitudes con profesional asignado."
           />
 
           <Tarjeta
-            titulo="Tasa de finalizaciÃ³n"
+            titulo="Tasa de finalización"
             valor={`${metrics.tasaFinalizacion}%`}
             descripcion="Completados frente a completados + cancelados."
           />
@@ -506,13 +506,13 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="Ofertas enviadas"
             valor={String(metrics.ofertas)}
-            descripcion="Ofertas creadas durante el perÃ­odo."
+            descripcion="Ofertas creadas durante el período."
           />
 
           <Tarjeta
             titulo="Ofertas por trabajo"
             valor={String(metrics.ofertasPromedio)}
-            descripcion="Promedio de ofertas por trabajo que recibiÃ³ al menos una."
+            descripcion="Promedio de ofertas por trabajo que recibió al menos una."
           />
         </section>
 
@@ -520,7 +520,7 @@ export default function AdminActividadPage() {
           <Bloque
             titulo="Clientes"
             principal={String(clientesRegistrados)}
-            detalle={`${metrics.clientesUnicos} cliente(s) con actividad en el perÃ­odo`}
+            detalle={`${metrics.clientesUnicos} cliente(s) con actividad en el período`}
           />
 
           <Bloque
@@ -543,7 +543,7 @@ export default function AdminActividadPage() {
             </p>
 
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              DistribuciÃ³n operativa
+              Distribución operativa
             </h2>
           </div>
 
