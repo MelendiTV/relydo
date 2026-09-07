@@ -202,7 +202,7 @@ export default function AdminActividadPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "No pudimos cargar la actividad de FixFlow."
+          : "No pudimos cargar la actividad de RELYDO."
       );
     } finally {
       setLoading(false);
@@ -384,7 +384,7 @@ export default function AdminActividadPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
         <div className="rounded-2xl bg-white px-8 py-7 font-bold text-slate-700 shadow">
-          Cargando actividad de FixFlow...
+          Cargando actividad de RELYDO...
         </div>
       </main>
     );
@@ -401,7 +401,7 @@ export default function AdminActividadPage() {
             }
             className="font-black text-blue-700 hover:underline"
           >
-            ← Volver al panel Admin
+            â† Volver al panel Admin
           </button>
 
           <button
@@ -409,13 +409,13 @@ export default function AdminActividadPage() {
             onClick={cargar}
             className="rounded-xl border-2 border-indigo-700 bg-white px-5 py-3 font-black text-indigo-700 hover:bg-indigo-50"
           >
-            ↻ Actualizar actividad
+            â†» Actualizar actividad
           </button>
         </div>
 
         <section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl">
           <p className="text-sm font-black uppercase tracking-widest text-indigo-300">
-            📈 Rendimiento operativo
+            ðŸ“ˆ Rendimiento operativo
           </p>
 
           <h1 className="mt-2 text-3xl font-black">
@@ -423,7 +423,7 @@ export default function AdminActividadPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-slate-300">
-            Observa cómo se mueve FixFlow: trabajos, contratación, finalización, ofertas, clientes y profesionales.
+            Observa cÃ³mo se mueve RELYDO: trabajos, contrataciÃ³n, finalizaciÃ³n, ofertas, clientes y profesionales.
           </p>
         </section>
 
@@ -435,7 +435,7 @@ export default function AdminActividadPage() {
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow">
           <p className="text-sm font-black uppercase tracking-wide text-slate-500">
-            Período
+            PerÃ­odo
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -444,7 +444,7 @@ export default function AdminActividadPage() {
                 ["hoy", "Hoy"],
                 ["semana", "Esta semana"],
                 ["mes", "Este mes"],
-                ["ano", "Este año"],
+                ["ano", "Este aÃ±o"],
                 ["todo", "Todo"],
               ] as const
             ).map(([valor, texto]) => (
@@ -470,7 +470,7 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="Trabajos creados"
             valor={String(metrics.total)}
-            descripcion="Solicitudes creadas en el período."
+            descripcion="Solicitudes creadas en el perÃ­odo."
           />
 
           <Tarjeta
@@ -488,17 +488,17 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="En progreso"
             valor={String(metrics.progreso)}
-            descripcion="Trabajos actualmente en ejecución."
+            descripcion="Trabajos actualmente en ejecuciÃ³n."
           />
 
           <Tarjeta
-            titulo="Tasa de contratación"
+            titulo="Tasa de contrataciÃ³n"
             valor={`${metrics.tasaContratacion}%`}
             descripcion="Porcentaje de solicitudes con profesional asignado."
           />
 
           <Tarjeta
-            titulo="Tasa de finalización"
+            titulo="Tasa de finalizaciÃ³n"
             valor={`${metrics.tasaFinalizacion}%`}
             descripcion="Completados frente a completados + cancelados."
           />
@@ -506,13 +506,13 @@ export default function AdminActividadPage() {
           <Tarjeta
             titulo="Ofertas enviadas"
             valor={String(metrics.ofertas)}
-            descripcion="Ofertas creadas durante el período."
+            descripcion="Ofertas creadas durante el perÃ­odo."
           />
 
           <Tarjeta
             titulo="Ofertas por trabajo"
             valor={String(metrics.ofertasPromedio)}
-            descripcion="Promedio de ofertas por trabajo que recibió al menos una."
+            descripcion="Promedio de ofertas por trabajo que recibiÃ³ al menos una."
           />
         </section>
 
@@ -520,7 +520,7 @@ export default function AdminActividadPage() {
           <Bloque
             titulo="Clientes"
             principal={String(clientesRegistrados)}
-            detalle={`${metrics.clientesUnicos} cliente(s) con actividad en el período`}
+            detalle={`${metrics.clientesUnicos} cliente(s) con actividad en el perÃ­odo`}
           />
 
           <Bloque
@@ -543,7 +543,7 @@ export default function AdminActividadPage() {
             </p>
 
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Distribución operativa
+              DistribuciÃ³n operativa
             </h2>
           </div>
 
@@ -641,3 +641,4 @@ function Estado({
     </div>
   );
 }
+
