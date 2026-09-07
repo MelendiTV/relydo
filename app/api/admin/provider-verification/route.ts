@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
-import { isAdminRole } from "../../../lib/adminPermissions";
+import {
+  hasAdminPermission,
+  isAdminRole,
+} from "../../../lib/adminPermissions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +43,16 @@ export async function POST(request: NextRequest) {
       adminError ||
       !adminProfile ||
       adminProfile.role !== "admin" ||
-      !isAdminRole(adminProfile.admin_role)
+      !isAdminRole(adminProfile.admin_role) ||
+      !hasAdminPermission(
+        adminProfile.admin_role,
+        "providers"
+      )
     ) {
-      return NextResponse.json({ error: "No tienes permiso para revisar profesionales." }, { status: 403 });
+      return NextResponse.json(
+        { error: "No tienes permiso para revisar profesionales." },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -51,7 +61,10 @@ export async function POST(request: NextRequest) {
     const reason = String(body?.reason || "").trim();
 
     if (!providerId || (status !== "verified" && status !== "rejected")) {
-      return NextResponse.json({ error: "La decisión de verificación no es válida." }, { status: 400 });
+      return NextResponse.json(
+        { error: "La decisión de verificación no es válida." },
+        { status: 400 }
+      );
     }
 
     if (status === "rejected" && reason.length < 5) {
@@ -68,10 +81,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (providerError || !provider) {
-      return NextResponse.json({ error: "No encontramos este profesional." }, { status: 404 });
+      return NextResponse.json(
+        { error: "No encontramos este profesional." },
+        { status: 404 }
+      );
     }
 
     const verified = status === "verified";
+
     const { error: updateError } = await supabaseAdmin
       .from("provider_profiles")
       .update({
@@ -93,9 +110,11 @@ export async function POST(request: NextRequest) {
         userId: providerId,
         type: "provider_verification_approved",
         title: "✅ Cuenta profesional aprobada",
-        message: "Tu cuenta profesional fue aprobada. Ya puedes acceder a las oportunidades disponibles en RELYDO.",
+        message:
+          "Tu cuenta profesional fue aprobada. Ya puedes acceder a las oportunidades disponibles en RELYDO.",
         titleEn: "✅ Professional account approved",
-        messageEn: "Your professional account was approved. You can now access available opportunities on RELYDO.",
+        messageEn:
+          "Your professional account was approved. You can now access available opportunities on RELYDO.",
         url: "/login-profesional",
       });
     } else {
@@ -113,6 +132,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, status });
   } catch (error) {
     console.error("Error actualizando verificación profesional:", error);
-    return NextResponse.json({ error: "Ocurrió un error actualizando la verificación." }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Ocurrió un error actualizando la verificación." },
+      { status: 500 }
+    );
   }
 }
