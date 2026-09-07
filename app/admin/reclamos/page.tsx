@@ -158,6 +158,12 @@ export default function AdminReclamosPage() {
 
   const [reclamos, setReclamos] = useState<JobClaim[]>([]);
   const [evidencias, setEvidencias] = useState<ClaimEvidence[]>([]);
+  const [evidenciasCargadas, setEvidenciasCargadas] = useState<
+    Record<string, boolean>
+  >({});
+  const [cargandoEvidencias, setCargandoEvidencias] = useState<
+    string | null
+  >(null);
   const [solicitudes, setSolicitudes] = useState<SolicitudAdmin[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [filtro, setFiltro] = useState<Filtro>("todos");
@@ -334,39 +340,16 @@ export default function AdminReclamosPage() {
             "signed_url"
           >[];
 
-        const conUrls =
-          await Promise.all(
-            base.map(async (item) => {
-              const ruta =
-                item.file_path ||
-                item.file_url;
-
-              const { data, error: signedError } =
-                await supabase.storage
-                  .from("claim-evidence")
-                  .createSignedUrl(
-                    ruta,
-                    60 * 60
-                  );
-
-              if (signedError) {
-                console.error(
-                  "Error URL evidencia:",
-                  signedError
-                );
-              }
-
-              return {
-                ...item,
-                signed_url:
-                  data?.signedUrl ||
-                  null,
-              };
-            })
-          );
-
-        setEvidencias(conUrls);
+        setEvidencias(
+          base.map((item) => ({
+            ...item,
+            signed_url: null,
+          }))
+        );
       }
+
+      setEvidenciasCargadas({});
+      setCargandoEvidencias(null);
     } catch (err) {
       setError(
         err instanceof Error
@@ -375,6 +358,90 @@ export default function AdminReclamosPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function cargarEvidenciasReclamo(
+    claimId: string
+  ) {
+    if (
+      evidenciasCargadas[claimId] ||
+      cargandoEvidencias === claimId
+    ) {
+      return;
+    }
+
+    const evidenciasCaso =
+      evidencias.filter(
+        (item) => item.claim_id === claimId
+      );
+
+    if (evidenciasCaso.length === 0) {
+      setEvidenciasCargadas((prev) => ({
+        ...prev,
+        [claimId]: true,
+      }));
+      return;
+    }
+
+    setCargandoEvidencias(claimId);
+
+    try {
+      const conUrls =
+        await Promise.all(
+          evidenciasCaso.map(async (item) => {
+            if (item.signed_url) {
+              return item;
+            }
+
+            const ruta =
+              item.file_path ||
+              item.file_url;
+
+            const { data, error: signedError } =
+              await supabase.storage
+                .from("claim-evidence")
+                .createSignedUrl(
+                  ruta,
+                  60 * 60
+                );
+
+            if (signedError) {
+              console.error(
+                "Error URL evidencia:",
+                signedError
+              );
+            }
+
+            return {
+              ...item,
+              signed_url:
+                data?.signedUrl ||
+                null,
+            };
+          })
+        );
+
+      const porId = new Map(
+        conUrls.map((item) => [item.id, item])
+      );
+
+      setEvidencias((prev) =>
+        prev.map((item) =>
+          item.claim_id === claimId
+            ? porId.get(item.id) || item
+            : item
+        )
+      );
+
+      setEvidenciasCargadas((prev) => ({
+        ...prev,
+        [claimId]: true,
+      }));
+    } finally {
+      setCargandoEvidencias((actual) =>
+        actual === claimId ? null : actual
+      );
     }
   }
 
@@ -960,6 +1027,13 @@ export default function AdminReclamosPage() {
               return (
                 <details
                   key={reclamo.id}
+                  onToggle={(event) => {
+                    if (event.currentTarget.open) {
+                      void cargarEvidenciasReclamo(
+                        reclamo.id
+                      );
+                    }
+                  }}
                   className={`group rounded-3xl border bg-white shadow ${
                     activo
                       ? "border-red-300"
@@ -1131,11 +1205,19 @@ export default function AdminReclamosPage() {
                           titulo="Evidencia del cliente"
                           evidencias={evidenciasCliente}
                           clase="border-blue-200 bg-blue-50"
+                          cargando={
+                            cargandoEvidencias ===
+                            reclamo.id
+                          }
                         />
                         <GrupoEvidencias
                           titulo="Evidencia del profesional"
                           evidencias={evidenciasPro}
                           clase="border-emerald-200 bg-emerald-50"
+                          cargando={
+                            cargandoEvidencias ===
+                            reclamo.id
+                          }
                         />
                       </div>
                     </div>
@@ -1443,10 +1525,12 @@ function GrupoEvidencias({
   titulo,
   evidencias,
   clase,
+  cargando,
 }: {
   titulo: string;
   evidencias: ClaimEvidence[];
   clase: string;
+  cargando: boolean;
 }) {
   return (
     <div className={`rounded-2xl border p-5 ${clase}`}>
@@ -1492,7 +1576,9 @@ function GrupoEvidencias({
                 )
               ) : (
                 <div className="flex aspect-video items-center justify-center text-sm text-slate-500">
-                  Archivo no disponible
+                  {cargando
+                    ? "Cargando evidencia..."
+                    : "Archivo no disponible"}
                 </div>
               )}
 
