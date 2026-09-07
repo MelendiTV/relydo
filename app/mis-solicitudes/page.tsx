@@ -979,7 +979,22 @@ export default function MisSolicitudesPage() {
       }
 
       setAccountRole(profileData.role === "provider" ? "provider" : "customer");
-      setCliente(profileData);
+
+      const nombreRealProfesional =
+        profileData.role === "provider"
+          ? String(
+              profileData.full_name ||
+                user.user_metadata?.legal_name ||
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
+                ""
+            ).trim()
+          : String(profileData.full_name || "").trim();
+
+      setCliente({
+        ...profileData,
+        full_name: nombreRealProfesional || null,
+      });
 
       const { data, error: solicitudesError } = solicitudesResult;
       if (solicitudesError) {
