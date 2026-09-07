@@ -671,6 +671,28 @@ export default function CheckoutPage() {
         );
       }
 
+      /*
+       * REASIGNACIÓN SIN NUEVO COBRO.
+       *
+       * Si el crédito retenido cubre completamente
+       * el nuevo trabajo, el backend ya aplicó la
+       * reasignación y no existe una URL de Stripe.
+       */
+      if (
+        data?.reassignmentApplied === true &&
+        data?.stripeCheckoutRequired === false
+      ) {
+        router.replace(
+          `/mis-solicitudes/${solicitud.id}?payment=success`
+        );
+
+        return;
+      }
+
+      /*
+       * CHECKOUT NORMAL O REASIGNACIÓN CON DIFERENCIA.
+       * En ambos casos Stripe devuelve una URL.
+       */
       if (!data?.url) {
         throw new Error(
           text.stripeSinUrl

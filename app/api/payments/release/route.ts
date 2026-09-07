@@ -289,6 +289,91 @@ async function procesarLiberacion({
     );
 
   // ============================================================
+  // 5A. COMPROBAR SI ESTE ES UN PAGO DE REASIGNACIÓN
+  // ============================================================
+
+  const {
+    data: paymentReassignment,
+    error: paymentReassignmentError,
+  } = await supabaseAdmin
+    .from("payment_reassignments")
+    .select(`
+      id,
+      status,
+      replacement_payment_id
+    `)
+    .eq("replacement_payment_id", payment.id)
+    .eq("status", "applied")
+    .maybeSingle();
+
+  if (paymentReassignmentError) {
+    console.error(
+      "Error comprobando reasignación del pago:",
+      paymentReassignmentError
+    );
+
+    return {
+      success: false,
+      status: 500,
+      error: `No pudimos comprobar si el pago pertenece a una reasignación: ${paymentReassignmentError.message}`,
+    };
+  }
+
+  const esPagoReasignado = Boolean(paymentReassignment);
+
+  let reassignmentFundingSources: Array<{
+    id: string;
+    source_type: string;
+    stripe_payment_intent_id: string;
+    allocated_customer_amount: number | string;
+    allocated_provider_amount: number | string;
+    stripe_transfer_id: string | null;
+    transferred_at: string | null;
+  }> = [];
+
+  if (esPagoReasignado) {
+    const { data: fundingSources, error: fundingSourcesError } =
+      await supabaseAdmin
+        .from("payment_reassignment_funding_sources")
+        .select(`
+          id,
+          source_type,
+          stripe_payment_intent_id,
+          allocated_customer_amount,
+          allocated_provider_amount,
+          stripe_transfer_id,
+          transferred_at
+        `)
+        .eq("reassignment_id", paymentReassignment!.id)
+        .order("created_at", { ascending: true });
+
+    if (fundingSourcesError) {
+      console.error(
+        "Error buscando fuentes de fondos de la reasignación:",
+        fundingSourcesError
+      );
+
+      return {
+        success: false,
+        status: 500,
+        error: `No pudimos consultar las fuentes de fondos de la reasignación: ${fundingSourcesError.message}`,
+      };
+    }
+
+    reassignmentFundingSources = fundingSources || [];
+
+    if (reassignmentFundingSources.length === 0) {
+      return {
+        success: false,
+        status: 409,
+        reason: "reassignment_funding_missing",
+        error:
+          "El pago reasignado no tiene registradas sus fuentes de fondos.",
+      };
+    }
+  }
+
+  // ============================================================
   // 6. RESPETAR LA VENTANA DE PROTECCIÓN
   // ============================================================
 
@@ -332,7 +417,7 @@ async function procesarLiberacion({
     };
   }
 
-  if (!payment.provider_payment_id) {
+  if (!esPagoReasignado && !payment.provider_payment_id) {
     return {
       success: false,
       status: 400,
@@ -517,13 +602,135 @@ async function procesarLiberacion({
       false;
 
     // ==========================================================
-    // 11. LIBERAR PAGO ORIGINAL SI TODAVÍA NO SE LIBERÓ
+    // 11. LIBERAR PAGO PRINCIPAL
     // ==========================================================
 
-    if (!pagoOriginalYaLiberado) {
+    if (!pagoOriginalYaLiberado && esPagoReasignado) {
+      const providerNetCents = Math.round(providerNetAmountOriginal * 100);
+      const allocatedProviderCents = reassignmentFundingSources.reduce(
+        (total, source) =>
+          total + Math.round(Number(source.allocated_provider_amount || 0) * 100),
+        0
+      );
+
+      if (allocatedProviderCents !== providerNetCents) {
+        throw new Error(
+          `Las fuentes de fondos de la reasignación suman $${(allocatedProviderCents / 100).toFixed(2)}, pero el neto del profesional es $${providerNetAmountOriginal.toFixed(2)}.`
+        );
+      }
+
+      const reassignmentTransferIds: string[] = [];
+
+      for (const source of reassignmentFundingSources) {
+        const sourceProviderAmount = Number(source.allocated_provider_amount || 0);
+
+        if (!Number.isFinite(sourceProviderAmount) || sourceProviderAmount < 0) {
+          throw new Error(`La fuente de fondos ${source.id} tiene un importe profesional inválido.`);
+        }
+
+        if (sourceProviderAmount === 0) continue;
+
+        if (source.transferred_at && source.stripe_transfer_id) {
+          reassignmentTransferIds.push(source.stripe_transfer_id);
+          continue;
+        }
+
+        if (!source.stripe_payment_intent_id) {
+          throw new Error(`La fuente de fondos ${source.id} no tiene PaymentIntent de Stripe.`);
+        }
+
+        const sourcePaymentIntent = await stripe.paymentIntents.retrieve(
+          source.stripe_payment_intent_id,
+          { expand: ["latest_charge"] }
+        );
+
+        const sourceLatestCharge = sourcePaymentIntent.latest_charge;
+        const sourceChargeId =
+          typeof sourceLatestCharge === "string"
+            ? sourceLatestCharge
+            : sourceLatestCharge?.id;
+
+        if (!sourceChargeId) {
+          throw new Error(`No encontramos el cargo de Stripe de la fuente ${source.id}.`);
+        }
+
+        const sourceTransfer = await stripe.transfers.create(
+          {
+            amount: Math.round(sourceProviderAmount * 100),
+            currency: (payment.currency || "usd").toLowerCase(),
+            destination: providerProfile.stripe_account_id,
+            source_transaction: sourceChargeId,
+            transfer_group: `relydo_request_${requestId}`,
+            metadata: {
+              request_id: String(requestId),
+              payment_id: String(payment.id),
+              reassignment_id: String(paymentReassignment!.id),
+              funding_source_id: String(source.id),
+              funding_source_type: String(source.source_type),
+              professional_id: String(serviceRequest.preferred_provider_id),
+              provider_net_amount: sourceProviderAmount.toFixed(2),
+              payment_type: "reassignment_funding_source",
+              release_reason: "job_completed_after_protection_window",
+            },
+          },
+          {
+            idempotencyKey: `relydo_release_reassignment_source_${source.id}`,
+          }
+        );
+
+        reassignmentTransferIds.push(sourceTransfer.id);
+
+        const sourceReleasedAt = new Date().toISOString();
+        const { error: updateFundingSourceError } = await supabaseAdmin
+          .from("payment_reassignment_funding_sources")
+          .update({
+            stripe_transfer_id: sourceTransfer.id,
+            transferred_at: sourceReleasedAt,
+            updated_at: sourceReleasedAt,
+          })
+          .eq("id", source.id);
+
+        if (updateFundingSourceError) {
+          throw new Error(
+            `Stripe transfirió la fuente ${source.id}, pero RELYDO no pudo registrar su liberación: ${updateFundingSourceError.message}`
+          );
+        }
+      }
+
+      const sourcesWithProviderFunds = reassignmentFundingSources.filter(
+        (source) => Number(source.allocated_provider_amount || 0) > 0
+      );
+
+      if (reassignmentTransferIds.length !== sourcesWithProviderFunds.length) {
+        throw new Error("No se pudieron confirmar todas las transferencias de la reasignación.");
+      }
+
+      originalTransferId = reassignmentTransferIds[0] || "";
+      originalLiberadoAhora = true;
+
+      const releasedAt = new Date().toISOString();
+      const { error: updateReassignedPaymentError } = await supabaseAdmin
+        .from("payments")
+        .update({
+          released_at: releasedAt,
+          stripe_transfer_id: originalTransferId || null,
+          last_release_error: null,
+          status: "paid_out",
+          updated_at: releasedAt,
+        })
+        .eq("id", payment.id);
+
+      if (updateReassignedPaymentError) {
+        throw new Error(
+          `Stripe creó las transferencias de la reasignación, pero RELYDO no pudo marcar el pago como liberado: ${updateReassignedPaymentError.message}`
+        );
+      }
+    }
+
+    if (!pagoOriginalYaLiberado && !esPagoReasignado) {
       const paymentIntent =
         await stripe.paymentIntents.retrieve(
-          payment.provider_payment_id,
+          payment.provider_payment_id!,
           {
             expand: ["latest_charge"],
           }
