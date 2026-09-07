@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
 import {
   AdminRole,
@@ -12,11 +12,6 @@ import {
   getProviderRequirements,
   requirementLabel,
 } from "@/app/lib/providerRequirements";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 type Provider = {
   user_id: string;
