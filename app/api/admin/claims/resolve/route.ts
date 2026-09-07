@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../../lib/serverNotifications";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     if (!authorization?.startsWith("Bearer ")) {
       return NextResponse.json(
-        { error: "No estás autenticado." },
+        { error: "No estÃ¡s autenticado." },
         { status: 401 }
       );
     }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user?.email) {
       return NextResponse.json(
-        { error: "No pudimos verificar tu sesión." },
+        { error: "No pudimos verificar tu sesiÃ³n." },
         { status: 401 }
       );
     }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 2. LEER DECISIÓN
+    // 2. LEER DECISIÃ“N
     // ======================================================
 
     const body = await request.json();
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       action !== "partial"
     ) {
       return NextResponse.json(
-        { error: "La decisión del reclamo no es válida." },
+        { error: "La decisiÃ³n del reclamo no es vÃ¡lida." },
         { status: 400 }
       );
     }
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Debes escribir una nota explicando la resolución.",
+            "Debes escribir una nota explicando la resoluciÃ³n.",
         },
         { status: 400 }
       );
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         {
           error:
             claim.status === "open"
-              ? "Primero debes pasar el reclamo a En revisión antes de tomar una decisión económica."
+              ? "Primero debes pasar el reclamo a En revisiÃ³n antes de tomar una decisiÃ³n econÃ³mica."
               : "Este reclamo ya fue cerrado.",
         },
         { status: 409 }
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
           {
             error:
               plazoVigente
-                ? "El profesional todavía está dentro de su plazo de 24 horas para responder. El administrador debe confirmar expresamente que desea resolver antes."
+                ? "El profesional todavÃ­a estÃ¡ dentro de su plazo de 24 horas para responder. El administrador debe confirmar expresamente que desea resolver antes."
                 : "No pudimos validar el plazo de respuesta del profesional. El administrador debe confirmar expresamente que desea resolver de todos modos.",
             requiresAdminOverride:
               true,
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Este reclamo solo puede resolverse cuando el trabajo está completado, iniciado o enviado a revisión final.",
+            "Este reclamo solo puede resolverse cuando el trabajo estÃ¡ completado, iniciado o enviado a revisiÃ³n final.",
         },
         { status: 400 }
       );
@@ -437,26 +437,127 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Los importes guardados del trabajo no son válidos.",
+            "Los importes guardados del trabajo no son vÃ¡lidos.",
         },
         { status: 400 }
       );
     }
 
     /*
-      POLÍTICA ECONÓMICA DE RECLAMOS RELYDO:
+      POLÃTICA ECONÃ“MICA DE RECLAMOS RELYDO:
       - jobAmount es el monto disputable del servicio.
       - customerFee es el service fee original de RELYDO y no es
-        reembolsable por defecto en una resolución de reclamo.
-      - No se añade un segundo fee por resolver el reclamo.
-      - El cliente nunca puede recibir más de jobAmount.
-      - El profesional nunca puede recibir más de providerNet.
-      - En una resolución compartida, cliente + profesional no
+        reembolsable por defecto en una resoluciÃ³n de reclamo.
+      - No se aÃ±ade un segundo fee por resolver el reclamo.
+      - El cliente nunca puede recibir mÃ¡s de jobAmount.
+      - El profesional nunca puede recibir mÃ¡s de providerNet.
+      - En una resoluciÃ³n compartida, cliente + profesional no
         pueden superar jobAmount.
     */
 
     const transferGroup =
       `relydo_request_${claim.request_id}`;
+
+    // ======================================================
+    // 5B. RESERVA ATÃ“MICA DE LA DECISIÃ“N ECONÃ“MICA
+    // ======================================================
+    // Evita que dos solicitudes concurrentes ejecuten decisiones
+    // incompatibles sobre el mismo reclamo. Un reintento de la misma
+    // decisiÃ³n y los mismos importes sÃ­ puede continuar para reconciliar
+    // Stripe/DB usando la idempotencia existente.
+    async function reservarDecisionEconomica(
+      tipo: ResolutionAction,
+      montoProfesional: number,
+      montoCliente: number
+    ) {
+      const now = new Date().toISOString();
+
+      const { data: reservedClaim, error: reserveError } =
+        await supabaseAdmin
+          .from("job_claims")
+          .update({
+            resolution_type: tipo,
+            provider_award_amount: montoProfesional,
+            customer_refund_amount: montoCliente,
+            updated_at: now,
+          })
+          .eq("id", claimId)
+          .eq("status", "reviewing")
+          .is("resolution_type", null)
+          .select(
+            "id, status, resolution_type, provider_award_amount, customer_refund_amount"
+          )
+          .maybeSingle();
+
+      if (reserveError) {
+        return {
+          ok: false as const,
+          response: NextResponse.json(
+            {
+              error:
+                `No pudimos reservar la resoluciÃ³n del reclamo: ${reserveError.message}`,
+            },
+            { status: 500 }
+          ),
+        };
+      }
+
+      if (reservedClaim) {
+        return { ok: true as const };
+      }
+
+      const { data: currentClaim, error: currentClaimError } =
+        await supabaseAdmin
+          .from("job_claims")
+          .select(
+            "id, status, resolution_type, provider_award_amount, customer_refund_amount"
+          )
+          .eq("id", claimId)
+          .maybeSingle();
+
+      if (currentClaimError || !currentClaim) {
+        return {
+          ok: false as const,
+          response: NextResponse.json(
+            {
+              error: currentClaimError
+                ? `No pudimos verificar la reserva del reclamo: ${currentClaimError.message}`
+                : "No encontramos el reclamo al verificar la reserva econÃ³mica.",
+            },
+            { status: currentClaimError ? 500 : 404 }
+          ),
+        };
+      }
+
+      const mismoTipo =
+        currentClaim.status === "reviewing" &&
+        currentClaim.resolution_type === tipo;
+
+      const mismoMontoProfesional =
+        dinero(currentClaim.provider_award_amount || 0) ===
+        dinero(montoProfesional);
+
+      const mismoMontoCliente =
+        dinero(currentClaim.customer_refund_amount || 0) ===
+        dinero(montoCliente);
+
+      if (mismoTipo && mismoMontoProfesional && mismoMontoCliente) {
+        return { ok: true as const };
+      }
+
+      return {
+        ok: false as const,
+        response: NextResponse.json(
+          {
+            error:
+              currentClaim.status === "reviewing"
+                ? "Este reclamo ya tiene otra decisiÃ³n econÃ³mica en proceso. Actualiza la pÃ¡gina antes de continuar."
+                : "Este reclamo ya fue cerrado o cambiÃ³ de estado.",
+          },
+          { status: 409 }
+        ),
+      };
+    }
 
     // ======================================================
     // 6. COMPROBAR TRANSFERENCIAS EXISTENTES
@@ -488,14 +589,24 @@ export async function POST(request: NextRequest) {
 
     if (action === "pay_provider") {
       // ====================================================
-      // TRABAJO TODAVÍA INICIADO:
+      // TRABAJO TODAVÃA INICIADO:
       // Admin falla a favor del profesional, pero NO se paga
-      // todavía. Se cierra el reclamo y el trabajo continúa.
-      // El pago normal se liberará cuando el profesional
+      // todavÃ­a. Se cierra el reclamo y el trabajo continÃºa.
+      // El pago normal se liberarÃ¡ cuando el profesional
       // complete el trabajo siguiendo el flujo habitual.
       // ====================================================
 
       if (trabajoIniciado) {
+        const reserva = await reservarDecisionEconomica(
+          "pay_provider",
+          0,
+          0
+        );
+
+        if (!reserva.ok) {
+          return reserva.response;
+        }
+
         const {
           error: updateClaimError,
         } = await supabaseAdmin
@@ -541,7 +652,7 @@ export async function POST(request: NextRequest) {
               type: "claim_resolved",
               title: "Reclamo resuelto",
               titleEn: "Claim resolved",
-              message: `RELYDO resolvió el reclamo a favor del profesional. El trabajo continuará. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              message: `RELYDO resolviÃ³ el reclamo a favor del profesional. El trabajo continuarÃ¡. ${serviceRequest.title || "Trabajo RELYDO"}.`,
               messageEn: `RELYDO resolved the claim in favor of the professional. The job will continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/mis-solicitudes/${claim.request_id}`,
@@ -551,7 +662,7 @@ export async function POST(request: NextRequest) {
               type: "claim_resolved",
               title: "Reclamo resuelto",
               titleEn: "Claim resolved",
-              message: `RELYDO resolvió el reclamo a tu favor. El trabajo fue desbloqueado y puedes continuar. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              message: `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo fue desbloqueado y puedes continuar. ${serviceRequest.title || "Trabajo RELYDO"}.`,
               messageEn: `RELYDO resolved the claim in your favor. The job was unlocked and you may continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/trabajos/${claim.request_id}`,
@@ -559,7 +670,7 @@ export async function POST(request: NextRequest) {
           ]);
         } catch (notificationError) {
           console.warn(
-            "El reclamo fue resuelto, pero falló el envío de notificaciones:",
+            "El reclamo fue resuelto, pero fallÃ³ el envÃ­o de notificaciones:",
             notificationError
           );
         }
@@ -577,15 +688,15 @@ export async function POST(request: NextRequest) {
           customerRefundAmount:
             0,
           message:
-            "Reclamo resuelto a favor del profesional. El trabajo fue desbloqueado y puede continuar. El pago todavía no fue liberado.",
+            "Reclamo resuelto a favor del profesional. El trabajo fue desbloqueado y puede continuar. El pago todavÃ­a no fue liberado.",
         });
       }
 
       // ====================================================
-      // REVISIÓN FINAL:
-      // Antes de que Admin sustituya la aprobación del cliente
+      // REVISIÃ“N FINAL:
+      // Antes de que Admin sustituya la aprobaciÃ³n del cliente
       // y libere el pago, verificamos que el Pro realmente haya
-      // entregado evidencia final y enviado el trabajo a revisión.
+      // entregado evidencia final y enviado el trabajo a revisiÃ³n.
       // ====================================================
 
       if (trabajoEnRevisionFinal) {
@@ -593,7 +704,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error:
-                "El trabajo figura en revisión, pero no encontramos la fecha de envío a revisión. No se liberará el pago.",
+                "El trabajo figura en revisiÃ³n, pero no encontramos la fecha de envÃ­o a revisiÃ³n. No se liberarÃ¡ el pago.",
             },
             { status: 409 }
           );
@@ -660,7 +771,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Ya existe una transferencia parcial o diferente para este trabajo. Usa una resolución parcial.",
+              "Ya existe una transferencia parcial o diferente para este trabajo. Usa una resoluciÃ³n parcial.",
           },
           { status: 409 }
         );
@@ -739,6 +850,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const reserva = await reservarDecisionEconomica(
+        "pay_provider",
+        providerNet,
+        0
+      );
+
+      if (!reserva.ok) {
+        return reserva.response;
+      }
+
       let transferId =
         activeTransfers[0]?.id || null;
 
@@ -793,18 +914,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Stripe procesó la transferencia, pero RELYDO no pudo registrar el pago como liberado. No repitas la operación.",
+              "Stripe procesÃ³ la transferencia, pero RELYDO no pudo registrar el pago como liberado. No repitas la operaciÃ³n.",
             stripeTransferId: transferId,
           },
           { status: 500 }
         );
       }
 
-      // Si el Pro ya había entregado el trabajo para revisión final,
-      // la resolución de Admin a su favor sustituye la aprobación
+      // Si el Pro ya habÃ­a entregado el trabajo para revisiÃ³n final,
+      // la resoluciÃ³n de Admin a su favor sustituye la aprobaciÃ³n
       // del cliente: se completa el trabajo y se libera el pago.
-      // El reclamo se cierra DESPUÉS de este paso para que, si falla
-      // la actualización del trabajo, el caso siga reintentable.
+      // El reclamo se cierra DESPUÃ‰S de este paso para que, si falla
+      // la actualizaciÃ³n del trabajo, el caso siga reintentable.
       if (trabajoEnRevisionFinal) {
         const {
           error: completeRequestError,
@@ -824,7 +945,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error:
-                "Stripe procesó la transferencia y RELYDO registró el pago, pero no pudo marcar el trabajo como completado. El reclamo sigue abierto para poder reconciliar el estado; no crees una nueva transferencia.",
+                "Stripe procesÃ³ la transferencia y RELYDO registrÃ³ el pago, pero no pudo marcar el trabajo como completado. El reclamo sigue abierto para poder reconciliar el estado; no crees una nueva transferencia.",
               stripeTransferId: transferId,
               paymentReleased: true,
               workCompletionPending: true,
@@ -853,13 +974,13 @@ export async function POST(request: NextRequest) {
           updated_at:
             new Date().toISOString(),
         })
-        .eq("id", claim.id);
+        .eq("id", claimId);
 
       if (updateClaimError) {
         return NextResponse.json(
           {
             error:
-              "El dinero fue procesado, pero no pudimos cerrar el reclamo. No repitas la operación.",
+              "El dinero fue procesado, pero no pudimos cerrar el reclamo. No repitas la operaciÃ³n.",
             stripeTransferId: transferId,
           },
           { status: 500 }
@@ -874,8 +995,8 @@ export async function POST(request: NextRequest) {
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
             message: trabajoEnRevisionFinal
-              ? `RELYDO resolvió el reclamo a favor del profesional. El trabajo quedó completado y el pago fue liberado. ${serviceRequest.title || "Trabajo RELYDO"}.`
-              : `RELYDO resolvió el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              ? `RELYDO resolviÃ³ el reclamo a favor del profesional. El trabajo quedÃ³ completado y el pago fue liberado. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolviÃ³ el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: trabajoEnRevisionFinal
               ? `RELYDO resolved the claim in favor of the professional. The job was completed and payment was released. ${serviceRequest.title || "RELYDO job"}.`
               : `RELYDO resolved the claim in favor of the professional. ${serviceRequest.title || "RELYDO job"}.`,
@@ -888,8 +1009,8 @@ export async function POST(request: NextRequest) {
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
             message: trabajoEnRevisionFinal
-              ? `RELYDO resolvió el reclamo a tu favor. El trabajo quedó completado y se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
-              : `RELYDO resolvió el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              ? `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo quedÃ³ completado y se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolviÃ³ el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: trabajoEnRevisionFinal
               ? `RELYDO resolved the claim in your favor. The job was completed and $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`
               : `RELYDO resolved the claim in your favor. $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
@@ -899,7 +1020,7 @@ export async function POST(request: NextRequest) {
         ]);
       } catch (notificationError) {
         console.warn(
-          "El reclamo fue resuelto, pero falló el envío de notificaciones:",
+          "El reclamo fue resuelto, pero fallÃ³ el envÃ­o de notificaciones:",
           notificationError
         );
       }
@@ -924,7 +1045,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Ya existe dinero transferido al profesional. No haremos un reembolso total automático sin procesar antes una reversión.",
+              "Ya existe dinero transferido al profesional. No haremos un reembolso total automÃ¡tico sin procesar antes una reversiÃ³n.",
           },
           { status: 409 }
         );
@@ -947,6 +1068,16 @@ export async function POST(request: NextRequest) {
           },
           { status: 409 }
         );
+      }
+
+      const reserva = await reservarDecisionEconomica(
+        "refund_customer",
+        0,
+        jobAmount
+      );
+
+      if (!reserva.ok) {
+        return reserva.response;
       }
 
       const refund =
@@ -1022,7 +1153,7 @@ export async function POST(request: NextRequest) {
           updated_at:
             new Date().toISOString(),
         })
-        .eq("id", claim.id);
+        .eq("id", claimId);
 
       if (updateClaimError) {
         return NextResponse.json(
@@ -1079,7 +1210,7 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolvió el reclamo a tu favor. Se procesó un reembolso de $${totalRefunded.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            message: `RELYDO resolviÃ³ el reclamo a tu favor. Se procesÃ³ un reembolso de $${totalRefunded.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: `RELYDO resolved the claim in your favor. A $${totalRefunded.toFixed(2)} refund was processed. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/mis-solicitudes/${claim.request_id}`,
@@ -1089,7 +1220,7 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolvió el reclamo a favor del cliente. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            message: `RELYDO resolviÃ³ el reclamo a favor del cliente. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: `RELYDO resolved the claim in favor of the customer. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
@@ -1097,7 +1228,7 @@ export async function POST(request: NextRequest) {
         ]);
       } catch (notificationError) {
         console.warn(
-          "El reclamo fue resuelto, pero falló el envío de notificaciones:",
+          "El reclamo fue resuelto, pero fallÃ³ el envÃ­o de notificaciones:",
           notificationError
         );
       }
@@ -1115,14 +1246,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C. RESOLUCIÓN PARCIAL
+    // 7C. RESOLUCIÃ“N PARCIAL
     // ======================================================
     //
     // REGLA:
-    // - Una decisión económica del Admin se ejecuta de inmediato.
-    // - No usa la espera normal de liberación del trabajo.
+    // - Una decisiÃ³n econÃ³mica del Admin se ejecuta de inmediato.
+    // - No usa la espera normal de liberaciÃ³n del trabajo.
     // - El proceso es reanudable/idempotente:
-    //   si Stripe ya procesó una parte, RELYDO no la repite.
+    //   si Stripe ya procesÃ³ una parte, RELYDO no la repite.
     //
     // ORDEN PARA CASOS NUEVOS:
     // 1. Compensar al profesional.
@@ -1143,7 +1274,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Los importes de la resolución parcial no son válidos.",
+            "Los importes de la resoluciÃ³n parcial no son vÃ¡lidos.",
         },
         { status: 400 }
       );
@@ -1156,7 +1287,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "En una resolución parcial debes asignar dinero al profesional, al cliente o a ambos.",
+            "En una resoluciÃ³n parcial debes asignar dinero al profesional, al cliente o a ambos.",
         },
         { status: 400 }
       );
@@ -1166,7 +1297,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            `El profesional no puede recibir más de $${providerNet.toFixed(
+            `El profesional no puede recibir mÃ¡s de $${providerNet.toFixed(
               2
             )}.`,
         },
@@ -1219,7 +1350,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "El importe de reembolso previo guardado no es válido.",
+            "El importe de reembolso previo guardado no es vÃ¡lido.",
         },
         { status: 500 }
       );
@@ -1271,7 +1402,7 @@ export async function POST(request: NextRequest) {
               2
             )} para este reclamo, diferente a los $${customerRefundAmount.toFixed(
               2
-            )} definidos ahora. No se hará otro movimiento automáticamente.`,
+            )} definidos ahora. No se harÃ¡ otro movimiento automÃ¡ticamente.`,
         },
         { status: 409 }
       );
@@ -1327,7 +1458,7 @@ export async function POST(request: NextRequest) {
               2
             )} para este trabajo, diferente a los $${providerAwardAmount.toFixed(
               2
-            )} definidos en esta resolución. No se hará una segunda distribución automáticamente.`,
+            )} definidos en esta resoluciÃ³n. No se harÃ¡ una segunda distribuciÃ³n automÃ¡ticamente.`,
         },
         { status: 409 }
       );
@@ -1340,6 +1471,16 @@ export async function POST(request: NextRequest) {
       providerAwardAmount === 0 ||
       activeTransferredCents ===
         expectedProviderCents;
+
+    const reserva = await reservarDecisionEconomica(
+      "partial",
+      providerAwardAmount,
+      customerRefundAmount
+    );
+
+    if (!reserva.ok) {
+      return reserva.response;
+    }
 
     // ======================================================
     // 7C-3. COMPENSAR AL PROFESIONAL INMEDIATAMENTE
@@ -1405,11 +1546,11 @@ export async function POST(request: NextRequest) {
       }
 
       /*
-        POLÍTICA DE RESOLUCIÓN COMPARTIDA:
-        La compensación del profesional forma parte del monto
+        POLÃTICA DE RESOLUCIÃ“N COMPARTIDA:
+        La compensaciÃ³n del profesional forma parte del monto
         disputable del servicio. El service fee original del
         cliente queda protegido para RELYDO y no se utiliza
-        para aumentar ni el reembolso ni la compensación.
+        para aumentar ni el reembolso ni la compensaciÃ³n.
       */
 
       const transfer =
@@ -1490,7 +1631,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Stripe transfirió la compensación al profesional, pero RELYDO no pudo registrar la transferencia. No repitas la operación; usa el ID de Stripe para reconciliar.",
+              "Stripe transfiriÃ³ la compensaciÃ³n al profesional, pero RELYDO no pudo registrar la transferencia. No repitas la operaciÃ³n; usa el ID de Stripe para reconciliar.",
             stripeTransferId:
               transfer.id,
             partialProcessing:
@@ -1581,7 +1722,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Stripe procesó el reembolso al cliente, pero RELYDO no pudo registrarlo en payments. No repitas la operación; usa el ID de Stripe para reconciliar.",
+              "Stripe procesÃ³ el reembolso al cliente, pero RELYDO no pudo registrarlo en payments. No repitas la operaciÃ³n; usa el ID de Stripe para reconciliar.",
             stripeRefundId:
               refund.id,
             stripeTransferId,
@@ -1598,7 +1739,7 @@ export async function POST(request: NextRequest) {
     ) {
       /*
         Stripe confirma que este reembolso ya existe,
-        pero la fila payments quedó desactualizada.
+        pero la fila payments quedÃ³ desactualizada.
         La reconciliamos sin crear otro reembolso.
       */
       const reconciledAt =
@@ -1686,7 +1827,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "La distribución económica fue procesada, pero RELYDO no pudo consolidar el estado de payments. No repitas movimientos de dinero.",
+            "La distribuciÃ³n econÃ³mica fue procesada, pero RELYDO no pudo consolidar el estado de payments. No repitas movimientos de dinero.",
           stripeTransferId,
           stripeRefundId,
           partialProcessing:
@@ -1700,10 +1841,10 @@ export async function POST(request: NextRequest) {
     // 7C-6. CERRAR / COMPLETAR ESTADO OPERATIVO
     // ======================================================
 
-    // Si la disputa parcial ocurrió DESPUÉS de que el Pro entregó
-    // el trabajo para revisión, la decisión económica de Admin
-    // también pone fin al flujo operativo. El trabajo queda
-    // completado; la distribución de dinero ya fue definida arriba.
+    // Si la disputa parcial ocurriÃ³ DESPUÃ‰S de que el Pro entregÃ³
+    // el trabajo para revisiÃ³n, la decisiÃ³n econÃ³mica de Admin
+    // tambiÃ©n pone fin al flujo operativo. El trabajo queda
+    // completado; la distribuciÃ³n de dinero ya fue definida arriba.
     if (trabajoEnRevisionFinal) {
       const partialCompletedAt =
         new Date().toISOString();
@@ -1726,7 +1867,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "La distribución económica fue procesada, pero RELYDO no pudo marcar el trabajo en revisión como completado. No repitas movimientos de dinero; vuelve a intentar para reconciliar el estado.",
+              "La distribuciÃ³n econÃ³mica fue procesada, pero RELYDO no pudo marcar el trabajo en revisiÃ³n como completado. No repitas movimientos de dinero; vuelve a intentar para reconciliar el estado.",
             stripeTransferId,
             stripeRefundId,
             partialProcessing: true,
@@ -1759,7 +1900,7 @@ export async function POST(request: NextRequest) {
           customerRefundAmount,
 
         resolution_notes:
-          `[RESOLUCIÓN PARCIAL]\nProfesional: $${providerAwardAmount.toFixed(
+          `[RESOLUCIÃ“N PARCIAL]\nProfesional: $${providerAwardAmount.toFixed(
             2
           )}\nCliente: $${customerRefundAmount.toFixed(
             2
@@ -1783,7 +1924,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "La distribución económica fue procesada, pero no pudimos cerrar el reclamo. No repitas movimientos de dinero; vuelve a intentar para que RELYDO reconcilie y cierre el caso.",
+            "La distribuciÃ³n econÃ³mica fue procesada, pero no pudimos cerrar el reclamo. No repitas movimientos de dinero; vuelve a intentar para que RELYDO reconcilie y cierre el caso.",
           stripeTransferId,
           stripeRefundId,
           partialProcessing:
@@ -1827,7 +1968,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "La resolución económica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas movimientos de dinero.",
+              "La resoluciÃ³n econÃ³mica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas movimientos de dinero.",
             stripeTransferId,
             stripeRefundId,
             partialProcessing:
@@ -1842,7 +1983,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ======================================================
-    // 7C-9. NOTIFICAR RESOLUCIÓN
+    // 7C-9. NOTIFICAR RESOLUCIÃ“N
     // ======================================================
 
     try {
@@ -1854,7 +1995,7 @@ export async function POST(request: NextRequest) {
             "claim_resolved",
           title: "Reclamo resuelto",
           titleEn: "Claim resolved",
-          message: `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          message: `RELYDO resolviÃ³ parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
           messageEn: `RELYDO partially resolved the claim. Refund for you: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
@@ -1869,7 +2010,7 @@ export async function POST(request: NextRequest) {
             "claim_resolved",
           title: "Reclamo resuelto",
           titleEn: "Claim resolved",
-          message: `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          message: `RELYDO resolviÃ³ parcialmente el reclamo. CompensaciÃ³n para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
           messageEn: `RELYDO partially resolved the claim. Compensation for you: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
@@ -1879,7 +2020,7 @@ export async function POST(request: NextRequest) {
       ]);
     } catch (notificationError) {
       console.warn(
-        "El reclamo fue resuelto, pero falló el envío de notificaciones:",
+        "El reclamo fue resuelto, pero fallÃ³ el envÃ­o de notificaciones:",
         notificationError
       );
     }
@@ -1923,8 +2064,8 @@ export async function POST(request: NextRequest) {
 
       message:
         trabajoIniciado
-          ? "Resolución parcial procesada correctamente. Se aplicó la distribución definida y el trabajo fue cancelado."
-          : "Resolución parcial procesada correctamente.",
+          ? "ResoluciÃ³n parcial procesada correctamente. Se aplicÃ³ la distribuciÃ³n definida y el trabajo fue cancelado."
+          : "ResoluciÃ³n parcial procesada correctamente.",
     });
 
   } catch (error) {
