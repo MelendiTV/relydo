@@ -5,9 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import {
-  createClient,
-} from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseBrowser";
 import {
   useParams,
   useRouter,
@@ -16,11 +14,6 @@ import {
   hasAdminPermission,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 type AnyRow =
   Record<string, any>;
