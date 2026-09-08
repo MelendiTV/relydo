@@ -4,9 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SECRET_KEY!;
 
@@ -39,9 +42,15 @@ export async function DELETE(
           error:
             "Account deletion is not configured.",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
+
+    // =========================================================
+    // VALIDAR ACCESS TOKEN
+    // =========================================================
 
     const authorization =
       request.headers.get("authorization") || "";
@@ -56,7 +65,9 @@ export async function DELETE(
         {
           error: "Unauthorized.",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
@@ -64,7 +75,7 @@ export async function DELETE(
     // VALIDAR USUARIO
     // =========================================================
     //
-    // Validamos al usuario con la clave pública.
+    // Se valida el token con la clave pública.
     // La clave secreta nunca llega al navegador.
     // =========================================================
 
@@ -93,7 +104,9 @@ export async function DELETE(
         {
           error: "Unauthorized.",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
@@ -115,11 +128,7 @@ export async function DELETE(
     const pending: string[] = [];
 
     // =========================================================
-    // PERFIL / ROL ACTUAL
-    // =========================================================
-    //
-    // Se utiliza para determinar si debemos comprobar también
-    // las obligaciones del usuario como profesional.
+    // PERFIL / ROL
     // =========================================================
 
     const {
@@ -196,19 +205,11 @@ export async function DELETE(
     // =========================================================
     // 3. OBLIGACIONES ACTIVAS COMO PROFESIONAL
     // =========================================================
-    //
-    // Si la cuenta es Provider, además comprobamos el lado Pro.
-    //
-    // No contamos solicitudes "open" como trabajos activos del
-    // profesional. Una solicitud abierta puede estar disponible
-    // nuevamente y ya no ser responsabilidad de ese Pro.
-    // =========================================================
 
     if (profile?.role === "provider") {
       const {
         count: activeProviderJobs,
-        error:
-          activeProviderJobsError,
+        error: activeProviderJobsError,
       } = await admin
         .from("service_requests")
         .select("id", {
@@ -219,7 +220,10 @@ export async function DELETE(
           "preferred_provider_id",
           user.id
         )
-        .eq("status", "in_progress");
+        .eq(
+          "status",
+          "in_progress"
+        );
 
       if (activeProviderJobsError) {
         throw activeProviderJobsError;
@@ -234,10 +238,8 @@ export async function DELETE(
       }
 
       const {
-        count:
-          activeProviderClaims,
-        error:
-          activeProviderClaimsError,
+        count: activeProviderClaims,
+        error: activeProviderClaimsError,
       } = await admin
         .from("job_claims")
         .select("id", {
@@ -270,7 +272,7 @@ export async function DELETE(
     }
 
     // =========================================================
-    // BLOQUEAR BORRADO SI HAY ASUNTOS PENDIENTES
+    // BLOQUEAR ELIMINACIÓN SI HAY ASUNTOS PENDIENTES
     // =========================================================
 
     if (pending.length > 0) {
@@ -280,12 +282,14 @@ export async function DELETE(
             "Account has unresolved items.",
           pending,
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
     // =========================================================
-    // 4. ELIMINAR AVATAR DEL STORAGE
+    // 4. ELIMINAR AVATAR DEL CLIENTE
     // =========================================================
 
     const {
@@ -303,9 +307,10 @@ export async function DELETE(
         avatarListError
       );
     } else if (
-      avatarFiles?.length
+      avatarFiles &&
+      avatarFiles.length > 0
     ) {
-      const paths =
+      const avatarPaths =
         avatarFiles.map(
           (file) =>
             `${user.id}/${file.name}`
@@ -315,7 +320,7 @@ export async function DELETE(
         error: avatarRemoveError,
       } = await admin.storage
         .from("customer-avatars")
-        .remove(paths);
+        .remove(avatarPaths);
 
       if (avatarRemoveError) {
         throw avatarRemoveError;
@@ -323,70 +328,130 @@ export async function DELETE(
     }
 
     // =========================================================
-    // 5. ANONIMIZAR PERFIL PRINCIPAL
-    // =========================================================
-    //
-    // Conservamos el UUID para no romper referencias históricas,
-    // pero eliminamos la información personal directa.
-    //
-    // Esto también permite que posteriormente el mismo correo
-    // pueda registrarse como una cuenta nueva.
+    // 5. LIMPIAR DATOS DEL PROFESIONAL
     // =========================================================
 
-    const {
-      error: profileError,
-    } = await admin
-      .from("profiles")
-      .update({
-        full_name: "Deleted user",
+    if (profile?.role === "provider") {
+      // =======================================================
+      // 5.1 DOCUMENTOS DE VERIFICACIÓN EN STORAGE
+      // =======================================================
 
-        email: null,
-        phone: null,
+      const {
+        data: providerDocumentFiles,
+        error:
+          providerDocumentListError,
+      } = await admin.storage
+        .from("provider-documents")
+        .list(user.id, {
+          limit: 1000,
+        });
 
-        avatar_url: null,
+      if (
+        providerDocumentListError
+      ) {
+        throw providerDocumentListError;
+      }
 
-        city: null,
-        state: null,
+      if (
+        providerDocumentFiles &&
+        providerDocumentFiles.length > 0
+      ) {
+        const documentPaths =
+          providerDocumentFiles.map(
+            (file) =>
+              `${user.id}/${file.name}`
+          );
 
-        zip_code: null,
-        zip: null,
+        const {
+          error:
+            providerDocumentRemoveError,
+        } = await admin.storage
+          .from("provider-documents")
+          .remove(documentPaths);
 
-        address_line1: null,
-        address_line2: null,
-        address: null,
-      })
-      .eq("id", user.id);
+        if (
+          providerDocumentRemoveError
+        ) {
+          throw providerDocumentRemoveError;
+        }
+      }
 
-    if (profileError) {
-      console.warn(
-        "Account deletion: profile anonymization failed",
-        profileError
-      );
+      // =======================================================
+      // 5.2 LOGOS DEL PROFESIONAL EN STORAGE
+      // =======================================================
 
-      // No eliminamos Auth si no pudimos
-      // anonimizar correctamente el perfil.
-      throw profileError;
-    }
+      const {
+        data: providerLogoFiles,
+        error:
+          providerLogoListError,
+      } = await admin.storage
+        .from("provider-logos")
+        .list(user.id, {
+          limit: 1000,
+        });
 
-    // =========================================================
-    // 6. ANONIMIZAR PERFIL PROFESIONAL
-    // =========================================================
-    //
-    // provider_profiles no se elimina automáticamente porque
-    // mantenemos la fila de profiles para preservar referencias
-    // históricas.
-    //
-    // Por eso, cuando se trata de un Provider, eliminamos aquí
-    // la información personal/comercial sensible y desactivamos
-    // completamente el perfil.
-    //
-    // Conservamos únicamente datos históricos no personales,
-    // como experiencia, oficio, rating y trabajos completados.
-    // =========================================================
+      if (providerLogoListError) {
+        throw providerLogoListError;
+      }
 
-    if (
-      profile?.role === "provider"
-    ) {
+      if (
+        providerLogoFiles &&
+        providerLogoFiles.length > 0
+      ) {
+        const logoPaths =
+          providerLogoFiles.map(
+            (file) =>
+              `${user.id}/${file.name}`
+          );
+
+        const {
+          error:
+            providerLogoRemoveError,
+        } = await admin.storage
+          .from("provider-logos")
+          .remove(logoPaths);
+
+        if (
+          providerLogoRemoveError
+        ) {
+          throw providerLogoRemoveError;
+        }
+      }
+
+      // =======================================================
+      // 5.3 ELIMINAR REGISTROS DE PROVIDER_DOCUMENTS
+      // =======================================================
+      //
+      // Ya comprobamos que ninguna otra tabla depende por FK
+      // de provider_documents.
+      // =======================================================
+
+      const {
+        error:
+          providerDocumentsDeleteError,
+      } = await admin
+        .from("provider_documents")
+        .delete()
+        .eq(
+          "user_id",
+          user.id
+        );
+
+      if (
+        providerDocumentsDeleteError
+      ) {
+        throw providerDocumentsDeleteError;
+      }
+
+      // =======================================================
+      // 5.4 ANONIMIZAR PROVIDER_PROFILE
+      // =======================================================
+      //
+      // Conservamos la fila y UUID para preservar integridad
+      // histórica, pero eliminamos información personal,
+      // comercial sensible y conexión con Stripe.
+      // =======================================================
+
       const {
         error:
           providerProfileError,
@@ -432,15 +497,53 @@ export async function DELETE(
       if (
         providerProfileError
       ) {
-        console.warn(
-          "Account deletion: provider profile anonymization failed",
-          providerProfileError
-        );
-
-        // No eliminamos Auth mientras aún puedan
-        // quedar datos personales en el perfil Pro.
         throw providerProfileError;
       }
+    }
+
+    // =========================================================
+    // 6. ANONIMIZAR PERFIL PRINCIPAL
+    // =========================================================
+    //
+    // Conservamos el UUID para que trabajos, reviews y otros
+    // registros históricos puedan seguir referenciando al
+    // usuario eliminado sin conservar sus datos personales.
+    // =========================================================
+
+    const {
+      error: profileError,
+    } = await admin
+      .from("profiles")
+      .update({
+        full_name: "Deleted user",
+
+        email: null,
+        phone: null,
+
+        avatar_url: null,
+
+        city: null,
+        state: null,
+
+        zip_code: null,
+        zip: null,
+
+        address_line1: null,
+        address_line2: null,
+        address: null,
+      })
+      .eq(
+        "id",
+        user.id
+      );
+
+    if (profileError) {
+      console.warn(
+        "Account deletion: profile anonymization failed",
+        profileError
+      );
+
+      throw profileError;
     }
 
     // =========================================================
@@ -477,7 +580,9 @@ export async function DELETE(
         error:
           "We could not delete the account.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
