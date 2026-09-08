@@ -517,10 +517,11 @@ export async function POST(request: NextRequest) {
       }
 
       /*
-       * Consultamos el pago original.
+       * Consultamos el payment del Pro que liberó.
        *
-       * El dinero tiene que seguir retenido y no transferido
-       * al profesional que liberó el trabajo.
+       * Puede ser un pago Stripe original (con provider_payment_id)
+       * o un payment creado por una reasignación anterior, cuyas
+       * fuentes físicas viven en payment_reassignment_funding_sources.
        */
       const {
         data: originalPayment,
@@ -574,7 +575,6 @@ export async function POST(request: NextRequest) {
       if (
         originalPayment.payment_provider !==
           "stripe" ||
-        !originalPayment.provider_payment_id ||
         !originalPayment.paid_at ||
         originalPayment.released_at ||
         originalPayment.stripe_transfer_id
@@ -607,11 +607,127 @@ export async function POST(request: NextRequest) {
       }
 
       /*
-       * Crédito real:
-       *
-       * Nunca usamos más de:
-       * - lo guardado en available_credit
-       * - lo que realmente queda sin reembolsar
+       * Buscar fuentes heredadas.
+       */
+      const {
+        data: inheritedFundingSources,
+        error: inheritedFundingSourcesError,
+      } = await supabaseAdmin
+        .from(
+          "payment_reassignment_funding_sources"
+        )
+        .select(`
+          id,
+          stripe_payment_intent_id,
+          allocated_customer_amount,
+          created_at
+        `)
+        .eq("payment_id", originalPayment.id)
+        .is("transferred_at", null)
+        .is("stripe_transfer_id", null)
+        .order("created_at", {
+          ascending: true,
+        });
+
+      if (inheritedFundingSourcesError) {
+        console.error(
+          "Error consultando fuentes heredadas:",
+          inheritedFundingSourcesError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No pudimos comprobar las fuentes Stripe retenidas de esta reasignación.",
+          },
+          { status: 500 }
+        );
+      }
+
+      const fundingSources =
+        inheritedFundingSources || [];
+
+      const hasInheritedFunding =
+        fundingSources.length > 0;
+
+      /*
+       * Si no hay fuentes heredadas, este debe ser un pago
+       * Stripe normal y sí debe tener provider_payment_id.
+       */
+      if (
+        !hasInheritedFunding &&
+        !originalPayment.provider_payment_id
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El pago anterior no tiene una fuente Stripe válida para esta reasignación.",
+          },
+          { status: 409 }
+        );
+      }
+
+      /*
+       * Reembolsos ya registrados por cada fuente heredada.
+       */
+      const refundedByFundingSource =
+        new Map<string, number>();
+
+      if (hasInheritedFunding) {
+        const fundingSourceIds =
+          fundingSources.map((source) =>
+            String(source.id)
+          );
+
+        const {
+          data: sourceRefunds,
+          error: sourceRefundsError,
+        } = await supabaseAdmin
+          .from(
+            "payment_reassignment_source_refunds"
+          )
+          .select(
+            "funding_source_id, refunded_amount"
+          )
+          .in(
+            "funding_source_id",
+            fundingSourceIds
+          );
+
+        if (sourceRefundsError) {
+          console.error(
+            "Error consultando refunds por fuente:",
+            sourceRefundsError
+          );
+
+          return NextResponse.json(
+            {
+              error:
+                "No pudimos comprobar los reembolsos asociados al crédito retenido.",
+            },
+            { status: 500 }
+          );
+        }
+
+        for (const row of sourceRefunds || []) {
+          const sourceId = String(
+            row.funding_source_id
+          );
+
+          refundedByFundingSource.set(
+            sourceId,
+            money(
+              (refundedByFundingSource.get(
+                sourceId
+              ) || 0) +
+                Number(row.refunded_amount || 0)
+            )
+          );
+        }
+      }
+
+      /*
+       * Crédito congelado cuando el Pro liberó.
        */
       const storedAvailableCredit = money(
         Number(
@@ -619,37 +735,9 @@ export async function POST(request: NextRequest) {
         )
       );
 
-      const originalCustomerTotal = money(
-        Number(
-          originalPayment.customer_total_amount ||
-            0
-        )
-      );
-
-      const alreadyRefunded = money(
-        Number(
-          originalPayment.refunded_amount || 0
-        )
-      );
-
-      const liveAvailableCredit = money(
-        Math.max(
-          0,
-          originalCustomerTotal -
-            alreadyRefunded
-        )
-      );
-
-      const availableCredit = money(
-        Math.min(
-          storedAvailableCredit,
-          liveAvailableCredit
-        )
-      );
-
       if (
-        !Number.isFinite(availableCredit) ||
-        availableCredit <= 0
+        !Number.isFinite(storedAvailableCredit) ||
+        storedAvailableCredit <= 0
       ) {
         return NextResponse.json(
           {
@@ -660,9 +748,83 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      /*
+       * Crédito físico que sigue vivo AHORA.
+       */
+      let liveAvailableCredit = 0;
+
+      if (hasInheritedFunding) {
+        liveAvailableCredit = money(
+          fundingSources.reduce(
+            (total, source) => {
+              const allocated = money(
+                Number(
+                  source.allocated_customer_amount ||
+                    0
+                )
+              );
+
+              const refunded = money(
+                refundedByFundingSource.get(
+                  String(source.id)
+                ) || 0
+              );
+
+              return (
+                total +
+                Math.max(
+                  0,
+                  money(allocated - refunded)
+                )
+              );
+            },
+            0
+          )
+        );
+      } else {
+        const originalCustomerTotal = money(
+          Number(
+            originalPayment.customer_total_amount ||
+              0
+          )
+        );
+
+        const alreadyRefunded = money(
+          Number(
+            originalPayment.refunded_amount || 0
+          )
+        );
+
+        liveAvailableCredit = money(
+          Math.max(
+            0,
+            originalCustomerTotal -
+              alreadyRefunded
+          )
+        );
+      }
+
+      if (
+        !Number.isFinite(liveAvailableCredit) ||
+        liveAvailableCredit <= 0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El crédito retenido ya no está disponible.",
+          },
+          { status: 409 }
+        );
+      }
+
+      /*
+       * La economía de la reasignación se calcula con el crédito
+       * congelado al liberar el Pro. Esto mantiene idempotencia si
+       * un refund Stripe ya se procesó y el usuario vuelve a intentar.
+       */
       const creditUsedAmount = money(
         Math.min(
-          availableCredit,
+          storedAvailableCredit,
           customerTotalAmount
         )
       );
@@ -671,87 +833,323 @@ export async function POST(request: NextRequest) {
         Math.max(
           0,
           customerTotalAmount -
-            availableCredit
+            storedAvailableCredit
         )
       );
 
       const refundAmount = money(
         Math.max(
           0,
-          availableCredit -
+          storedAvailableCredit -
             customerTotalAmount
         )
       );
+
+      /*
+       * Nunca podemos haber reembolsado por debajo del crédito que
+       * necesita la nueva contratación.
+       */
+      if (
+        liveAvailableCredit + 0.009 <
+        creditUsedAmount
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El crédito Stripe retenido ya no coincide con el importe reservado para esta contratación.",
+          },
+          { status: 409 }
+        );
+      }
+
+      /*
+       * En el escenario de cobro adicional no debería existir ningún
+       * refund parcial previo de esta reasignación.
+       */
+      if (
+        additionalChargeAmount > 0 &&
+        Math.abs(
+          liveAvailableCredit -
+            storedAvailableCredit
+        ) > 0.009
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El crédito retenido cambió antes de completar el pago adicional. No se realizó un nuevo cobro.",
+          },
+          { status: 409 }
+        );
+      }
 
       // ==========================================================
       // 8A. EL CRÉDITO CUBRE TODO
       //
       // No creamos una nueva Checkout Session.
       //
-      // Si sobra dinero, primero hacemos el refund idempotente
-      // en Stripe y después finalizamos RELYDO atómicamente.
+      // Si sobra dinero:
+      // - pago directo: refund al PaymentIntent original.
+      // - pago heredado: refund distribuido entre las fuentes
+      //   Stripe reales y registrado por funding_source_id.
       // ==========================================================
 
       if (additionalChargeAmount <= 0) {
-        let refundId: string | null = null;
+        const refundIds: string[] = [];
 
-        if (refundAmount > 0) {
-          const refundCents =
-            Math.round(refundAmount * 100);
+        /*
+         * En reintentos puede haberse procesado una parte del refund
+         * antes de un error posterior. Solo devolvemos lo que todavía
+         * sobra físicamente.
+         */
+        const remainingRefundAmount = money(
+          Math.max(
+            0,
+            liveAvailableCredit -
+              creditUsedAmount
+          )
+        );
 
-          try {
-            const refund =
-              await stripe.refunds.create(
-                {
-                  payment_intent:
-                    originalPayment.provider_payment_id,
-                  amount: refundCents,
-                  reason:
-                    "requested_by_customer",
-                  metadata: {
-                    payment_type:
-                      "provider_reassignment_refund",
-                    reassignment_id:
-                      reassignment.id,
-                    request_id:
-                      requestId,
-                    original_payment_id:
-                      originalPayment.id,
-                    replacement_offer_id:
-                      offerId,
-                    customer_id:
-                      auth.user.id,
-                    refund_amount:
-                      refundAmount.toFixed(2),
-                  },
-                },
-                {
-                  idempotencyKey:
-                    `relydo_reassignment_refund_${reassignment.id}_${refundCents}`,
-                }
+        if (
+          remainingRefundAmount > 0 &&
+          hasInheritedFunding
+        ) {
+          let refundRemaining =
+            remainingRefundAmount;
+
+          /*
+           * Reembolsamos primero las fuentes más recientes.
+           * El orden es determinista y evita mezclar cantidades.
+           */
+          const refundableSources =
+            [...fundingSources]
+              .map((source) => {
+                const allocated = money(
+                  Number(
+                    source.allocated_customer_amount ||
+                      0
+                  )
+                );
+
+                const refunded = money(
+                  refundedByFundingSource.get(
+                    String(source.id)
+                  ) || 0
+                );
+
+                return {
+                  ...source,
+                  available: money(
+                    Math.max(
+                      0,
+                      allocated - refunded
+                    )
+                  ),
+                };
+              })
+              .filter(
+                (source) => source.available > 0
+              )
+              .sort((a, b) =>
+                String(b.created_at).localeCompare(
+                  String(a.created_at)
+                )
               );
 
-            refundId = refund.id;
-          } catch (refundError) {
-            console.error(
-              "Error reembolsando excedente de reasignación:",
-              refundError
+          for (const source of refundableSources) {
+            if (refundRemaining <= 0) {
+              break;
+            }
+
+            const refundPart = money(
+              Math.min(
+                source.available,
+                refundRemaining
+              )
             );
 
+            const refundCents = Math.round(
+              refundPart * 100
+            );
+
+            if (refundCents <= 0) {
+              continue;
+            }
+
+            try {
+              const refund =
+                await stripe.refunds.create(
+                  {
+                    payment_intent:
+                      String(
+                        source.stripe_payment_intent_id
+                      ),
+                    amount: refundCents,
+                    reason:
+                      "requested_by_customer",
+                    metadata: {
+                      payment_type:
+                        "provider_reassignment_source_refund",
+                      reassignment_id:
+                        reassignment.id,
+                      request_id:
+                        requestId,
+                      original_payment_id:
+                        originalPayment.id,
+                      funding_source_id:
+                        String(source.id),
+                      replacement_offer_id:
+                        offerId,
+                      customer_id:
+                        auth.user.id,
+                      refund_amount:
+                        refundPart.toFixed(2),
+                    },
+                  },
+                  {
+                    idempotencyKey:
+                      `relydo_reassignment_source_refund_${reassignment.id}_${source.id}_${refundCents}`,
+                  }
+                );
+
+              const {
+                error: saveRefundError,
+              } = await supabaseAdmin
+                .from(
+                  "payment_reassignment_source_refunds"
+                )
+                .upsert(
+                  {
+                    funding_source_id:
+                      source.id,
+                    stripe_payment_intent_id:
+                      String(
+                        source.stripe_payment_intent_id
+                      ),
+                    stripe_refund_id:
+                      refund.id,
+                    refunded_amount:
+                      refundPart,
+                    refund_reason:
+                      "provider_reassignment_excess",
+                  },
+                  {
+                    onConflict:
+                      "stripe_refund_id",
+                  }
+                );
+
+              if (saveRefundError) {
+                console.error(
+                  "Stripe reembolsó una fuente, pero no pudimos registrar el refund:",
+                  saveRefundError
+                );
+
+                return NextResponse.json(
+                  {
+                    error:
+                      "Stripe procesó parte del reembolso, pero RELYDO no pudo registrar el movimiento. Puedes volver a intentarlo de forma segura.",
+                    retryable: true,
+                  },
+                  { status: 500 }
+                );
+              }
+
+              refundIds.push(refund.id);
+
+              refundRemaining = money(
+                refundRemaining - refundPart
+              );
+            } catch (refundError) {
+              console.error(
+                "Error reembolsando fuente heredada:",
+                refundError
+              );
+
+              return NextResponse.json(
+                {
+                  error:
+                    "No pudimos completar de forma segura el reembolso del crédito excedente. La contratación no fue completada.",
+                  retryable: true,
+                },
+                { status: 500 }
+              );
+            }
+          }
+
+          if (refundRemaining > 0.009) {
             return NextResponse.json(
               {
                 error:
-                  "No pudimos reembolsar de forma segura el excedente del pago anterior. La contratación no fue completada.",
+                  "Las fuentes Stripe retenidas no alcanzan para completar el reembolso calculado. La contratación no fue completada.",
               },
-              { status: 500 }
+              { status: 409 }
             );
+          }
+        } else if (
+          remainingRefundAmount > 0
+        ) {
+          const refundCents = Math.round(
+            refundAmount * 100
+          );
+
+          if (
+            refundCents > 0 &&
+            originalPayment.provider_payment_id
+          ) {
+            try {
+              const refund =
+                await stripe.refunds.create(
+                  {
+                    payment_intent:
+                      originalPayment.provider_payment_id,
+                    amount: refundCents,
+                    reason:
+                      "requested_by_customer",
+                    metadata: {
+                      payment_type:
+                        "provider_reassignment_refund",
+                      reassignment_id:
+                        reassignment.id,
+                      request_id:
+                        requestId,
+                      original_payment_id:
+                        originalPayment.id,
+                      replacement_offer_id:
+                        offerId,
+                      customer_id:
+                        auth.user.id,
+                      refund_amount:
+                        refundAmount.toFixed(2),
+                    },
+                  },
+                  {
+                    idempotencyKey:
+                      `relydo_reassignment_refund_${reassignment.id}_${refundCents}`,
+                  }
+                );
+
+              refundIds.push(refund.id);
+            } catch (refundError) {
+              console.error(
+                "Error reembolsando excedente de reasignación:",
+                refundError
+              );
+
+              return NextResponse.json(
+                {
+                  error:
+                    "No pudimos reembolsar de forma segura el excedente del pago anterior. La contratación no fue completada.",
+                },
+                { status: 500 }
+              );
+            }
           }
         }
 
         /*
          * Stripe ya está resuelto.
-         * Ahora PostgreSQL confirma todo el nuevo trabajo
-         * en una sola operación.
+         * PostgreSQL confirma el nuevo payment, sus fuentes y la
+         * contratación en una sola operación.
          */
         const {
           data: finalized,
@@ -820,7 +1218,9 @@ export async function POST(request: NextRequest) {
             offer.professional_id,
           reassignmentId:
             reassignment.id,
-          refundId,
+          refundId:
+            refundIds[0] || null,
+          refundIds,
           amounts: {
             professionalPrice,
             customerFeePercent,
@@ -832,7 +1232,8 @@ export async function POST(request: NextRequest) {
             providerCommissionAmount,
             providerNetAmount,
             platformRevenueAmount,
-            availableCredit,
+            availableCredit:
+              storedAvailableCredit,
             creditUsedAmount,
             additionalChargeAmount: 0,
             refundAmount,
@@ -886,7 +1287,8 @@ export async function POST(request: NextRequest) {
                 providerCommissionAmount,
                 providerNetAmount,
                 platformRevenueAmount,
-                availableCredit,
+                availableCredit:
+                  storedAvailableCredit,
                 creditUsedAmount,
                 additionalChargeAmount,
                 refundAmount: 0,
@@ -964,113 +1366,65 @@ export async function POST(request: NextRequest) {
             metadata: {
               payment_type:
                 "replacement_job_additional",
-
               reassignment_id:
                 reassignment.id,
-
               request_id:
                 requestId,
-
               offer_id:
                 offerId,
-
               original_payment_id:
                 originalPayment.id,
-
               customer_id:
                 auth.user.id,
-
               professional_id:
                 String(
                   offer.professional_id
                 ),
-
               payment_settings_id:
                 String(
                   paymentSettings.id
                 ),
-
               professional_price:
-                professionalPrice.toFixed(
-                  2
-                ),
-
+                professionalPrice.toFixed(2),
               customer_fee_percent:
-                customerFeePercent.toFixed(
-                  2
-                ),
-
+                customerFeePercent.toFixed(2),
               customer_fee_amount:
-                customerFeeAmount.toFixed(
-                  2
-                ),
-
+                customerFeeAmount.toFixed(2),
               customer_total:
-                customerTotalAmount.toFixed(
-                  2
-                ),
-
+                customerTotalAmount.toFixed(2),
               provider_commission_percent:
-                providerCommissionPercent.toFixed(
-                  2
-                ),
-
+                providerCommissionPercent.toFixed(2),
               provider_commission_amount:
-                providerCommissionAmount.toFixed(
-                  2
-                ),
-
+                providerCommissionAmount.toFixed(2),
               provider_net_amount:
-                providerNetAmount.toFixed(
-                  2
-                ),
-
+                providerNetAmount.toFixed(2),
               platform_revenue_amount:
-                platformRevenueAmount.toFixed(
-                  2
-                ),
-
+                platformRevenueAmount.toFixed(2),
               available_credit:
-                availableCredit.toFixed(
-                  2
-                ),
-
+                storedAvailableCredit.toFixed(2),
               credit_used_amount:
-                creditUsedAmount.toFixed(
-                  2
-                ),
-
+                creditUsedAmount.toFixed(2),
               additional_charge_amount:
-                additionalChargeAmount.toFixed(
-                  2
-                ),
-
+                additionalChargeAmount.toFixed(2),
               refund_amount:
                 "0.00",
-
               currency,
             },
 
             payment_intent_data: {
               transfer_group:
                 `relydo_request_${requestId}`,
-
               metadata: {
                 payment_type:
                   "replacement_job_additional",
-
                 reassignment_id:
                   reassignment.id,
-
                 request_id:
                   requestId,
-
                 offer_id:
                   offerId,
-
                 customer_id:
                   auth.user.id,
-
                 professional_id:
                   String(
                     offer.professional_id
@@ -1102,10 +1456,7 @@ export async function POST(request: NextRequest) {
 
       /*
        * Guardamos la sesión.
-       *
-       * Todavía NO marcamos la reasignación como aplicada.
-       * Eso ocurrirá únicamente después de que Stripe confirme
-       * el pago en verify-payment.
+       * Todavía NO aplicamos la reasignación.
        */
       const {
         error: saveSessionError,
@@ -1170,7 +1521,8 @@ export async function POST(request: NextRequest) {
           providerCommissionAmount,
           providerNetAmount,
           platformRevenueAmount,
-          availableCredit,
+          availableCredit:
+            storedAvailableCredit,
           creditUsedAmount,
           additionalChargeAmount,
           refundAmount: 0,
@@ -1180,6 +1532,7 @@ export async function POST(request: NextRequest) {
 
     // ============================================================
     // 9. CHECKOUT NORMAL
+
     //
     // IMPORTANTE:
     // Si NO existe reasignación activa, mantenemos el flujo
