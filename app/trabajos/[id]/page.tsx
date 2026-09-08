@@ -3869,28 +3869,6 @@ export default function TrabajoDetallePage() {
           operación. Si una evidencia falla, revertimos este intento para
           que no quede un cambio parcial que el profesional no pueda reintentar.
         */
-        const {
-          error:
-            cleanupEvidenceDbError,
-        } = await supabase
-          .from(
-            "change_order_evidence"
-          )
-          .delete()
-          .eq(
-            "change_order_id",
-            cambio.id
-          );
-
-        if (
-          cleanupEvidenceDbError
-        ) {
-          console.error(
-            "No pudimos revertir change_order_evidence:",
-            cleanupEvidenceDbError
-          );
-        }
-
         if (
           rutasCambioSubidas.length > 0
         ) {
@@ -3918,23 +3896,13 @@ export default function TrabajoDetallePage() {
         const {
           error:
             cleanupChangeOrderError,
-        } = await supabase
-          .from(
-            "change_orders"
-          )
-          .delete()
-          .eq(
-            "id",
-            cambio.id
-          )
-          .eq(
-            "provider_id",
-            providerId
-          )
-          .eq(
-            "status",
-            "pending"
-          );
+        } = await supabase.rpc(
+          "cleanup_failed_change_order",
+          {
+            p_change_order_id:
+              cambio.id,
+          }
+        );
 
         if (
           cleanupChangeOrderError
