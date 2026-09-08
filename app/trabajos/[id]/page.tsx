@@ -3275,35 +3275,17 @@ export default function TrabajoDetallePage() {
               evidenciaData,
             error:
               evidenciaError,
-          } =
-            await supabase
-              .from(
-                "claim_evidence"
-              )
-              .insert({
-                claim_id:
-                  reclamo.id,
-                uploaded_by:
-                  providerId,
-                uploaded_by_role:
-                  "provider",
-                file_type:
-                  fileType,
-                file_url:
-                  ruta,
-                file_path:
-                  ruta,
-              })
-              .select(`
-                id,
-                claim_id,
-                uploaded_by,
-                uploaded_by_role,
-                file_type,
-                file_path,
-                created_at
-              `)
-              .single();
+          } = await supabase.rpc(
+            "create_provider_claim_evidence_secure",
+            {
+              p_claim_id:
+                reclamo.id,
+              p_file_type:
+                fileType,
+              p_file_path:
+                ruta,
+            }
+          );
 
           if (
             evidenciaError
