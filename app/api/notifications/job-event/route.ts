@@ -483,13 +483,13 @@ export async function POST(
           .from(
             "provider_released_jobs"
           )
-          .select("request_id, provider_id")
+          .select("request_id, professional_id")
           .eq(
             "request_id",
             requestId
           )
           .eq(
-            "provider_id",
+            "professional_id",
             user.id
           )
           .maybeSingle();
