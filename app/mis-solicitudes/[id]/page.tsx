@@ -2303,61 +2303,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     setMensaje("");
 
     try {
-      const ahoraIso =
-        new Date().toISOString();
-
-      const cambios =
-        decision === "accepted"
-          ? {
-              status: "accepted",
-              accepted_at: ahoraIso,
-              rejected_at: null,
-              updated_at: ahoraIso,
-            }
-          : {
-              status: "rejected",
-              accepted_at: null,
-              rejected_at: ahoraIso,
-              updated_at: ahoraIso,
-            };
-
       const {
         data: actualizado,
         error: updateError,
-      } = await supabase
-        .from("change_orders")
-        .update(cambios)
-        .eq("id", changeOrder.id)
-        .eq("request_id", solicitud.id)
-        .eq("status", "pending")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          customer_id,
-          reason,
-          description,
-          original_amount,
-          additional_amount,
-          new_total_amount,
-          status,
-          accepted_at,
-          rejected_at,
-          payment_status,
-          stripe_checkout_session_id,
-          stripe_payment_intent_id,
-          additional_customer_fee_percent,
-          additional_customer_fee_amount,
-          additional_customer_total_amount,
-          additional_provider_commission_percent,
-          additional_provider_commission_amount,
-          additional_provider_net_amount,
-          additional_platform_revenue_amount,
-          paid_at,
-          created_at,
-          updated_at
-        `)
-        .maybeSingle();
+      } = await supabase.rpc(
+        "respond_to_change_order",
+        {
+          p_change_order_id: changeOrder.id,
+          p_decision: decision,
+        }
+      );
 
       if (updateError) {
         throw new Error(
