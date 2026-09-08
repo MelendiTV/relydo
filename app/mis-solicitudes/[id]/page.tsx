@@ -329,10 +329,12 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Tú": "You",
   "Escribe un mensaje...": "Write a message...",
   "Enviar": "Send",
+  "Enviando...": "Sending...",
   "🎥 Video": "🎥 Video",
   "📷 Foto": "📷 Photo",
   "Cuéntanos cómo fue el servicio...": "Tell us how the service went...",
   "Enviando calificación...": "Sending rating...",
+  "Selecciona una calificación de 1 a 5 estrellas.": "Select a rating from 1 to 5 stars.",
   "Enviar reseña": "Submit review",
   "En revisión": "Under review",
   "Enviando reclamo...": "Sending claim...",
@@ -2663,7 +2665,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       rating > 5
     ) {
       setError(
-        "Selecciona una calificación de 1 a 5 estrellas."
+        T("Selecciona una calificación de 1 a 5 estrellas.")
       );
 
       return;
@@ -4070,6 +4072,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                               estrella
                             }
                             type="button"
+                            aria-label={
+                              language === "en"
+                                ? `${estrella} ${estrella === 1 ? "star" : "stars"}`
+                                : `${estrella} ${estrella === 1 ? "estrella" : "estrellas"}`
+                            }
                             onClick={() =>
                               setRating(
                                 estrella
@@ -6259,7 +6266,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         className="rounded-2xl bg-blue-700 px-6 py-3.5 font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {enviandoMensajeChat
-                          ? "Enviando..."
+                          ? T("Enviando...")
                           : T("Enviar")}
                       </button>
                     </div>
