@@ -3328,25 +3328,15 @@ export default function TrabajoDetallePage() {
             respuestaGuardada,
           error:
             respuestaError,
-        } = await supabase
-          .from("job_claims")
-          .update({
-            provider_response:
+        } = await supabase.rpc(
+          "respond_to_claim_secure",
+          {
+            p_claim_id:
+              reclamo.id,
+            p_response:
               explicacionEvidencia.trim(),
-            provider_responded_at:
-              new Date().toISOString(),
-          })
-          .eq("id", reclamo.id)
-          .eq(
-            "provider_id",
-            providerId
-          )
-          .is(
-            "provider_responded_at",
-            null
-          )
-          .select("id")
-          .maybeSingle();
+          }
+        );
 
         if (
           respuestaError ||
