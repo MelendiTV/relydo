@@ -4107,11 +4107,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                     <div className="mt-7">
 
-                      <label className="mb-2 block font-bold text-slate-900">
+                      <label
+                        htmlFor="comentario-review"
+                        className="mb-2 block font-bold text-slate-900"
+                      >
                         {T("Comentario")}
                       </label>
 
                       <textarea
+                        id="comentario-review"
                         value={
                           comentario
                         }
@@ -5486,7 +5490,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     onChange={(e) => setMotivoReclamo(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
                   >
-                    <option value="">{T("Selecciona un motivo")}</option>
+                    
                     <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
                     <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
                     <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
