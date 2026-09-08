@@ -2590,25 +2590,14 @@ export default function TrabajoDetallePage() {
         const {
           data: evidenciaData,
           error: evidenciaError,
-        } = await supabase
-          .from("job_completion_evidence")
-          .insert({
-            request_id: trabajo.id,
-            provider_id: providerId,
-            file_type: fileType,
-            file_path: ruta,
-            file_url: ruta,
-          })
-          .select(`
-            id,
-            request_id,
-            provider_id,
-            file_type,
-            file_path,
-            file_url,
-            created_at
-          `)
-          .single();
+        } = await supabase.rpc(
+          "create_job_completion_evidence_secure",
+          {
+            p_request_id: trabajo.id,
+            p_file_type: fileType,
+            p_file_path: ruta,
+          }
+        );
 
         if (evidenciaError) {
           await supabase.storage
