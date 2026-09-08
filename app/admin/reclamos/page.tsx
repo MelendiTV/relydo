@@ -462,14 +462,13 @@ export default function AdminReclamosPage() {
     setProcesando(reclamo.id);
 
     try {
-      const { error } = await supabase
-        .from("job_claims")
-        .update({
-          status: "reviewing",
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", reclamo.id);
+      const { error } = await supabase.rpc(
+        "admin_update_claim_review_status",
+        {
+          p_claim_id: reclamo.id,
+          p_action: "start_review",
+        }
+      );
 
       if (error) throw new Error(error.message);
 
