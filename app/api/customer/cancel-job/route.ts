@@ -659,8 +659,12 @@ export async function POST(request: NextRequest) {
     //
     // Antes: open significaba automáticamente "sin pago".
     // Ahora puede existir crédito retenido porque uno o varios Pros
-    // liberaron el trabajo. Si hay una reasignación activa, devolvemos
-    // TODO el crédito vivo al cliente sin penalización.
+    // liberaron el trabajo.
+    //
+    // Política RELYDO para open_after_provider_release:
+    // - NO aplicamos penalización de cancelación al cliente.
+    // - El service fee original de RELYDO NO es reembolsable.
+    // - Reembolsamos únicamente el importe del trabajo que siga vivo.
     // ======================================================
 
     if (serviceRequest.status === "open") {
@@ -779,8 +783,79 @@ export async function POST(request: NextRequest) {
       let customerRefundAmount = 0;
       let stripeRefundIds: string[] = [];
 
+      // El service fee que conserva RELYDO es el del pago ORIGINAL
+      // del cliente, no el fee de un reemplazo posterior.
+      const {
+        data: originalEconomicPayment,
+        error: originalEconomicPaymentError,
+      } = await supabaseAdmin
+        .from("payments")
+        .select(`
+          id,
+          job_amount,
+          customer_fee_amount,
+          customer_total_amount
+        `)
+        .eq("request_id", requestId)
+        .eq("customer_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (
+        originalEconomicPaymentError ||
+        !originalEconomicPayment
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No pudimos localizar el pago original para calcular el service fee no reembolsable.",
+          },
+          { status: 500 }
+        );
+      }
+
+      const originalJobAmount = dinero(
+        originalEconomicPayment.job_amount
+      );
+
+      const originalEconomicTotal = dinero(
+        originalEconomicPayment.customer_total_amount
+      );
+
+      const originalServiceFeeAmount = dinero(
+        originalEconomicPayment.customer_fee_amount ??
+          Math.max(
+            0,
+            originalEconomicTotal - originalJobAmount
+          )
+      );
+
+      if (
+        !Number.isFinite(originalJobAmount) ||
+        originalJobAmount < 0 ||
+        !Number.isFinite(originalEconomicTotal) ||
+        originalEconomicTotal < 0 ||
+        !Number.isFinite(originalServiceFeeAmount) ||
+        originalServiceFeeAmount < 0 ||
+        originalServiceFeeAmount > originalEconomicTotal
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Los importes económicos originales no son válidos.",
+          },
+          { status: 409 }
+        );
+      }
+
       if (liveSources.length > 0) {
-        customerRefundAmount = liveCustomerTotal;
+        customerRefundAmount = dinero(
+          Math.max(
+            0,
+            liveCustomerTotal - originalServiceFeeAmount
+          )
+        );
 
         if (customerRefundAmount > 0) {
           stripeRefundIds =
@@ -829,7 +904,12 @@ export async function POST(request: NextRequest) {
         }
 
         customerRefundAmount = dinero(
-          paymentTotal - alreadyRefunded
+          Math.max(
+            0,
+            paymentTotal -
+              alreadyRefunded -
+              originalServiceFeeAmount
+          )
         );
 
         if (customerRefundAmount > 0) {
@@ -874,7 +954,21 @@ export async function POST(request: NextRequest) {
                 alreadyRefunded +
                   customerRefundAmount
               ),
-              status: "refunded",
+              status:
+                dinero(
+                  alreadyRefunded +
+                    customerRefundAmount
+                ) >= paymentTotal
+                  ? "refunded"
+                  : "partially_refunded",
+              cancellation_stage:
+                "open_after_provider_release",
+              cancellation_penalty_percent: 0,
+              cancellation_penalty_amount: 0,
+              cancellation_provider_amount: 0,
+              cancellation_platform_amount:
+                originalServiceFeeAmount,
+              cancellation_processed_at: now,
               updated_at: now,
             })
             .eq("id", originalPayment.id);
@@ -946,13 +1040,23 @@ export async function POST(request: NextRequest) {
                 previousRefunded +
                   customerRefundAmount
               ),
-              status: "refunded",
+              status:
+                dinero(
+                  previousRefunded +
+                    customerRefundAmount
+                ) >=
+                dinero(
+                  originalPayment.customer_total_amount
+                )
+                  ? "refunded"
+                  : "partially_refunded",
               cancellation_stage:
                 "open_after_provider_release",
               cancellation_penalty_percent: 0,
               cancellation_penalty_amount: 0,
               cancellation_provider_amount: 0,
-              cancellation_platform_amount: 0,
+              cancellation_platform_amount:
+                originalServiceFeeAmount,
               cancellation_processed_at: now,
               updated_at: now,
             })
@@ -979,7 +1083,8 @@ export async function POST(request: NextRequest) {
         penaltyPercent: 0,
         penaltyAmount: 0,
         providerAwardAmount: 0,
-        relydoCancellationAmount: 0,
+        relydoCancellationAmount:
+          originalServiceFeeAmount,
         customerRefundAmount,
         stripeRefundId:
           stripeRefundIds[0] || null,
