@@ -3805,7 +3805,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {/* AVISO CUANDO UN PROFESIONAL LIBERO EL TRABAJO Y LA SOLICITUD SIGUE ABIERTA */}
 
-        {profesionalLiberoTrabajo && (
+        {profesionalLiberoTrabajo &&
+          ofertasPendientes === 0 && (
             <section className="mt-6 rounded-3xl border-2 border-amber-300 bg-amber-50 p-7 shadow-sm">
               <div className="mb-5 font-extrabold text-slate-900">
               <span>{T("Buscando un nuevo profesional")}</span>
