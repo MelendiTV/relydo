@@ -763,7 +763,7 @@ export async function POST(request: NextRequest) {
       }
 
       // ----------------------------------------------------------
-      // 4F. PAGO ORIGINAL
+      // 4F. PAGO ORIGINAL / FUENTES HEREDADAS
       // ----------------------------------------------------------
 
       const {
@@ -784,16 +784,10 @@ export async function POST(request: NextRequest) {
           released_at,
           stripe_transfer_id
         `)
-        .eq(
-          "id",
-          originalPaymentId
-        )
+        .eq("id", originalPaymentId)
         .maybeSingle();
 
-      if (
-        originalPaymentError ||
-        !originalPayment
-      ) {
+      if (originalPaymentError || !originalPayment) {
         const refund =
           await refundUnexpectedPayment(
             paymentIntentId,
@@ -808,22 +802,66 @@ export async function POST(request: NextRequest) {
             refunded: refund.ok,
             refundId: refund.refundId,
           },
-          {
-            status: refund.ok
-              ? 409
-              : 500,
-          }
+          { status: refund.ok ? 409 : 500 }
         );
       }
 
+      /*
+       * Un payment creado por una reasignación anterior puede no tener
+       * provider_payment_id. En ese caso sus dólares físicos viven en
+       * payment_reassignment_funding_sources.
+       */
+      const {
+        data: inheritedSources,
+        error: inheritedSourcesError,
+      } = await supabaseAdmin
+        .from("payment_reassignment_funding_sources")
+        .select(`
+          id,
+          stripe_payment_intent_id,
+          allocated_customer_amount,
+          stripe_transfer_id,
+          transferred_at
+        `)
+        .eq("payment_id", originalPayment.id)
+        .is("stripe_transfer_id", null)
+        .is("transferred_at", null);
+
+      if (inheritedSourcesError) {
+        console.error(
+          "RELYDO: no pudimos leer las fuentes heredadas de la reasignación:",
+          inheritedSourcesError
+        );
+
+        const refund =
+          await refundUnexpectedPayment(
+            paymentIntentId,
+            session.id
+          );
+
+        return NextResponse.json(
+          {
+            error: refund.ok
+              ? "No pudimos verificar el crédito anterior. El cobro adicional fue reembolsado."
+              : "No pudimos verificar el crédito anterior y el reembolso automático falló.",
+            refunded: refund.ok,
+            refundId: refund.refundId,
+          },
+          { status: refund.ok ? 409 : 500 }
+        );
+      }
+
+      const hasInheritedSources =
+        Array.isArray(inheritedSources) &&
+        inheritedSources.length > 0;
+
       if (
-        originalPayment.request_id !==
-          requestId ||
+        originalPayment.request_id !== requestId ||
         originalPayment.provider_id !==
           reassignment.original_provider_id ||
-        originalPayment.payment_provider !==
-          "stripe" ||
-        !originalPayment.provider_payment_id ||
+        originalPayment.payment_provider !== "stripe" ||
+        (!originalPayment.provider_payment_id &&
+          !hasInheritedSources) ||
         !originalPayment.paid_at ||
         originalPayment.released_at ||
         originalPayment.stripe_transfer_id ||
@@ -831,11 +869,7 @@ export async function POST(request: NextRequest) {
           "paid",
           "ready_for_payout",
           "partially_refunded",
-        ].includes(
-          String(
-            originalPayment.status
-          )
-        )
+        ].includes(String(originalPayment.status))
       ) {
         const refund =
           await refundUnexpectedPayment(
@@ -851,11 +885,7 @@ export async function POST(request: NextRequest) {
             refunded: refund.ok,
             refundId: refund.refundId,
           },
-          {
-            status: refund.ok
-              ? 409
-              : 500,
-          }
+          { status: refund.ok ? 409 : 500 }
         );
       }
 
@@ -863,46 +893,103 @@ export async function POST(request: NextRequest) {
       // 4G. REVALIDAR EL CRÉDITO REAL
       // ----------------------------------------------------------
 
-      const storedAvailableCredit =
-        money(
+      const storedAvailableCredit = money(
+        Number(reassignment.available_credit || 0)
+      );
+
+      let liveAvailableCredit = 0;
+
+      if (hasInheritedSources) {
+        const sourceIds = inheritedSources.map(
+          (source) => source.id
+        );
+
+        const {
+          data: sourceRefunds,
+          error: sourceRefundsError,
+        } = await supabaseAdmin
+          .from("payment_reassignment_source_refunds")
+          .select("funding_source_id, refunded_amount")
+          .in("funding_source_id", sourceIds);
+
+        if (sourceRefundsError) {
+          console.error(
+            "RELYDO: no pudimos leer los refunds de las fuentes heredadas:",
+            sourceRefundsError
+          );
+
+          const refund =
+            await refundUnexpectedPayment(
+              paymentIntentId,
+              session.id
+            );
+
+          return NextResponse.json(
+            {
+              error: refund.ok
+                ? "No pudimos verificar los reembolsos del crédito anterior. El cobro adicional fue reembolsado."
+                : "No pudimos verificar los reembolsos del crédito anterior y el reembolso automático falló.",
+              refunded: refund.ok,
+              refundId: refund.refundId,
+            },
+            { status: refund.ok ? 409 : 500 }
+          );
+        }
+
+        const refundedBySource = new Map<string, number>();
+
+        for (const row of sourceRefunds || []) {
+          const sourceId = String(row.funding_source_id);
+          refundedBySource.set(
+            sourceId,
+            money(
+              (refundedBySource.get(sourceId) || 0) +
+                Number(row.refunded_amount || 0)
+            )
+          );
+        }
+
+        liveAvailableCredit = money(
+          inheritedSources.reduce(
+            (sum, source) =>
+              sum +
+              Math.max(
+                0,
+                Number(
+                  source.allocated_customer_amount || 0
+                ) -
+                  (refundedBySource.get(
+                    String(source.id)
+                  ) || 0)
+              ),
+            0
+          )
+        );
+      } else {
+        const originalCustomerTotal = money(
           Number(
-            reassignment
-              .available_credit || 0
+            originalPayment.customer_total_amount || 0
           )
         );
 
-      const originalCustomerTotal =
-        money(
-          Number(
-            originalPayment
-              .customer_total_amount || 0
-          )
+        const alreadyRefunded = money(
+          Number(originalPayment.refunded_amount || 0)
         );
 
-      const alreadyRefunded =
-        money(
-          Number(
-            originalPayment
-              .refunded_amount || 0
-          )
-        );
-
-      const liveAvailableCredit =
-        money(
+        liveAvailableCredit = money(
           Math.max(
             0,
-            originalCustomerTotal -
-              alreadyRefunded
+            originalCustomerTotal - alreadyRefunded
           )
         );
+      }
 
-      const currentAvailableCredit =
-        money(
-          Math.min(
-            storedAvailableCredit,
-            liveAvailableCredit
-          )
-        );
+      const currentAvailableCredit = money(
+        Math.min(
+          storedAvailableCredit,
+          liveAvailableCredit
+        )
+      );
 
       const expectedCreditUsed =
         money(
