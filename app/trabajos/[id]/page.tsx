@@ -3413,15 +3413,13 @@ export default function TrabajoDetallePage() {
           const {
             error:
               cleanupDbError,
-          } = await supabase
-            .from(
-              "claim_evidence"
-            )
-            .delete()
-            .in(
-              "id",
-              ids
-            );
+          } = await supabase.rpc(
+            "cleanup_failed_claim_evidence",
+            {
+              p_claim_id:
+                reclamo.id,
+            }
+          );
 
           if (
             cleanupDbError
