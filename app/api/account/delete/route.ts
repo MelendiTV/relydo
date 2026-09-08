@@ -5,21 +5,40 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SECRET_KEY!;
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SECRET_KEY!;
 
-const ACTIVE_REQUEST_STATUSES = ["open", "in_progress"];
-const ACTIVE_CLAIM_STATUSES = ["open", "reviewing", "in_review"];
+const ACTIVE_REQUEST_STATUSES = [
+  "open",
+  "in_progress",
+];
 
-export async function DELETE(request: NextRequest) {
+const ACTIVE_CLAIM_STATUSES = [
+  "open",
+  "reviewing",
+  "in_review",
+];
+
+export async function DELETE(
+  request: NextRequest
+) {
   try {
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+    if (
+      !supabaseUrl ||
+      !supabaseAnonKey ||
+      !supabaseServiceRoleKey
+    ) {
       console.error(
         "Account deletion: missing Supabase environment variables."
       );
 
       return NextResponse.json(
-        { error: "Account deletion is not configured." },
+        {
+          error:
+            "Account deletion is not configured.",
+        },
         { status: 500 }
       );
     }
@@ -27,19 +46,28 @@ export async function DELETE(request: NextRequest) {
     const authorization =
       request.headers.get("authorization") || "";
 
-    const accessToken = authorization.startsWith("Bearer ")
-      ? authorization.slice(7).trim()
-      : "";
+    const accessToken =
+      authorization.startsWith("Bearer ")
+        ? authorization.slice(7).trim()
+        : "";
 
     if (!accessToken) {
       return NextResponse.json(
-        { error: "Unauthorized." },
+        {
+          error: "Unauthorized.",
+        },
         { status: 401 }
       );
     }
 
+    // =========================================================
+    // VALIDAR USUARIO
+    // =========================================================
+    //
     // Validamos al usuario con la clave pública.
     // La clave secreta nunca llega al navegador.
+    // =========================================================
+
     const authClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -51,17 +79,27 @@ export async function DELETE(request: NextRequest) {
       }
     );
 
-    const { data: userData, error: userError } =
-      await authClient.auth.getUser(accessToken);
+    const {
+      data: userData,
+      error: userError,
+    } = await authClient.auth.getUser(
+      accessToken
+    );
 
     const user = userData.user;
 
     if (userError || !user) {
       return NextResponse.json(
-        { error: "Unauthorized." },
+        {
+          error: "Unauthorized.",
+        },
         { status: 401 }
       );
     }
+
+    // =========================================================
+    // CLIENTE ADMINISTRATIVO
+    // =========================================================
 
     const admin = createClient(
       supabaseUrl,
@@ -80,9 +118,8 @@ export async function DELETE(request: NextRequest) {
     // PERFIL / ROL ACTUAL
     // =========================================================
     //
-    // Se usa únicamente para saber si además de las
-    // comprobaciones generales del cliente debemos comprobar
-    // obligaciones activas como profesional.
+    // Se utiliza para determinar si debemos comprobar también
+    // las obligaciones del usuario como profesional.
     // =========================================================
 
     const {
@@ -112,14 +149,19 @@ export async function DELETE(request: NextRequest) {
         head: true,
       })
       .eq("customer_id", user.id)
-      .in("status", ACTIVE_REQUEST_STATUSES);
+      .in(
+        "status",
+        ACTIVE_REQUEST_STATUSES
+      );
 
     if (activeJobsError) {
       throw activeJobsError;
     }
 
     if ((activeJobs || 0) > 0) {
-      pending.push(`Active jobs: ${activeJobs}`);
+      pending.push(
+        `Active jobs: ${activeJobs}`
+      );
     }
 
     // =========================================================
@@ -136,14 +178,19 @@ export async function DELETE(request: NextRequest) {
         head: true,
       })
       .eq("customer_id", user.id)
-      .in("status", ACTIVE_CLAIM_STATUSES);
+      .in(
+        "status",
+        ACTIVE_CLAIM_STATUSES
+      );
 
     if (activeClaimsError) {
       throw activeClaimsError;
     }
 
     if ((activeClaims || 0) > 0) {
-      pending.push(`Open claims: ${activeClaims}`);
+      pending.push(
+        `Open claims: ${activeClaims}`
+      );
     }
 
     // =========================================================
@@ -160,54 +207,77 @@ export async function DELETE(request: NextRequest) {
     if (profile?.role === "provider") {
       const {
         count: activeProviderJobs,
-        error: activeProviderJobsError,
+        error:
+          activeProviderJobsError,
       } = await admin
         .from("service_requests")
         .select("id", {
           count: "exact",
           head: true,
         })
-        .eq("preferred_provider_id", user.id)
+        .eq(
+          "preferred_provider_id",
+          user.id
+        )
         .eq("status", "in_progress");
 
       if (activeProviderJobsError) {
         throw activeProviderJobsError;
       }
 
-      if ((activeProviderJobs || 0) > 0) {
+      if (
+        (activeProviderJobs || 0) > 0
+      ) {
         pending.push(
           `Active professional jobs: ${activeProviderJobs}`
         );
       }
 
       const {
-        count: activeProviderClaims,
-        error: activeProviderClaimsError,
+        count:
+          activeProviderClaims,
+        error:
+          activeProviderClaimsError,
       } = await admin
         .from("job_claims")
         .select("id", {
           count: "exact",
           head: true,
         })
-        .eq("provider_id", user.id)
-        .in("status", ACTIVE_CLAIM_STATUSES);
+        .eq(
+          "provider_id",
+          user.id
+        )
+        .in(
+          "status",
+          ACTIVE_CLAIM_STATUSES
+        );
 
-      if (activeProviderClaimsError) {
+      if (
+        activeProviderClaimsError
+      ) {
         throw activeProviderClaimsError;
       }
 
-      if ((activeProviderClaims || 0) > 0) {
+      if (
+        (activeProviderClaims || 0) >
+        0
+      ) {
         pending.push(
           `Open professional claims: ${activeProviderClaims}`
         );
       }
     }
 
-    // Si tiene algo pendiente, no eliminamos todavía.
+    // =========================================================
+    // BLOQUEAR BORRADO SI HAY ASUNTOS PENDIENTES
+    // =========================================================
+
     if (pending.length > 0) {
       return NextResponse.json(
         {
-          error: "Account has unresolved items.",
+          error:
+            "Account has unresolved items.",
           pending,
         },
         { status: 409 }
@@ -232,15 +302,20 @@ export async function DELETE(request: NextRequest) {
         "Account deletion: avatar list failed",
         avatarListError
       );
-    } else if (avatarFiles?.length) {
-      const paths = avatarFiles.map(
-        (file) => `${user.id}/${file.name}`
-      );
+    } else if (
+      avatarFiles?.length
+    ) {
+      const paths =
+        avatarFiles.map(
+          (file) =>
+            `${user.id}/${file.name}`
+        );
 
-      const { error: avatarRemoveError } =
-        await admin.storage
-          .from("customer-avatars")
-          .remove(paths);
+      const {
+        error: avatarRemoveError,
+      } = await admin.storage
+        .from("customer-avatars")
+        .remove(paths);
 
       if (avatarRemoveError) {
         throw avatarRemoveError;
@@ -248,18 +323,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     // =========================================================
-    // 5. ANONIMIZAR PERFIL
+    // 5. ANONIMIZAR PERFIL PRINCIPAL
     // =========================================================
     //
     // Conservamos el UUID para no romper referencias históricas,
-    // pero eliminamos los datos personales del usuario.
+    // pero eliminamos la información personal directa.
     //
-    // IMPORTANTE:
-    // Esto permite que en el futuro el usuario pueda volver a
-    // registrarse con el mismo correo como una cuenta nueva.
+    // Esto también permite que posteriormente el mismo correo
+    // pueda registrarse como una cuenta nueva.
     // =========================================================
 
-    const { error: profileError } = await admin
+    const {
+      error: profileError,
+    } = await admin
       .from("profiles")
       .update({
         full_name: "Deleted user",
@@ -287,16 +363,93 @@ export async function DELETE(request: NextRequest) {
         profileError
       );
 
-      // No eliminamos Auth si no pudimos anonimizar
-      // correctamente los datos personales.
+      // No eliminamos Auth si no pudimos
+      // anonimizar correctamente el perfil.
       throw profileError;
     }
 
     // =========================================================
-    // 6. ELIMINAR CUENTA DE SUPABASE AUTH
+    // 6. ANONIMIZAR PERFIL PROFESIONAL
+    // =========================================================
+    //
+    // provider_profiles no se elimina automáticamente porque
+    // mantenemos la fila de profiles para preservar referencias
+    // históricas.
+    //
+    // Por eso, cuando se trata de un Provider, eliminamos aquí
+    // la información personal/comercial sensible y desactivamos
+    // completamente el perfil.
+    //
+    // Conservamos únicamente datos históricos no personales,
+    // como experiencia, oficio, rating y trabajos completados.
     // =========================================================
 
-    const { error: deleteUserError } =
+    if (
+      profile?.role === "provider"
+    ) {
+      const {
+        error:
+          providerProfileError,
+      } = await admin
+        .from(
+          "provider_profiles"
+        )
+        .update({
+          business_name:
+            "Deleted provider",
+
+          bio: null,
+
+          active: false,
+
+          license_number: null,
+          license_state: null,
+          license_expiration: null,
+
+          insurance_company: null,
+          insurance_expiration: null,
+
+          city: null,
+          state: null,
+          zip_code: null,
+          address: null,
+
+          company_logo_url: null,
+
+          stripe_account_id: null,
+          stripe_onboarding_complete:
+            false,
+          stripe_charges_enabled:
+            false,
+          stripe_payouts_enabled:
+            false,
+        })
+        .eq(
+          "user_id",
+          user.id
+        );
+
+      if (
+        providerProfileError
+      ) {
+        console.warn(
+          "Account deletion: provider profile anonymization failed",
+          providerProfileError
+        );
+
+        // No eliminamos Auth mientras aún puedan
+        // quedar datos personales en el perfil Pro.
+        throw providerProfileError;
+      }
+    }
+
+    // =========================================================
+    // 7. ELIMINAR CUENTA DE SUPABASE AUTH
+    // =========================================================
+
+    const {
+      error: deleteUserError,
+    } =
       await admin.auth.admin.deleteUser(
         user.id,
         false
@@ -321,7 +474,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: "We could not delete the account.",
+        error:
+          "We could not delete the account.",
       },
       { status: 500 }
     );
