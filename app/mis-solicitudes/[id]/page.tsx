@@ -3005,24 +3005,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         error:
           evidenceError,
       } =
-        await supabase
-          .from(
-            "claim_evidence"
-          )
-          .insert({
-            claim_id:
+        await supabase.rpc(
+          "create_customer_claim_evidence_secure",
+          {
+            p_claim_id:
               claimId,
-            uploaded_by:
-              userId,
-            uploaded_by_role:
-              "customer",
-            file_type:
+            p_file_type:
               fileType,
-            file_url:
+            p_file_path:
               ruta,
-            file_path:
-              ruta,
-          });
+          }
+        );
 
       if (
         evidenceError
