@@ -5486,7 +5486,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     onChange={(e) => setMotivoReclamo(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white p-4 font-semibold text-slate-900"
                   >
-                    <option value="">Selecciona un motivo</option>
+                    <option value="">{T("Selecciona un motivo")}</option>
                     <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
                     <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
                     <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
