@@ -3774,24 +3774,17 @@ export default function TrabajoDetallePage() {
           const {
             error: evidenciaError,
           } =
-            await supabase
-              .from(
-                "change_order_evidence"
-              )
-              .insert({
-                change_order_id:
+            await supabase.rpc(
+              "create_change_order_evidence_secure",
+              {
+                p_change_order_id:
                   cambio.id,
-                uploaded_by:
-                  providerId,
-                uploaded_by_role:
-                  "provider",
-                file_type:
+                p_file_type:
                   fileType,
-                file_path:
+                p_file_path:
                   ruta,
-                file_url:
-                  ruta,
-              });
+              }
+            );
 
           if (evidenciaError) {
             throw new Error(
