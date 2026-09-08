@@ -316,13 +316,13 @@ export default function Home() {
       image: "/ads/home/slot-1-ad-1.png",
       url: "https://example.com/",
       alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
-      active: true,
+      active: false,
     },
     {
       image: "/ads/home/slot-1-ad-2.png",
       url: "https://example.com/",
       alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
-      active: true,
+      active: false,
     },
   ];
 
@@ -331,13 +331,13 @@ export default function Home() {
       image: "/ads/home/slot-2-ad-1.png",
       url: "https://example.com/",
       alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
-      active: true,
+      active: false,
     },
     {
       image: "/ads/home/slot-2-ad-2.png",
       url: "https://example.com/",
       alt: es ? "Anuncio patrocinado" : "Sponsored advertisement",
-      active: true,
+      active: false,
     },
   ];
 
@@ -598,8 +598,8 @@ export default function Home() {
           <div>
             <h3 className="font-black">{T.footerLegal}</h3>
             <div className="mt-4 flex flex-col items-start gap-3 text-slate-300 [&_button]:transition [&_button]:hover:text-white">
-              <span>{T.terms}</span>
-              <span>{T.privacy}</span>
+              <button onClick={() => router.push("/terms")}>{T.terms}</button>
+              <button onClick={() => router.push("/privacy")}>{T.privacy}</button>
             </div>
           </div>
         </div>
