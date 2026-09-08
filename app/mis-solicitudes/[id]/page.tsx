@@ -3128,33 +3128,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       }
 
       const { data: claimData, error: insertClaimError } =
-        await supabase
-          .from("job_claims")
-          .insert({
-            request_id: solicitud.id,
-            customer_id: user.id,
-            provider_id: ofertaSeleccionada.professional_id,
-            reason: motivoReclamo.trim(),
-            description: descripcionReclamo.trim(),
-            customer_evidence_note:
+        await supabase.rpc(
+          "create_customer_claim_secure",
+          {
+            p_request_id: solicitud.id,
+            p_reason: motivoReclamo.trim(),
+            p_description: descripcionReclamo.trim(),
+            p_customer_evidence_note:
               evidenciasReclamo.length > 0
                 ? explicacionEvidenciaCliente.trim()
                 : null,
-            status: "open",
-          })
-          .select(`
-            id,
-            request_id,
-            customer_id,
-            provider_id,
-            reason,
-            description,
-            status,
-            resolution_notes,
-            created_at,
-            updated_at
-          `)
-          .single();
+          }
+        );
 
       if (insertClaimError) {
         throw new Error(insertClaimError.message);
