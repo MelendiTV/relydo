@@ -2077,42 +2077,21 @@ export default function TrabajoDetallePage() {
           nuevaOferta,
         error:
           insertError,
-      } = await supabase
-        .from(
-          "offers"
-        )
-        .insert({
-          request_id:
+      } = await supabase.rpc(
+        "create_offer_secure",
+        {
+          p_request_id:
             trabajo.id,
-
-          professional_id:
-            providerId,
-
-          price,
-
-          arrival_minutes:
+          p_price:
+            price,
+          p_arrival_minutes:
             arrivalMinutes,
-
-          estimated_job_minutes:
+          p_estimated_job_minutes:
             estimatedJobMinutes,
-
-          message,
-
-          status:
-            "pending",
-        })
-        .select(`
-          id,
-          request_id,
-          professional_id,
-          price,
-          arrival_minutes,
-          estimated_job_minutes,
-          message,
-          status,
-          created_at
-        `)
-        .single();
+          p_message:
+            message,
+        }
+      );
 
       if (
         insertError
