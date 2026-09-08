@@ -3740,29 +3740,6 @@ export default function TrabajoDetallePage() {
       return;
     }
 
-    const ultimoAceptadoPagado =
-      cambiosPresupuesto.find(
-        (cambio) =>
-          cambio.status === "accepted" &&
-          cambio.payment_status === "paid"
-      );
-
-    const montoOriginal =
-      Number(
-        ultimoAceptadoPagado?.new_total_amount ??
-        pago?.job_amount ??
-        oferta.price ??
-        0
-      );
-
-    const nuevoTotal =
-      Math.round(
-        (montoOriginal +
-          adicional +
-          Number.EPSILON) *
-          100
-      ) / 100;
-
     setEnviandoCambioPresupuesto(
       true
     );
@@ -3773,53 +3750,17 @@ export default function TrabajoDetallePage() {
       const {
         data: nuevoCambio,
         error: cambioError,
-      } = await supabase
-        .from("change_orders")
-        .insert({
-          request_id: trabajo.id,
-          provider_id: providerId,
-          customer_id:
-            trabajo.customer_id,
-          reason:
+      } = await supabase.rpc(
+        "create_change_order_secure",
+        {
+          p_request_id: trabajo.id,
+          p_reason:
             motivoCambioPresupuesto.trim(),
-          description:
+          p_description:
             descripcionCambioPresupuesto.trim(),
-          original_amount:
-            montoOriginal,
-          additional_amount:
-            adicional,
-          new_total_amount:
-            nuevoTotal,
-          status: "pending",
-        })
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          customer_id,
-          reason,
-          description,
-          original_amount,
-          additional_amount,
-          new_total_amount,
-          status,
-          accepted_at,
-          rejected_at,
-          payment_status,
-          stripe_checkout_session_id,
-          stripe_payment_intent_id,
-          additional_customer_fee_percent,
-          additional_customer_fee_amount,
-          additional_customer_total_amount,
-          additional_provider_commission_percent,
-          additional_provider_commission_amount,
-          additional_provider_net_amount,
-          additional_platform_revenue_amount,
-          paid_at,
-          created_at,
-          updated_at
-        `)
-        .single();
+          p_additional_amount: adicional,
+        }
+      );
 
       if (cambioError) {
         throw new Error(
@@ -4042,12 +3983,12 @@ export default function TrabajoDetallePage() {
         language === "es"
           ? `Cambio de presupuesto enviado. Solicitaste $${adicional.toFixed(
               2
-            )} adicionales. El nuevo total propuesto es $${nuevoTotal.toFixed(
+            )} adicionales. El nuevo total propuesto es $${Number(cambio.new_total_amount).toFixed(
               2
             )}.`
           : `Budget change sent. You requested an additional $${adicional.toFixed(
               2
-            )}. The new proposed total is $${nuevoTotal.toFixed(
+            )}. The new proposed total is $${Number(cambio.new_total_amount).toFixed(
               2
             )}.`
       );
