@@ -90,6 +90,13 @@ export async function POST(request: NextRequest) {
 
     const requestId = String(body?.requestId || "").trim();
     const offerId = String(body?.offerId || "").trim();
+    const mobileReturnUrl = String(body?.mobileReturnUrl || "").trim();
+
+    const validMobileReturnUrl =
+      mobileReturnUrl.startsWith("relydo://") ||
+      mobileReturnUrl.startsWith("exp://")
+        ? mobileReturnUrl
+        : "";
 
     if (!requestId || !offerId) {
       return NextResponse.json(
@@ -1647,10 +1654,14 @@ export async function POST(request: NextRequest) {
           },
 
           success_url:
-            `${origin}/checkout/${requestId}?offer=${offerId}&payment=success&session_id={CHECKOUT_SESSION_ID}`,
+            validMobileReturnUrl
+              ? `${validMobileReturnUrl}${validMobileReturnUrl.includes("?") ? "&" : "?"}payment=success&session_id={CHECKOUT_SESSION_ID}`
+              : `${origin}/checkout/${requestId}?offer=${offerId}&payment=success&session_id={CHECKOUT_SESSION_ID}`,
 
           cancel_url:
-            `${origin}/checkout/${requestId}?offer=${offerId}&payment=cancelled`,
+            validMobileReturnUrl
+              ? `${validMobileReturnUrl}${validMobileReturnUrl.includes("?") ? "&" : "?"}payment=cancelled`
+              : `${origin}/checkout/${requestId}?offer=${offerId}&payment=cancelled`,
         },
         {
           idempotencyKey:
