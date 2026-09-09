@@ -771,7 +771,7 @@ export default function ClientesHome() {
                         1
                     ) {
                       router.push(
-                        "/servicios"
+                        "/profesionales"
                       );
 
                       return;
