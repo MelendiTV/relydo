@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,12 +16,9 @@ const supabaseAdmin = createClient(
   }
 );
 
-const vapidSubject =
-  process.env.VAPID_SUBJECT;
-
+const vapidSubject = process.env.VAPID_SUBJECT;
 const vapidPublicKey =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
 const vapidPrivateKey =
   process.env.VAPID_PRIVATE_KEY;
 
@@ -44,6 +42,15 @@ type Stage =
 type RequestBody = {
   requestId?: string;
   stage?: Stage;
+};
+
+type ExpoPushTicket = {
+  status?: "ok" | "error";
+  id?: string;
+  message?: string;
+  details?: {
+    error?: string;
+  };
 };
 
 const STAGE_CONFIG: Record<
@@ -80,15 +87,11 @@ function getBearerToken(
   request: NextRequest
 ) {
   const authorization =
-    request.headers.get(
-      "authorization"
-    );
+    request.headers.get("authorization");
 
   if (
     !authorization ||
-    !authorization.startsWith(
-      "Bearer "
-    )
+    !authorization.startsWith("Bearer ")
   ) {
     return null;
   }
@@ -98,18 +101,27 @@ function getBearerToken(
     .trim();
 }
 
+function isExpoPushToken(
+  token: string
+) {
+  return (
+    token.startsWith("ExponentPushToken[") ||
+    token.startsWith("ExpoPushToken[")
+  );
+}
+
 export async function POST(
   request: NextRequest
 ) {
   try {
     /*
+      =====================================================
       1. AUTENTICAR AL PROFESIONAL
+      =====================================================
     */
 
     const token =
-      getBearerToken(
-        request
-      );
+      getBearerToken(request);
 
     if (!token) {
       return NextResponse.json(
@@ -150,7 +162,9 @@ export async function POST(
     }
 
     /*
+      =====================================================
       2. VALIDAR BODY
+      =====================================================
     */
 
     const body =
@@ -165,10 +179,7 @@ export async function POST(
     if (
       !requestId ||
       !stage ||
-      !(
-        stage in
-        STAGE_CONFIG
-      )
+      !(stage in STAGE_CONFIG)
     ) {
       return NextResponse.json(
         {
@@ -182,9 +193,9 @@ export async function POST(
     }
 
     /*
-      3. COMPROBAR QUE EL TRABAJO
-         ESTÁ ASIGNADO A ESTE PROFESIONAL
-         Y QUE LA ETAPA YA FUE ACTUALIZADA
+      =====================================================
+      3. BUSCAR TRABAJO
+      =====================================================
     */
 
     const {
@@ -194,9 +205,7 @@ export async function POST(
         trabajoError,
     } =
       await supabaseAdmin
-        .from(
-          "service_requests"
-        )
+        .from("service_requests")
         .select(`
           id,
           title,
@@ -226,6 +235,14 @@ export async function POST(
       );
     }
 
+    /*
+      =====================================================
+      4. SEGURIDAD:
+         EL TRABAJO TIENE QUE ESTAR ASIGNADO
+         AL PROFESIONAL AUTENTICADO
+      =====================================================
+    */
+
     if (
       trabajo.status !==
         "in_progress" ||
@@ -242,6 +259,11 @@ export async function POST(
         }
       );
     }
+
+    /*
+      La etapa recibida debe coincidir con
+      la etapa que ya fue guardada en Supabase.
+    */
 
     if (
       trabajo.job_stage !==
@@ -273,16 +295,16 @@ export async function POST(
     }
 
     const config =
-      STAGE_CONFIG[
-        stage
-      ];
+      STAGE_CONFIG[stage];
 
     /*
-      4. GUARDAR NOTIFICACIÓN INTERNA
+      =====================================================
+      5. GUARDAR NOTIFICACIÓN INTERNA
 
-      Esto activa Realtime en NotificationsBell,
-      que es lo que produce el sonido dentro
-      de RELYDO cuando el cliente tiene la web abierta.
+      Esto se mantiene EXACTAMENTE porque
+      NotificationsBell / Realtime depende
+      de la tabla notifications.
+      =====================================================
     */
 
     const {
@@ -292,20 +314,23 @@ export async function POST(
         notificationError,
     } =
       await supabaseAdmin
-        .from(
-          "notifications"
-        )
+        .from("notifications")
         .insert({
           user_id:
             trabajo.customer_id,
+
           type:
             config.type,
+
           title:
             config.title,
+
           message:
             config.message,
+
           request_id:
             trabajo.id,
+
           read:
             false,
         })
@@ -341,47 +366,252 @@ export async function POST(
     }
 
     /*
-      5. ENVIAR PUSH A TODOS LOS
-         DISPOSITIVOS DEL CLIENTE
+      =====================================================
+      6. DATOS COMUNES DE LA PUSH
+      =====================================================
     */
 
+    const pushTitle =
+      config.title;
+
+    const pushBody =
+      `${trabajo.title}: ${config.message}`;
+
+    const webUrl =
+      `/mis-solicitudes/${trabajo.id}`;
+
+    /*
+      Esta información la recibirá la app móvil.
+      Después podremos usar requestId para abrir
+      directamente RequestDetail.
+    */
+
+    const mobileData = {
+      type:
+        config.type,
+
+      requestId:
+        trabajo.id,
+
+      stage,
+
+      screen:
+        "RequestDetail",
+
+      url:
+        webUrl,
+    };
+
+    /*
+      =====================================================
+      7. WEB PUSH / PWA
+
+      IMPORTANTE:
+      Si Web Push falla o el cliente no tiene
+      navegador registrado, NO detenemos el proceso.
+
+      La app móvil debe poder recibir igualmente.
+      =====================================================
+    */
+
+    let webDevices =
+      0;
+
+    let webSent =
+      0;
+
+    let webFailed =
+      0;
+
+    let webRemoved =
+      0;
+
+    let webError:
+      string | null =
+      null;
+
     if (
-      !vapidSubject ||
-      !vapidPublicKey ||
-      !vapidPrivateKey
+      vapidSubject &&
+      vapidPublicKey &&
+      vapidPrivateKey
     ) {
-      return NextResponse.json({
-        success:
-          true,
-        notification,
-        push: {
-          sent:
-            0,
-          failed:
-            0,
-          removed:
-            0,
-          message:
-            "La notificación interna se guardó, pero las claves VAPID no están configuradas.",
-        },
-      });
+      const {
+        data:
+          subscriptions,
+        error:
+          subscriptionsError,
+      } =
+        await supabaseAdmin
+          .from(
+            "push_subscriptions"
+          )
+          .select(`
+            id,
+            endpoint,
+            p256dh,
+            auth
+          `)
+          .eq(
+            "user_id",
+            trabajo.customer_id
+          );
+
+      if (
+        subscriptionsError
+      ) {
+        console.error(
+          "Error buscando dispositivos Web Push del cliente:",
+          subscriptionsError
+        );
+
+        webError =
+          subscriptionsError.message;
+      } else if (
+        subscriptions &&
+        subscriptions.length >
+          0
+      ) {
+        webDevices =
+          subscriptions.length;
+
+        const webPayload =
+          JSON.stringify({
+            title:
+              pushTitle,
+
+            body:
+              pushBody,
+
+            url:
+              webUrl,
+
+            tag:
+              `${config.type}-${trabajo.id}`,
+
+            data:
+              mobileData,
+          });
+
+        for (
+          const subscription
+          of subscriptions
+        ) {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint:
+                  subscription.endpoint,
+
+                keys: {
+                  p256dh:
+                    subscription.p256dh,
+
+                  auth:
+                    subscription.auth,
+                },
+              },
+              webPayload
+            );
+
+            webSent +=
+              1;
+          } catch (
+            error: unknown
+          ) {
+            webFailed +=
+              1;
+
+            const pushError =
+              error as {
+                statusCode?: number;
+                message?: string;
+              };
+
+            console.error(
+              "Error enviando Web Push de etapa:",
+              pushError
+            );
+
+            /*
+              404 / 410 significa que esa
+              suscripción Web ya murió.
+            */
+
+            if (
+              pushError.statusCode ===
+                404 ||
+              pushError.statusCode ===
+                410
+            ) {
+              const {
+                error:
+                  deleteError,
+              } =
+                await supabaseAdmin
+                  .from(
+                    "push_subscriptions"
+                  )
+                  .delete()
+                  .eq(
+                    "id",
+                    subscription.id
+                  );
+
+              if (
+                !deleteError
+              ) {
+                webRemoved +=
+                  1;
+              }
+            }
+          }
+        }
+      }
+    } else {
+      webError =
+        "Las claves VAPID no están configuradas.";
     }
+
+    /*
+      =====================================================
+      8. PUSH APP MÓVIL
+         iPHONE / ANDROID - EXPO
+
+      Se buscan TODOS los dispositivos móviles
+      registrados para este cliente.
+      =====================================================
+    */
+
+    let mobileDevices =
+      0;
+
+    let mobileSent =
+      0;
+
+    let mobileFailed =
+      0;
+
+    let mobileRemoved =
+      0;
+
+    let mobileError:
+      string | null =
+      null;
 
     const {
       data:
-        subscriptions,
+        mobileTokens,
       error:
-        subscriptionsError,
+        mobileTokensError,
     } =
       await supabaseAdmin
         .from(
-          "push_subscriptions"
+          "mobile_push_tokens"
         )
         .select(`
           id,
-          endpoint,
-          p256dh,
-          auth
+          expo_push_token,
+          platform
         `)
         .eq(
           "user_id",
@@ -389,150 +619,328 @@ export async function POST(
         );
 
     if (
-      subscriptionsError
+      mobileTokensError
     ) {
       console.error(
-        "Error buscando dispositivos Push del cliente:",
-        subscriptionsError
+        "Error buscando tokens móviles del cliente:",
+        mobileTokensError
       );
 
-      return NextResponse.json({
-        success:
-          true,
-        notification,
-        push: {
-          sent:
-            0,
-          failed:
-            0,
-          removed:
-            0,
-          error:
-            subscriptionsError.message,
-        },
-      });
-    }
-
-    if (
-      !subscriptions ||
-      subscriptions.length ===
+      mobileError =
+        mobileTokensError.message;
+    } else if (
+      mobileTokens &&
+      mobileTokens.length >
         0
     ) {
-      return NextResponse.json({
-        success:
-          true,
-        notification,
-        push: {
-          sent:
-            0,
-          failed:
-            0,
-          removed:
-            0,
-          message:
-            "El cliente no tiene dispositivos Push registrados.",
-        },
-      });
-    }
+      /*
+        Filtramos cualquier valor inválido antes
+        de enviarlo a Expo.
+      */
 
-    const payload =
-      JSON.stringify({
-        title:
-          config.title,
-        body:
-          `${trabajo.title}: ${config.message}`,
-        url:
-          `/mis-solicitudes/${trabajo.id}`,
-      });
-
-    let sent =
-      0;
-
-    let failed =
-      0;
-
-    let removed =
-      0;
-
-    for (
-      const subscription
-      of subscriptions
-    ) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint:
-              subscription.endpoint,
-
-            keys: {
-              p256dh:
-                subscription.p256dh,
-              auth:
-                subscription.auth,
-            },
-          },
-          payload
+      const validMobileTokens =
+        mobileTokens.filter(
+          (
+            item
+          ) =>
+            typeof item.expo_push_token ===
+              "string" &&
+            isExpoPushToken(
+              item.expo_push_token
+            )
         );
 
-        sent +=
-          1;
-      } catch (
-        error: unknown
+      mobileDevices =
+        validMobileTokens.length;
+
+      /*
+        Expo acepta un array de mensajes,
+        por lo que enviamos todos los dispositivos
+        del cliente en una sola petición.
+      */
+
+      if (
+        validMobileTokens.length >
+        0
       ) {
-        failed +=
-          1;
+        const expoMessages =
+          validMobileTokens.map(
+            (
+              item
+            ) => ({
+              to:
+                item.expo_push_token,
 
-        const pushError =
-          error as {
-            statusCode?: number;
-            message?: string;
-          };
+              sound:
+                "default",
 
-        console.error(
-          "Error enviando Push de etapa:",
-          pushError
-        );
+              title:
+                pushTitle,
 
-        if (
-          pushError.statusCode ===
-            404 ||
-          pushError.statusCode ===
-            410
-        ) {
-          const {
-            error:
-              deleteError,
-          } =
-            await supabaseAdmin
-              .from(
-                "push_subscriptions"
-              )
-              .delete()
-              .eq(
-                "id",
-                subscription.id
-              );
+              body:
+                pushBody,
+
+              priority:
+                "high",
+
+              channelId:
+                "default",
+
+              data:
+                mobileData,
+            })
+          );
+
+        try {
+          const expoResponse =
+            await fetch(
+              "https://exp.host/--/api/v2/push/send",
+              {
+                method:
+                  "POST",
+
+                headers: {
+                  Accept:
+                    "application/json",
+
+                  "Accept-Encoding":
+                    "gzip, deflate",
+
+                  "Content-Type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify(
+                    expoMessages
+                  ),
+
+                cache:
+                  "no-store",
+              }
+            );
+
+          const expoResult =
+            (await expoResponse.json()) as {
+              data?:
+                | ExpoPushTicket
+                | ExpoPushTicket[];
+
+              errors?: unknown;
+            };
 
           if (
-            !deleteError
+            !expoResponse.ok
           ) {
-            removed +=
-              1;
+            console.error(
+              "Expo Push HTTP error:",
+              expoResponse.status,
+              expoResult
+            );
+
+            mobileFailed =
+              validMobileTokens.length;
+
+            mobileError =
+              `Expo Push respondió HTTP ${expoResponse.status}.`;
+          } else {
+            /*
+              Normalizamos porque Expo puede devolver
+              objeto o array dependiendo de la cantidad.
+            */
+
+            const tickets =
+              Array.isArray(
+                expoResult.data
+              )
+                ? expoResult.data
+                : expoResult.data
+                  ? [
+                      expoResult.data,
+                    ]
+                  : [];
+
+            /*
+              Revisamos el resultado correspondiente
+              a cada dispositivo móvil.
+            */
+
+            for (
+              let index =
+                0;
+              index <
+              validMobileTokens.length;
+              index +=
+                1
+            ) {
+              const mobileToken =
+                validMobileTokens[
+                  index
+                ];
+
+              const ticket =
+                tickets[index];
+
+              if (
+                ticket?.status ===
+                "ok"
+              ) {
+                mobileSent +=
+                  1;
+
+                continue;
+              }
+
+              mobileFailed +=
+                1;
+
+              console.error(
+                "Expo Push rechazado:",
+                {
+                  tokenId:
+                    mobileToken.id,
+
+                  platform:
+                    mobileToken.platform,
+
+                  ticket,
+                }
+              );
+
+              /*
+                Si Expo dice DeviceNotRegistered,
+                ese token ya no pertenece a una
+                instalación válida.
+
+                Lo eliminamos para que no siga
+                causando errores en el futuro.
+              */
+
+              if (
+                ticket?.details
+                  ?.error ===
+                "DeviceNotRegistered"
+              ) {
+                const {
+                  error:
+                    deleteMobileError,
+                } =
+                  await supabaseAdmin
+                    .from(
+                      "mobile_push_tokens"
+                    )
+                    .delete()
+                    .eq(
+                      "id",
+                      mobileToken.id
+                    );
+
+                if (
+                  !deleteMobileError
+                ) {
+                  mobileRemoved +=
+                    1;
+                } else {
+                  console.error(
+                    "No se pudo borrar token móvil inválido:",
+                    deleteMobileError
+                  );
+                }
+              }
+            }
+
+            /*
+              Si Expo no devolvió tickets aunque
+              respondió correctamente, lo dejamos
+              registrado para diagnóstico.
+            */
+
+            if (
+              tickets.length ===
+                0 &&
+              validMobileTokens.length >
+                0
+            ) {
+              mobileFailed =
+                validMobileTokens.length;
+
+              mobileSent =
+                0;
+
+              mobileError =
+                "Expo no devolvió tickets de entrega.";
+            }
           }
+        } catch (
+          expoError
+        ) {
+          console.error(
+            "Error enviando Push móvil:",
+            expoError
+          );
+
+          mobileFailed =
+            validMobileTokens.length;
+
+          mobileError =
+            expoError instanceof
+            Error
+              ? expoError.message
+              : "No se pudo conectar con Expo Push.";
         }
       }
     }
 
+    /*
+      =====================================================
+      9. RESPUESTA FINAL
+
+      Ningún sistema bloquea al otro:
+
+      - notifications = campana / Realtime
+      - webPush = Chrome / Edge / PWA
+      - mobilePush = iPhone / Android
+      =====================================================
+    */
+
     return NextResponse.json({
       success:
         true,
+
       notification,
-      push: {
+
+      webPush: {
         devices:
-          subscriptions.length,
-        sent,
-        failed,
-        removed,
+          webDevices,
+
+        sent:
+          webSent,
+
+        failed:
+          webFailed,
+
+        removed:
+          webRemoved,
+
+        error:
+          webError,
+      },
+
+      mobilePush: {
+        devices:
+          mobileDevices,
+
+        sent:
+          mobileSent,
+
+        failed:
+          mobileFailed,
+
+        removed:
+          mobileRemoved,
+
+        error:
+          mobileError,
       },
     });
   } catch (
@@ -552,8 +960,7 @@ export async function POST(
             : "No se pudo notificar el cambio de etapa.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
