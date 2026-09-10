@@ -1665,7 +1665,9 @@ export async function POST(request: NextRequest) {
         },
         {
           idempotencyKey:
-            `relydo-checkout-${requestId}-${offerId}`,
+            `relydo-checkout-${requestId}-${offerId}-${
+              validMobileReturnUrl ? "mobile" : "web"
+            }`,
         }
       );
 
