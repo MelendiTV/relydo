@@ -19,3 +19,6 @@ app/.env.local
 
 # misc
 .DS_Store
+
+.vercel
+.env*

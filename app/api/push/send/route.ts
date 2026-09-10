@@ -40,6 +40,15 @@ type PushBody = {
   url?: string;
 };
 
+type ExpoPushTicket = {
+  status?: "ok" | "error";
+  id?: string;
+  message?: string;
+  details?: {
+    error?: string;
+  };
+};
+
 export async function POST(
   request: NextRequest
 ) {
@@ -75,22 +84,6 @@ export async function POST(
       );
     }
 
-    if (
-      !vapidSubject ||
-      !vapidPublicKey ||
-      !vapidPrivateKey
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Las claves VAPID no están configuradas.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
     const data =
       (await request.json()) as PushBody;
 
@@ -122,18 +115,14 @@ export async function POST(
     }
 
     /*
-      BUSCAR TODOS LOS DISPOSITIVOS
-      DEL USUARIO
-
-      Ejemplo:
-      - Chrome laptop
-      - Edge laptop
-      - iPhone futuro
+      ========================================
+      WEB / PWA PUSH
+      ========================================
     */
 
     const {
-      data: subscriptions,
-      error: subscriptionError,
+      data: webSubscriptions,
+      error: webSubscriptionError,
     } = await supabaseAdmin
       .from(
         "push_subscriptions"
@@ -149,124 +138,366 @@ export async function POST(
         userId
       );
 
-    if (subscriptionError) {
+    if (webSubscriptionError) {
       console.error(
-        "Error buscando suscripciones Push:",
-        subscriptionError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            subscriptionError.message,
-        },
-        {
-          status: 500,
-        }
+        "Error buscando suscripciones Web Push:",
+        webSubscriptionError
       );
     }
 
+    /*
+      ========================================
+      APP MÓVIL PUSH
+      ========================================
+    */
+
+    const {
+      data: mobileTokens,
+      error: mobileTokenError,
+    } = await supabaseAdmin
+      .from(
+        "mobile_push_tokens"
+      )
+      .select(`
+        id,
+        expo_push_token,
+        platform
+      `)
+      .eq(
+        "user_id",
+        userId
+      );
+
+    if (mobileTokenError) {
+      console.error(
+        "Error buscando tokens móviles:",
+        mobileTokenError
+      );
+    }
+
+    const webDevices =
+      webSubscriptions ?? [];
+
+    const mobileDevices =
+      mobileTokens ?? [];
+
+    /*
+      Si el usuario no tiene ningún
+      dispositivo registrado en ninguno
+      de los dos sistemas.
+    */
+
     if (
-      !subscriptions ||
-      subscriptions.length === 0
+      webDevices.length === 0 &&
+      mobileDevices.length === 0
     ) {
       return NextResponse.json({
         success: true,
-        sent: 0,
+        web: {
+          devices: 0,
+          sent: 0,
+          failed: 0,
+          removed: 0,
+        },
+        mobile: {
+          devices: 0,
+          sent: 0,
+          failed: 0,
+          removed: 0,
+        },
+        totalSent: 0,
         message:
           "El usuario no tiene dispositivos Push registrados.",
       });
     }
 
-    const payload =
+    /*
+      ========================================
+      ENVIAR WEB PUSH
+      ========================================
+    */
+
+    let webSent = 0;
+    let webFailed = 0;
+    let webRemoved = 0;
+
+    const webPayload =
       JSON.stringify({
         title,
         body,
         url,
       });
 
-    let enviados = 0;
-    let eliminados = 0;
-    let fallidos = 0;
-
-    /*
-      ENVIAR A TODOS LOS DISPOSITIVOS
-    */
-
-    for (
-      const subscription
-      of subscriptions
-    ) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint:
-              subscription.endpoint,
-
-            keys: {
-              p256dh:
-                subscription.p256dh,
-
-              auth:
-                subscription.auth,
-            },
-          },
-          payload
-        );
-
-        enviados += 1;
-      } catch (error: unknown) {
-        fallidos += 1;
-
-        const pushError =
-          error as {
-            statusCode?: number;
-            message?: string;
-          };
-
+    if (webDevices.length > 0) {
+      if (
+        !vapidSubject ||
+        !vapidPublicKey ||
+        !vapidPrivateKey
+      ) {
         console.error(
-          "Error enviando Push:",
-          pushError
+          "Las claves VAPID no están configuradas."
         );
 
-        /*
-          404 / 410 =
-          suscripción vencida o eliminada.
-
-          La borramos para no seguir
-          intentando enviarla.
-        */
-
-        if (
-          pushError.statusCode === 404 ||
-          pushError.statusCode === 410
+        webFailed =
+          webDevices.length;
+      } else {
+        for (
+          const subscription
+          of webDevices
         ) {
-          const {
-            error: deleteError,
-          } = await supabaseAdmin
-            .from(
-              "push_subscriptions"
-            )
-            .delete()
-            .eq(
-              "id",
-              subscription.id
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint:
+                  subscription.endpoint,
+
+                keys: {
+                  p256dh:
+                    subscription.p256dh,
+
+                  auth:
+                    subscription.auth,
+                },
+              },
+              webPayload
             );
 
-          if (!deleteError) {
-            eliminados += 1;
+            webSent += 1;
+          } catch (error: unknown) {
+            webFailed += 1;
+
+            const pushError =
+              error as {
+                statusCode?: number;
+                message?: string;
+              };
+
+            console.error(
+              "Error enviando Web Push:",
+              pushError
+            );
+
+            /*
+              404 / 410 =
+              suscripción vencida
+              o eliminada.
+            */
+
+            if (
+              pushError.statusCode === 404 ||
+              pushError.statusCode === 410
+            ) {
+              const {
+                error: deleteError,
+              } =
+                await supabaseAdmin
+                  .from(
+                    "push_subscriptions"
+                  )
+                  .delete()
+                  .eq(
+                    "id",
+                    subscription.id
+                  );
+
+              if (!deleteError) {
+                webRemoved += 1;
+              } else {
+                console.error(
+                  "Error eliminando suscripción Web vencida:",
+                  deleteError
+                );
+              }
+            }
           }
         }
       }
     }
 
+    /*
+      ========================================
+      ENVIAR PUSH A APP MÓVIL
+      ========================================
+    */
+
+    let mobileSent = 0;
+    let mobileFailed = 0;
+    let mobileRemoved = 0;
+
+    for (
+      const device
+      of mobileDevices
+    ) {
+      try {
+        const expoResponse =
+          await fetch(
+            "https://exp.host/--/api/v2/push/send",
+            {
+              method: "POST",
+
+              headers: {
+                Accept:
+                  "application/json",
+
+                "Accept-Encoding":
+                  "gzip, deflate",
+
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                to:
+                  device.expo_push_token,
+
+                title,
+
+                body,
+
+                sound:
+                  "default",
+
+                priority:
+                  "high",
+
+                channelId:
+                  "default",
+
+                data: {
+                  url,
+                },
+              }),
+            }
+          );
+
+        if (!expoResponse.ok) {
+          mobileFailed += 1;
+
+          const responseText =
+            await expoResponse.text();
+
+          console.error(
+            "Error HTTP Expo Push:",
+            expoResponse.status,
+            responseText
+          );
+
+          continue;
+        }
+
+        const expoResult =
+          (await expoResponse.json()) as {
+            data?:
+              | ExpoPushTicket
+              | ExpoPushTicket[];
+          };
+
+        const ticket =
+          Array.isArray(
+            expoResult.data
+          )
+            ? expoResult.data[0]
+            : expoResult.data;
+
+        if (
+          ticket?.status === "ok"
+        ) {
+          mobileSent += 1;
+
+          continue;
+        }
+
+        mobileFailed += 1;
+
+        console.error(
+          "Expo Push rechazó la notificación:",
+          ticket
+        );
+
+        /*
+          DeviceNotRegistered significa
+          que ese token ya no pertenece
+          a una instalación válida.
+
+          Lo eliminamos de Supabase.
+        */
+
+        if (
+          ticket?.details?.error ===
+          "DeviceNotRegistered"
+        ) {
+          const {
+            error: deleteError,
+          } =
+            await supabaseAdmin
+              .from(
+                "mobile_push_tokens"
+              )
+              .delete()
+              .eq(
+                "id",
+                device.id
+              );
+
+          if (!deleteError) {
+            mobileRemoved += 1;
+          } else {
+            console.error(
+              "Error eliminando token móvil vencido:",
+              deleteError
+            );
+          }
+        }
+      } catch (error) {
+        mobileFailed += 1;
+
+        console.error(
+          "Error enviando Expo Push:",
+          error
+        );
+      }
+    }
+
+    /*
+      ========================================
+      RESULTADO
+      ========================================
+    */
+
     return NextResponse.json({
       success: true,
-      devices:
-        subscriptions.length,
-      sent: enviados,
-      failed: fallidos,
-      removed: eliminados,
+
+      web: {
+        devices:
+          webDevices.length,
+
+        sent:
+          webSent,
+
+        failed:
+          webFailed,
+
+        removed:
+          webRemoved,
+      },
+
+      mobile: {
+        devices:
+          mobileDevices.length,
+
+        sent:
+          mobileSent,
+
+        failed:
+          mobileFailed,
+
+        removed:
+          mobileRemoved,
+      },
+
+      totalSent:
+        webSent +
+        mobileSent,
     });
   } catch (error) {
     console.error(
