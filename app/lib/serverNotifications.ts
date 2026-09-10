@@ -13,8 +13,10 @@ const supabaseAdmin = createClient(
 );
 
 const vapidSubject = process.env.VAPID_SUBJECT;
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidPublicKey =
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey =
+  process.env.VAPID_PRIVATE_KEY;
 
 if (
   vapidSubject &&
@@ -39,39 +41,91 @@ export type RelydoNotificationInput = {
   url?: string | null;
 };
 
+type ExpoPushTicket = {
+  status?: "ok" | "error";
+  id?: string;
+  message?: string;
+  details?: {
+    error?: string;
+  };
+};
+
 export type RelydoNotificationResult = {
   internalNotificationSaved: boolean;
   duplicateSkipped?: boolean;
+
+  // Web / PWA
   pushDevices: number;
   pushSent: number;
   pushFailed: number;
   pushRemoved: number;
+
+  // App móvil
+  mobilePushDevices: number;
+  mobilePushSent: number;
+  mobilePushFailed: number;
+  mobilePushRemoved: number;
+
   error?: string;
+  mobileError?: string;
 };
+
+function isExpoPushToken(
+  token: string
+) {
+  return (
+    token.startsWith(
+      "ExponentPushToken["
+    ) ||
+    token.startsWith(
+      "ExpoPushToken["
+    )
+  );
+}
 
 export async function sendRelydoNotification(
   input: RelydoNotificationInput
 ): Promise<RelydoNotificationResult> {
-  const userId = input.userId?.trim();
+  const userId =
+    input.userId?.trim();
 
   if (!userId) {
     return {
       internalNotificationSaved: false,
+
       pushDevices: 0,
       pushSent: 0,
       pushFailed: 0,
       pushRemoved: 0,
+
+      mobilePushDevices: 0,
+      mobilePushSent: 0,
+      mobilePushFailed: 0,
+      mobilePushRemoved: 0,
+
       error: "Falta userId.",
     };
   }
 
   const result: RelydoNotificationResult = {
     internalNotificationSaved: false,
+
     pushDevices: 0,
     pushSent: 0,
     pushFailed: 0,
     pushRemoved: 0,
+
+    mobilePushDevices: 0,
+    mobilePushSent: 0,
+    mobilePushFailed: 0,
+    mobilePushRemoved: 0,
   };
+
+  /*
+    ============================================================
+    1. IDIOMA DEL USUARIO
+    ============================================================
+  */
 
   const {
     data: profile,
@@ -82,39 +136,39 @@ export async function sendRelydoNotification(
     .maybeSingle();
 
   const useEnglish =
-    profile?.preferred_language === "en";
+    profile?.preferred_language ===
+    "en";
 
   const title =
-    useEnglish && input.titleEn
+    useEnglish &&
+    input.titleEn
       ? input.titleEn
       : input.title;
 
   const message =
-    useEnglish && input.messageEn
+    useEnglish &&
+    input.messageEn
       ? input.messageEn
       : input.message;
 
   const requestId =
     input.requestId || null;
 
+  const notificationUrl =
+    input.url ||
+    (
+      requestId
+        ? `/mis-solicitudes/${requestId}`
+        : "/"
+    );
+
   /*
-    DEDUPLICACIÓN CORTA
+    ============================================================
+    2. DEDUPLICACIÓN CORTA
 
     Evita que un retry inmediato del mismo evento
     genere dos notificaciones internas o dos Push.
-
-    Importante:
-    NO bloqueamos el mismo evento para siempre.
-
-    Ejemplo válido:
-    - Pro 1 va en camino
-    - Pro 1 libera
-    - Pro 2 es contratado
-    - Pro 2 va en camino
-
-    Aunque Pro 1 y Pro 2 generen el mismo tipo,
-    título y mensaje para la misma solicitud,
-    ambos eventos deben poder notificarse.
+    ============================================================
   */
 
   const duplicateSince =
@@ -156,34 +210,57 @@ export async function sendRelydoNotification(
       .limit(1)
       .maybeSingle();
 
-  if (duplicateCheckError) {
+  if (
+    duplicateCheckError
+  ) {
     console.error(
       "RELYDO: no se pudo comprobar duplicados de notificación:",
       duplicateCheckError
     );
   }
 
-  if (existingNotification) {
-    result.duplicateSkipped = true;
+  if (
+    existingNotification
+  ) {
+    result.duplicateSkipped =
+      true;
 
     return result;
   }
 
+  /*
+    ============================================================
+    3. NOTIFICACIÓN INTERNA
+    ============================================================
+  */
+
   const {
     error:
       notificationError,
-  } = await supabaseAdmin
-    .from("notifications")
-    .insert({
-      user_id: userId,
-      type: input.type,
-      title,
-      message,
-      request_id: requestId,
-      read: false,
-    });
+  } =
+    await supabaseAdmin
+      .from("notifications")
+      .insert({
+        user_id:
+          userId,
 
-  if (notificationError) {
+        type:
+          input.type,
+
+        title,
+
+        message,
+
+        request_id:
+          requestId,
+
+        read:
+          false,
+      });
+
+  if (
+    notificationError
+  ) {
     console.error(
       "RELYDO: no se pudo guardar la notificación interna:",
       notificationError
@@ -198,140 +275,449 @@ export async function sendRelydoNotification(
   result.internalNotificationSaved =
     true;
 
-  if (
-    !vapidSubject ||
-    !vapidPublicKey ||
-    !vapidPrivateKey
-  ) {
-    return result;
-  }
+  /*
+    ============================================================
+    4. WEB PUSH / PWA
 
-  const {
-    data: subscriptions,
-    error:
-      subscriptionsError,
-  } = await supabaseAdmin
-    .from("push_subscriptions")
-    .select(
-      "id, endpoint, p256dh, auth"
-    )
-    .eq(
-      "user_id",
-      userId
-    );
+    Chrome / Edge / PWA.
 
-  if (subscriptionsError) {
-    result.error =
-      subscriptionsError.message;
-
-    return result;
-  }
+    IMPORTANTE:
+    Si Web Push falla, NO detenemos Mobile Push.
+    ============================================================
+  */
 
   if (
-    !subscriptions ||
-    subscriptions.length === 0
+    vapidSubject &&
+    vapidPublicKey &&
+    vapidPrivateKey
   ) {
-    return result;
-  }
-
-  result.pushDevices =
-    subscriptions.length;
-
-  const payload =
-    JSON.stringify({
-      title:
-        title || "RELYDO",
-
-      body:
-        message ||
-        (
-          useEnglish
-            ? "You have a new notification."
-            : "Tienes una nueva notificación."
-        ),
-
-      url:
-        input.url ||
-        (
-          requestId
-            ? `/mis-solicitudes/${requestId}`
-            : "/"
-        ),
-    });
-
-  for (
-    const subscription
-    of subscriptions
-  ) {
-    try {
-      await webpush
-        .sendNotification(
-          {
-            endpoint:
-              subscription.endpoint,
-
-            keys: {
-              p256dh:
-                subscription.p256dh,
-
-              auth:
-                subscription.auth,
-            },
-          },
-          payload
+    const {
+      data:
+        subscriptions,
+      error:
+        subscriptionsError,
+    } =
+      await supabaseAdmin
+        .from(
+          "push_subscriptions"
+        )
+        .select(
+          "id, endpoint, p256dh, auth"
+        )
+        .eq(
+          "user_id",
+          userId
         );
 
-      result.pushSent += 1;
-    } catch (
-      error: unknown
+    if (
+      subscriptionsError
     ) {
-      result.pushFailed += 1;
+      console.error(
+        "RELYDO: error buscando suscripciones Web Push:",
+        subscriptionsError
+      );
 
-      const pushError =
-        error as {
-          statusCode?: number;
-          message?: string;
-        };
+      result.error =
+        subscriptionsError.message;
+    } else if (
+      subscriptions &&
+      subscriptions.length >
+        0
+    ) {
+      result.pushDevices =
+        subscriptions.length;
+
+      const payload =
+        JSON.stringify({
+          title:
+            title ||
+            "RELYDO",
+
+          body:
+            message ||
+            (
+              useEnglish
+                ? "You have a new notification."
+                : "Tienes una nueva notificación."
+            ),
+
+          url:
+            notificationUrl,
+
+          data: {
+            type:
+              input.type,
+
+            requestId,
+
+            url:
+              notificationUrl,
+          },
+        });
+
+      for (
+        const subscription
+        of subscriptions
+      ) {
+        try {
+          await webpush
+            .sendNotification(
+              {
+                endpoint:
+                  subscription.endpoint,
+
+                keys: {
+                  p256dh:
+                    subscription.p256dh,
+
+                  auth:
+                    subscription.auth,
+                },
+              },
+              payload
+            );
+
+          result.pushSent +=
+            1;
+        } catch (
+          error: unknown
+        ) {
+          result.pushFailed +=
+            1;
+
+          const pushError =
+            error as {
+              statusCode?: number;
+              message?: string;
+            };
+
+          console.warn(
+            "RELYDO: fallo enviando Web Push:",
+            {
+              subscriptionId:
+                subscription.id,
+
+              statusCode:
+                pushError.statusCode,
+
+              message:
+                pushError.message,
+            }
+          );
+
+          if (
+            pushError.statusCode ===
+              404 ||
+            pushError.statusCode ===
+              410
+          ) {
+            const {
+              error:
+                deleteError,
+            } =
+              await supabaseAdmin
+                .from(
+                  "push_subscriptions"
+                )
+                .delete()
+                .eq(
+                  "id",
+                  subscription.id
+                );
+
+            if (
+              !deleteError
+            ) {
+              result.pushRemoved +=
+                1;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /*
+    ============================================================
+    5. PUSH NATIVA RELYDO
+
+    iPhone / Android mediante Expo Push.
+
+    IMPORTANTE:
+    Es completamente independiente de Web Push.
+    ============================================================
+  */
+
+  const {
+    data:
+      mobileTokens,
+    error:
+      mobileTokensError,
+  } =
+    await supabaseAdmin
+      .from(
+        "mobile_push_tokens"
+      )
+      .select(
+        "id, expo_push_token, platform"
+      )
+      .eq(
+        "user_id",
+        userId
+      );
+
+  if (
+    mobileTokensError
+  ) {
+    console.error(
+      "RELYDO: error buscando tokens móviles:",
+      mobileTokensError
+    );
+
+    result.mobileError =
+      mobileTokensError.message;
+
+    return result;
+  }
+
+  const validMobileTokens =
+    (
+      mobileTokens || []
+    ).filter(
+      (
+        mobileToken
+      ) =>
+        typeof mobileToken.expo_push_token ===
+          "string" &&
+        isExpoPushToken(
+          mobileToken.expo_push_token
+        )
+    );
+
+  result.mobilePushDevices =
+    validMobileTokens.length;
+
+  if (
+    validMobileTokens.length ===
+    0
+  ) {
+    return result;
+  }
+
+  const expoMessages =
+    validMobileTokens.map(
+      (
+        mobileToken
+      ) => ({
+        to:
+          mobileToken.expo_push_token,
+
+        sound:
+          "default",
+
+        title:
+          title ||
+          "RELYDO",
+
+        body:
+          message ||
+          (
+            useEnglish
+              ? "You have a new notification."
+              : "Tienes una nueva notificación."
+          ),
+
+        priority:
+          "high",
+
+        channelId:
+          "default",
+
+        data: {
+          type:
+            input.type,
+
+          requestId,
+
+          url:
+            notificationUrl,
+        },
+      })
+    );
+
+  try {
+    const expoResponse =
+      await fetch(
+        "https://exp.host/--/api/v2/push/send",
+        {
+          method:
+            "POST",
+
+          headers: {
+            Accept:
+              "application/json",
+
+            "Accept-Encoding":
+              "gzip, deflate",
+
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify(
+              expoMessages
+            ),
+
+          cache:
+            "no-store",
+        }
+      );
+
+    const expoResult =
+      (
+        await expoResponse.json()
+      ) as {
+        data?:
+          | ExpoPushTicket
+          | ExpoPushTicket[];
+
+        errors?: unknown;
+      };
+
+    if (
+      !expoResponse.ok
+    ) {
+      result.mobilePushFailed =
+        validMobileTokens.length;
+
+      result.mobileError =
+        `Expo Push respondió HTTP ${expoResponse.status}.`;
+
+      console.error(
+        "RELYDO: Expo Push HTTP error:",
+        expoResponse.status,
+        expoResult
+      );
+
+      return result;
+    }
+
+    const tickets =
+      Array.isArray(
+        expoResult.data
+      )
+        ? expoResult.data
+        : expoResult.data
+          ? [
+              expoResult.data,
+            ]
+          : [];
+
+    for (
+      let index = 0;
+      index <
+      validMobileTokens.length;
+      index += 1
+    ) {
+      const mobileToken =
+        validMobileTokens[
+          index
+        ];
+
+      const ticket =
+        tickets[index];
+
+      if (
+        ticket?.status ===
+        "ok"
+      ) {
+        result.mobilePushSent +=
+          1;
+
+        continue;
+      }
+
+      result.mobilePushFailed +=
+        1;
 
       console.warn(
-        "RELYDO: fallo enviando Push:",
+        "RELYDO: Expo rechazó Push móvil:",
         {
-          subscriptionId:
-            subscription.id,
+          tokenId:
+            mobileToken.id,
 
-          statusCode:
-            pushError.statusCode,
+          platform:
+            mobileToken.platform,
 
-          message:
-            pushError.message,
+          ticket,
         }
       );
 
       if (
-        pushError.statusCode ===
-          404 ||
-        pushError.statusCode ===
-          410
+        ticket?.details
+          ?.error ===
+        "DeviceNotRegistered"
       ) {
         const {
           error:
-            deleteError,
+            deleteMobileError,
         } =
           await supabaseAdmin
             .from(
-              "push_subscriptions"
+              "mobile_push_tokens"
             )
             .delete()
             .eq(
               "id",
-              subscription.id
+              mobileToken.id
             );
 
-        if (!deleteError) {
-          result.pushRemoved += 1;
+        if (
+          !deleteMobileError
+        ) {
+          result.mobilePushRemoved +=
+            1;
+        } else {
+          console.error(
+            "RELYDO: no se pudo eliminar token móvil inválido:",
+            deleteMobileError
+          );
         }
       }
     }
+
+    if (
+      tickets.length ===
+        0 &&
+      validMobileTokens.length >
+        0
+    ) {
+      result.mobilePushSent =
+        0;
+
+      result.mobilePushFailed =
+        validMobileTokens.length;
+
+      result.mobileError =
+        "Expo no devolvió tickets de entrega.";
+    }
+  } catch (
+    expoError
+  ) {
+    console.error(
+      "RELYDO: error enviando Push móvil:",
+      expoError
+    );
+
+    result.mobilePushFailed =
+      validMobileTokens.length;
+
+    result.mobileError =
+      expoError instanceof
+      Error
+        ? expoError.message
+        : "No se pudo conectar con Expo Push.";
   }
 
   return result;
