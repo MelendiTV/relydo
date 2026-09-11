@@ -123,23 +123,86 @@ export async function POST(request: NextRequest) {
       body?.sessionId || ""
     ).trim();
 
-    if (!sessionId) {
+    const directPaymentIntentId = String(
+      body?.paymentIntentId || ""
+    ).trim();
+
+    if (!sessionId && !directPaymentIntentId) {
       return NextResponse.json(
         {
           error:
-            "Falta el ID de la sesión de Stripe.",
+            "Falta el ID de la sesión o del PaymentIntent de Stripe.",
         },
         { status: 400 }
       );
     }
 
-    const session =
-      await stripe.checkout.sessions.retrieve(
-        sessionId,
-        {
-          expand: ["payment_intent"],
-        }
-      );
+    type VerifiedStripePayment = {
+      id: string;
+      metadata: Stripe.Metadata | null;
+      payment_status: string;
+      payment_intent:
+        | string
+        | Stripe.PaymentIntent
+        | null;
+      customer:
+        | string
+        | Stripe.Customer
+        | Stripe.DeletedCustomer
+        | null;
+      amount_total: number | null;
+      currency: string | null;
+    };
+
+    let session: VerifiedStripePayment;
+
+    if (sessionId) {
+      const checkoutSession =
+        await stripe.checkout.sessions.retrieve(
+          sessionId,
+          {
+            expand: ["payment_intent"],
+          }
+        );
+
+      session = {
+        id: checkoutSession.id,
+        metadata: checkoutSession.metadata,
+        payment_status:
+          checkoutSession.payment_status,
+        payment_intent:
+          checkoutSession.payment_intent,
+        customer:
+          checkoutSession.customer,
+        amount_total:
+          checkoutSession.amount_total,
+        currency:
+          checkoutSession.currency,
+      };
+    } else {
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(
+          directPaymentIntentId
+        );
+
+      session = {
+        id: paymentIntent.id,
+        metadata: paymentIntent.metadata,
+        payment_status:
+          paymentIntent.status === "succeeded"
+            ? "paid"
+            : paymentIntent.status,
+        payment_intent: paymentIntent,
+        customer:
+          paymentIntent.customer,
+        amount_total:
+          paymentIntent.amount_received > 0
+            ? paymentIntent.amount_received
+            : paymentIntent.amount,
+        currency:
+          paymentIntent.currency,
+      };
+    }
 
     if (session.payment_status !== "paid") {
       return NextResponse.json(

@@ -68,6 +68,76 @@ async function notifyProviderHired({
   }
 }
 
+
+async function getOrCreateStripeCustomer(user: {
+  id: string;
+  email?: string | null;
+}) {
+  const { data: profile, error: profileError } =
+    await supabaseAdmin
+      .from("profiles")
+      .select("stripe_customer_id, full_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+  if (profileError) {
+    console.error("CHECKOUT PROFILE ERROR:", profileError);
+    throw new Error("No pudimos consultar el perfil de pagos.");
+  }
+
+  let stripeCustomerId = String(
+    profile?.stripe_customer_id || ""
+  ).trim();
+
+  if (stripeCustomerId) {
+    try {
+      const existingCustomer =
+        await stripe.customers.retrieve(stripeCustomerId);
+
+      if (!existingCustomer.deleted) {
+        return stripeCustomerId;
+      }
+
+      stripeCustomerId = "";
+    } catch (error) {
+      console.warn(
+        "CHECKOUT STRIPE CUSTOMER LOOKUP ERROR:",
+        error
+      );
+      stripeCustomerId = "";
+    }
+  }
+
+  const customer = await stripe.customers.create({
+    email: profile?.email || user.email || undefined,
+    name: profile?.full_name || undefined,
+    metadata: {
+      relydo_user_id: user.id,
+    },
+  });
+
+  const { error: saveCustomerError } =
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        stripe_customer_id: customer.id,
+      })
+      .eq("id", user.id);
+
+  if (saveCustomerError) {
+    console.error(
+      "CHECKOUT SAVE STRIPE CUSTOMER ERROR:",
+      saveCustomerError
+    );
+
+    throw new Error(
+      "No pudimos vincular la cuenta de Stripe al perfil."
+    );
+  }
+
+  return customer.id;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // ============================================================
@@ -91,6 +161,7 @@ export async function POST(request: NextRequest) {
     const requestId = String(body?.requestId || "").trim();
     const offerId = String(body?.offerId || "").trim();
     const mobileReturnUrl = String(body?.mobileReturnUrl || "").trim();
+    const paymentFlow = String(body?.paymentFlow || "").trim();
 
     const validMobileReturnUrl =
       mobileReturnUrl.startsWith("relydo://") ||
@@ -1550,6 +1621,103 @@ export async function POST(request: NextRequest) {
       Math.round(
         customerTotalAmount * 100
       );
+
+    if (paymentFlow === "payment_sheet") {
+      if (amountInCents <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              "El importe calculado para Stripe no es válido.",
+          },
+          { status: 500 }
+        );
+      }
+
+      const stripeCustomerId =
+        await getOrCreateStripeCustomer({
+          id: auth.user.id,
+          email: auth.user.email,
+        });
+
+      const paymentIntent =
+        await stripe.paymentIntents.create(
+          {
+            amount: amountInCents,
+            currency: currency.toLowerCase(),
+            customer: stripeCustomerId,
+            payment_method_types: ["card"],
+            setup_future_usage: "off_session",
+            transfer_group:
+              `relydo_request_${requestId}`,
+            metadata: {
+              payment_type: "initial_job",
+              payment_flow: "payment_sheet",
+              request_id: requestId,
+              offer_id: offerId,
+              customer_id: auth.user.id,
+              professional_id: String(
+                offer.professional_id
+              ),
+              payment_settings_id: String(
+                paymentSettings.id
+              ),
+              professional_price:
+                professionalPrice.toFixed(2),
+              customer_fee_percent:
+                customerFeePercent.toFixed(2),
+              customer_fee_amount:
+                customerFeeAmount.toFixed(2),
+              customer_total:
+                customerTotalAmount.toFixed(2),
+              provider_commission_percent:
+                providerCommissionPercent.toFixed(2),
+              provider_commission_amount:
+                providerCommissionAmount.toFixed(2),
+              provider_net_amount:
+                providerNetAmount.toFixed(2),
+              platform_revenue_amount:
+                platformRevenueAmount.toFixed(2),
+              currency,
+            },
+          },
+          {
+            idempotencyKey:
+              `relydo-payment-sheet-${requestId}-${offerId}`,
+          }
+        );
+
+      if (!paymentIntent.client_secret) {
+        return NextResponse.json(
+          {
+            error:
+              "Stripe no devolvió un PaymentIntent válido.",
+          },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        paymentFlow: "payment_sheet",
+        stripeCheckoutRequired: false,
+        paymentIntentId: paymentIntent.id,
+        paymentIntentClientSecret:
+          paymentIntent.client_secret,
+        stripeCustomerId,
+        amounts: {
+          professionalPrice,
+          customerFeePercent,
+          serviceFee:
+            customerFeeAmount,
+          total:
+            customerTotalAmount,
+          providerCommissionPercent,
+          providerCommissionAmount,
+          providerNetAmount,
+          platformRevenueAmount,
+        },
+      });
+    }
 
     const session =
       await stripe.checkout.sessions.create(
