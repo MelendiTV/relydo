@@ -1696,6 +1696,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const customerSession =
+        await stripe.customerSessions.create({
+          customer: stripeCustomerId,
+          components: {
+            mobile_payment_element: {
+              enabled: true,
+              features: {
+                payment_method_redisplay: "enabled",
+                payment_method_save: "enabled",
+                payment_method_remove: "enabled",
+              },
+            },
+          },
+        });
+
       return NextResponse.json({
         success: true,
         paymentFlow: "payment_sheet",
@@ -1704,6 +1719,8 @@ export async function POST(request: NextRequest) {
         paymentIntentClientSecret:
           paymentIntent.client_secret,
         stripeCustomerId,
+        customerSessionClientSecret:
+          customerSession.client_secret,
         amounts: {
           professionalPrice,
           customerFeePercent,
