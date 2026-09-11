@@ -1704,6 +1704,11 @@ export async function POST(request: NextRequest) {
               enabled: true,
               features: {
                 payment_method_redisplay: "enabled",
+                payment_method_allow_redisplay_filters: [
+                  "always",
+                  "limited",
+                  "unspecified",
+                ],
                 payment_method_save: "enabled",
                 payment_method_remove: "enabled",
               },
