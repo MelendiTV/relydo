@@ -17,6 +17,28 @@ const supabaseAdmin = createClient(
   }
 );
 
+async function getStripeCustomerId(userId: string) {
+  const { data: profile, error: profileError } =
+    await supabaseAdmin
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+  if (profileError) {
+    console.error(
+      "PAYMENT METHODS PROFILE ERROR:",
+      profileError
+    );
+
+    throw new Error("PROFILE_LOOKUP_FAILED");
+  }
+
+  return String(
+    profile?.stripe_customer_id || ""
+  ).trim();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthenticatedUser(request);
@@ -31,30 +53,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: profile, error: profileError } =
-      await supabaseAdmin
-        .from("profiles")
-        .select("stripe_customer_id")
-        .eq("id", auth.user.id)
-        .maybeSingle();
-
-    if (profileError) {
-      console.error(
-        "PAYMENT METHODS PROFILE ERROR:",
-        profileError
-      );
-
-      return NextResponse.json(
-        {
-          error: "No pudimos consultar tu perfil.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const stripeCustomerId = String(
-      profile?.stripe_customer_id || ""
-    ).trim();
+    const stripeCustomerId =
+      await getStripeCustomerId(auth.user.id);
 
     if (!stripeCustomerId) {
       return NextResponse.json({
@@ -108,6 +108,110 @@ export async function GET(request: NextRequest) {
       {
         error:
           "No pudimos consultar tus métodos de pago.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await getAuthenticatedUser(request);
+
+    if (!auth.user) {
+      return NextResponse.json(
+        {
+          error:
+            "Debes iniciar sesión para eliminar un método de pago.",
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await request
+      .json()
+      .catch(() => ({}));
+
+    const paymentMethodId = String(
+      body?.paymentMethodId || ""
+    ).trim();
+
+    if (!paymentMethodId) {
+      return NextResponse.json(
+        {
+          error:
+            "El método de pago es obligatorio.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const stripeCustomerId =
+      await getStripeCustomerId(auth.user.id);
+
+    if (!stripeCustomerId) {
+      return NextResponse.json(
+        {
+          error:
+            "No encontramos una cuenta de pagos asociada a tu perfil.",
+        },
+        { status: 404 }
+      );
+    }
+
+    let paymentMethod: Stripe.PaymentMethod;
+
+    try {
+      paymentMethod =
+        await stripe.paymentMethods.retrieve(
+          paymentMethodId
+        );
+    } catch (error) {
+      console.error(
+        "RETRIEVE PAYMENT METHOD ERROR:",
+        error
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No encontramos ese método de pago.",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (
+      paymentMethod.customer !==
+      stripeCustomerId
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "No tienes permiso para eliminar este método de pago.",
+        },
+        { status: 403 }
+      );
+    }
+
+    await stripe.paymentMethods.detach(
+      paymentMethodId
+    );
+
+    return NextResponse.json({
+      success: true,
+      paymentMethodId,
+    });
+  } catch (error) {
+    console.error(
+      "DELETE PAYMENT METHOD ERROR:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "No pudimos eliminar este método de pago.",
       },
       { status: 500 }
     );
