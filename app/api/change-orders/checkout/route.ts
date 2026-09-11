@@ -139,6 +139,18 @@ export async function POST(
           ""
       ).trim();
 
+    const mobileReturnUrl =
+      String(
+        body?.mobileReturnUrl ||
+          ""
+      ).trim();
+
+    const validMobileReturnUrl =
+      mobileReturnUrl.startsWith("relydo://") ||
+      mobileReturnUrl.startsWith("exp://")
+        ? mobileReturnUrl
+        : "";
+
     if (
       !changeOrderId
     ) {
@@ -595,16 +607,25 @@ export async function POST(
     const origin =
       request.nextUrl.origin;
 
+    const returnSeparator =
+      validMobileReturnUrl.includes("?")
+        ? "&"
+        : "?";
+
     const successUrl =
-      `${origin}/mis-solicitudes/${changeOrder.request_id}` +
-      `?change_order_payment=success` +
-      `&change_order_id=${changeOrder.id}` +
-      `&session_id={CHECKOUT_SESSION_ID}`;
+      validMobileReturnUrl
+        ? `${validMobileReturnUrl}${returnSeparator}change_order_payment=success&change_order_id=${changeOrder.id}&session_id={CHECKOUT_SESSION_ID}`
+        : `${origin}/mis-solicitudes/${changeOrder.request_id}` +
+          `?change_order_payment=success` +
+          `&change_order_id=${changeOrder.id}` +
+          `&session_id={CHECKOUT_SESSION_ID}`;
 
     const cancelUrl =
-      `${origin}/mis-solicitudes/${changeOrder.request_id}` +
-      `?change_order_payment=cancelled` +
-      `&change_order_id=${changeOrder.id}`;
+      validMobileReturnUrl
+        ? `${validMobileReturnUrl}${returnSeparator}change_order_payment=cancelled&change_order_id=${changeOrder.id}`
+        : `${origin}/mis-solicitudes/${changeOrder.request_id}` +
+          `?change_order_payment=cancelled` +
+          `&change_order_id=${changeOrder.id}`;
 
     // ======================================================
     // 12. LINE ITEMS
