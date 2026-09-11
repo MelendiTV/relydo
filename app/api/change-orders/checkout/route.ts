@@ -151,6 +151,19 @@ export async function POST(
         ? mobileReturnUrl
         : "";
 
+    const paymentFlow =
+      String(body?.paymentFlow || "").trim() === "payment_sheet"
+        ? "payment_sheet"
+        : "checkout";
+
+    const action =
+      String(body?.action || "create").trim() === "confirm"
+        ? "confirm"
+        : "create";
+
+    const requestedPaymentIntentId =
+      String(body?.paymentIntentId || "").trim();
+
     if (
       !changeOrderId
     ) {
@@ -198,6 +211,7 @@ export async function POST(
           created_at,
           payment_status,
           stripe_checkout_session_id,
+          stripe_payment_intent_id,
           paid_at,
           updated_at
         `)
@@ -277,7 +291,7 @@ export async function POST(
       );
     }
 
-    if (changeOrder.stripe_checkout_session_id) {
+    if (paymentFlow === "checkout" && changeOrder.stripe_checkout_session_id) {
       try {
         const existingSession =
           await stripe.checkout.sessions.retrieve(
@@ -598,6 +612,285 @@ export async function POST(
           status: 400,
         }
       );
+    }
+
+    // ======================================================
+    // 10B. PAYMENT SHEET NATIVO PARA APP MOVIL
+    // ======================================================
+
+    if (paymentFlow === "payment_sheet") {
+      if (action === "confirm") {
+        if (!requestedPaymentIntentId) {
+          return NextResponse.json(
+            { error: "Falta el Payment Intent del pago adicional." },
+            { status: 400 }
+          );
+        }
+
+        const paymentIntent =
+          await stripe.paymentIntents.retrieve(requestedPaymentIntentId);
+
+        if (paymentIntent.metadata?.payment_type !== "change_order") {
+          return NextResponse.json(
+            { error: "Este pago no corresponde a un cambio de presupuesto." },
+            { status: 400 }
+          );
+        }
+
+        if (paymentIntent.metadata?.change_order_id !== String(changeOrder.id)) {
+          return NextResponse.json(
+            { error: "El pago no corresponde a este cambio de presupuesto." },
+            { status: 400 }
+          );
+        }
+
+        if (paymentIntent.metadata?.customer_id !== String(user.id)) {
+          return NextResponse.json(
+            { error: "Este pago no pertenece a tu cuenta." },
+            { status: 403 }
+          );
+        }
+
+        if (paymentIntent.status !== "succeeded") {
+          return NextResponse.json(
+            {
+              error: "Stripe todavía no confirma este pago adicional.",
+              paymentStatus: paymentIntent.status,
+            },
+            { status: 400 }
+          );
+        }
+
+        if (paymentIntent.amount !== totalCents) {
+          return NextResponse.json(
+            { error: "El monto pagado no coincide con el cambio de presupuesto." },
+            { status: 400 }
+          );
+        }
+
+        if (paymentIntent.currency.toLowerCase() !== currency) {
+          return NextResponse.json(
+            { error: "La moneda del pago no coincide con la configuración de RELYDO." },
+            { status: 400 }
+          );
+        }
+
+        const paidAt = new Date().toISOString();
+
+        const { data: updated, error: updateError } =
+          await supabaseAdmin
+            .from("change_orders")
+            .update({
+              payment_status: "paid",
+              stripe_payment_intent_id: paymentIntent.id,
+              additional_customer_fee_percent: customerFeePercent,
+              additional_customer_fee_amount: customerFeeAmount,
+              additional_customer_total_amount: customerTotalAmount,
+              additional_provider_commission_percent: providerCommissionPercent,
+              additional_provider_commission_amount: providerCommissionAmount,
+              additional_provider_net_amount: providerNetAmount,
+              additional_platform_revenue_amount: platformRevenueAmount,
+              paid_at: paidAt,
+              updated_at: paidAt,
+            })
+            .eq("id", changeOrder.id)
+            .eq("customer_id", user.id)
+            .neq("payment_status", "paid")
+            .select("id, request_id, payment_status, paid_at")
+            .maybeSingle();
+
+        if (updateError) {
+          return NextResponse.json(
+            {
+              error: `Stripe cobró correctamente, pero RELYDO no pudo guardar el pago adicional: ${updateError.message}`,
+            },
+            { status: 500 }
+          );
+        }
+
+        if (!updated) {
+          const { data: alreadyUpdated } = await supabaseAdmin
+            .from("change_orders")
+            .select("id, request_id, payment_status, paid_at")
+            .eq("id", changeOrder.id)
+            .eq("customer_id", user.id)
+            .maybeSingle();
+
+          if (alreadyUpdated?.payment_status !== "paid") {
+            return NextResponse.json(
+              { error: "No pudimos registrar el pago adicional." },
+              { status: 500 }
+            );
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          changeOrderId: changeOrder.id,
+          requestId: changeOrder.request_id,
+          paymentStatus: "paid",
+          paymentIntentId: paymentIntent.id,
+        });
+      }
+
+      if (changeOrder.stripe_payment_intent_id) {
+        try {
+          const existingPaymentIntent =
+            await stripe.paymentIntents.retrieve(
+              changeOrder.stripe_payment_intent_id
+            );
+
+          if (
+            existingPaymentIntent.status === "succeeded" &&
+            existingPaymentIntent.metadata?.change_order_id === String(changeOrder.id)
+          ) {
+            const paidAt = new Date().toISOString();
+
+            await supabaseAdmin
+              .from("change_orders")
+              .update({
+                payment_status: "paid",
+                additional_customer_fee_percent: customerFeePercent,
+                additional_customer_fee_amount: customerFeeAmount,
+                additional_customer_total_amount: customerTotalAmount,
+                additional_provider_commission_percent: providerCommissionPercent,
+                additional_provider_commission_amount: providerCommissionAmount,
+                additional_provider_net_amount: providerNetAmount,
+                additional_platform_revenue_amount: platformRevenueAmount,
+                paid_at: paidAt,
+                updated_at: paidAt,
+              })
+              .eq("id", changeOrder.id)
+              .eq("customer_id", user.id);
+
+            return NextResponse.json({
+              success: true,
+              alreadyPaid: true,
+              changeOrderId: changeOrder.id,
+              paymentIntentId: existingPaymentIntent.id,
+            });
+          }
+
+          if (
+            existingPaymentIntent.client_secret &&
+            [
+              "requires_payment_method",
+              "requires_confirmation",
+              "requires_action",
+            ].includes(existingPaymentIntent.status) &&
+            existingPaymentIntent.amount === totalCents &&
+            existingPaymentIntent.currency.toLowerCase() === currency
+          ) {
+            return NextResponse.json({
+              success: true,
+              reused: true,
+              paymentIntentClientSecret: existingPaymentIntent.client_secret,
+              paymentIntentId: existingPaymentIntent.id,
+              changeOrderId: changeOrder.id,
+              amounts: {
+                additionalAmount,
+                customerFeePercent,
+                customerFeeAmount,
+                customerTotalAmount,
+                providerCommissionPercent,
+                providerCommissionAmount,
+                providerNetAmount,
+                platformRevenueAmount,
+                currency: currency.toUpperCase(),
+              },
+            });
+          }
+        } catch (existingPaymentIntentError) {
+          console.warn(
+            "No se pudo reutilizar el Payment Intent previo; se creará uno nuevo:",
+            existingPaymentIntentError
+          );
+        }
+      }
+
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("stripe_customer_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const stripeCustomerId =
+        typeof profile?.stripe_customer_id === "string" &&
+        profile.stripe_customer_id.trim()
+          ? profile.stripe_customer_id.trim()
+          : undefined;
+
+      const paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: totalCents,
+          currency,
+          automatic_payment_methods: { enabled: true },
+          customer: stripeCustomerId,
+          transfer_group: `relydo_request_${changeOrder.request_id}`,
+          metadata: {
+            payment_type: "change_order",
+            payment_flow: "payment_sheet",
+            change_order_id: String(changeOrder.id),
+            request_id: String(changeOrder.request_id),
+            customer_id: String(changeOrder.customer_id),
+            provider_id: String(changeOrder.provider_id),
+            original_amount: Number(changeOrder.original_amount).toFixed(2),
+            additional_amount: additionalAmount.toFixed(2),
+            new_total_amount: Number(changeOrder.new_total_amount).toFixed(2),
+            customer_fee_percent: customerFeePercent.toFixed(2),
+            customer_fee_amount: customerFeeAmount.toFixed(2),
+            customer_total_amount: customerTotalAmount.toFixed(2),
+            provider_commission_percent: providerCommissionPercent.toFixed(2),
+            provider_commission_amount: providerCommissionAmount.toFixed(2),
+            provider_net_amount: providerNetAmount.toFixed(2),
+            platform_revenue_amount: platformRevenueAmount.toFixed(2),
+          },
+        },
+        {
+          idempotencyKey: `relydo_change_order_payment_sheet_${changeOrder.id}_${changeOrder.updated_at || changeOrder.accepted_at || "accepted"}`,
+        }
+      );
+
+      if (!paymentIntent.client_secret) {
+        return NextResponse.json(
+          { error: "Stripe no devolvió el secreto del Payment Intent." },
+          { status: 500 }
+        );
+      }
+
+      const { error: saveIntentError } = await supabaseAdmin
+        .from("change_orders")
+        .update({
+          stripe_payment_intent_id: paymentIntent.id,
+        })
+        .eq("id", changeOrder.id)
+        .eq("customer_id", user.id)
+        .neq("payment_status", "paid");
+
+      if (saveIntentError) {
+        return NextResponse.json(
+          { error: "No pudimos preparar el pago adicional. Intenta nuevamente." },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        paymentIntentClientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        changeOrderId: changeOrder.id,
+        amounts: {
+          additionalAmount,
+          customerFeePercent,
+          customerFeeAmount,
+          customerTotalAmount,
+          providerCommissionPercent,
+          providerCommissionAmount,
+          providerNetAmount,
+          platformRevenueAmount,
+          currency: currency.toUpperCase(),
+        },
+      });
     }
 
     // ======================================================
