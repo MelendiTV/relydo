@@ -1,4 +1,4 @@
-"use client";
+-"use client";
 
 import {
   useEffect,
@@ -104,6 +104,9 @@ export default function NotificationsBell({
     useRef<AudioBuffer | null>(null);
 
   const sonidoContratadoBufferRef =
+    useRef<AudioBuffer | null>(null);
+
+  const sonidoNuevoPresupuestoBufferRef =
     useRef<AudioBuffer | null>(null);
 
   /*
@@ -1063,6 +1066,64 @@ export default function NotificationsBell({
   }
 
   /*
+    NUEVO PRESUPUESTO PARA CLIENTE
+  */
+
+  async function sonidoNuevoPresupuesto() {
+    const context =
+      await prepararAudio();
+
+    if (!context) {
+      return;
+    }
+
+    try {
+      let buffer =
+        sonidoNuevoPresupuestoBufferRef.current;
+
+      if (!buffer) {
+        const respuesta =
+          await fetch(
+            "/sounds/relydo_new_quote.wav"
+          );
+
+        if (!respuesta.ok) {
+          throw new Error(
+            "No se pudo cargar relydo_new_quote.wav"
+          );
+        }
+
+        const arrayBuffer =
+          await respuesta.arrayBuffer();
+
+        buffer =
+          await context.decodeAudioData(
+            arrayBuffer
+          );
+
+        sonidoNuevoPresupuestoBufferRef.current =
+          buffer;
+      }
+
+      const source =
+        context.createBufferSource();
+
+      source.buffer = buffer;
+
+      source.connect(
+        context.destination
+      );
+
+      source.start();
+    } catch (error) {
+      console.error(
+        "Error reproduciendo sonido de nuevo presupuesto:",
+        error
+      );
+    }
+  }
+
+  /*
     SONIDO POSITIVO
   */
 
@@ -1303,7 +1364,7 @@ export default function NotificationsBell({
                 nueva.type ===
                 "new_offer_received"
               ) {
-                await sonidoPositivo();
+                await sonidoNuevoPresupuesto();
                 return;
               }
 
