@@ -112,6 +112,9 @@ export default function NotificationsBell({
   const sonidoCanceladoBufferRef =
     useRef<AudioBuffer | null>(null);
 
+  const sonidoReclamoBufferRef =
+    useRef<AudioBuffer | null>(null);
+
   /*
     CARGAR USUARIO
   */
@@ -1185,6 +1188,64 @@ export default function NotificationsBell({
   }
 
   /*
+    RECLAMO / DISPUTA
+  */
+
+  async function sonidoReclamo() {
+    const context =
+      await prepararAudio();
+
+    if (!context) {
+      return;
+    }
+
+    try {
+      let buffer =
+        sonidoReclamoBufferRef.current;
+
+      if (!buffer) {
+        const respuesta =
+          await fetch(
+            "/sounds/relydo_claim_alert.wav"
+          );
+
+        if (!respuesta.ok) {
+          throw new Error(
+            "No se pudo cargar relydo_claim_alert.wav"
+          );
+        }
+
+        const arrayBuffer =
+          await respuesta.arrayBuffer();
+
+        buffer =
+          await context.decodeAudioData(
+            arrayBuffer
+          );
+
+        sonidoReclamoBufferRef.current =
+          buffer;
+      }
+
+      const source =
+        context.createBufferSource();
+
+      source.buffer = buffer;
+
+      source.connect(
+        context.destination
+      );
+
+      source.start();
+    } catch (error) {
+      console.error(
+        "Error reproduciendo sonido de reclamo:",
+        error
+      );
+    }
+  }
+
+  /*
     SONIDO POSITIVO
   */
 
@@ -1382,7 +1443,13 @@ export default function NotificationsBell({
                 nueva.type ===
                 "claim_opened" ||
                 nueva.type ===
-                "claim_created" ||
+                "claim_created"
+              ) {
+                await sonidoReclamo();
+                return;
+              }
+
+              if (
                 nueva.type ===
                 "provider_released_job"
               ) {
@@ -1473,7 +1540,7 @@ export default function NotificationsBell({
                 nueva.type ===
                   "claim_created"
               ) {
-                await sonidoAlerta();
+                await sonidoReclamo();
                 return;
               }
 
