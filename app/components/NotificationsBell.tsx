@@ -103,6 +103,9 @@ export default function NotificationsBell({
   const sonidoNuevaOrdenBufferRef =
     useRef<AudioBuffer | null>(null);
 
+  const sonidoContratadoBufferRef =
+    useRef<AudioBuffer | null>(null);
+
   /*
     CARGAR USUARIO
   */
@@ -1002,6 +1005,64 @@ export default function NotificationsBell({
   }
 
   /*
+    PROFESIONAL CONTRATADO
+  */
+
+  async function sonidoContratado() {
+    const context =
+      await prepararAudio();
+
+    if (!context) {
+      return;
+    }
+
+    try {
+      let buffer =
+        sonidoContratadoBufferRef.current;
+
+      if (!buffer) {
+        const respuesta =
+          await fetch(
+            "/sounds/relydo_hired.wav"
+          );
+
+        if (!respuesta.ok) {
+          throw new Error(
+            "No se pudo cargar relydo_hired.wav"
+          );
+        }
+
+        const arrayBuffer =
+          await respuesta.arrayBuffer();
+
+        buffer =
+          await context.decodeAudioData(
+            arrayBuffer
+          );
+
+        sonidoContratadoBufferRef.current =
+          buffer;
+      }
+
+      const source =
+        context.createBufferSource();
+
+      source.buffer = buffer;
+
+      source.connect(
+        context.destination
+      );
+
+      source.start();
+    } catch (error) {
+      console.error(
+        "Error reproduciendo sonido de profesional contratado:",
+        error
+      );
+    }
+  }
+
+  /*
     SONIDO POSITIVO
   */
 
@@ -1183,7 +1244,7 @@ export default function NotificationsBell({
                 nueva.type ===
                 "offer_accepted"
               ) {
-                await sonidoPositivo();
+                await sonidoContratado();
                 return;
               }
 
