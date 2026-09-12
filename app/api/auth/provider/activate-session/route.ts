@@ -21,9 +21,13 @@ type JwtPayload = {
   exp?: number;
 };
 
-function obtenerAccessToken(request: NextRequest) {
+function obtenerAccessToken(
+  request: NextRequest
+) {
   const authorization =
-    request.headers.get("authorization") || "";
+    request.headers.get(
+      "authorization"
+    ) || "";
 
   return authorization
     .toLowerCase()
@@ -49,7 +53,8 @@ function decodeJwtPayload(
     const padded =
       base64 +
       "=".repeat(
-        (4 - (base64.length % 4)) % 4
+        (4 - (base64.length % 4)) %
+          4
       );
 
     const decoded = Buffer.from(
@@ -65,7 +70,9 @@ function decodeJwtPayload(
   }
 }
 
-function obtenerIp(request: NextRequest) {
+function obtenerIp(
+  request: NextRequest
+) {
   const forwarded =
     request.headers.get(
       "x-forwarded-for"
@@ -80,8 +87,9 @@ function obtenerIp(request: NextRequest) {
   }
 
   return (
-    request.headers.get("x-real-ip") ||
-    null
+    request.headers.get(
+      "x-real-ip"
+    ) || null
   );
 }
 
@@ -113,9 +121,83 @@ async function validarSesionProfesional(
     accessToken
   );
 
+  /*
+    IMPORTANTE:
+
+    Un error temporal de Supabase Auth
+    NO significa automáticamente que
+    la sesión haya dejado de ser válida.
+
+    Solamente tratamos como 401 los
+    errores que Supabase identifica
+    realmente como Unauthorized.
+
+    Un timeout, Gateway Timeout,
+    error interno, 502, 503, 504, etc.
+    devuelve 500 para que el navegador
+    mantenga la sesión y vuelva a
+    comprobarla más adelante.
+  */
+
+  if (userError) {
+    console.error(
+      "RELYDO provider auth check error:",
+      {
+        name: userError.name,
+        message: userError.message,
+        status:
+          "status" in userError
+            ? userError.status
+            : undefined,
+      }
+    );
+
+    const status =
+      "status" in userError &&
+      typeof userError.status ===
+        "number"
+        ? userError.status
+        : null;
+
+    if (status === 401) {
+      return {
+        ok: false as const,
+        response: NextResponse.json(
+          {
+            error:
+              "The session is no longer valid.",
+          },
+          {
+            status: 401,
+          }
+        ),
+      };
+    }
+
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error:
+            "Could not verify the authentication session.",
+        },
+        {
+          status: 500,
+        }
+      ),
+    };
+  }
+
   const user = userData.user;
 
-  if (userError || !user) {
+  /*
+    Si Supabase respondió correctamente
+    pero no existe usuario autenticado,
+    entonces sí consideramos la sesión
+    inválida.
+  */
+
+  if (!user) {
     return {
       ok: false as const,
       response: NextResponse.json(
@@ -140,17 +222,9 @@ async function validarSesionProfesional(
     .maybeSingle();
 
   /*
-    IMPORTANTE:
-
-    Un error consultando Supabase NO significa
-    que la cuenta haya dejado de ser profesional.
-
-    Antes profileError caía junto con !profile
-    y role !== "provider", devolviendo un 403 falso.
-
-    Si Supabase falla temporalmente, devolvemos 500
-    y dejamos que el navegador vuelva a comprobar
-    la sesión en el siguiente intento.
+    Un error consultando profiles
+    tampoco significa que la cuenta
+    haya dejado de ser profesional.
   */
 
   if (profileError) {
@@ -174,11 +248,10 @@ async function validarSesionProfesional(
   }
 
   /*
-    Aquí sí sabemos que la consulta terminó
-    correctamente.
-
-    Solo devolvemos 403 cuando realmente
-    no existe un perfil profesional válido.
+    Solo devolvemos 403 cuando la
+    consulta terminó correctamente
+    y realmente no existe un perfil
+    profesional válido.
   */
 
   if (
