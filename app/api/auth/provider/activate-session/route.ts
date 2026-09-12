@@ -32,7 +32,9 @@ function obtenerAccessToken(request: NextRequest) {
     : "";
 }
 
-function decodeJwtPayload(token: string): JwtPayload | null {
+function decodeJwtPayload(
+  token: string
+): JwtPayload | null {
   try {
     const parts = token.split(".");
 
@@ -46,14 +48,18 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 
     const padded =
       base64 +
-      "=".repeat((4 - (base64.length % 4)) % 4);
+      "=".repeat(
+        (4 - (base64.length % 4)) % 4
+      );
 
     const decoded = Buffer.from(
       padded,
       "base64"
     ).toString("utf8");
 
-    return JSON.parse(decoded) as JwtPayload;
+    return JSON.parse(
+      decoded
+    ) as JwtPayload;
   } catch {
     return null;
   }
@@ -61,7 +67,9 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 
 function obtenerIp(request: NextRequest) {
   const forwarded =
-    request.headers.get("x-forwarded-for");
+    request.headers.get(
+      "x-forwarded-for"
+    );
 
   if (forwarded) {
     const firstIp = forwarded
@@ -131,8 +139,49 @@ async function validarSesionProfesional(
     .eq("id", user.id)
     .maybeSingle();
 
+  /*
+    IMPORTANTE:
+
+    Un error consultando Supabase NO significa
+    que la cuenta haya dejado de ser profesional.
+
+    Antes profileError caía junto con !profile
+    y role !== "provider", devolviendo un 403 falso.
+
+    Si Supabase falla temporalmente, devolvemos 500
+    y dejamos que el navegador vuelva a comprobar
+    la sesión en el siguiente intento.
+  */
+
+  if (profileError) {
+    console.error(
+      "RELYDO provider profile check error:",
+      profileError
+    );
+
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error:
+            "Could not verify the professional account.",
+        },
+        {
+          status: 500,
+        }
+      ),
+    };
+  }
+
+  /*
+    Aquí sí sabemos que la consulta terminó
+    correctamente.
+
+    Solo devolvemos 403 cuando realmente
+    no existe un perfil profesional válido.
+  */
+
   if (
-    profileError ||
     !profile ||
     profile.role !== "provider"
   ) {
@@ -154,7 +203,8 @@ async function validarSesionProfesional(
     decodeJwtPayload(accessToken);
 
   const sessionId =
-    typeof payload?.session_id === "string"
+    typeof payload?.session_id ===
+    "string"
       ? payload.session_id.trim()
       : "";
 
@@ -198,9 +248,14 @@ export async function GET(
       data: activeSession,
       error: activeSessionError,
     } = await supabaseAdmin
-      .from("provider_active_sessions")
+      .from(
+        "provider_active_sessions"
+      )
       .select("session_id")
-      .eq("user_id", validated.user.id)
+      .eq(
+        "user_id",
+        validated.user.id
+      )
       .maybeSingle();
 
     if (activeSessionError) {
@@ -276,13 +331,15 @@ export async function POST(
       .catch(() => ({}));
 
     const deviceInfo =
-      typeof body?.deviceInfo === "string"
+      typeof body?.deviceInfo ===
+      "string"
         ? body.deviceInfo
             .trim()
             .slice(0, 1000)
         : request.headers
             .get("user-agent")
-            ?.slice(0, 1000) || null;
+            ?.slice(0, 1000) ||
+          null;
 
     const ipAddress =
       obtenerIp(request);
@@ -294,7 +351,9 @@ export async function POST(
       data: activeSession,
       error: sessionError,
     } = await supabaseAdmin
-      .from("provider_active_sessions")
+      .from(
+        "provider_active_sessions"
+      )
       .upsert(
         {
           user_id:
