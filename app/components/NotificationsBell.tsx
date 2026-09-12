@@ -109,6 +109,9 @@ export default function NotificationsBell({
   const sonidoNuevoPresupuestoBufferRef =
     useRef<AudioBuffer | null>(null);
 
+  const sonidoCanceladoBufferRef =
+    useRef<AudioBuffer | null>(null);
+
   /*
     CARGAR USUARIO
   */
@@ -1124,6 +1127,64 @@ export default function NotificationsBell({
   }
 
   /*
+    TRABAJO / SOLICITUD CANCELADA
+  */
+
+  async function sonidoCancelado() {
+    const context =
+      await prepararAudio();
+
+    if (!context) {
+      return;
+    }
+
+    try {
+      let buffer =
+        sonidoCanceladoBufferRef.current;
+
+      if (!buffer) {
+        const respuesta =
+          await fetch(
+            "/sounds/relydo_cancelled.wav"
+          );
+
+        if (!respuesta.ok) {
+          throw new Error(
+            "No se pudo cargar relydo_cancelled.wav"
+          );
+        }
+
+        const arrayBuffer =
+          await respuesta.arrayBuffer();
+
+        buffer =
+          await context.decodeAudioData(
+            arrayBuffer
+          );
+
+        sonidoCanceladoBufferRef.current =
+          buffer;
+      }
+
+      const source =
+        context.createBufferSource();
+
+      source.buffer = buffer;
+
+      source.connect(
+        context.destination
+      );
+
+      source.start();
+    } catch (error) {
+      console.error(
+        "Error reproduciendo sonido de cancelación:",
+        error
+      );
+    }
+  }
+
+  /*
     SONIDO POSITIVO
   */
 
@@ -1311,7 +1372,13 @@ export default function NotificationsBell({
 
               if (
                 nueva.type ===
-                "job_cancelled_by_customer" ||
+                "job_cancelled_by_customer"
+              ) {
+                await sonidoCancelado();
+                return;
+              }
+
+              if (
                 nueva.type ===
                 "claim_opened" ||
                 nueva.type ===
@@ -1394,7 +1461,13 @@ export default function NotificationsBell({
                 nueva.type ===
                   "job_cancelled_by_customer" ||
                 nueva.type ===
-                  "job_cancelled" ||
+                  "job_cancelled"
+              ) {
+                await sonidoCancelado();
+                return;
+              }
+
+              if (
                 nueva.type ===
                   "claim_opened" ||
                 nueva.type ===
