@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type User,
+} from "@supabase/supabase-js";
 
 const stripe = new Stripe(
   process.env.STRIPE_SECRET_KEY!
@@ -16,6 +19,94 @@ const supabaseAdmin = createClient(
     },
   }
 );
+
+const MAX_INTENTOS = 3;
+const RETRY_DELAYS = [250, 600];
+
+function esperar(ms: number) {
+  return new Promise((resolve) =>
+    setTimeout(resolve, ms)
+  );
+}
+
+function obtenerStatusError(
+  error: unknown
+) {
+  if (
+    typeof error === "object" &&
+    error !== null
+  ) {
+    const value = error as {
+      status?: unknown;
+      statusCode?: unknown;
+    };
+
+    if (
+      typeof value.status === "number"
+    ) {
+      return value.status;
+    }
+
+    if (
+      typeof value.statusCode === "number"
+    ) {
+      return value.statusCode;
+    }
+  }
+
+  return null;
+}
+
+function obtenerMensajeError(
+  error: unknown
+) {
+  if (
+    error instanceof Error
+  ) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    const message = (
+      error as {
+        message?: unknown;
+      }
+    ).message;
+
+    if (
+      typeof message === "string"
+    ) {
+      return message;
+    }
+  }
+
+  return "Error desconocido.";
+}
+
+async function esperarReintento(
+  intento: number
+) {
+  if (
+    intento >=
+    MAX_INTENTOS - 1
+  ) {
+    return;
+  }
+
+  const delay =
+    RETRY_DELAYS[
+      Math.min(
+        intento,
+        RETRY_DELAYS.length - 1
+      )
+    ];
+
+  await esperar(delay);
+}
 
 export async function GET(
   request: NextRequest
@@ -51,56 +142,174 @@ export async function GET(
         )
         .trim();
 
-    const {
-      data: {
-        user,
-      },
-      error:
-        userError,
-    } =
-      await supabaseAdmin.auth.getUser(
-        accessToken
+    /*
+      1. VALIDAR SESIÓN
+
+      Un 401 real sí significa sesión inválida.
+      Errores temporales de Supabase NO deben
+      convertirse en 401.
+    */
+
+    let user: User | null =
+      null;
+
+    let ultimoAuthError:
+      unknown = null;
+
+    for (
+      let intento = 0;
+      intento < MAX_INTENTOS;
+      intento++
+    ) {
+      const {
+        data,
+        error,
+      } =
+        await supabaseAdmin.auth.getUser(
+          accessToken
+        );
+
+      if (
+        !error &&
+        data.user
+      ) {
+        user = data.user;
+        ultimoAuthError = null;
+        break;
+      }
+
+      if (
+        !error &&
+        !data.user
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Tu sesión no es válida o expiró.",
+          },
+          {
+            status: 401,
+          }
+        );
+      }
+
+      const status =
+        obtenerStatusError(
+          error
+        );
+
+      if (
+        status === 401
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Tu sesión no es válida o expiró.",
+          },
+          {
+            status: 401,
+          }
+        );
+      }
+
+      ultimoAuthError =
+        error;
+
+      console.warn(
+        `RELYDO Stripe status auth temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
+        error
       );
 
+      await esperarReintento(
+        intento
+      );
+    }
+
     if (
-      userError ||
       !user
     ) {
+      console.error(
+        "RELYDO Stripe status auth failed after retries:",
+        ultimoAuthError
+      );
+
       return NextResponse.json(
         {
           error:
-            "Tu sesión no es válida o expiró.",
+            "No pudimos verificar tu sesión en este momento. Inténtalo nuevamente.",
         },
         {
-          status: 401,
+          status: 500,
         }
       );
     }
 
-    const {
-      data:
-        baseProfile,
-      error:
-        baseProfileError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .select(`
-        id,
-        role
-      `)
-      .eq(
-        "id",
-        user.id
-      )
-      .maybeSingle();
+    /*
+      2. VERIFICAR QUE SEA PROFESIONAL
+    */
+
+    let baseProfile:
+      {
+        id: string;
+        role: string | null;
+      } | null = null;
+
+    let ultimoProfileError:
+      unknown = null;
+
+    for (
+      let intento = 0;
+      intento < MAX_INTENTOS;
+      intento++
+    ) {
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
+        .from("profiles")
+        .select(`
+          id,
+          role
+        `)
+        .eq(
+          "id",
+          user.id
+        )
+        .maybeSingle();
+
+      if (!error) {
+        baseProfile =
+          data;
+        ultimoProfileError =
+          null;
+        break;
+      }
+
+      ultimoProfileError =
+        error;
+
+      console.warn(
+        `RELYDO Stripe status profile temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
+        error
+      );
+
+      await esperarReintento(
+        intento
+      );
+    }
 
     if (
-      baseProfileError
+      ultimoProfileError
     ) {
+      console.error(
+        "RELYDO Stripe status profile failed after retries:",
+        ultimoProfileError
+      );
+
       return NextResponse.json(
         {
           error:
-            baseProfileError.message,
+            "No pudimos verificar tu cuenta profesional en este momento. Inténtalo nuevamente.",
         },
         {
           status: 500,
@@ -124,32 +333,75 @@ export async function GET(
       );
     }
 
-    const {
-      data:
-        providerProfile,
-      error:
-        providerError,
-    } = await supabaseAdmin
-      .from(
-        "provider_profiles"
-      )
-      .select(`
-        user_id,
-        stripe_account_id
-      `)
-      .eq(
-        "user_id",
-        user.id
-      )
-      .maybeSingle();
+    /*
+      3. CARGAR PERFIL PROFESIONAL
+    */
+
+    let providerProfile:
+      {
+        user_id: string;
+        stripe_account_id:
+          string | null;
+      } | null = null;
+
+    let ultimoProviderError:
+      unknown = null;
+
+    for (
+      let intento = 0;
+      intento < MAX_INTENTOS;
+      intento++
+    ) {
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
+        .from(
+          "provider_profiles"
+        )
+        .select(`
+          user_id,
+          stripe_account_id
+        `)
+        .eq(
+          "user_id",
+          user.id
+        )
+        .maybeSingle();
+
+      if (!error) {
+        providerProfile =
+          data;
+        ultimoProviderError =
+          null;
+        break;
+      }
+
+      ultimoProviderError =
+        error;
+
+      console.warn(
+        `RELYDO Stripe status provider profile temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
+        error
+      );
+
+      await esperarReintento(
+        intento
+      );
+    }
 
     if (
-      providerError
+      ultimoProviderError
     ) {
+      console.error(
+        "RELYDO Stripe status provider profile failed after retries:",
+        ultimoProviderError
+      );
+
       return NextResponse.json(
         {
           error:
-            providerError.message,
+            "No pudimos consultar tu perfil profesional en este momento. Inténtalo nuevamente.",
         },
         {
           status: 500,
@@ -220,10 +472,94 @@ export async function GET(
       });
     }
 
-    const account =
-      await stripe.accounts.retrieve(
-        providerProfile.stripe_account_id
+    /*
+      4. CONSULTAR STRIPE
+
+      También reintentamos fallos temporales
+      de Stripe/red. Un error persistente sigue
+      devolviendo 500, nunca "disconnected".
+    */
+
+    let account:
+      Stripe.Account | null =
+      null;
+
+    let ultimoStripeError:
+      unknown = null;
+
+    for (
+      let intento = 0;
+      intento < MAX_INTENTOS;
+      intento++
+    ) {
+      try {
+        account =
+          await stripe.accounts.retrieve(
+            providerProfile.stripe_account_id
+          );
+
+        ultimoStripeError =
+          null;
+        break;
+      } catch (error) {
+        ultimoStripeError =
+          error;
+
+        const status =
+          obtenerStatusError(
+            error
+          );
+
+        /*
+          Si Stripe dice que la cuenta no existe
+          o la solicitud es inválida, repetir no
+          ayudará. Para errores temporales/red,
+          sí reintentamos.
+        */
+
+        const esErrorNoReintentable =
+          status !== null &&
+          status >= 400 &&
+          status < 500 &&
+          status !== 429;
+
+        if (
+          esErrorNoReintentable
+        ) {
+          break;
+        }
+
+        console.warn(
+          `RELYDO Stripe status Stripe temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
+          error
+        );
+
+        await esperarReintento(
+          intento
+        );
+      }
+    }
+
+    if (
+      !account
+    ) {
+      console.error(
+        "RELYDO Stripe status Stripe lookup failed:",
+        ultimoStripeError
       );
+
+      return NextResponse.json(
+        {
+          error:
+            `No pudimos consultar Stripe en este momento: ${obtenerMensajeError(
+              ultimoStripeError
+            )}`,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
 
     const chargesEnabled =
       account.charges_enabled ===
@@ -299,39 +635,74 @@ export async function GET(
       transfersCapability ===
         "active";
 
-    const {
-      error:
-        updateError,
-    } = await supabaseAdmin
-      .from(
-        "provider_profiles"
-      )
-      .update({
-        stripe_onboarding_complete:
-          onboardingComplete,
+    /*
+      5. SINCRONIZAR ESTADO EN RELYDO
 
-        stripe_charges_enabled:
-          chargesEnabled,
+      Si Stripe respondió bien pero esta actualización
+      falla temporalmente, NO convertimos un estado
+      válido de Stripe en un 500 para el usuario.
+    */
 
-        stripe_payouts_enabled:
-          payoutsEnabled,
-      })
-      .eq(
-        "user_id",
-        user.id
+    let updateExitoso =
+      false;
+
+    let ultimoUpdateError:
+      unknown = null;
+
+    for (
+      let intento = 0;
+      intento < MAX_INTENTOS;
+      intento++
+    ) {
+      const {
+        error,
+      } = await supabaseAdmin
+        .from(
+          "provider_profiles"
+        )
+        .update({
+          stripe_onboarding_complete:
+            onboardingComplete,
+
+          stripe_charges_enabled:
+            chargesEnabled,
+
+          stripe_payouts_enabled:
+            payoutsEnabled,
+        })
+        .eq(
+          "user_id",
+          user.id
+        );
+
+      if (!error) {
+        updateExitoso =
+          true;
+        ultimoUpdateError =
+          null;
+        break;
+      }
+
+      ultimoUpdateError =
+        error;
+
+      console.warn(
+        `RELYDO Stripe status sync temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
+        error
       );
 
+      await esperarReintento(
+        intento
+      );
+    }
+
     if (
-      updateError
+      !updateExitoso &&
+      ultimoUpdateError
     ) {
-      return NextResponse.json(
-        {
-          error:
-            `Stripe respondió correctamente, pero no pudimos actualizar RELYDO: ${updateError.message}`,
-        },
-        {
-          status: 500,
-        }
+      console.error(
+        "RELYDO Stripe status sync failed after retries:",
+        ultimoUpdateError
       );
     }
 
@@ -384,9 +755,7 @@ export async function GET(
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No pudimos consultar el estado de Stripe.",
+          "No pudimos consultar el estado de Stripe en este momento. Inténtalo nuevamente.",
       },
       {
         status: 500,
