@@ -100,6 +100,9 @@ export default function NotificationsBell({
       null
     );
 
+  const sonidoNuevaOrdenBufferRef =
+    useRef<AudioBuffer | null>(null);
+
   /*
     CARGAR USUARIO
   */
@@ -952,64 +955,50 @@ export default function NotificationsBell({
       return;
     }
 
-    const ahora =
-      context.currentTime;
+    try {
+      let buffer =
+        sonidoNuevaOrdenBufferRef.current;
 
-    /*
-      PRIMER AVISO
-    */
+      if (!buffer) {
+        const respuesta =
+          await fetch(
+            "/sounds/relydo_new_job.wav"
+          );
 
-    crearTono(
-      context,
-      740,
-      ahora,
-      0.25,
-      0.38
-    );
+        if (!respuesta.ok) {
+          throw new Error(
+            "No se pudo cargar relydo_new_job.wav"
+          );
+        }
 
-    crearTono(
-      context,
-      980,
-      ahora + 0.30,
-      0.25,
-      0.40
-    );
+        const arrayBuffer =
+          await respuesta.arrayBuffer();
 
-    crearTono(
-      context,
-      1250,
-      ahora + 0.60,
-      0.50,
-      0.45
-    );
+        buffer =
+          await context.decodeAudioData(
+            arrayBuffer
+          );
 
-    /*
-      SEGUNDO AVISO
-    */
+        sonidoNuevaOrdenBufferRef.current =
+          buffer;
+      }
 
-    crearTono(
-      context,
-      740,
-      ahora + 1.25,
-      0.25,
-      0.38
-    );
+      const source =
+        context.createBufferSource();
 
-    crearTono(
-      context,
-      980,
-      ahora + 1.55,
-      0.25,
-      0.40
-    );
+      source.buffer = buffer;
 
-    crearTono(
-      context,
-      1250,
-      ahora + 1.85,
-      0.50,
-      0.45
-    );
+      source.connect(
+        context.destination
+      );
+
+      source.start();
+    } catch (error) {
+      console.error(
+        "Error reproduciendo sonido de nueva orden:",
+        error
+      );
+    }
   }
 
   /*
