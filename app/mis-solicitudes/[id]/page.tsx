@@ -2,14 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import NotificationsBell from "@/app/components/NotificationsBell";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+import { supabase } from "@/app/lib/supabaseBrowser";
 
 type Solicitud = {
   id: string;
