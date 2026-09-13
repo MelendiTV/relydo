@@ -733,6 +733,43 @@ export async function POST(
         });
       }
 
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("stripe_customer_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const stripeCustomerId =
+        typeof profile?.stripe_customer_id === "string" &&
+        profile.stripe_customer_id.trim()
+          ? profile.stripe_customer_id.trim()
+          : undefined;
+
+      const createCustomerSession = async () => {
+        if (!stripeCustomerId) {
+          return null;
+        }
+
+        return stripe.customerSessions.create({
+          customer: stripeCustomerId,
+          components: {
+            mobile_payment_element: {
+              enabled: true,
+              features: {
+                payment_method_redisplay: "enabled",
+                payment_method_allow_redisplay_filters: [
+                  "always",
+                  "limited",
+                  "unspecified",
+                ],
+                payment_method_save: "enabled",
+                payment_method_remove: "enabled",
+              },
+            },
+          },
+        });
+      };
+
       if (changeOrder.stripe_payment_intent_id) {
         try {
           const existingPaymentIntent =
@@ -781,11 +818,16 @@ export async function POST(
             existingPaymentIntent.amount === totalCents &&
             existingPaymentIntent.currency.toLowerCase() === currency
           ) {
+            const customerSession = await createCustomerSession();
+
             return NextResponse.json({
               success: true,
               reused: true,
+              paymentFlow: "payment_sheet",
               paymentIntentClientSecret: existingPaymentIntent.client_secret,
               paymentIntentId: existingPaymentIntent.id,
+              stripeCustomerId: stripeCustomerId || null,
+              customerSessionClientSecret: customerSession?.client_secret || null,
               changeOrderId: changeOrder.id,
               amounts: {
                 additionalAmount,
@@ -807,18 +849,6 @@ export async function POST(
           );
         }
       }
-
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("stripe_customer_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const stripeCustomerId =
-        typeof profile?.stripe_customer_id === "string" &&
-        profile.stripe_customer_id.trim()
-          ? profile.stripe_customer_id.trim()
-          : undefined;
 
       const paymentIntent = await stripe.paymentIntents.create(
         {
@@ -874,10 +904,15 @@ export async function POST(
         );
       }
 
+      const customerSession = await createCustomerSession();
+
       return NextResponse.json({
         success: true,
+        paymentFlow: "payment_sheet",
         paymentIntentClientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        stripeCustomerId: stripeCustomerId || null,
+        customerSessionClientSecret: customerSession?.client_secret || null,
         changeOrderId: changeOrder.id,
         amounts: {
           additionalAmount,
