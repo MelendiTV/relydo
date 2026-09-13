@@ -1,14 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+import { supabase } from "@/app/lib/supabaseBrowser";
 
 type ProviderProfile = {
   user_id: string;
