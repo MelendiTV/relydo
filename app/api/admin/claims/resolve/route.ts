@@ -414,7 +414,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!payment.provider_payment_id) {
+    // Un payment reasignado puede no tener provider_payment_id.
+    // En ese caso, los fondos fisicos viven en
+    // payment_reassignment_funding_sources.
+    const {
+      data: paymentReassignment,
+      error: paymentReassignmentError,
+    } = await supabaseAdmin
+      .from("payment_reassignments")
+      .select(`
+        id,
+        status,
+        replacement_payment_id
+      `)
+      .eq("replacement_payment_id", payment.id)
+      .in("status", ["applied", "cancelled"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (paymentReassignmentError) {
+      return NextResponse.json(
+        {
+          error:
+            `No pudimos comprobar si el pago pertenece a una reasignacion: ${paymentReassignmentError.message}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const esPagoReasignado = Boolean(paymentReassignment);
+
+    const {
+      data: reassignmentFundingSources,
+      error: reassignmentFundingSourcesError,
+    } = esPagoReasignado
+      ? await supabaseAdmin
+          .from("payment_reassignment_funding_sources")
+          .select(`
+            id,
+            payment_id,
+            source_type,
+            stripe_payment_intent_id,
+            allocated_customer_amount,
+            allocated_provider_amount,
+            stripe_transfer_id,
+            transferred_at,
+            created_at
+          `)
+          .eq("payment_id", payment.id)
+          .is("transferred_at", null)
+          .order("created_at", { ascending: true })
+      : { data: [], error: null };
+
+    if (reassignmentFundingSourcesError) {
+      return NextResponse.json(
+        {
+          error:
+            `No pudimos consultar las fuentes Stripe del pago reasignado: ${reassignmentFundingSourcesError.message}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const reassignmentSources = reassignmentFundingSources || [];
+
+    if (esPagoReasignado && reassignmentSources.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "El pago reasignado no tiene registradas sus fuentes fisicas de Stripe. No se movera dinero hasta reconciliarlo.",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (!esPagoReasignado && !payment.provider_payment_id) {
       return NextResponse.json(
         {
           error:
@@ -540,6 +615,58 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    if (esPagoReasignado) {
+      for (const source of reassignmentSources) {
+        const allocatedCustomer = dinero(source.allocated_customer_amount);
+        const allocatedProvider = dinero(source.allocated_provider_amount);
+
+        if (
+          !source.stripe_payment_intent_id ||
+          !Number.isFinite(allocatedCustomer) ||
+          allocatedCustomer < 0 ||
+          !Number.isFinite(allocatedProvider) ||
+          allocatedProvider < 0
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "El pago reasignado tiene una fuente Stripe con importes invalidos. No se movera dinero hasta reconciliarla.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      const reassignmentCustomerTotal = dinero(
+        reassignmentSources.reduce(
+          (total, source) =>
+            total + Number(source.allocated_customer_amount || 0),
+          0
+        )
+      );
+
+      const reassignmentProviderTotal = dinero(
+        reassignmentSources.reduce(
+          (total, source) =>
+            total + Number(source.allocated_provider_amount || 0),
+          0
+        )
+      );
+
+      if (
+        Math.abs(reassignmentCustomerTotal - customerTotal) > 0.01 ||
+        Math.abs(reassignmentProviderTotal - providerNet) > 0.01
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Las fuentes fisicas del pago reasignado no coinciden con los importes economicos guardados. No se movera dinero hasta reconciliarlo.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
     /*
@@ -671,7 +798,9 @@ export async function POST(request: NextRequest) {
     const activeTransfers =
       existingTransfers.data.filter(
         (transfer) =>
-          transfer.amount > transfer.amount_reversed
+          transfer.amount > transfer.amount_reversed &&
+          transfer.metadata?.professional_id ===
+            String(claim.provider_id)
       );
 
     const activeTransferredCents =
@@ -935,12 +1064,24 @@ export async function POST(request: NextRequest) {
         paymentIntentId: string;
         metadata: Record<string, string>;
       }> = [
-        {
-          key: `base_${payment.id}`,
-          amount: providerNet,
-          paymentIntentId: payment.provider_payment_id,
-          metadata: { payment_id: String(payment.id) },
-        },
+        ...(esPagoReasignado
+          ? reassignmentSources.map((source) => ({
+              key: `funding_source_${source.id}`,
+              amount: dinero(source.allocated_provider_amount),
+              paymentIntentId: String(source.stripe_payment_intent_id),
+              metadata: {
+                payment_id: String(payment.id),
+                funding_source_id: String(source.id),
+              },
+            }))
+          : [
+              {
+                key: `base_${payment.id}`,
+                amount: providerNet,
+                paymentIntentId: String(payment.provider_payment_id),
+                metadata: { payment_id: String(payment.id) },
+              },
+            ]),
         ...changeOrders.map((changeOrder) => ({
           key: `change_order_${changeOrder.id}`,
           amount: dinero(changeOrder.additional_provider_net_amount),
@@ -967,13 +1108,29 @@ export async function POST(request: NextRequest) {
         const expectedSourceCents = Math.round(source.amount * 100);
         if (expectedSourceCents <= 0) continue;
 
-        const existingForSource = activeTransfers.find((transfer) =>
-          source.metadata.payment_id
-            ? transfer.metadata?.payment_id === source.metadata.payment_id &&
+        const existingForSource = activeTransfers.find((transfer) => {
+          if (source.metadata.funding_source_id) {
+            return (
+              transfer.metadata?.funding_source_id ===
+                source.metadata.funding_source_id &&
               transfer.metadata?.resolution === "pay_provider"
-            : transfer.metadata?.change_order_id === source.metadata.change_order_id &&
+            );
+          }
+
+          if (source.metadata.payment_id) {
+            return (
+              transfer.metadata?.payment_id === source.metadata.payment_id &&
+              !transfer.metadata?.funding_source_id &&
               transfer.metadata?.resolution === "pay_provider"
-        );
+            );
+          }
+
+          return (
+            transfer.metadata?.change_order_id ===
+              source.metadata.change_order_id &&
+            transfer.metadata?.resolution === "pay_provider"
+          );
+        });
 
         if (existingForSource) {
           const activeAmount =
@@ -1213,23 +1370,85 @@ export async function POST(request: NextRequest) {
         principal: number;
         paymentIntentId: string;
         metadata: Record<string, string>;
-      }> = [
-        {
+        basePayment: boolean;
+      }> = [];
+
+      if (esPagoReasignado) {
+        let remainingBasePrincipal = jobAmount;
+
+        const newestFundingSources = [...reassignmentSources].sort(
+          (a, b) => {
+            const aTime = a.created_at
+              ? new Date(a.created_at).getTime()
+              : 0;
+            const bTime = b.created_at
+              ? new Date(b.created_at).getTime()
+              : 0;
+            return bTime - aTime;
+          }
+        );
+
+        for (const source of newestFundingSources) {
+          if (remainingBasePrincipal <= 0) break;
+
+          const allocatedCustomer = dinero(
+            source.allocated_customer_amount
+          );
+
+          const principalForSource = dinero(
+            Math.min(remainingBasePrincipal, allocatedCustomer)
+          );
+
+          if (principalForSource <= 0) continue;
+
+          refundSources.push({
+            key: `funding_source_${source.id}`,
+            principal: principalForSource,
+            paymentIntentId: String(source.stripe_payment_intent_id),
+            metadata: {
+              payment_id: String(payment.id),
+              funding_source_id: String(source.id),
+            },
+            basePayment: true,
+          });
+
+          remainingBasePrincipal = dinero(
+            remainingBasePrincipal - principalForSource
+          );
+        }
+
+        if (remainingBasePrincipal > 0.009) {
+          return NextResponse.json(
+            {
+              error:
+                "Las fuentes Stripe del pago reasignado no alcanzan para cubrir el monto disputable del trabajo. No se procesara el reembolso automaticamente.",
+            },
+            { status: 409 }
+          );
+        }
+      } else {
+        refundSources.push({
           key: `base_${payment.id}`,
           principal: jobAmount,
-          paymentIntentId: payment.provider_payment_id,
+          paymentIntentId: String(payment.provider_payment_id),
           metadata: { payment_id: String(payment.id) },
-        },
+          basePayment: true,
+        });
+      }
+
+      refundSources.push(
         ...changeOrders.map((changeOrder) => ({
           key: `change_order_${changeOrder.id}`,
           principal: dinero(changeOrder.additional_amount),
           paymentIntentId: String(changeOrder.stripe_payment_intent_id),
           metadata: { change_order_id: String(changeOrder.id) },
-        })),
-      ];
+          basePayment: false,
+        }))
+      );
 
       const stripeRefundIds: string[] = [];
       let totalRefunded = 0;
+      let baseRefundedTotal = 0;
 
       for (const source of refundSources) {
         const refunds = await stripe.refunds.list({
@@ -1260,6 +1479,12 @@ export async function POST(request: NextRequest) {
           totalRefunded + refundablePrincipalAlreadyUsed
         );
 
+        if (source.basePayment) {
+          baseRefundedTotal = dinero(
+            baseRefundedTotal + refundablePrincipalAlreadyUsed
+          );
+        }
+
         if (remainingPrincipal <= 0) {
           continue;
         }
@@ -1284,22 +1509,13 @@ export async function POST(request: NextRequest) {
 
         stripeRefundIds.push(refund.id);
         totalRefunded = dinero(totalRefunded + refund.amount / 100);
+
+        if (source.basePayment) {
+          baseRefundedTotal = dinero(
+            baseRefundedTotal + refund.amount / 100
+          );
+        }
       }
-
-      const baseRefunds = await stripe.refunds.list({
-        payment_intent: payment.provider_payment_id,
-        limit: 100,
-      });
-
-      const baseRefundedTotal = dinero(
-        baseRefunds.data
-          .filter(
-            (refund) =>
-              refund.status !== "failed" &&
-              refund.status !== "canceled"
-          )
-          .reduce((total, refund) => total + refund.amount / 100, 0)
-      );
 
       const refundRecordedAt = new Date().toISOString();
 
@@ -1422,6 +1638,16 @@ export async function POST(request: NextRequest) {
     // ======================================================
     // 7C. RESOLUCIÃ“N PARCIAL
     // ======================================================
+    if (esPagoReasignado) {
+      return NextResponse.json(
+        {
+          error:
+            "La resolucion parcial de un pago reasignado requiere una distribucion por fuentes Stripe. Por seguridad, RELYDO no movera dinero automaticamente en este caso. Usa una resolucion total a favor del cliente o del profesional.",
+        },
+        { status: 409 }
+      );
+    }
+
     //
     // REGLA:
     // - Una decisiÃ³n econÃ³mica del Admin se ejecuta de inmediato.
@@ -1537,7 +1763,7 @@ export async function POST(request: NextRequest) {
     const stripeRefunds =
       await stripe.refunds.list({
         payment_intent:
-          payment.provider_payment_id,
+          payment.provider_payment_id!,
         limit: 100,
       });
 
@@ -1828,7 +2054,7 @@ export async function POST(request: NextRequest) {
         await stripe.refunds.create(
           {
             payment_intent:
-              payment.provider_payment_id,
+              payment.provider_payment_id!,
 
             amount:
               expectedRefundCents,
