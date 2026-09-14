@@ -1639,13 +1639,816 @@ export async function POST(request: NextRequest) {
     // 7C. RESOLUCIÃ“N PARCIAL
     // ======================================================
     if (esPagoReasignado) {
-      return NextResponse.json(
-        {
-          error:
-            "La resolucion parcial de un pago reasignado requiere una distribucion por fuentes Stripe. Por seguridad, RELYDO no movera dinero automaticamente en este caso. Usa una resolucion total a favor del cliente o del profesional.",
-        },
-        { status: 409 }
+      if (
+        !Number.isFinite(providerAwardAmount) ||
+        !Number.isFinite(customerRefundAmount) ||
+        providerAwardAmount < 0 ||
+        customerRefundAmount < 0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Los importes de la resolución parcial no son válidos.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (
+        providerAwardAmount === 0 &&
+        customerRefundAmount === 0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "En una resolución parcial debes asignar dinero al profesional, al cliente o a ambos.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (providerAwardAmount > totalProviderNet) {
+        return NextResponse.json(
+          {
+            error:
+              `El profesional no puede recibir más de $${totalProviderNet.toFixed(2)}.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (customerRefundAmount > totalJobAmount) {
+        return NextResponse.json(
+          {
+            error:
+              `El cliente no puede recibir un reembolso mayor de $${totalJobAmount.toFixed(2)}, que es el monto disputable total del servicio. Los service fees de RELYDO no forman parte del reembolso del reclamo.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (
+        dinero(providerAwardAmount + customerRefundAmount) >
+        totalJobAmount
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              `La suma destinada al profesional y al cliente no puede superar los $${totalJobAmount.toFixed(2)} del monto disputable total del servicio.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      type PartialMoneySource = {
+        key: string;
+        paymentIntentId: string;
+        providerCapacity: number;
+        refundCapacity: number;
+        customerCapacity: number;
+        metadata: Record<string, string>;
+        fundingSourceId: string | null;
+        basePayment: boolean;
+      };
+
+      const partialSources: PartialMoneySource[] = [];
+
+      let remainingBasePrincipal = jobAmount;
+      const newestFundingSources = [...reassignmentSources].sort(
+        (a, b) => {
+          const aTime = a.created_at
+            ? new Date(a.created_at).getTime()
+            : 0;
+          const bTime = b.created_at
+            ? new Date(b.created_at).getTime()
+            : 0;
+          return bTime - aTime;
+        }
       );
+
+      for (const source of newestFundingSources) {
+        const allocatedCustomer = dinero(
+          source.allocated_customer_amount
+        );
+        const allocatedProvider = dinero(
+          source.allocated_provider_amount
+        );
+
+        const sourcePrincipal = dinero(
+          Math.min(
+            Math.max(remainingBasePrincipal, 0),
+            allocatedCustomer
+          )
+        );
+
+        if (sourcePrincipal > 0 || allocatedProvider > 0) {
+          partialSources.push({
+            key: `funding_source_${source.id}`,
+            paymentIntentId: String(
+              source.stripe_payment_intent_id
+            ),
+            providerCapacity: allocatedProvider,
+            refundCapacity: sourcePrincipal,
+            customerCapacity: allocatedCustomer,
+            metadata: {
+              payment_id: String(payment.id),
+              funding_source_id: String(source.id),
+            },
+            fundingSourceId: String(source.id),
+            basePayment: true,
+          });
+        }
+
+        remainingBasePrincipal = dinero(
+          remainingBasePrincipal - sourcePrincipal
+        );
+      }
+
+      if (remainingBasePrincipal > 0.009) {
+        return NextResponse.json(
+          {
+            error:
+              "Las fuentes Stripe del pago reasignado no alcanzan para representar el principal del trabajo. No se movió dinero.",
+          },
+          { status: 409 }
+        );
+      }
+
+      for (const changeOrder of changeOrders) {
+        const additionalAmount = dinero(
+          changeOrder.additional_amount
+        );
+        const additionalCustomerFee = dinero(
+          changeOrder.additional_customer_fee_amount || 0
+        );
+        const additionalProviderNet = dinero(
+          changeOrder.additional_provider_net_amount
+        );
+
+        partialSources.push({
+          key: `change_order_${changeOrder.id}`,
+          paymentIntentId: String(
+            changeOrder.stripe_payment_intent_id
+          ),
+          providerCapacity: additionalProviderNet,
+          refundCapacity: additionalAmount,
+          customerCapacity: dinero(
+            additionalAmount + additionalCustomerFee
+          ),
+          metadata: {
+            change_order_id: String(changeOrder.id),
+          },
+          fundingSourceId: null,
+          basePayment: false,
+        });
+      }
+
+      const expectedProviderCents = Math.round(
+        providerAwardAmount * 100
+      );
+      const expectedRefundCents = Math.round(
+        customerRefundAmount * 100
+      );
+
+      const sourcePlan = partialSources.map((source) => ({
+        ...source,
+        providerCents: 0,
+        refundCents: 0,
+      }));
+
+      let providerRemainingCents = expectedProviderCents;
+
+      for (const source of sourcePlan) {
+        if (providerRemainingCents <= 0) break;
+
+        const providerCapacityCents = Math.round(
+          source.providerCapacity * 100
+        );
+        const customerCapacityCents = Math.round(
+          source.customerCapacity * 100
+        );
+
+        const amountForSource = Math.min(
+          providerRemainingCents,
+          providerCapacityCents,
+          customerCapacityCents
+        );
+
+        if (amountForSource > 0) {
+          source.providerCents = amountForSource;
+          providerRemainingCents -= amountForSource;
+        }
+      }
+
+      if (providerRemainingCents > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Las fuentes Stripe disponibles no alcanzan para cubrir la compensación definida para el profesional. No se movió dinero.",
+          },
+          { status: 409 }
+        );
+      }
+
+      let refundRemainingCents = expectedRefundCents;
+
+      for (const source of sourcePlan) {
+        if (refundRemainingCents <= 0) break;
+
+        const refundCapacityCents = Math.round(
+          source.refundCapacity * 100
+        );
+        const customerCapacityCents = Math.round(
+          source.customerCapacity * 100
+        );
+        const remainingPhysicalCapacity = Math.max(
+          0,
+          customerCapacityCents - source.providerCents
+        );
+
+        const amountForSource = Math.min(
+          refundRemainingCents,
+          refundCapacityCents,
+          remainingPhysicalCapacity
+        );
+
+        if (amountForSource > 0) {
+          source.refundCents = amountForSource;
+          refundRemainingCents -= amountForSource;
+        }
+      }
+
+      if (refundRemainingCents > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "La distribución parcial no cabe de forma segura dentro de las fuentes Stripe disponibles. No se movió dinero.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const nonPartialTransfers = activeTransfers.filter(
+        (transfer) =>
+          transfer.metadata?.resolution !== "partial"
+      );
+
+      if (nonPartialTransfers.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Ya existe una transferencia de otro tipo para este trabajo. No se hará una resolución parcial automática.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const existingPartialTransferCents = activeTransfers.reduce(
+        (total, transfer) =>
+          total +
+          (transfer.amount - transfer.amount_reversed),
+        0
+      );
+
+      if (
+        existingPartialTransferCents > 0 &&
+        existingPartialTransferCents !== expectedProviderCents
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              `Stripe ya registra $${(
+                existingPartialTransferCents / 100
+              ).toFixed(2)} transferidos para esta resolución parcial, diferente a los $${providerAwardAmount.toFixed(2)} definidos ahora. No se duplicará dinero.`,
+          },
+          { status: 409 }
+        );
+      }
+
+      const existingRefundsBySource = new Map<
+        string,
+        { id: string; amount: number; status: string | null }[]
+      >();
+
+      let existingPartialRefundCents = 0;
+
+      for (const source of sourcePlan) {
+        if (source.refundCents <= 0) continue;
+
+        const refunds = await stripe.refunds.list({
+          payment_intent: source.paymentIntentId,
+          limit: 100,
+        });
+
+        const matchingRefunds = refunds.data
+          .filter(
+            (refund) =>
+              refund.metadata?.claim_id ===
+                String(claim.id) &&
+              refund.metadata?.resolution === "partial" &&
+              refund.metadata?.claim_source_key ===
+                source.key &&
+              refund.status !== "failed" &&
+              refund.status !== "canceled"
+          )
+          .map((refund) => ({
+            id: refund.id,
+            amount: refund.amount,
+            status: refund.status || null,
+          }));
+
+        existingRefundsBySource.set(
+          source.key,
+          matchingRefunds
+        );
+
+        existingPartialRefundCents += matchingRefunds.reduce(
+          (total, refund) => total + refund.amount,
+          0
+        );
+      }
+
+      if (
+        existingPartialRefundCents > 0 &&
+        existingPartialRefundCents !== expectedRefundCents
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              `Stripe ya registra $${(
+                existingPartialRefundCents / 100
+              ).toFixed(2)} reembolsados para esta resolución parcial, diferente a los $${customerRefundAmount.toFixed(2)} definidos ahora. No se duplicará dinero.`,
+          },
+          { status: 409 }
+        );
+      }
+
+      const reserva = await reservarDecisionEconomica(
+        "partial",
+        providerAwardAmount,
+        customerRefundAmount
+      );
+
+      if (!reserva.ok) {
+        return reserva.response;
+      }
+
+      let providerProfileForPartial:
+        | {
+            user_id: string;
+            stripe_account_id: string | null;
+          }
+        | null = null;
+
+      if (
+        providerAwardAmount > 0 &&
+        existingPartialTransferCents === 0
+      ) {
+        const {
+          data: providerProfile,
+          error: providerProfileError,
+        } = await supabaseAdmin
+          .from("provider_profiles")
+          .select(`
+            user_id,
+            stripe_account_id
+          `)
+          .eq("user_id", claim.provider_id)
+          .maybeSingle();
+
+        if (providerProfileError) {
+          return NextResponse.json(
+            {
+              error:
+                `No pudimos consultar Stripe Connect: ${providerProfileError.message}`,
+            },
+            { status: 500 }
+          );
+        }
+
+        if (!providerProfile?.stripe_account_id) {
+          return NextResponse.json(
+            {
+              error:
+                "El profesional no tiene Stripe Connect configurado.",
+            },
+            { status: 400 }
+          );
+        }
+
+        const account = await stripe.accounts.retrieve(
+          providerProfile.stripe_account_id
+        );
+
+        if (account.capabilities?.transfers !== "active") {
+          return NextResponse.json(
+            {
+              error:
+                "La cuenta Stripe del profesional no puede recibir transferencias.",
+            },
+            { status: 400 }
+          );
+        }
+
+        providerProfileForPartial = providerProfile;
+      }
+
+      const partialTransferIds: string[] = [];
+      const partialRefundIds: string[] = [];
+      let firstRefundStatus: string | null = null;
+
+      if (
+        providerAwardAmount > 0 &&
+        existingPartialTransferCents === 0 &&
+        providerProfileForPartial?.stripe_account_id
+      ) {
+        for (const source of sourcePlan) {
+          if (source.providerCents <= 0) continue;
+
+          const paymentIntent =
+            await stripe.paymentIntents.retrieve(
+              source.paymentIntentId,
+              { expand: ["latest_charge"] }
+            );
+
+          const latestCharge = paymentIntent.latest_charge;
+          const chargeId =
+            typeof latestCharge === "string"
+              ? latestCharge
+              : latestCharge?.id;
+
+          if (!chargeId) {
+            return NextResponse.json(
+              {
+                error:
+                  "No encontramos uno de los cargos Stripe necesarios para completar la resolución parcial. No repitas movimientos ya procesados.",
+              },
+              { status: 500 }
+            );
+          }
+
+          const transfer = await stripe.transfers.create(
+            {
+              amount: source.providerCents,
+              currency: (payment.currency || "usd").toLowerCase(),
+              destination:
+                providerProfileForPartial.stripe_account_id,
+              source_transaction: chargeId,
+              transfer_group: transferGroup,
+              metadata: {
+                request_id: String(claim.request_id),
+                claim_id: String(claim.id),
+                professional_id: String(claim.provider_id),
+                resolution: "partial",
+                claim_source_key: source.key,
+                provider_award_amount:
+                  providerAwardAmount.toFixed(2),
+                customer_refund_amount:
+                  customerRefundAmount.toFixed(2),
+                ...source.metadata,
+              },
+            },
+            {
+              idempotencyKey:
+                `relydo_claim_partial_transfer_${claim.id}_${source.key}_${source.providerCents}`,
+            }
+          );
+
+          partialTransferIds.push(transfer.id);
+        }
+      } else {
+        partialTransferIds.push(
+          ...activeTransfers
+            .filter(
+              (transfer) =>
+                transfer.metadata?.resolution === "partial"
+            )
+            .map((transfer) => transfer.id)
+        );
+      }
+
+      async function ensureReassignmentRefundLedger(
+        source: (typeof sourcePlan)[number],
+        stripeRefundId: string,
+        refundAmount: number
+      ) {
+        if (!source.fundingSourceId) return;
+
+        const {
+          data: existingLedger,
+          error: existingLedgerError,
+        } = await supabaseAdmin
+          .from("payment_reassignment_source_refunds")
+          .select("stripe_refund_id")
+          .eq("stripe_refund_id", stripeRefundId)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingLedgerError) {
+          throw new Error(
+            `No pudimos comprobar el registro interno del reembolso ${stripeRefundId}: ${existingLedgerError.message}`
+          );
+        }
+
+        if (existingLedger) return;
+
+        const { error: insertLedgerError } =
+          await supabaseAdmin
+            .from("payment_reassignment_source_refunds")
+            .insert({
+              funding_source_id: source.fundingSourceId,
+              stripe_payment_intent_id:
+                source.paymentIntentId,
+              stripe_refund_id: stripeRefundId,
+              refunded_amount: refundAmount,
+              refund_reason: "claim_partial",
+            });
+
+        if (insertLedgerError) {
+          throw new Error(
+            `Stripe procesó el reembolso ${stripeRefundId}, pero RELYDO no pudo registrarlo en la fuente reasignada: ${insertLedgerError.message}. No repitas el reembolso.`
+          );
+        }
+      }
+
+      for (const source of sourcePlan) {
+        if (source.refundCents <= 0) continue;
+
+        const existingForSource =
+          existingRefundsBySource.get(source.key) || [];
+        const existingForSourceCents =
+          existingForSource.reduce(
+            (total, refund) => total + refund.amount,
+            0
+          );
+
+        if (
+          existingForSourceCents > 0 &&
+          existingForSourceCents !== source.refundCents
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Stripe registra un reembolso previo diferente para una de las fuentes de esta resolución parcial. No se hará otro movimiento automáticamente.",
+            },
+            { status: 409 }
+          );
+        }
+
+        if (existingForSourceCents === source.refundCents) {
+          for (const existingRefund of existingForSource) {
+            await ensureReassignmentRefundLedger(
+              source,
+              existingRefund.id,
+              dinero(existingRefund.amount / 100)
+            );
+            partialRefundIds.push(existingRefund.id);
+            firstRefundStatus =
+              firstRefundStatus || existingRefund.status;
+          }
+          continue;
+        }
+
+        const refund = await stripe.refunds.create(
+          {
+            payment_intent: source.paymentIntentId,
+            amount: source.refundCents,
+            reason: "requested_by_customer",
+            metadata: {
+              request_id: String(claim.request_id),
+              claim_id: String(claim.id),
+              resolution: "partial",
+              claim_source_key: source.key,
+              customer_refund_amount:
+                customerRefundAmount.toFixed(2),
+              provider_award_amount:
+                providerAwardAmount.toFixed(2),
+              protected_customer_fee:
+                totalCustomerFee.toFixed(2),
+              ...source.metadata,
+            },
+          },
+          {
+            idempotencyKey:
+              `relydo_claim_partial_refund_${claim.id}_${source.key}_${source.refundCents}`,
+          }
+        );
+
+        await ensureReassignmentRefundLedger(
+          source,
+          refund.id,
+          dinero(refund.amount / 100)
+        );
+
+        partialRefundIds.push(refund.id);
+        firstRefundStatus =
+          firstRefundStatus || refund.status || null;
+      }
+
+      const baseRefundedCents = sourcePlan
+        .filter((source) => source.basePayment)
+        .reduce(
+          (total, source) => total + source.refundCents,
+          0
+        );
+
+      const partialUpdatedAt = new Date().toISOString();
+      const firstTransferId =
+        partialTransferIds[0] ||
+        activeTransfers.find(
+          (transfer) =>
+            transfer.metadata?.resolution === "partial"
+        )?.id ||
+        null;
+
+      const partialPaymentUpdate:
+        Record<string, unknown> = {
+          status:
+            customerRefundAmount > 0
+              ? "partially_refunded"
+              : "paid_out",
+          refunded_amount: dinero(baseRefundedCents / 100),
+          updated_at: partialUpdatedAt,
+        };
+
+      if (customerRefundAmount > 0) {
+        partialPaymentUpdate.refunded_at = partialUpdatedAt;
+      }
+
+      if (firstTransferId) {
+        partialPaymentUpdate.stripe_transfer_id =
+          firstTransferId;
+        partialPaymentUpdate.released_at = partialUpdatedAt;
+        partialPaymentUpdate.last_release_error = null;
+      }
+
+      const { error: updatePartialPaymentError } =
+        await supabaseAdmin
+          .from("payments")
+          .update(partialPaymentUpdate)
+          .eq("id", payment.id);
+
+      if (updatePartialPaymentError) {
+        return NextResponse.json(
+          {
+            error:
+              "La distribución económica fue procesada, pero RELYDO no pudo consolidar payments. No repitas movimientos de dinero.",
+            stripeTransferIds: partialTransferIds,
+            stripeRefundIds: partialRefundIds,
+            partialProcessing: true,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (trabajoEnRevisionFinal) {
+        const partialCompletedAt = new Date().toISOString();
+        const { error: completePartialRequestError } =
+          await supabaseAdmin
+            .from("service_requests")
+            .update({
+              status: "completed",
+              job_stage: "completed",
+              completion_review_status: "approved",
+              completion_approved_at: partialCompletedAt,
+              completed_at:
+                serviceRequest.completed_at ||
+                partialCompletedAt,
+            })
+            .eq("id", claim.request_id);
+
+        if (completePartialRequestError) {
+          return NextResponse.json(
+            {
+              error:
+                "La distribución económica fue procesada, pero RELYDO no pudo marcar el trabajo como completado. No repitas movimientos de dinero.",
+              stripeTransferIds: partialTransferIds,
+              stripeRefundIds: partialRefundIds,
+              partialProcessing: true,
+              workCompletionPending: true,
+            },
+            { status: 500 }
+          );
+        }
+      }
+
+      const { error: updateClaimError } =
+        await supabaseAdmin
+          .from("job_claims")
+          .update({
+            status: "resolved",
+            resolution_type: "partial",
+            provider_award_amount: providerAwardAmount,
+            customer_refund_amount: customerRefundAmount,
+            resolution_notes:
+              `[RESOLUCIÓN PARCIAL]\nProfesional: $${providerAwardAmount.toFixed(2)}\nCliente: $${customerRefundAmount.toFixed(2)}\n${notes}`,
+            resolved_at: new Date().toISOString(),
+            resolved_by: user.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", claim.id);
+
+      if (updateClaimError) {
+        return NextResponse.json(
+          {
+            error:
+              "La distribución económica fue procesada, pero no pudimos cerrar el reclamo. No repitas movimientos de dinero.",
+            stripeTransferIds: partialTransferIds,
+            stripeRefundIds: partialRefundIds,
+            partialProcessing: true,
+          },
+          { status: 500 }
+        );
+      }
+
+      let workCancelled = false;
+
+      if (trabajoIniciado) {
+        const { error: cancelRequestError } =
+          await supabaseAdmin
+            .from("service_requests")
+            .update({
+              status: "cancelled",
+              job_stage: null,
+              completion_review_status: null,
+              completion_approved_at: null,
+              cancellation_reason:
+                "Reclamo resuelto parcialmente por RELYDO.",
+              cancelled_at: new Date().toISOString(),
+            })
+            .eq("id", claim.request_id);
+
+        if (cancelRequestError) {
+          return NextResponse.json(
+            {
+              error:
+                "La resolución económica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas movimientos de dinero.",
+              stripeTransferIds: partialTransferIds,
+              stripeRefundIds: partialRefundIds,
+              partialProcessing: true,
+            },
+            { status: 500 }
+          );
+        }
+
+        workCancelled = true;
+      }
+
+      try {
+        await Promise.allSettled([
+          sendRelydoNotification({
+            userId: claim.customer_id,
+            type: "claim_resolved",
+            title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
+            message: `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO partially resolved the claim. Refund for you: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
+            requestId: claim.request_id,
+            url: `/mis-solicitudes/${claim.request_id}`,
+          }),
+          sendRelydoNotification({
+            userId: claim.provider_id,
+            type: "claim_resolved",
+            title: "Reclamo resuelto",
+            titleEn: "Claim resolved",
+            message: `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            messageEn: `RELYDO partially resolved the claim. Compensation for you: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
+            requestId: claim.request_id,
+            url: `/trabajos/${claim.request_id}`,
+          }),
+        ]);
+      } catch (notificationError) {
+        console.warn(
+          "El reclamo fue resuelto, pero falló el envío de notificaciones:",
+          notificationError
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "partial",
+        reassignedPayment: true,
+        providerAwardAmount,
+        customerRefundAmount,
+        protectedCustomerFee: totalCustomerFee,
+        disputableJobAmount: totalJobAmount,
+        stripeTransferId: firstTransferId,
+        stripeTransferIds: partialTransferIds,
+        stripeRefundId: partialRefundIds[0] || null,
+        stripeRefundIds: partialRefundIds,
+        refundStatus: firstRefundStatus,
+        workCancelled,
+        recoveredExistingRefund:
+          existingPartialRefundCents === expectedRefundCents &&
+          customerRefundAmount > 0,
+        recoveredExistingTransfer:
+          existingPartialTransferCents === expectedProviderCents &&
+          providerAwardAmount > 0,
+        message:
+          trabajoIniciado
+            ? "Resolución parcial procesada correctamente. Se aplicó la distribución por fuentes Stripe y el trabajo fue cancelado."
+            : "Resolución parcial procesada correctamente usando las fuentes Stripe del pago reasignado.",
+      });
     }
 
     //
