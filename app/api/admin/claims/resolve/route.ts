@@ -177,12 +177,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (claim.status !== "reviewing") {
+    const reconciliandoResolucion =
+      claim.status === "resolved" &&
+      claim.resolution_type === action;
+
+    if (claim.status !== "reviewing" && !reconciliandoResolucion) {
       return NextResponse.json(
         {
           error:
             claim.status === "open"
               ? "Primero debes pasar el reclamo a En revisiÃ³n antes de tomar una decisiÃ³n econÃ³mica."
+              : claim.status === "resolved"
+              ? "Este reclamo ya fue resuelto con una decisiÃ³n diferente."
               : "Este reclamo ya fue cerrado.",
         },
         { status: 409 }
@@ -201,7 +207,7 @@ export async function POST(request: NextRequest) {
         claim.provider_responded_at
       );
 
-    if (!providerResponded) {
+    if (!reconciliandoResolucion && !providerResponded) {
       let plazoVigente =
         false;
 
@@ -317,10 +323,16 @@ export async function POST(request: NextRequest) {
         "working" &&
       !trabajoEnRevisionFinal;
 
+    const trabajoCanceladoPorResolucion =
+      reconciliandoResolucion &&
+      action === "refund_customer" &&
+      serviceRequest.status === "cancelled";
+
     if (
       !trabajoCompletado &&
       !trabajoIniciado &&
-      !trabajoEnRevisionFinal
+      !trabajoEnRevisionFinal &&
+      !trabajoCanceladoPorResolucion
     ) {
       return NextResponse.json(
         {
@@ -424,6 +436,93 @@ export async function POST(request: NextRequest) {
     const providerNet =
       dinero(payment.provider_net_amount);
 
+    const {
+      data: paidChangeOrders,
+      error: paidChangeOrdersError,
+    } = await supabaseAdmin
+      .from("change_orders")
+      .select(`
+        id,
+        request_id,
+        customer_id,
+        provider_id,
+        additional_amount,
+        additional_customer_fee_amount,
+        additional_provider_net_amount,
+        stripe_payment_intent_id,
+        payment_status
+      `)
+      .eq("request_id", claim.request_id)
+      .eq("customer_id", claim.customer_id)
+      .eq("provider_id", claim.provider_id)
+      .eq("payment_status", "paid");
+
+    if (paidChangeOrdersError) {
+      return NextResponse.json(
+        {
+          error: `No pudimos consultar los cambios de presupuesto pagados: ${paidChangeOrdersError.message}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const changeOrders = paidChangeOrders || [];
+
+    for (const changeOrder of changeOrders) {
+      const additionalAmount = dinero(changeOrder.additional_amount);
+      const additionalCustomerFee = dinero(
+        changeOrder.additional_customer_fee_amount || 0
+      );
+      const additionalProviderNet = dinero(
+        changeOrder.additional_provider_net_amount
+      );
+
+      if (
+        !changeOrder.stripe_payment_intent_id ||
+        !Number.isFinite(additionalAmount) ||
+        additionalAmount <= 0 ||
+        !Number.isFinite(additionalCustomerFee) ||
+        additionalCustomerFee < 0 ||
+        !Number.isFinite(additionalProviderNet) ||
+        additionalProviderNet <= 0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Hay un cambio de presupuesto pagado con datos financieros incompletos. No se moverá dinero hasta reconciliarlo.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    const changeOrdersJobAmount = dinero(
+      changeOrders.reduce(
+        (total, item) => total + Number(item.additional_amount || 0),
+        0
+      )
+    );
+
+    const changeOrdersCustomerFee = dinero(
+      changeOrders.reduce(
+        (total, item) =>
+          total + Number(item.additional_customer_fee_amount || 0),
+        0
+      )
+    );
+
+    const changeOrdersProviderNet = dinero(
+      changeOrders.reduce(
+        (total, item) =>
+          total + Number(item.additional_provider_net_amount || 0),
+        0
+      )
+    );
+
+    const totalJobAmount = dinero(jobAmount + changeOrdersJobAmount);
+    const totalCustomerFee = dinero(customerFee + changeOrdersCustomerFee);
+    const totalProviderNet = dinero(providerNet + changeOrdersProviderNet);
+
     if (
       !Number.isFinite(customerTotal) ||
       customerTotal <= 0 ||
@@ -445,14 +544,14 @@ export async function POST(request: NextRequest) {
 
     /*
       POLÃTICA ECONÃ“MICA DE RECLAMOS RELYDO:
-      - jobAmount es el monto disputable del servicio.
-      - customerFee es el service fee original de RELYDO y no es
+      - totalJobAmount es el monto disputable total: pago original + Change Orders pagados.
+      - totalCustomerFee es el total de service fees de RELYDO y no es
         reembolsable por defecto en una resoluciÃ³n de reclamo.
       - No se aÃ±ade un segundo fee por resolver el reclamo.
-      - El cliente nunca puede recibir mÃ¡s de jobAmount.
-      - El profesional nunca puede recibir mÃ¡s de providerNet.
+      - El cliente nunca puede recibir mÃ¡s de totalJobAmount.
+      - El profesional nunca puede recibir mÃ¡s de totalProviderNet.
       - En una resoluciÃ³n compartida, cliente + profesional no
-        pueden superar jobAmount.
+        pueden superar totalJobAmount.
     */
 
     const transferGroup =
@@ -762,16 +861,20 @@ export async function POST(request: NextRequest) {
       }
 
       const expectedCents =
-        Math.round(providerNet * 100);
+        Math.round(totalProviderNet * 100);
+
+      const hasNonFullProviderTransfer = activeTransfers.some(
+        (transfer) => transfer.metadata?.resolution !== "pay_provider"
+      );
 
       if (
-        activeTransferredCents > 0 &&
-        activeTransferredCents !== expectedCents
+        activeTransferredCents > expectedCents ||
+        hasNonFullProviderTransfer
       ) {
         return NextResponse.json(
           {
             error:
-              "Ya existe una transferencia parcial o diferente para este trabajo. Usa una resoluciÃ³n parcial.",
+              "Ya existe una transferencia parcial o diferente para este trabajo. Revisa la resoluciÃ³n antes de continuar.",
           },
           { status: 409 }
         );
@@ -826,73 +929,115 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const paymentIntent =
-        await stripe.paymentIntents.retrieve(
-          payment.provider_payment_id,
+      const transferSources: Array<{
+        key: string;
+        amount: number;
+        paymentIntentId: string;
+        metadata: Record<string, string>;
+      }> = [
+        {
+          key: `base_${payment.id}`,
+          amount: providerNet,
+          paymentIntentId: payment.provider_payment_id,
+          metadata: { payment_id: String(payment.id) },
+        },
+        ...changeOrders.map((changeOrder) => ({
+          key: `change_order_${changeOrder.id}`,
+          amount: dinero(changeOrder.additional_provider_net_amount),
+          paymentIntentId: String(changeOrder.stripe_payment_intent_id),
+          metadata: { change_order_id: String(changeOrder.id) },
+        })),
+      ];
+
+      if (!reconciliandoResolucion) {
+        const reserva = await reservarDecisionEconomica(
+          "pay_provider",
+          totalProviderNet,
+          0
+        );
+
+        if (!reserva.ok) {
+          return reserva.response;
+        }
+      }
+
+      const transferIds: string[] = [];
+
+      for (const source of transferSources) {
+        const expectedSourceCents = Math.round(source.amount * 100);
+        if (expectedSourceCents <= 0) continue;
+
+        const existingForSource = activeTransfers.find((transfer) =>
+          source.metadata.payment_id
+            ? transfer.metadata?.payment_id === source.metadata.payment_id &&
+              transfer.metadata?.resolution === "pay_provider"
+            : transfer.metadata?.change_order_id === source.metadata.change_order_id &&
+              transfer.metadata?.resolution === "pay_provider"
+        );
+
+        if (existingForSource) {
+          const activeAmount =
+            existingForSource.amount - existingForSource.amount_reversed;
+
+          if (activeAmount !== expectedSourceCents) {
+            return NextResponse.json(
+              {
+                error:
+                  "Existe una transferencia previa para una parte de este trabajo con un importe diferente. Revisa Stripe antes de continuar.",
+              },
+              { status: 409 }
+            );
+          }
+
+          transferIds.push(existingForSource.id);
+          continue;
+        }
+
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          source.paymentIntentId,
           { expand: ["latest_charge"] }
         );
 
-      const latestCharge =
-        paymentIntent.latest_charge;
+        const latestCharge = paymentIntent.latest_charge;
+        const chargeId =
+          typeof latestCharge === "string"
+            ? latestCharge
+            : latestCharge?.id;
 
-      const chargeId =
-        typeof latestCharge === "string"
-          ? latestCharge
-          : latestCharge?.id;
-
-      if (!chargeId) {
-        return NextResponse.json(
-          {
-            error:
-              "No encontramos el cargo original de Stripe.",
-          },
-          { status: 500 }
-        );
-      }
-
-      const reserva = await reservarDecisionEconomica(
-        "pay_provider",
-        providerNet,
-        0
-      );
-
-      if (!reserva.ok) {
-        return reserva.response;
-      }
-
-      let transferId =
-        activeTransfers[0]?.id || null;
-
-      if (!transferId) {
-        const transfer =
-          await stripe.transfers.create(
+        if (!chargeId) {
+          return NextResponse.json(
             {
-              amount: expectedCents,
-              currency: (
-                payment.currency || "usd"
-              ).toLowerCase(),
-              destination:
-                providerProfile.stripe_account_id,
-              source_transaction: chargeId,
-              transfer_group: transferGroup,
-              metadata: {
-                request_id: String(claim.request_id),
-                payment_id: String(payment.id),
-                claim_id: String(claim.id),
-                professional_id:
-                  String(claim.provider_id),
-                resolution:
-                  "pay_provider",
-              },
+              error:
+                "No encontramos uno de los cargos de Stripe necesarios para pagar al profesional.",
             },
-            {
-              idempotencyKey:
-                `relydo_release_payment_${payment.id}`,
-            }
+            { status: 500 }
           );
+        }
 
-        transferId = transfer.id;
+        const transfer = await stripe.transfers.create(
+          {
+            amount: expectedSourceCents,
+            currency: (payment.currency || "usd").toLowerCase(),
+            destination: providerProfile.stripe_account_id,
+            source_transaction: chargeId,
+            transfer_group: transferGroup,
+            metadata: {
+              request_id: String(claim.request_id),
+              claim_id: String(claim.id),
+              professional_id: String(claim.provider_id),
+              resolution: "pay_provider",
+              ...source.metadata,
+            },
+          },
+          {
+            idempotencyKey: `relydo_claim_provider_${claim.id}_${source.key}`,
+          }
+        );
+
+        transferIds.push(transfer.id);
       }
+
+      const transferId = transferIds[0] || activeTransfers[0]?.id || null;
 
       const releasedAt =
         new Date().toISOString();
@@ -962,7 +1107,7 @@ export async function POST(request: NextRequest) {
         .update({
           status: "resolved",
           resolution_type: "pay_provider",
-          provider_award_amount: providerNet,
+          provider_award_amount: totalProviderNet,
           customer_refund_amount: 0,
           resolution_notes:
             trabajoEnRevisionFinal
@@ -1009,11 +1154,11 @@ export async function POST(request: NextRequest) {
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
             message: trabajoEnRevisionFinal
-              ? `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo quedÃ³ completado y se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
-              : `RELYDO resolviÃ³ el reclamo a tu favor. Se liberaron $${providerNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              ? `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo quedÃ³ completado y se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolviÃ³ el reclamo a tu favor. Se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: trabajoEnRevisionFinal
-              ? `RELYDO resolved the claim in your favor. The job was completed and $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`
-              : `RELYDO resolved the claim in your favor. $${providerNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
+              ? `RELYDO resolved the claim in your favor. The job was completed and $${totalProviderNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`
+              : `RELYDO resolved the claim in your favor. $${totalProviderNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
           }),
@@ -1030,7 +1175,7 @@ export async function POST(request: NextRequest) {
         action: "pay_provider",
         workCompletedByAdmin: trabajoEnRevisionFinal,
         paymentReleased: true,
-        providerAwardAmount: providerNet,
+        providerAwardAmount: totalProviderNet,
         customerRefundAmount: 0,
         stripeTransferId: transferId,
       });
@@ -1045,83 +1190,127 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Ya existe dinero transferido al profesional. No haremos un reembolso total automÃ¡tico sin procesar antes una reversiÃ³n.",
+              "Ya existe dinero transferido al profesional. No haremos un reembolso total automático sin procesar antes una reversión.",
           },
           { status: 409 }
         );
       }
 
-      const previousRefunded =
-        dinero(payment.refunded_amount || 0);
-
-      const remainingRefund =
-        dinero(jobAmount - previousRefunded);
-
-      if (
-        !Number.isFinite(remainingRefund) ||
-        remainingRefund <= 0
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "El monto disputable del servicio ya fue totalmente reembolsado. El service fee original de RELYDO permanece protegido.",
-          },
-          { status: 409 }
+      if (!reconciliandoResolucion) {
+        const reserva = await reservarDecisionEconomica(
+          "refund_customer",
+          0,
+          totalJobAmount
         );
+
+        if (!reserva.ok) {
+          return reserva.response;
+        }
       }
 
-      const reserva = await reservarDecisionEconomica(
-        "refund_customer",
-        0,
-        jobAmount
-      );
+      const refundSources: Array<{
+        key: string;
+        principal: number;
+        paymentIntentId: string;
+        metadata: Record<string, string>;
+      }> = [
+        {
+          key: `base_${payment.id}`,
+          principal: jobAmount,
+          paymentIntentId: payment.provider_payment_id,
+          metadata: { payment_id: String(payment.id) },
+        },
+        ...changeOrders.map((changeOrder) => ({
+          key: `change_order_${changeOrder.id}`,
+          principal: dinero(changeOrder.additional_amount),
+          paymentIntentId: String(changeOrder.stripe_payment_intent_id),
+          metadata: { change_order_id: String(changeOrder.id) },
+        })),
+      ];
 
-      if (!reserva.ok) {
-        return reserva.response;
-      }
+      const stripeRefundIds: string[] = [];
+      let totalRefunded = 0;
 
-      const refund =
-        await stripe.refunds.create(
+      for (const source of refundSources) {
+        const refunds = await stripe.refunds.list({
+          payment_intent: source.paymentIntentId,
+          limit: 100,
+        });
+
+        const alreadyRefundedForSource = dinero(
+          refunds.data
+            .filter(
+              (refund) =>
+                refund.status !== "failed" &&
+                refund.status !== "canceled"
+            )
+            .reduce((total, refund) => total + refund.amount / 100, 0)
+        );
+
+        const refundablePrincipalAlreadyUsed = Math.min(
+          source.principal,
+          alreadyRefundedForSource
+        );
+
+        const remainingPrincipal = dinero(
+          source.principal - refundablePrincipalAlreadyUsed
+        );
+
+        totalRefunded = dinero(
+          totalRefunded + refundablePrincipalAlreadyUsed
+        );
+
+        if (remainingPrincipal <= 0) {
+          continue;
+        }
+
+        const refund = await stripe.refunds.create(
           {
-            payment_intent:
-              payment.provider_payment_id,
-            amount:
-              Math.round(remainingRefund * 100),
-            reason:
-              "requested_by_customer",
+            payment_intent: source.paymentIntentId,
+            amount: Math.round(remainingPrincipal * 100),
+            reason: "requested_by_customer",
             metadata: {
               request_id: String(claim.request_id),
-              payment_id: String(payment.id),
               claim_id: String(claim.id),
-              resolution:
-                "refund_customer",
-              job_amount:
-                jobAmount.toFixed(2),
-              protected_customer_fee:
-                customerFee.toFixed(2),
+              resolution: "refund_customer",
+              protected_customer_fee: totalCustomerFee.toFixed(2),
+              ...source.metadata,
             },
           },
           {
-            idempotencyKey:
-              `relydo_claim_full_refund_${payment.id}`,
+            idempotencyKey: `relydo_claim_full_refund_${claim.id}_${source.key}`,
           }
         );
 
-      const refundedAmount =
-        dinero(refund.amount / 100);
+        stripeRefundIds.push(refund.id);
+        totalRefunded = dinero(totalRefunded + refund.amount / 100);
+      }
 
-      const totalRefunded =
-        dinero(previousRefunded + refundedAmount);
+      const baseRefunds = await stripe.refunds.list({
+        payment_intent: payment.provider_payment_id,
+        limit: 100,
+      });
 
-      const {
-        error: updatePaymentError,
-      } = await supabaseAdmin
+      const baseRefundedTotal = dinero(
+        baseRefunds.data
+          .filter(
+            (refund) =>
+              refund.status !== "failed" &&
+              refund.status !== "canceled"
+          )
+          .reduce((total, refund) => total + refund.amount / 100, 0)
+      );
+
+      const refundRecordedAt = new Date().toISOString();
+
+      const { error: updatePaymentError } = await supabaseAdmin
         .from("payments")
         .update({
-          status: "partially_refunded",
-          refunded_amount: totalRefunded,
-          refunded_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          status:
+            baseRefundedTotal >= jobAmount ? "partially_refunded" : "partially_refunded",
+          refunded_amount: Math.min(baseRefundedTotal, jobAmount),
+          refunded_at: refundRecordedAt,
+          updated_at: refundRecordedAt,
         })
         .eq("id", payment.id);
 
@@ -1130,28 +1319,50 @@ export async function POST(request: NextRequest) {
           {
             error:
               "Stripe hizo el reembolso, pero RELYDO no pudo actualizar payments. No repitas el reembolso.",
-            stripeRefundId: refund.id,
+            stripeRefundIds,
           },
           { status: 500 }
         );
       }
 
-      const {
-        error: updateClaimError,
-      } = await supabaseAdmin
+      const { error: cancelRequestError } = await supabaseAdmin
+        .from("service_requests")
+        .update({
+          status: "cancelled",
+          job_stage: null,
+          completion_review_status: null,
+          completion_approved_at: null,
+          cancellation_reason:
+            "Reclamo resuelto a favor del cliente por RELYDO.",
+          cancelled_at: refundRecordedAt,
+        })
+        .eq("id", claim.request_id);
+
+      if (cancelRequestError) {
+        return NextResponse.json(
+          {
+            error:
+              "El cliente fue reembolsado, pero no pudimos sincronizar el estado final del trabajo. No repitas el reembolso.",
+            stripeRefundIds,
+          },
+          { status: 500 }
+        );
+      }
+
+      const { error: updateClaimError } = await supabaseAdmin
         .from("job_claims")
         .update({
           status: "resolved",
           resolution_type: "refund_customer",
           provider_award_amount: 0,
           customer_refund_amount: totalRefunded,
-          resolution_notes:
-            `[REEMBOLSO AL CLIENTE]\n${notes}`,
+          resolution_notes: `[REEMBOLSO AL CLIENTE]\n${notes}`,
           resolved_at:
-            new Date().toISOString(),
+            claim.status === "resolved"
+              ? new Date().toISOString()
+              : refundRecordedAt,
           resolved_by: user.id,
-          updated_at:
-            new Date().toISOString(),
+          updated_at: refundRecordedAt,
         })
         .eq("id", claimId);
 
@@ -1159,45 +1370,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "El cliente fue reembolsado, pero no pudimos cerrar el reclamo. No repitas el reembolso.",
-            stripeRefundId: refund.id,
-          },
-          { status: 500 }
-        );
-      }
-
-      const {
-        error:
-          cancelRequestError,
-      } =
-        await supabaseAdmin
-          .from(
-            "service_requests"
-          )
-          .update({
-            status:
-              "cancelled",
-            job_stage:
-              null,
-            cancellation_reason:
-              "Reclamo resuelto a favor del cliente por RELYDO.",
-            cancelled_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            claim.request_id
-          );
-
-      if (
-        cancelRequestError
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "El cliente fue reembolsado y el reclamo fue cerrado, pero no pudimos marcar el trabajo como cancelado. No repitas el reembolso.",
-            stripeRefundId:
-              refund.id,
+              "El dinero fue procesado y el trabajo sincronizado, pero no pudimos consolidar el reclamo. No repitas movimientos de dinero.",
+            stripeRefundIds,
           },
           { status: 500 }
         );
@@ -1210,7 +1384,7 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolviÃ³ el reclamo a tu favor. Se procesÃ³ un reembolso de $${totalRefunded.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            message: `RELYDO resolvió el reclamo a tu favor. Se procesó un reembolso de $${totalRefunded.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: `RELYDO resolved the claim in your favor. A $${totalRefunded.toFixed(2)} refund was processed. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/mis-solicitudes/${claim.request_id}`,
@@ -1220,7 +1394,7 @@ export async function POST(request: NextRequest) {
             type: "claim_resolved",
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
-            message: `RELYDO resolviÃ³ el reclamo a favor del cliente. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+            message: `RELYDO resolvió el reclamo a favor del cliente. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: `RELYDO resolved the claim in favor of the customer. ${serviceRequest.title || "RELYDO job"}.`,
             requestId: claim.request_id,
             url: `/trabajos/${claim.request_id}`,
@@ -1228,7 +1402,7 @@ export async function POST(request: NextRequest) {
         ]);
       } catch (notificationError) {
         console.warn(
-          "El reclamo fue resuelto, pero fallÃ³ el envÃ­o de notificaciones:",
+          "El reclamo fue resuelto, pero falló el envío de notificaciones:",
           notificationError
         );
       }
@@ -1236,12 +1410,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         action: "refund_customer",
+        reconciled: reconciliandoResolucion,
         providerAwardAmount: 0,
         customerRefundAmount: totalRefunded,
-        protectedCustomerFee: customerFee,
-        disputableJobAmount: jobAmount,
-        stripeRefundId: refund.id,
-        refundStatus: refund.status,
+        protectedCustomerFee: totalCustomerFee,
+        disputableJobAmount: totalJobAmount,
+        stripeRefundIds,
       });
     }
 
@@ -1951,6 +2125,12 @@ export async function POST(request: NextRequest) {
             "cancelled",
 
           job_stage:
+            null,
+
+          completion_review_status:
+            null,
+
+          completion_approved_at:
             null,
 
           cancellation_reason:
