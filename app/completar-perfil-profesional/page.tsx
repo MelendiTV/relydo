@@ -177,6 +177,10 @@ export default function CompletarPerfilProfesional() {
         metadata.zip_code || ""
       ).trim();
 
+      const address = String(
+        metadata.address || ""
+      ).trim();
+
       const licenseRequired =
         metadata.license_required === true;
 
@@ -230,7 +234,11 @@ export default function CompletarPerfilProfesional() {
       if (
         !legalName ||
         !businessName ||
-        !trade
+        !trade ||
+        !city ||
+        !state ||
+        !address ||
+        !/^\d{5}$/.test(zipCode)
       ) {
         throw new Error(
           text.faltanDatos
@@ -292,6 +300,89 @@ export default function CompletarPerfilProfesional() {
       */
 
       if (!existingProvider) {
+        let latitude: number | null = null;
+        let longitude: number | null = null;
+
+        try {
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          const accessToken =
+            !sessionError && session?.access_token
+              ? session.access_token
+              : null;
+
+          if (accessToken) {
+            const geocodeResponse = await fetch(
+              "https://www.relydo.co/api/location/geocode",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  addressLine1: address,
+                  addressLine2: "",
+                  city,
+                  state,
+                  zipCode,
+                }),
+              }
+            );
+
+            const geocodeResult = await geocodeResponse
+              .json()
+              .catch(() => null);
+
+            if (
+              geocodeResponse.ok &&
+              geocodeResult?.ok === true
+            ) {
+              const nextLatitude = Number(
+                geocodeResult.latitude
+              );
+              const nextLongitude = Number(
+                geocodeResult.longitude
+              );
+
+              if (
+                Number.isFinite(nextLatitude) &&
+                Number.isFinite(nextLongitude) &&
+                nextLatitude >= -90 &&
+                nextLatitude <= 90 &&
+                nextLongitude >= -180 &&
+                nextLongitude <= 180
+              ) {
+                latitude = nextLatitude;
+                longitude = nextLongitude;
+              }
+            } else {
+              console.warn(
+                "Provider geocoding failed:",
+                geocodeResponse.status,
+                geocodeResult?.error || "Unknown error"
+              );
+            }
+          } else {
+            console.warn(
+              "Provider geocoding skipped: no authenticated session token."
+            );
+          }
+        } catch (geocodeError) {
+          /*
+            Geocoding must never prevent the professional
+            profile from being created. ZIP remains available
+            as the fallback location.
+          */
+          console.warn(
+            "Provider geocoding failed:",
+            geocodeError
+          );
+        }
+
         const {
           error:
             providerInsertError,
@@ -314,10 +405,12 @@ export default function CompletarPerfilProfesional() {
 
             service_radius_miles:
               serviceRadiusMiles,
-
+            address,
             city,
             state,
             zip_code: zipCode,
+            latitude,
+            longitude,
 
             license_required:
               licenseRequired,
