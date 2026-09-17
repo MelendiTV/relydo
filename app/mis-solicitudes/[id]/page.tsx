@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -179,159 +179,159 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Cargando solicitud...": "Loading request...",
   "No se pudo abrir la solicitud": "Could not open the request",
   "Volver a mis solicitudes": "Back to my requests",
-  "← Volver a mis solicitudes": "← Back to my requests",
-  "📍 Ubicación": "📍 Location",
-  "📅 Fecha preferida": "📅 Preferred date",
-  "🕐 Hora preferida": "🕐 Preferred time",
-  "📷 Fotos de la solicitud": "📷 Request photos",
+  "â† Volver a mis solicitudes": "â† Back to my requests",
+  "ðŸ“ UbicaciÃ³n": "ðŸ“ Location",
+  "ðŸ“… Fecha preferida": "ðŸ“… Preferred date",
+  "ðŸ• Hora preferida": "ðŸ• Preferred time",
+  "ðŸ“· Fotos de la solicitud": "ðŸ“· Request photos",
   "Fotos que adjuntaste al crear esta solicitud.": "Photos you attached when creating this request.",
   "Foto de la solicitud": "Request photo",
-  "⭐ Profesional preferido": "⭐ Preferred professional",
+  "â­ Profesional preferido": "â­ Preferred professional",
   "Esta solicitud fue creada con este profesional como preferido.": "This request was created with this professional as preferred.",
   "Profesional verificado": "Verified professional",
   "Buscando un nuevo profesional": "Looking for a new professional",
-  "El profesional anterior ya no está disponible": "The previous professional is no longer available",
-  "Tu solicitud volvió a publicarse automáticamente para que otros profesionales puedan enviarte nuevos presupuestos. No necesitas crear otra solicitud.": "Your request was automatically republished so other professionals can send you new offers. You do not need to create another request.",
+  "El profesional anterior ya no estÃ¡ disponible": "The previous professional is no longer available",
+  "Tu solicitud volviÃ³ a publicarse automÃ¡ticamente para que otros profesionales puedan enviarte nuevos presupuestos. No necesitas crear otra solicitud.": "Your request was automatically republished so other professionals can send you new offers. You do not need to create another request.",
   "Esperando nuevos presupuestos": "Waiting for new offers",
-  "Cuando otro profesional compatible envíe una oferta, aparecerá automáticamente en esta página.": "When another compatible professional sends an offer, it will automatically appear on this page.",
+  "Cuando otro profesional compatible envÃ­e una oferta, aparecerÃ¡ automÃ¡ticamente en esta pÃ¡gina.": "When another compatible professional sends an offer, it will automatically appear on this page.",
   "Seguimiento en vivo": "Live tracking",
   "Resultado financiero": "Financial result",
   "Reembolso al cliente": "Customer refund",
-  "Compensación al profesional": "Professional compensation",
-  "Nota de resolución": "Resolution note",
-  "¿Ya no necesitas el servicio?": "No longer need the service?",
+  "CompensaciÃ³n al profesional": "Professional compensation",
+  "Nota de resoluciÃ³n": "Resolution note",
+  "Â¿Ya no necesitas el servicio?": "No longer need the service?",
   "Puedes cancelar esta solicitud": "You can cancel this request",
-  "La cancelación dejará de estar disponible cuando el profesional haya iniciado el trabajo.": "Cancellation will no longer be available once the professional has started the job.",
+  "La cancelaciÃ³n dejarÃ¡ de estar disponible cuando el profesional haya iniciado el trabajo.": "Cancellation will no longer be available once the professional has started the job.",
   "Cancelar solicitud": "Cancel request",
-  "¿Por qué deseas cancelar?": "Why do you want to cancel?",
+  "Â¿Por quÃ© deseas cancelar?": "Why do you want to cancel?",
   "Selecciona un motivo": "Select a reason",
   "Ya no necesito el servicio": "I no longer need the service",
-  "Encontré otra solución": "I found another solution",
-  "Cambió mi horario": "My schedule changed",
+  "EncontrÃ© otra soluciÃ³n": "I found another solution",
+  "CambiÃ³ mi horario": "My schedule changed",
   "El precio no me conviene": "The price does not work for me",
   "Otro motivo": "Other reason",
-  "Resumen de la cancelación": "Cancellation summary",
-  "Cancelación sin penalidad": "Cancellation without penalty",
-  "Esta solicitud todavía no tiene un trabajo pagado en progreso.": "This request does not yet have a paid job in progress.",
+  "Resumen de la cancelaciÃ³n": "Cancellation summary",
+  "CancelaciÃ³n sin penalidad": "Cancellation without penalty",
+  "Esta solicitud todavÃ­a no tiene un trabajo pagado en progreso.": "This request does not yet have a paid job in progress.",
   "Total pagado": "Total paid",
-  "No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.": "We could not find the payment for this job. Refresh the page before cancelling.",
+  "No encontramos el pago de este trabajo. Actualiza la pÃ¡gina antes de cancelar.": "We could not find the payment for this job. Refresh the page before cancelling.",
   "Volver": "Back",
   "Trabajo iniciado": "Job started",
-  "La cancelación automática ya no está disponible": "Automatic cancellation is no longer available",
-  "El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.": "The professional has already started the service. If there is a problem with the job, it must be handled through RELYDO's claims system.",
-  "⚠️ Iniciar reclamo": "⚠️ Start claim",
-  "💰 Cambio de presupuesto solicitado": "💰 Budget change requested",
+  "La cancelaciÃ³n automÃ¡tica ya no estÃ¡ disponible": "Automatic cancellation is no longer available",
+  "El profesional ya comenzÃ³ el servicio. Si existe un problema con el trabajo, deberÃ¡ gestionarse mediante el sistema de reclamos de RELYDO.": "The professional has already started the service. If there is a problem with the job, it must be handled through RELYDO's claims system.",
+  "âš ï¸ Iniciar reclamo": "âš ï¸ Start claim",
+  "ðŸ’° Cambio de presupuesto solicitado": "ðŸ’° Budget change requested",
   "El profesional solicita un monto adicional": "The professional is requesting an additional amount",
   "Revisa el motivo y los nuevos montos antes de aceptar o rechazar.": "Review the reason and new amounts before accepting or rejecting.",
   "Total anterior": "Previous total",
   "Adicional solicitado": "Additional amount requested",
   "Nuevo total propuesto": "New proposed total",
   "Motivo": "Reason",
-  "Explicación del profesional": "Professional's explanation",
-  "✓ Cambio pagado": "✓ Change paid",
-  "Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.": "Your approval was recorded. To complete the change, pay the additional amount through Stripe now.",
+  "ExplicaciÃ³n del profesional": "Professional's explanation",
+  "âœ“ Cambio pagado": "âœ“ Change paid",
+  "Tu aprobaciÃ³n quedÃ³ registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.": "Your approval was recorded. To complete the change, pay the additional amount through Stripe now.",
   "El cambio fue rechazado. El presupuesto anterior permanece sin cambios.": "The change was rejected. The previous budget remains unchanged.",
-  "✓ Profesional contratado": "✓ Professional hired",
+  "âœ“ Profesional contratado": "âœ“ Professional hired",
   "Resumen de pago": "Payment summary",
   "Presupuesto del profesional": "Professional's price",
   "Total del cliente": "Customer total",
-  "Describe qué ocurrió y qué parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
+  "Describe quÃ© ocurriÃ³ y quÃ© parte del servicio tuvo el problema...": "Describe what happened and which part of the service had the problem...",
   "Estado del pago": "Payment status",
   "El pago fue procesado y liberado de acuerdo con el flujo de RELYDO.": "The payment was processed and released according to RELYDO's payment flow.",
-  "RELYDO procesó el reembolso correspondiente a este trabajo.": "RELYDO processed the refund for this job.",
-  "RELYDO procesó un reembolso parcial para este trabajo.": "RELYDO processed a partial refund for this job.",
+  "RELYDO procesÃ³ el reembolso correspondiente a este trabajo.": "RELYDO processed the refund for this job.",
+  "RELYDO procesÃ³ un reembolso parcial para este trabajo.": "RELYDO processed a partial refund for this job.",
   "Llegada estimada": "Estimated arrival",
-  "Duración estimada": "Estimated duration",
-  "Valoración": "Rating",
+  "DuraciÃ³n estimada": "Estimated duration",
+  "ValoraciÃ³n": "Rating",
   "Ver perfil del profesional": "View professional profile",
-  "🔁 Contratar de nuevo": "🔁 Hire again",
-  "🔒 Comunicación protegida": "🔒 Protected communication",
+  "ðŸ” Contratar de nuevo": "ðŸ” Hire again",
+  "ðŸ”’ ComunicaciÃ³n protegida": "ðŸ”’ Protected communication",
   "Chat con": "Chat with",
-  "● En tiempo real": "● Live",
+  "â— En tiempo real": "â— Live",
   "Conectando...": "Connecting...",
-  "Los números de teléfono personales permanecen privados.": "Personal phone numbers remain private.",
-  "Cargando conversación...": "Loading conversation...",
-  "Todavía no hay mensajes": "There are no messages yet",
-  "Usa este chat para coordinar el servicio sin compartir tu número personal.": "Use this chat to coordinate the service without sharing your personal phone number.",
-  "⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.": "⏳ The chat will remain open for up to 12 hours after the job is completed.",
-  "🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.": "🔒 RELYDO keeps customer and professional phone numbers private. Do not share personal information or external payment methods in the chat.",
-  "🔒 Chat bloqueado": "🔒 Chat locked",
-  "📸 Evidencia del trabajo terminado": "📸 Completed job evidence",
+  "Los nÃºmeros de telÃ©fono personales permanecen privados.": "Personal phone numbers remain private.",
+  "Cargando conversaciÃ³n...": "Loading conversation...",
+  "TodavÃ­a no hay mensajes": "There are no messages yet",
+  "Usa este chat para coordinar el servicio sin compartir tu nÃºmero personal.": "Use this chat to coordinate the service without sharing your personal phone number.",
+  "â³ El chat permanecerÃ¡ abierto hasta 12 horas despuÃ©s de que se completÃ³ el trabajo.": "â³ The chat will remain open for up to 12 hours after the job is completed.",
+  "ðŸ”’ RELYDO mantiene privados los telÃ©fonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.": "ðŸ”’ RELYDO keeps customer and professional phone numbers private. Do not share personal information or external payment methods in the chat.",
+  "ðŸ”’ Chat bloqueado": "ðŸ”’ Chat locked",
+  "ðŸ“¸ Evidencia del trabajo terminado": "ðŸ“¸ Completed job evidence",
   "Fotos y videos registrados por el profesional": "Photos and videos recorded by the professional",
-  "Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.": "This evidence was recorded by the professional when the service was completed and remains attached to this job for your protection and the professional's.",
+  "Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protecciÃ³n y la del profesional.": "This evidence was recorded by the professional when the service was completed and remains attached to this job for your protection and the professional's.",
   "No pudimos abrir este archivo de evidencia.": "We could not open this evidence file.",
   "Registrado": "Recorded",
-  "🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.": "🔒 This evidence is part of the job record and cannot be modified from this screen.",
-  "Gracias por tu calificación": "Thank you for your rating",
+  "ðŸ”’ Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.": "ðŸ”’ This evidence is part of the job record and cannot be modified from this screen.",
+  "Gracias por tu calificaciÃ³n": "Thank you for your rating",
   "Ya calificaste este trabajo.": "You already rated this job.",
-  "Tu calificación": "Your rating",
+  "Tu calificaciÃ³n": "Your rating",
   "Tu comentario": "Your comment",
   "Trabajo completado": "Job completed",
   "Calificar profesional": "Rate professional",
-  "¿Cómo fue tu experiencia con": "How was your experience with",
+  "Â¿CÃ³mo fue tu experiencia con": "How was your experience with",
   "Selecciona de 1 a 5 estrellas.": "Select from 1 to 5 stars.",
-  "Tu calificación *": "Your rating *",
+  "Tu calificaciÃ³n *": "Your rating *",
   "Comentario": "Comment",
-  "⚠️ Problema reportado": "⚠️ Problem reported",
-  "Tu reclamo quedó registrado": "Your claim was recorded",
+  "âš ï¸ Problema reportado": "âš ï¸ Problem reported",
+  "Tu reclamo quedÃ³ registrado": "Your claim was recorded",
   "RELYDO conserva este reporte asociado al trabajo.": "RELYDO keeps this report associated with the job.",
-  "Descripción": "Description",
-  "✅ Reclamo resuelto": "✅ Claim resolved",
-  "Resolución de RELYDO": "RELYDO resolution",
-  "Este trabajo está cerrado.": "This job is closed.",
-  "No se pueden abrir nuevos reclamos después de que el trabajo ha sido cancelado.": "New claims cannot be opened after the job has been cancelled.",
-  "¿Hubo un problema con el servicio?": "Was there a problem with the service?",
+  "DescripciÃ³n": "Description",
+  "âœ… Reclamo resuelto": "âœ… Claim resolved",
+  "ResoluciÃ³n de RELYDO": "RELYDO resolution",
+  "Este trabajo estÃ¡ cerrado.": "This job is closed.",
+  "No se pueden abrir nuevos reclamos despuÃ©s de que el trabajo ha sido cancelado.": "New claims cannot be opened after the job has been cancelled.",
+  "Â¿Hubo un problema con el servicio?": "Was there a problem with the service?",
   "Reportar un problema": "Report a problem",
-  "Usa esta opción si el trabajo quedó incompleto, hubo daños, un cobro adicional u otro problema importante.": "Use this option if the job was incomplete, there was damage, an additional charge, or another significant problem.",
-  "⚠️ Reportar problema": "⚠️ Report problem",
+  "Usa esta opciÃ³n si el trabajo quedÃ³ incompleto, hubo daÃ±os, un cobro adicional u otro problema importante.": "Use this option if the job was incomplete, there was damage, an additional charge, or another significant problem.",
+  "âš ï¸ Reportar problema": "âš ï¸ Report problem",
   "Abrir reclamo": "Open claim",
-  "Cuéntanos qué ocurrió": "Tell us what happened",
+  "CuÃ©ntanos quÃ© ocurriÃ³": "Tell us what happened",
   "Motivo del reclamo *": "Claim reason *",
   "Trabajo incompleto": "Incomplete job",
   "Calidad del trabajo": "Quality of work",
-  "Daños durante el servicio": "Damage during service",
+  "DaÃ±os durante el servicio": "Damage during service",
   "Cobro adicional no acordado": "Unapproved additional charge",
   "Conducta del profesional": "Professional conduct",
   "Otro problema": "Other problem",
   "Explica el problema *": "Explain the problem *",
   "Fotos o videos": "Photos or videos",
   "Opcional. Puedes adjuntar hasta 10 fotos y 2 videos como evidencia.": "Optional. You can attach up to 10 photos and 2 videos as evidence.",
-  "📎 Adjuntar archivos": "📎 Attach files",
+  "ðŸ“Ž Adjuntar archivos": "ðŸ“Ž Attach files",
   "Formatos permitidos": "Allowed formats",
-  "Fotos: JPG, PNG, WEBP · Videos: MP4, WEBM, MOV · Máximo 50 MB por archivo.": "Photos: JPG, PNG, WEBP · Videos: MP4, WEBM, MOV · Maximum 50 MB per file.",
+  "Fotos: JPG, PNG, WEBP Â· Videos: MP4, WEBM, MOV Â· MÃ¡ximo 50 MB por archivo.": "Photos: JPG, PNG, WEBP Â· Videos: MP4, WEBM, MOV Â· Maximum 50 MB per file.",
   "Quitar": "Remove",
-  "Explicación de la evidencia *": "Evidence explanation *",
-  "Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar tu reclamo.": "Describe what the photos or videos show and what RELYDO should consider when reviewing your claim.",
+  "ExplicaciÃ³n de la evidencia *": "Evidence explanation *",
+  "Describe quÃ© muestran las fotos o videos y quÃ© debe considerar RELYDO al revisar tu reclamo.": "Describe what the photos or videos show and what RELYDO should consider when reviewing your claim.",
   "Cancelar": "Cancel",
   "Presupuestos recibidos": "Offers received",
-  "Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.": "Compare price, arrival time, experience, and rating before choosing.",
-  "Todavía no tienes presupuestos": "You do not have any offers yet",
-  "Cuando un profesional envíe un presupuesto aparecerá aquí.": "When a professional sends an offer, it will appear here.",
+  "Compara precio, tiempo de llegada, experiencia y valoraciÃ³n antes de elegir.": "Compare price, arrival time, experience, and rating before choosing.",
+  "TodavÃ­a no tienes presupuestos": "You do not have any offers yet",
+  "Cuando un profesional envÃ­e un presupuesto aparecerÃ¡ aquÃ­.": "When a professional sends an offer, it will appear here.",
   "Profesional": "Professional",
-  "✓ Contratado": "✓ Hired",
+  "âœ“ Contratado": "âœ“ Hired",
   "No seleccionada": "Not selected",
   "Cancelado por el profesional": "Cancelled by professional",
-  "✓ Verificado": "✓ Verified",
+  "âœ“ Verificado": "âœ“ Verified",
   "Presupuesto": "Price",
-  "🚗 Puede llegar": "🚗 Can arrive",
-  "⏱️ Duración": "⏱️ Duration",
-  "⭐ Valoración": "⭐ Rating",
-  "🛠️ Experiencia": "🛠️ Experience",
+  "ðŸš— Puede llegar": "ðŸš— Can arrive",
+  "â±ï¸ DuraciÃ³n": "â±ï¸ Duration",
+  "â­ ValoraciÃ³n": "â­ Rating",
+  "ðŸ› ï¸ Experiencia": "ðŸ› ï¸ Experience",
   "Trabajos completados en RELYDO": "Jobs completed on RELYDO",
   "Mensaje del profesional": "Professional's message",
   "Sin mensaje adicional.": "No additional message.",
   "Contratando profesional...": "Hiring professional...",
-  "Tú": "You",
+  "TÃº": "You",
   "Escribe un mensaje...": "Write a message...",
   "Enviar": "Send",
   "Enviando...": "Sending...",
-  "🎥 Video": "🎥 Video",
-  "📷 Foto": "📷 Photo",
-  "Cuéntanos cómo fue el servicio...": "Tell us how the service went...",
-  "Enviando calificación...": "Sending rating...",
-  "Selecciona una calificación de 1 a 5 estrellas.": "Select a rating from 1 to 5 stars.",
-  "Enviar reseña": "Submit review",
-  "En revisión": "Under review",
+  "ðŸŽ¥ Video": "ðŸŽ¥ Video",
+  "ðŸ“· Foto": "ðŸ“· Photo",
+  "CuÃ©ntanos cÃ³mo fue el servicio...": "Tell us how the service went...",
+  "Enviando calificaciÃ³n...": "Sending rating...",
+  "Selecciona una calificaciÃ³n de 1 a 5 estrellas.": "Select a rating from 1 to 5 stars.",
+  "Enviar reseÃ±a": "Submit review",
+  "En revisiÃ³n": "Under review",
   "Enviando reclamo...": "Sending claim...",
   "Enviar reclamo": "Submit claim",
   "Abierta": "Open",
@@ -345,109 +345,109 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Reembolso parcial": "Partial refund",
   "Pago confirmado": "Payment confirmed",
   "Pago cancelado": "Payment cancelled",
-  "El profesional inició el trabajo": "The professional started the job",
-  "El profesional ya llegó": "The professional has arrived",
+  "El profesional iniciÃ³ el trabajo": "The professional started the job",
+  "El profesional ya llegÃ³": "The professional has arrived",
   "El profesional va en camino": "The professional is on the way",
   "Profesional contratado": "Professional hired",
-  "El profesional marcó el servicio como terminado.": "The professional marked the service as completed.",
-  "El profesional ya comenzó a realizar el servicio.": "The professional has started performing the service.",
-  "El profesional indicó que ya se encuentra en el lugar.": "The professional indicated that they are at the location.",
-  "El profesional indicó que va rumbo a la dirección del servicio.": "The professional indicated that they are on the way to the service address.",
+  "El profesional marcÃ³ el servicio como terminado.": "The professional marked the service as completed.",
+  "El profesional ya comenzÃ³ a realizar el servicio.": "The professional has started performing the service.",
+  "El profesional indicÃ³ que ya se encuentra en el lugar.": "The professional indicated that they are at the location.",
+  "El profesional indicÃ³ que va rumbo a la direcciÃ³n del servicio.": "The professional indicated that they are on the way to the service address.",
   "Has contratado a un profesional para realizar este trabajo.": "You hired a professional to perform this job.",
-  "Plomería": "Plumbing",
+  "PlomerÃ­a": "Plumbing",
   "Electricidad": "Electrical",
   "HVAC / Aire acondicionado": "HVAC / Air conditioning",
-  "Carpintería": "Carpentry",
+  "CarpinterÃ­a": "Carpentry",
   "Pintura": "Painting",
-  "Jardinería": "Landscaping",
+  "JardinerÃ­a": "Landscaping",
   "Limpieza": "Cleaning",
   "Mudanzas": "Moving",
   "Otros servicios": "Other services",
   "Profesional RELYDO": "RELYDO Professional",
-  "Va rumbo a tu ubicación": "On the way to your location",
-  "Llegó": "Arrived",
+  "Va rumbo a tu ubicaciÃ³n": "On the way to your location",
+  "LlegÃ³": "Arrived",
   "Ya se encuentra en el lugar": "Already at the location",
-  "El servicio está en proceso": "The service is in progress",
+  "El servicio estÃ¡ en proceso": "The service is in progress",
   "Completado": "Completed",
   "Trabajo terminado": "Job finished",
   "Actualizando en vivo": "Updating live",
   "Solicitud cancelada": "Request cancelled",
   "Este trabajo fue cancelado": "This job was cancelled",
-  "Decisión": "Decision",
+  "DecisiÃ³n": "Decision",
   "Cambio de presupuesto": "Budget change",
   "El problema es mayor de lo esperado": "The problem is bigger than expected",
   "Se necesita trabajo adicional": "Additional work is needed",
   "Se necesitan materiales adicionales": "Additional materials are needed",
   "Procesando...": "Processing...",
-  "✕ Rechazar cambio": "✕ Reject change",
-  "✓ Cambio de presupuesto aceptado": "✓ Budget change accepted",
-  "✕ Cambio de presupuesto rechazado": "✕ Budget change rejected",
+  "âœ• Rechazar cambio": "âœ• Reject change",
+  "âœ“ Cambio de presupuesto aceptado": "âœ“ Budget change accepted",
+  "âœ• Cambio de presupuesto rechazado": "âœ• Budget change rejected",
   "Cambio de presupuesto cancelado": "Budget change cancelled",
-  "¿Confirmas que aceptas el cambio de presupuesto?": "Do you confirm that you accept the budget change?",
+  "Â¿Confirmas que aceptas el cambio de presupuesto?": "Do you confirm that you accept the budget change?",
   "Adicional": "Additional",
   "Nuevo total": "New total",
-  "Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.": "By accepting, you will continue to Stripe secure checkout to pay the additional amount and RELYDO service fee.",
-  "¿Confirmas que deseas rechazar este cambio de presupuesto?": "Do you confirm that you want to reject this budget change?",
+  "Al aceptar, continuarÃ¡s al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.": "By accepting, you will continue to Stripe secure checkout to pay the additional amount and RELYDO service fee.",
+  "Â¿Confirmas que deseas rechazar este cambio de presupuesto?": "Do you confirm that you want to reject this budget change?",
   "Cambio de presupuesto aceptado. Ahora te enviaremos al pago seguro de Stripe para cobrar solamente el monto adicional y la tarifa de servicio correspondiente.": "Budget change accepted. We will now send you to Stripe secure checkout to charge only the additional amount and the corresponding service fee.",
-  "¿Confirmas la cancelación?": "Do you confirm the cancellation?",
+  "Â¿Confirmas la cancelaciÃ³n?": "Do you confirm the cancellation?",
   "Penalidad": "Cancellation fee",
-  "Esta acción no se puede deshacer.": "This action cannot be undone.",
-  "Solicitud cancelada correctamente. Se procesó un reembolso de": "Request cancelled successfully. A refund was processed for",
+  "Esta acciÃ³n no se puede deshacer.": "This action cannot be undone.",
+  "Solicitud cancelada correctamente. Se procesÃ³ un reembolso de": "Request cancelled successfully. A refund was processed for",
   "Abriendo pago seguro...": "Opening secure payment...",
   "Evidencia del trabajo terminado": "Completed job evidence",
-  "El pago adicional fue cancelado. Tu aprobación sigue registrada y puedes intentar pagarlo nuevamente.": "The additional payment was cancelled. Your approval is still recorded and you can try paying again.",
+  "El pago adicional fue cancelado. Tu aprobaciÃ³n sigue registrada y puedes intentar pagarlo nuevamente.": "The additional payment was cancelled. Your approval is still recorded and you can try paying again.",
   "Confirmando tu pago adicional con Stripe...": "Confirming your additional payment with Stripe...",
   "No pudimos confirmar el pago adicional.": "We could not confirm the additional payment.",
   "No encontramos esta solicitud o no tienes permiso para verla.": "We could not find this request or you do not have permission to view it.",
   "No pudimos cargar las tarifas de RELYDO": "We could not load RELYDO's fees",
   "No pudimos cargar los presupuestos": "We could not load the offers",
-  "Ocurrió un error inesperado.": "An unexpected error occurred.",
+  "OcurriÃ³ un error inesperado.": "An unexpected error occurred.",
   "Esta solicitud ya tiene un profesional contratado.": "This request already has a hired professional.",
-  "Este presupuesto ya no está disponible.": "This offer is no longer available.",
-  "No pudimos cargar la configuración de pagos de RELYDO. Actualiza la página e inténtalo nuevamente.": "We could not load RELYDO's payment settings. Refresh the page and try again.",
+  "Este presupuesto ya no estÃ¡ disponible.": "This offer is no longer available.",
+  "No pudimos cargar la configuraciÃ³n de pagos de RELYDO. Actualiza la pÃ¡gina e intÃ©ntalo nuevamente.": "We could not load RELYDO's payment settings. Refresh the page and try again.",
   "Debes aceptar el cambio de presupuesto antes de pagarlo.": "You must accept the budget change before paying it.",
-  "No pudimos verificar tu sesión de cliente.": "We could not verify your customer session.",
+  "No pudimos verificar tu sesiÃ³n de cliente.": "We could not verify your customer session.",
   "No pudimos iniciar el pago adicional.": "We could not start the additional payment.",
-  "Stripe no devolvió la dirección del checkout adicional.": "Stripe did not return the additional checkout URL.",
+  "Stripe no devolviÃ³ la direcciÃ³n del checkout adicional.": "Stripe did not return the additional checkout URL.",
   "Este cambio de presupuesto ya fue respondido.": "This budget change has already been answered.",
-  "Este cambio de presupuesto ya fue respondido o cambió de estado.": "This budget change has already been answered or its status changed.",
+  "Este cambio de presupuesto ya fue respondido o cambiÃ³ de estado.": "This budget change has already been answered or its status changed.",
   "Cambio de presupuesto rechazado. El precio anterior permanece sin cambios.": "Budget change rejected. The previous price remains unchanged.",
-  "No se pudo registrar tu decisión.": "We could not save your decision.",
-  "El trabajo ya fue iniciado. No puede cancelarse automáticamente; cualquier problema debe gestionarse mediante el sistema de reclamos.": "The job has already started. It cannot be cancelled automatically; any issue must be handled through the claims system.",
-  "Esta solicitud ya no puede cancelarse automáticamente.": "This request can no longer be cancelled automatically.",
+  "No se pudo registrar tu decisiÃ³n.": "We could not save your decision.",
+  "El trabajo ya fue iniciado. No puede cancelarse automÃ¡ticamente; cualquier problema debe gestionarse mediante el sistema de reclamos.": "The job has already started. It cannot be cancelled automatically; any issue must be handled through the claims system.",
+  "Esta solicitud ya no puede cancelarse automÃ¡ticamente.": "This request can no longer be cancelled automatically.",
   "Selecciona un motivo para cancelar la solicitud.": "Select a reason for cancelling the request.",
-  "¿Confirmas que deseas cancelar esta solicitud? Esta acción no se puede deshacer.": "Are you sure you want to cancel this request? This action cannot be undone.",
+  "Â¿Confirmas que deseas cancelar esta solicitud? Esta acciÃ³n no se puede deshacer.": "Are you sure you want to cancel this request? This action cannot be undone.",
   "No se pudo cancelar la solicitud.": "We could not cancel the request.",
   "La solicitud fue cancelada correctamente.": "The request was cancelled successfully.",
-  "Este trabajo todavía no puede ser calificado.": "This job cannot be rated yet.",
+  "Este trabajo todavÃ­a no puede ser calificado.": "This job cannot be rated yet.",
   "No pudimos identificar al profesional contratado.": "We could not identify the hired professional.",
-  "Debes iniciar sesión para enviar una reseña.": "You must sign in to submit a review.",
-  "Ya enviaste una reseña para este trabajo.": "You already submitted a review for this job.",
-  "Gracias. Tu calificación fue enviada correctamente.": "Thank you. Your rating was submitted successfully.",
-  "No se pudo enviar la reseña.": "We could not submit the review.",
-  "Puedes adjuntar un máximo de 10 fotos por reclamo.": "You can attach up to 10 photos per claim.",
-  "Puedes adjuntar un máximo de 2 videos por reclamo.": "You can attach up to 2 videos per claim.",
-  "Este trabajo todavía no puede reportarse.": "This job cannot be reported yet.",
+  "Debes iniciar sesiÃ³n para enviar una reseÃ±a.": "You must sign in to submit a review.",
+  "Ya enviaste una reseÃ±a para este trabajo.": "You already submitted a review for this job.",
+  "Gracias. Tu calificaciÃ³n fue enviada correctamente.": "Thank you. Your rating was submitted successfully.",
+  "No se pudo enviar la reseÃ±a.": "We could not submit the review.",
+  "Puedes adjuntar un mÃ¡ximo de 10 fotos por reclamo.": "You can attach up to 10 photos per claim.",
+  "Puedes adjuntar un mÃ¡ximo de 2 videos por reclamo.": "You can attach up to 2 videos per claim.",
+  "Este trabajo todavÃ­a no puede reportarse.": "This job cannot be reported yet.",
   "Ya reportaste un problema para este trabajo.": "You already reported a problem for this job.",
   "Selecciona el motivo del reclamo.": "Select the reason for the claim.",
-  "Explica brevemente qué ocurrió con el trabajo.": "Briefly explain what happened with the job.",
-  "Debes iniciar sesión para reportar un problema.": "You must sign in to report a problem.",
+  "Explica brevemente quÃ© ocurriÃ³ con el trabajo.": "Briefly explain what happened with the job.",
+  "Debes iniciar sesiÃ³n para reportar un problema.": "You must sign in to report a problem.",
   "Ya existe un reclamo para este trabajo.": "A claim already exists for this job.",
   "Tu reporte fue registrado correctamente.": "Your report was submitted successfully.",
   "No se pudo enviar el reclamo.": "We could not submit the claim.",
   "Chat bloqueado porque existe un reclamo activo. A partir de este momento RELYDO Admin gestiona el caso.": "Chat is locked because there is an active claim. From this point on, RELYDO Admin manages the case.",
-  "El trabajo está completado y el chat ya está cerrado.": "The job is completed and the chat is now closed.",
-  "El período de 12 horas después de completar el trabajo terminó. El historial permanece disponible.": "The 12-hour period after job completion has ended. The chat history remains available.",
-  "Este trabajo fue cancelado. El chat está cerrado.": "This job was cancelled. The chat is closed.",
-  "El chat estará disponible cuando el trabajo esté contratado.": "Chat will be available once a professional is hired.",
+  "El trabajo estÃ¡ completado y el chat ya estÃ¡ cerrado.": "The job is completed and the chat is now closed.",
+  "El perÃ­odo de 12 horas despuÃ©s de completar el trabajo terminÃ³. El historial permanece disponible.": "The 12-hour period after job completion has ended. The chat history remains available.",
+  "Este trabajo fue cancelado. El chat estÃ¡ cerrado.": "This job was cancelled. The chat is closed.",
+  "El chat estarÃ¡ disponible cuando el trabajo estÃ© contratado.": "Chat will be available once a professional is hired.",
   "No se pudo enviar el mensaje.": "We could not send the message.",
-  "Trabajo cancelado por resolución de RELYDO": "Job cancelled by RELYDO resolution",
-  "RELYDO cerró este trabajo después de resolver el reclamo. El servicio ya no continuará.": "RELYDO closed this job after resolving the claim. The service will not continue.",
-  "Trabajo cerrado por resolución de RELYDO": "Job closed by RELYDO resolution",
-  "Este trabajo fue cerrado después de que RELYDO resolviera el reclamo. Consulta el reclamo más abajo para ver la decisión y los detalles financieros.": "This job was closed after RELYDO resolved the claim. View the claim below for the full decision and financial details.",
-  "Esta solicitud ya no está activa.": "This request is no longer active.",
+  "Trabajo cancelado por resoluciÃ³n de RELYDO": "Job cancelled by RELYDO resolution",
+  "RELYDO cerrÃ³ este trabajo despuÃ©s de resolver el reclamo. El servicio ya no continuarÃ¡.": "RELYDO closed this job after resolving the claim. The service will not continue.",
+  "Trabajo cerrado por resoluciÃ³n de RELYDO": "Job closed by RELYDO resolution",
+  "Este trabajo fue cerrado despuÃ©s de que RELYDO resolviera el reclamo. Consulta el reclamo mÃ¡s abajo para ver la decisiÃ³n y los detalles financieros.": "This job was closed after RELYDO resolved the claim. View the claim below for the full decision and financial details.",
+  "Esta solicitud ya no estÃ¡ activa.": "This request is no longer active.",
   "Cancelando solicitud...": "Cancelling request...",
-  "Confirmar cancelación": "Confirm cancellation",
+  "Confirmar cancelaciÃ³n": "Confirm cancellation",
   "Este resumen incluye": "This summary includes",
   "cambio": "change",
   "cambios": "changes",
@@ -456,7 +456,7 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "por un total adicional de": "for an additional total of",
   "el profesional": "the professional",
   "este profesional": "this professional",
-  "Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...": "Example: These photos show the part of the job that was left incomplete and the damage I found after the service...",
+  "Ejemplo: Estas fotos muestran la parte del trabajo que quedÃ³ incompleta y el daÃ±o que encontrÃ© despuÃ©s del servicio...": "Example: These photos show the part of the job that was left incomplete and the damage I found after the service...",
   "presupuesto disponible": "offer available",
   "presupuestos disponibles": "offers available",
   "Contratado": "Hired",
@@ -467,17 +467,17 @@ const DETAIL_TRANSLATIONS_EN: Record<string, string> = {
   "Contratar por": "Hire for",
   "Detalles de la solicitud": "Request details",
   "Pagado": "Paid",
-  "Trabajo listo para revisión": "Job ready for review",
-  "El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.": "The professional finished the service and submitted the final evidence. Review it before approving the job.",
-  "✓ Aprobar trabajo": "✓ Approve job",
+  "Trabajo listo para revisiÃ³n": "Job ready for review",
+  "El profesional terminÃ³ el servicio y enviÃ³ la evidencia final. RevÃ­sala antes de aprobar el trabajo.": "The professional finished the service and submitted the final evidence. Review it before approving the job.",
+  "âœ“ Aprobar trabajo": "âœ“ Approve job",
   "Aprobando trabajo...": "Approving job...",
-  "Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.": "Review the final evidence below. If everything is correct, approve the job. If there is a problem, use the claims system.",
-  "¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?": "Do you confirm the job was completed correctly and want to approve it as completed?",
+  "Revisa la evidencia final que aparece debajo. Si todo estÃ¡ correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.": "Review the final evidence below. If everything is correct, approve the job. If there is a problem, use the claims system.",
+  "Â¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?": "Do you confirm the job was completed correctly and want to approve it as completed?",
   "Trabajo aprobado correctamente.": "Job approved successfully.",
   "No se pudo aprobar el trabajo.": "The job could not be approved.",
-  "Este trabajo no está pendiente de tu aprobación.": "This job is not waiting for your approval.",
+  "Este trabajo no estÃ¡ pendiente de tu aprobaciÃ³n.": "This job is not waiting for your approval.",
   "No puedes aprobar el trabajo mientras exista un reclamo activo.": "You cannot approve the job while there is an active claim.",
-  "Pendiente de tu aprobación": "Waiting for your approval",
+  "Pendiente de tu aprobaciÃ³n": "Waiting for your approval",
 };
 
 function detailText(language: "es" | "en", spanish: string) {
@@ -508,10 +508,10 @@ function resolutionNoteText(
       "[IN FAVOR OF CUSTOMER - JOB CANCELLED]"
     )
     .replaceAll("[PAGO AL PROFESIONAL]", "[PAYMENT TO PROFESSIONAL]")
-    .replaceAll("[RESOLUCIÓN PARCIAL]", "[PARTIAL RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN CLIENTE]", "[CUSTOMER RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
-    .replaceAll("[RESOLUCIÓN TOTAL]", "[FULL RESOLUTION]")
+    .replaceAll("[RESOLUCIÃ“N PARCIAL]", "[PARTIAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÃ“N CLIENTE]", "[CUSTOMER RESOLUTION]")
+    .replaceAll("[RESOLUCIÃ“N PROFESIONAL]", "[PROFESSIONAL RESOLUTION]")
+    .replaceAll("[RESOLUCIÃ“N TOTAL]", "[FULL RESOLUTION]")
     .replaceAll("[REEMBOLSO AL CLIENTE]", "[REFUND TO CUSTOMER]")
     .replaceAll("[REEMBOLSO TOTAL AL CLIENTE]", "[FULL REFUND TO CUSTOMER]")
     .replace(/^Profesional:/gm, "Professional:")
@@ -526,12 +526,12 @@ function nombreOficio(
     string,
     string
   > = {
-    plumbing: "Plomería",
+    plumbing: "PlomerÃ­a",
     electrical: "Electricidad",
     hvac: "HVAC / Aire acondicionado",
-    carpentry: "Carpintería",
+    carpentry: "CarpinterÃ­a",
     painting: "Pintura",
-    landscaping: "Jardinería",
+    landscaping: "JardinerÃ­a",
     cleaning: "Limpieza",
     moving: "Mudanzas",
     other: "Otros servicios",
@@ -638,15 +638,15 @@ function tituloEtapa(
   }
 
   if (completionReviewStatus === "pending") {
-    return "Trabajo listo para revisión";
+    return "Trabajo listo para revisiÃ³n";
   }
 
   if (jobStage === "working") {
-    return "El profesional inició el trabajo";
+    return "El profesional iniciÃ³ el trabajo";
   }
 
   if (jobStage === "arrived") {
-    return "El profesional ya llegó";
+    return "El profesional ya llegÃ³";
   }
 
   if (jobStage === "on_the_way") {
@@ -662,23 +662,23 @@ function textoEtapa(
   completionReviewStatus: "pending" | "approved" | null
 ) {
   if (status === "completed") {
-    return "El profesional marcó el servicio como terminado.";
+    return "El profesional marcÃ³ el servicio como terminado.";
   }
 
   if (completionReviewStatus === "pending") {
-    return "El profesional terminó el servicio y envió la evidencia final. Revísala antes de aprobar el trabajo.";
+    return "El profesional terminÃ³ el servicio y enviÃ³ la evidencia final. RevÃ­sala antes de aprobar el trabajo.";
   }
 
   if (jobStage === "working") {
-    return "El profesional ya comenzó a realizar el servicio.";
+    return "El profesional ya comenzÃ³ a realizar el servicio.";
   }
 
   if (jobStage === "arrived") {
-    return "El profesional indicó que ya se encuentra en el lugar.";
+    return "El profesional indicÃ³ que ya se encuentra en el lugar.";
   }
 
   if (jobStage === "on_the_way") {
-    return "El profesional indicó que va rumbo a la dirección del servicio.";
+    return "El profesional indicÃ³ que va rumbo a la direcciÃ³n del servicio.";
   }
 
   return "Has contratado a un profesional para realizar este trabajo.";
@@ -811,7 +811,7 @@ function calcularCancelacionCliente(
   );
 
   // El service fee original no se reembolsa. El reembolso sale
-  // únicamente del precio del trabajo, igual que en el servidor.
+  // Ãºnicamente del precio del trabajo, igual que en el servidor.
   const reembolso = redondearDinero(
     Math.max(0, precioTrabajo - penalidad)
   );
@@ -1498,7 +1498,7 @@ export default function MisSolicitudDetallePage() {
         "cancelled"
     ) {
       setMensaje(
-        T("El pago adicional fue cancelado. Tu aprobación sigue registrada y puedes intentar pagarlo nuevamente.")
+        T("El pago adicional fue cancelado. Tu aprobaciÃ³n sigue registrada y puedes intentar pagarlo nuevamente.")
       );
 
       window.history.replaceState(
@@ -1534,7 +1534,7 @@ export default function MisSolicitudDetallePage() {
           await supabase.auth.getSession();
 
         if (!sessionData.session?.access_token) {
-          throw new Error(T("Tu sesión expiró. Inicia sesión nuevamente."));
+          throw new Error(T("Tu sesiÃ³n expirÃ³. Inicia sesiÃ³n nuevamente."));
         }
 
         const response =
@@ -1550,6 +1550,7 @@ export default function MisSolicitudDetallePage() {
               },
               body: JSON.stringify({
                 sessionId,
+                changeOrderId,
               }),
             }
           );
@@ -1557,7 +1558,8 @@ export default function MisSolicitudDetallePage() {
         const data =
           await response.json();
 
-        if (!response.ok) {
+        if (!response.ok || data?.paymentStatus !== "paid" || data?.requestId !== id ||
+            (changeOrderId && data?.changeOrderId !== changeOrderId)) {
           throw new Error(
             data?.error ||
               T("No pudimos confirmar el pago adicional.")
@@ -1574,16 +1576,8 @@ export default function MisSolicitudDetallePage() {
 
         setMensaje(
           language === "en"
-            ? `Additional payment confirmed${
-                changeOrderId
-                  ? ""
-                  : ""
-              }. The payment summary now includes the budget change.`
-            : `Pago adicional confirmado${
-                changeOrderId
-                  ? ""
-                  : ""
-              }. El resumen de pago ya incluye el cambio de presupuesto.`
+            ? "Additional payment confirmed. The payment summary now includes the budget change."
+            : "Pago adicional confirmado. El resumen de pago ya incluye el cambio de presupuesto."
         );
 
         window.history.replaceState(
@@ -1677,7 +1671,7 @@ export default function MisSolicitudDetallePage() {
 
       if (!response.ok) {
         console.warn(
-          "RELYDO: el evento ocurrió, pero la notificación no pudo enviarse:",
+          "RELYDO: el evento ocurriÃ³, pero la notificaciÃ³n no pudo enviarse:",
           event,
           result
         );
@@ -1685,13 +1679,13 @@ export default function MisSolicitudDetallePage() {
       }
 
       console.log(
-        "RELYDO: notificación enviada:",
+        "RELYDO: notificaciÃ³n enviada:",
         event,
         result
       );
     } catch (notificationError) {
       console.warn(
-        "RELYDO: error enviando notificación del evento:",
+        "RELYDO: error enviando notificaciÃ³n del evento:",
         event,
         notificationError
       );
@@ -1982,7 +1976,7 @@ export default function MisSolicitudDetallePage() {
       setPaymentSettings(paymentSettingsData ? (paymentSettingsData as PaymentSettings) : null);
 
       const { data: paymentData, error: paymentError } = paymentResult;
-      if (paymentError) console.error("Error cargando cálculo de pago:", paymentError);
+      if (paymentError) console.error("Error cargando cÃ¡lculo de pago:", paymentError);
       setPayment(paymentData ? (paymentData as PaymentCalculation) : null);
 
       const { data: completionEvidenceData, error: completionEvidenceError } = completionEvidenceResult;
@@ -2076,7 +2070,7 @@ export default function MisSolicitudDetallePage() {
       setOfertas(ofertasCompletas);
 
       const { data: reviewData, error: reviewError } = reviewResult;
-      if (reviewError) console.error("Error cargando reseña:", reviewError);
+      if (reviewError) console.error("Error cargando reseÃ±a:", reviewError);
       if (solicitudData.status === "completed" && reviewData) {
         setReview(reviewData as Review);
         setRating(reviewData.rating);
@@ -2096,7 +2090,7 @@ export default function MisSolicitudDetallePage() {
       setError(
         err instanceof Error
           ? err.message
-          : T("Ocurrió un error inesperado.")
+          : T("OcurriÃ³ un error inesperado.")
       );
     } finally {
       if (mostrarCarga) {
@@ -2122,24 +2116,24 @@ export default function MisSolicitudDetallePage() {
     }
 
     if (oferta.status !== "pending") {
-      setError(T("Este presupuesto ya no está disponible."));
+      setError(T("Este presupuesto ya no estÃ¡ disponible."));
       return;
     }
 
     if (!paymentSettings) {
       setError(
-        T("No pudimos cargar la configuración de pagos de RELYDO. Actualiza la página e inténtalo nuevamente.")
+        T("No pudimos cargar la configuraciÃ³n de pagos de RELYDO. Actualiza la pÃ¡gina e intÃ©ntalo nuevamente.")
       );
       return;
     }
 
     /*
-      13.4 — CHECKOUT
+      13.4 â€” CHECKOUT
 
       Ya NO aceptamos la oferta desde esta pantalla.
       Primero enviamos al cliente al checkout.
-      La oferta se aceptará solamente cuando el flujo
-      de pago esté listo/confirmado en la siguiente fase.
+      La oferta se aceptarÃ¡ solamente cuando el flujo
+      de pago estÃ© listo/confirmado en la siguiente fase.
     */
 
     router.push(
@@ -2183,7 +2177,7 @@ export default function MisSolicitudDetallePage() {
         !sessionData.session
       ) {
         throw new Error(
-          T("No pudimos verificar tu sesión de cliente.")
+          T("No pudimos verificar tu sesiÃ³n de cliente.")
         );
       }
 
@@ -2215,9 +2209,17 @@ export default function MisSolicitudDetallePage() {
         );
       }
 
+      if (data?.paymentStatus === "paid" && data?.requestId === solicitud.id &&
+          data?.changeOrderId === changeOrder.id) {
+        await cargarDetalle(false);
+        setMensaje(T("Pago adicional confirmado."));
+        setPagandoChangeOrderId(null);
+        return;
+      }
+
       if (!data?.url) {
         throw new Error(
-          T("Stripe no devolvió la dirección del checkout adicional.")
+          T("Stripe no devolviÃ³ la direcciÃ³n del checkout adicional.")
         );
       }
 
@@ -2244,7 +2246,7 @@ export default function MisSolicitudDetallePage() {
   /*
     RESPONDER CAMBIO DE PRESUPUESTO
 
-    Si el cliente acepta, registramos la aceptación y
+    Si el cliente acepta, registramos la aceptaciÃ³n y
     lo enviamos inmediatamente al checkout de Stripe.
   */
 
@@ -2271,7 +2273,7 @@ export default function MisSolicitudDetallePage() {
     const confirmar =
       window.confirm(
         decision === "accepted"
-          ? `${T("¿Confirmas que aceptas el cambio de presupuesto?")}
+          ? `${T("Â¿Confirmas que aceptas el cambio de presupuesto?")}
 
 ${T("Total anterior")}: $${Number(
               changeOrder.original_amount
@@ -2283,8 +2285,8 @@ ${T("Nuevo total")}: $${Number(
               changeOrder.new_total_amount
             ).toFixed(2)}
 
-${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.")}`
-          : `${T("¿Confirmas que deseas rechazar este cambio de presupuesto?")} $${Number(
+${T("Al aceptar, continuarÃ¡s al pago seguro de Stripe para pagar el monto adicional y la tarifa de servicio de RELYDO.")}`
+          : `${T("Â¿Confirmas que deseas rechazar este cambio de presupuesto?")} $${Number(
               changeOrder.additional_amount
             ).toFixed(2)}`
       );
@@ -2319,7 +2321,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
       if (!actualizado) {
         throw new Error(
-          T("Este cambio de presupuesto ya fue respondido o cambió de estado.")
+          T("Este cambio de presupuesto ya fue respondido o cambiÃ³ de estado.")
         );
       }
 
@@ -2368,7 +2370,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       setError(
         err instanceof Error
           ? err.message
-          : T("No se pudo registrar tu decisión.")
+          : T("No se pudo registrar tu decisiÃ³n.")
       );
 
       await cargarDetalle(
@@ -2400,8 +2402,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     if (!puedeCancelar) {
       setError(
         solicitud.job_stage === "working"
-          ? T("El trabajo ya fue iniciado. No puede cancelarse automáticamente; cualquier problema debe gestionarse mediante el sistema de reclamos.")
-          : T("Esta solicitud ya no puede cancelarse automáticamente.")
+          ? T("El trabajo ya fue iniciado. No puede cancelarse automÃ¡ticamente; cualquier problema debe gestionarse mediante el sistema de reclamos.")
+          : T("Esta solicitud ya no puede cancelarse automÃ¡ticamente.")
       );
       return;
     }
@@ -2421,21 +2423,21 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       );
 
     let textoConfirmacion =
-      T("¿Confirmas que deseas cancelar esta solicitud? Esta acción no se puede deshacer.");
+      T("Â¿Confirmas que deseas cancelar esta solicitud? Esta acciÃ³n no se puede deshacer.");
 
     if (
       solicitud.status === "in_progress" &&
       payment
     ) {
       textoConfirmacion =
-        `${T("¿Confirmas la cancelación?")}\n\n` +
+        `${T("Â¿Confirmas la cancelaciÃ³n?")}\n\n` +
         `${T("Total pagado")}: $${resumen.totalPagado.toFixed(2)}\n` +
         `${T("Tarifa de servicio RELYDO")}: $${resumen.serviceFee.toFixed(2)}\n` +
         `${T("Penalidad")}: ${resumen.penalidadPercent.toFixed(2)}% = $${resumen.penalidad.toFixed(2)}\n` +
         `${T("Profesional")}: $${resumen.profesional.toFixed(2)}\n` +
         `RELYDO: $${resumen.relydo.toFixed(2)}\n` +
         `${T("Reembolso al cliente")}: $${resumen.reembolso.toFixed(2)}\n\n` +
-        T("Esta acción no se puede deshacer.");
+        T("Esta acciÃ³n no se puede deshacer.");
     }
 
     const confirmar =
@@ -2462,7 +2464,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         !sessionData.session
       ) {
         throw new Error(
-          T("No pudimos verificar tu sesión de cliente.")
+          T("No pudimos verificar tu sesiÃ³n de cliente.")
         );
       }
 
@@ -2504,7 +2506,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         Number(data.providerAwardAmount || 0) > 0
       ) {
         setMensaje(
-          `${T("Solicitud cancelada correctamente. Se procesó un reembolso de")} $${Number(
+          `${T("Solicitud cancelada correctamente. Se procesÃ³ un reembolso de")} $${Number(
             data.customerRefundAmount || 0
           ).toFixed(2)}.`
         );
@@ -2524,7 +2526,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       setError(
         err instanceof Error
           ? err.message
-          : T("Ocurrió un error inesperado.")
+          : T("OcurriÃ³ un error inesperado.")
       );
     } finally {
       setCancelando(false);
@@ -2532,7 +2534,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   }
 
   /*
-    APROBAR FINALIZACIÓN DEL TRABAJO
+    APROBAR FINALIZACIÃ“N DEL TRABAJO
   */
 
   async function aprobarFinalizacionTrabajo() {
@@ -2546,7 +2548,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       solicitud.completion_review_status !== "pending"
     ) {
       setError(
-        T("Este trabajo no está pendiente de tu aprobación.")
+        T("Este trabajo no estÃ¡ pendiente de tu aprobaciÃ³n.")
       );
       return;
     }
@@ -2560,7 +2562,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
     if (
       !window.confirm(
-        T("¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?")
+        T("Â¿Confirmas que el trabajo fue realizado correctamente y deseas aprobarlo como completado?")
       )
     ) {
       return;
@@ -2593,7 +2595,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       );
     } catch (err) {
       console.error(
-        "Error aprobando finalización del trabajo:",
+        "Error aprobando finalizaciÃ³n del trabajo:",
         err
       );
 
@@ -2610,7 +2612,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   }
 
   /*
-    ENVIAR RESEÑA
+    ENVIAR RESEÃ‘A
   */
 
   async function enviarResena(
@@ -2624,7 +2626,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         "completed"
     ) {
       setError(
-        T("Este trabajo todavía no puede ser calificado.")
+        T("Este trabajo todavÃ­a no puede ser calificado.")
       );
 
       return;
@@ -2660,7 +2662,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       rating > 5
     ) {
       setError(
-        T("Selecciona una calificación de 1 a 5 estrellas.")
+        T("Selecciona una calificaciÃ³n de 1 a 5 estrellas.")
       );
 
       return;
@@ -2688,7 +2690,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         !user
       ) {
         throw new Error(
-          T("Debes iniciar sesión para enviar una reseña.")
+          T("Debes iniciar sesiÃ³n para enviar una reseÃ±a.")
         );
       }
 
@@ -2722,7 +2724,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         existingReview
       ) {
         setError(
-          T("Ya enviaste una reseña para este trabajo.")
+          T("Ya enviaste una reseÃ±a para este trabajo.")
         );
 
         await cargarDetalle(
@@ -2779,7 +2781,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       );
 
       setMensaje(
-        T("Gracias. Tu calificación fue enviada correctamente.")
+        T("Gracias. Tu calificaciÃ³n fue enviada correctamente.")
       );
     } catch (err) {
       console.error(
@@ -2789,7 +2791,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       setError(
         err instanceof Error
           ? err.message
-          : T("No se pudo enviar la reseña.")
+          : T("No se pudo enviar la reseÃ±a.")
       );
     } finally {
       setEnviandoReview(
@@ -2885,7 +2887,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       imagenes.length > 10
     ) {
       setError(
-        T("Puedes adjuntar un máximo de 10 fotos por reclamo.")
+        T("Puedes adjuntar un mÃ¡ximo de 10 fotos por reclamo.")
       );
       event.target.value = "";
       return;
@@ -2895,7 +2897,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       videos.length > 2
     ) {
       setError(
-        T("Puedes adjuntar un máximo de 2 videos por reclamo.")
+        T("Puedes adjuntar un mÃ¡ximo de 2 videos por reclamo.")
       );
       event.target.value = "";
       return;
@@ -3053,7 +3055,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
     if (!puedeReportar) {
       setError(
-        T("Este trabajo todavía no puede reportarse.")
+        T("Este trabajo todavÃ­a no puede reportarse.")
       );
       return;
     }
@@ -3078,7 +3080,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     }
 
     if (descripcionReclamo.trim().length < 5) {
-      setError(T("Explica brevemente qué ocurrió con el trabajo."));
+      setError(T("Explica brevemente quÃ© ocurriÃ³ con el trabajo."));
       return;
     }
 
@@ -3087,7 +3089,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
       explicacionEvidenciaCliente.trim().length < 5
     ) {
       setError(
-        "Explica brevemente qué muestran las fotos o videos que adjuntaste."
+        "Explica brevemente quÃ© muestran las fotos o videos que adjuntaste."
       );
       return;
     }
@@ -3101,7 +3103,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         await supabase.auth.getUser();
 
       if (userError || !user) {
-        throw new Error(T("Debes iniciar sesión para reportar un problema."));
+        throw new Error(T("Debes iniciar sesiÃ³n para reportar un problema."));
       }
 
       const { data: existingClaim, error: existingClaimError } =
@@ -3225,20 +3227,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         "completed"
     ) {
       if (!solicitud.completed_at) {
-        return T("El trabajo está completado y el chat ya está cerrado.");
+        return T("El trabajo estÃ¡ completado y el chat ya estÃ¡ cerrado.");
       }
 
-      return T("El período de 12 horas después de completar el trabajo terminó. El historial permanece disponible.");
+      return T("El perÃ­odo de 12 horas despuÃ©s de completar el trabajo terminÃ³. El historial permanece disponible.");
     }
 
     if (
       solicitud?.status ===
         "cancelled"
     ) {
-      return T("Este trabajo fue cancelado. El chat está cerrado.");
+      return T("Este trabajo fue cancelado. El chat estÃ¡ cerrado.");
     }
 
-    return T("El chat estará disponible cuando el trabajo esté contratado.");
+    return T("El chat estarÃ¡ disponible cuando el trabajo estÃ© contratado.");
   }
 
   async function enviarMensajeChat() {
@@ -3581,43 +3583,43 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
   const etapas = [
     {
       numero: 1,
-      icono: "🤝",
+      icono: "ðŸ¤",
       titulo: T("Contratado"),
       descripcion:
         T("Profesional contratado"),
     },
     {
       numero: 2,
-      icono: "🚗",
+      icono: "ðŸš—",
       titulo: T("En camino"),
       descripcion:
-        T("Va rumbo a tu ubicación"),
+        T("Va rumbo a tu ubicaciÃ³n"),
     },
     {
       numero: 3,
-      icono: "📍",
-      titulo: T("Llegó"),
+      icono: "ðŸ“",
+      titulo: T("LlegÃ³"),
       descripcion:
         T("Ya se encuentra en el lugar"),
     },
     {
       numero: 4,
-      icono: "🛠️",
+      icono: "ðŸ› ï¸",
       titulo:
         T("Trabajo iniciado"),
       descripcion:
-        T("El servicio está en proceso"),
+        T("El servicio estÃ¡ en proceso"),
     },
     {
       numero: 5,
-      icono: "🔎",
-      titulo: T("En revisión"),
+      icono: "ðŸ”Ž",
+      titulo: T("En revisiÃ³n"),
       descripcion:
-        T("Pendiente de tu aprobación"),
+        T("Pendiente de tu aprobaciÃ³n"),
     },
     {
       numero: 6,
-      icono: "✅",
+      icono: "âœ…",
       titulo: T("Completado"),
       descripcion:
         T("Trabajo terminado"),
@@ -3642,7 +3644,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           }
           className="font-bold text-blue-700 hover:underline"
         >
-          {T("← Volver a mis solicitudes")}
+          {T("â† Volver a mis solicitudes")}
         </button>
 
         {/* SOLICITUD */}
@@ -3651,17 +3653,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           <section className="mt-6 rounded-2xl border border-red-300 bg-red-50 px-5 py-4 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-600 text-lg font-black text-white">
-                ✕
+                âœ•
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wide text-red-700">
-                  {T("Resolución de RELYDO")}
+                  {T("ResoluciÃ³n de RELYDO")}
                 </p>
                 <p className="mt-1 font-extrabold text-red-950">
-                  {T("Trabajo cerrado por resolución de RELYDO")}
+                  {T("Trabajo cerrado por resoluciÃ³n de RELYDO")}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-red-800">
-                  {T("Este trabajo fue cerrado después de que RELYDO resolviera el reclamo. Consulta el reclamo más abajo para ver la decisión y los detalles financieros.")}
+                  {T("Este trabajo fue cerrado despuÃ©s de que RELYDO resolviera el reclamo. Consulta el reclamo mÃ¡s abajo para ver la decisiÃ³n y los detalles financieros.")}
                 </p>
               </div>
             </div>
@@ -3697,7 +3699,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-sm text-slate-500">
-                {T("📍 Ubicación")}
+                {T("ðŸ“ UbicaciÃ³n")}
               </p>
 
               <p className="mt-1 font-extrabold text-slate-900">
@@ -3709,7 +3711,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-sm text-slate-500">
-                {T("📅 Fecha preferida")}
+                {T("ðŸ“… Fecha preferida")}
               </p>
 
               <p className="mt-1 font-extrabold text-slate-900">
@@ -3720,7 +3722,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-sm text-slate-500">
-                {T("🕐 Hora preferida")}
+                {T("ðŸ• Hora preferida")}
               </p>
 
               <p className="mt-1 font-extrabold text-slate-900">
@@ -3745,7 +3747,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className="flex items-start gap-4">
 
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500 text-2xl text-white">
-                  ⚠️
+                  âš ï¸
                 </div>
 
                 <div className="flex-1">
@@ -3755,11 +3757,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </p>
 
                   <h2 className="mt-2 text-2xl font-extrabold text-amber-950">
-                    {T("El profesional anterior ya no está disponible")}
+                    {T("El profesional anterior ya no estÃ¡ disponible")}
                   </h2>
 
                   <p className="mt-2 leading-7 text-amber-900">
-                    {T("Tu solicitud volvió a publicarse automáticamente para que otros profesionales puedan enviarte nuevos presupuestos. No necesitas crear otra solicitud.")}
+                    {T("Tu solicitud volviÃ³ a publicarse automÃ¡ticamente para que otros profesionales puedan enviarte nuevos presupuestos. No necesitas crear otra solicitud.")}
                   </p>
 
                   <div className="mt-5 rounded-2xl border border-amber-200 bg-white p-5">
@@ -3769,7 +3771,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
 
                     <p className="mt-1 text-sm text-slate-600">
-                      {T("Cuando otro profesional compatible envíe una oferta, aparecerá automáticamente en esta página.")}
+                      {T("Cuando otro profesional compatible envÃ­e una oferta, aparecerÃ¡ automÃ¡ticamente en esta pÃ¡gina.")}
                     </p>
 
                   </div>
@@ -3800,10 +3802,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {T("Seguimiento en vivo")}
                   </p>
                   <p className="mt-1 font-extrabold text-slate-950">
-                    ✅ {T("Trabajo completado")}
+                    âœ… {T("Trabajo completado")}
                   </p>
                 </div>
-                <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
               </div>
             </summary>
             <section className={panelesCerrados
@@ -3868,7 +3870,14 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
             <div className="mt-9">
 
-              <div className="grid grid-cols-6 gap-1">
+              <div
+                className="grid grid-cols-6 gap-1"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+                  gap: "0.25rem",
+                }}
+              >
 
                 {etapas.map(
                   (etapa) => {
@@ -3886,6 +3895,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           etapa.numero
                         }
                         className="relative text-center"
+                        style={{ minWidth: 0, overflowWrap: "anywhere" }}
                       >
 
                         {etapa.numero <
@@ -3950,15 +3960,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="max-w-3xl">
                       <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-                        {T("Pendiente de tu aprobación")}
+                        {T("Pendiente de tu aprobaciÃ³n")}
                       </p>
 
                       <h3 className="mt-2 text-xl font-black text-slate-950">
-                        {T("Trabajo listo para revisión")}
+                        {T("Trabajo listo para revisiÃ³n")}
                       </h3>
 
                       <p className="mt-2 text-sm leading-6 text-slate-700">
-                        {T("Revisa la evidencia final que aparece debajo. Si todo está correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.")}
+                        {T("Revisa la evidencia final que aparece debajo. Si todo estÃ¡ correcto, aprueba el trabajo. Si existe un problema, utiliza el sistema de reclamos.")}
                       </p>
                     </div>
 
@@ -3973,7 +3983,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     >
                       {aprobandoFinalizacion
                         ? T("Aprobando trabajo...")
-                        : T("✓ Aprobar trabajo")}
+                        : T("âœ“ Aprobar trabajo")}
                     </button>
                   </div>
                 </div>
@@ -3983,7 +3993,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </details>
         )}
 
-        {/* RESEÑA */}
+        {/* RESEÃ‘A */}
 
         {solicitud.status ===
           "completed" &&
@@ -4003,7 +4013,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-extrabold text-slate-900">
-                      ✓ {T("Gracias por tu calificación")}
+                      âœ“ {T("Gracias por tu calificaciÃ³n")}
                     </p>
                     <div className="mt-1 text-xl">
                       {[1, 2, 3, 4, 5].map((estrella) => (
@@ -4015,7 +4025,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                               : "text-slate-300"
                           }
                         >
-                          ★
+                          â˜…
                         </span>
                       ))}
                     </div>
@@ -4036,7 +4046,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </h2>
 
                   <p className="mt-2 text-slate-600">
-                    {T("¿Cómo fue tu experiencia con")}{" "}
+                    {T("Â¿CÃ³mo fue tu experiencia con")}{" "}
                     <strong>
                       {ofertaSeleccionada.profesional
                         ?.business_name ||
@@ -4053,7 +4063,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   >
 
                     <p className="font-bold text-slate-900">
-                      {T("Tu calificación *")}
+                      {T("Tu calificaciÃ³n *")}
                     </p>
 
                     <div className="mt-3 flex gap-2">
@@ -4084,7 +4094,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                                 : "text-slate-300"
                             }`}
                           >
-                            ★
+                            â˜…
                           </button>
                         )
                       )}
@@ -4130,7 +4140,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         maxLength={
                           1000
                         }
-                        placeholder={T("Cuéntanos cómo fue el servicio...")}
+                        placeholder={T("CuÃ©ntanos cÃ³mo fue el servicio...")}
                         className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
                       />
 
@@ -4150,8 +4160,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       className="mt-6 w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-extrabold text-white hover:bg-blue-800 disabled:opacity-50"
                     >
                       {enviandoReview
-                        ? T("Enviando calificación...")
-                        : T("Enviar reseña")}
+                        ? T("Enviando calificaciÃ³n...")
+                        : T("Enviar reseÃ±a")}
                     </button>
 
                   </form>
@@ -4164,7 +4174,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
         {mensaje && (
           <div className="mt-6 rounded-2xl border border-green-300 bg-green-50 p-5 font-bold text-green-800">
-            ✅ {mensaje}
+            âœ… {mensaje}
           </div>
         )}
 
@@ -4174,7 +4184,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </div>
         )}
 
-        {/* CANCELACIÓN */}
+        {/* CANCELACIÃ“N */}
 
         {solicitud.status ===
         "cancelled" && !canceladoPorRelydo ? (
@@ -4186,27 +4196,27 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             <div className="flex items-start gap-4">
 
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-600 text-2xl text-white">
-                ✕
+                âœ•
               </div>
 
               <div className="flex-1">
 
                 <p className="text-sm font-extrabold uppercase tracking-wide text-red-700">
                   {canceladoPorRelydo
-                    ? T("Resolución de RELYDO")
+                    ? T("ResoluciÃ³n de RELYDO")
                     : T("Solicitud cancelada")}
                 </p>
 
                 <h2 className="mt-2 text-2xl font-extrabold text-red-900">
                   {canceladoPorRelydo
-                    ? "Trabajo cancelado por resolución de RELYDO"
+                    ? "Trabajo cancelado por resoluciÃ³n de RELYDO"
                     : T("Este trabajo fue cancelado")}
                 </h2>
 
                 <p className="mt-2 text-red-800">
                   {canceladoPorRelydo
-                    ? T("RELYDO cerró este trabajo después de resolver el reclamo. El servicio ya no continuará.")
-                    : T("Esta solicitud ya no está activa.")}
+                    ? T("RELYDO cerrÃ³ este trabajo despuÃ©s de resolver el reclamo. El servicio ya no continuarÃ¡.")
+                    : T("Esta solicitud ya no estÃ¡ activa.")}
                 </p>
 
                 {solicitud.cancellation_reason && (
@@ -4214,7 +4224,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                     <p className="text-sm font-bold text-slate-500">
                       {canceladoPorRelydo
-                        ? T("Decisión")
+                        ? T("DecisiÃ³n")
                         : T("Motivo")}
                     </p>
 
@@ -4244,7 +4254,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                         <div className="rounded-xl bg-white p-4">
                           <p className="text-sm font-bold text-slate-500">
-                            {T("Compensación al profesional")}
+                            {T("CompensaciÃ³n al profesional")}
                           </p>
                           <p className="mt-1 text-2xl font-black text-slate-900">
                             ${compensacionProfesionalReclamo.toFixed(2)}
@@ -4255,7 +4265,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {claim?.resolution_notes && (
                         <div className="mt-4 rounded-xl bg-white p-4">
                           <p className="text-sm font-bold text-slate-500">
-                            {T("Nota de resolución")}
+                            {T("Nota de resoluciÃ³n")}
                           </p>
                           <p className="mt-2 whitespace-pre-wrap font-semibold leading-6 text-slate-800">
                             {resolutionNoteText(language, claim.resolution_notes)}
@@ -4277,10 +4287,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               {T("Trabajo iniciado")}
             </p>
             <h2 className="mt-2 text-xl font-black text-amber-950">
-              {T("La cancelación automática ya no está disponible")}
+              {T("La cancelaciÃ³n automÃ¡tica ya no estÃ¡ disponible")}
             </h2>
             <p className="mt-2 leading-7 text-amber-900">
-              {T("El profesional ya comenzó el servicio. Si existe un problema con el trabajo, deberá gestionarse mediante el sistema de reclamos de RELYDO.")}
+              {T("El profesional ya comenzÃ³ el servicio. Si existe un problema con el trabajo, deberÃ¡ gestionarse mediante el sistema de reclamos de RELYDO.")}
             </p>
 
             <button
@@ -4306,7 +4316,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               }}
               className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-5 py-3.5 font-black text-white transition hover:bg-amber-700 sm:w-auto"
             >
-              {T("⚠️ Iniciar reclamo")}
+              {T("âš ï¸ Iniciar reclamo")}
             </button>
           </section>
         ) : null}
@@ -4326,18 +4336,18 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="font-extrabold text-slate-950">
-                    {T("📷 Fotos de la solicitud")}
+                    {T("ðŸ“· Fotos de la solicitud")}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     {T("Fotos que adjuntaste al crear esta solicitud.")}
                   </p>
                 </div>
-                <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
               </div>
             </summary>
             <section className="mt-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <h2 className="text-xl font-extrabold text-slate-900">
-              {T("📷 Fotos de la solicitud")}
+              {T("ðŸ“· Fotos de la solicitud")}
             </h2>
 
             <p className="mt-1 text-sm text-slate-600">
@@ -4374,11 +4384,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
         {changeOrderPendiente && (
           <section className="mt-6 overflow-hidden rounded-3xl border-2 border-violet-300 bg-white shadow-xl">
             <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("💰 Cambio de presupuesto solicitado")}</span>
+              <span>{T("ðŸ’° Cambio de presupuesto solicitado")}</span>
             </div>
             <div className="bg-violet-700 px-7 py-5 text-white">
               <p className="text-sm font-black uppercase tracking-wide text-violet-100">
-                {T("💰 Cambio de presupuesto solicitado")}
+                {T("ðŸ’° Cambio de presupuesto solicitado")}
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
@@ -4448,7 +4458,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     <div className="my-4 border-t border-slate-200" />
 
                     <p className="text-sm font-black uppercase tracking-wide text-slate-500">
-                      {T("Explicación del profesional")}
+                      {T("ExplicaciÃ³n del profesional")}
                     </p>
 
                     <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
@@ -4464,9 +4474,9 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     ? `By accepting, RELYDO will send you to Stripe secure checkout to pay the additional $${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)} plus the applicable service fee.`
-                    : `Al aceptar, RELYDO te enviará al checkout seguro de Stripe para pagar los $${Number(
+                    : `Al aceptar, RELYDO te enviarÃ¡ al checkout seguro de Stripe para pagar los $${Number(
                         changeOrderPendiente.additional_amount
-                      ).toFixed(2)} adicionales más la tarifa de servicio correspondiente.`}
+                      ).toFixed(2)} adicionales mÃ¡s la tarifa de servicio correspondiente.`}
                 </p>
               </div>
 
@@ -4490,7 +4500,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {respondiendoChangeOrderId ===
                   changeOrderPendiente.id
                     ? T("Procesando...")
-                    : T("✕ Rechazar cambio")}
+                    : T("âœ• Rechazar cambio")}
                 </button>
 
                 <button
@@ -4513,10 +4523,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   changeOrderPendiente.id
                     ? T("Procesando...")
                     : language === "en"
-                    ? `✓ Accept +$${Number(
+                    ? `âœ“ Accept +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`
-                    : `✓ Aceptar +$${Number(
+                    : `âœ“ Aceptar +$${Number(
                         changeOrderPendiente.additional_amount
                       ).toFixed(2)}`}
                 </button>
@@ -4551,11 +4561,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   <p className="mt-1 font-extrabold text-slate-950">
                     {ultimoChangeOrder.status === "accepted" &&
                     ultimoChangeOrder.payment_status === "paid"
-                      ? T("✓ Cambio pagado")
+                      ? T("âœ“ Cambio pagado")
                       : ultimoChangeOrder.status === "accepted"
-                      ? T("✓ Cambio de presupuesto aceptado")
+                      ? T("âœ“ Cambio de presupuesto aceptado")
                       : ultimoChangeOrder.status === "rejected"
-                      ? T("✕ Cambio de presupuesto rechazado")
+                      ? T("âœ• Cambio de presupuesto rechazado")
                       : T("Cambio de presupuesto cancelado")}
                   </p>
                 </div>
@@ -4572,7 +4582,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
                   </div>
                   <span className="text-xl text-slate-500 transition group-open:rotate-90">
-                    ›
+                    â€º
                   </span>
                 </div>
               </div>
@@ -4598,10 +4608,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               >
                 {ultimoChangeOrder.status ===
                 "accepted"
-                  ? T("✓ Cambio de presupuesto aceptado")
+                  ? T("âœ“ Cambio de presupuesto aceptado")
                   : ultimoChangeOrder.status ===
                     "rejected"
-                  ? T("✕ Cambio de presupuesto rechazado")
+                  ? T("âœ• Cambio de presupuesto rechazado")
                   : T("Cambio de presupuesto cancelado")}
               </p>
 
@@ -4635,7 +4645,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   "paid" && (
                   <div className="mt-4 rounded-2xl border border-blue-200 bg-white/80 p-4">
                     <p className="font-black text-blue-800">
-                      {T("✓ Cambio pagado")}
+                      {T("âœ“ Cambio pagado")}
                     </p>
                     <p className="mt-1 text-sm font-bold leading-6 text-blue-800">
                       {language === "en"
@@ -4643,10 +4653,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             ultimoChangeOrder.additional_customer_total_amount ||
                               0
                           ).toFixed(2)}. This amount is already included in the job total summary.`
-                        : `Stripe confirmó el pago adicional de $${Number(
+                        : `Stripe confirmÃ³ el pago adicional de $${Number(
                             ultimoChangeOrder.additional_customer_total_amount ||
                               0
-                          ).toFixed(2)}. Este monto ya está incluido en el resumen total del trabajo.`}
+                          ).toFixed(2)}. Este monto ya estÃ¡ incluido en el resumen total del trabajo.`}
                     </p>
                   </div>
                 )}
@@ -4657,7 +4667,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   "paid" && (
                 <div className="mt-4">
                   <p className="text-sm font-bold leading-6 text-blue-800">
-                    {T("Tu aprobación quedó registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.")}
+                    {T("Tu aprobaciÃ³n quedÃ³ registrada. Para completar el cambio, paga ahora el monto adicional mediante Stripe.")}
                   </p>
 
                   <button
@@ -4677,7 +4687,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {pagandoChangeOrderId ===
                     ultimoChangeOrder.id
                       ? T("Abriendo pago seguro...")
-                      : `💳 Pagar adicional · $${redondearDinero(
+                      : `ðŸ’³ Pagar adicional Â· $${redondearDinero(
                           Number(
                             ultimoChangeOrder.additional_amount
                           ) +
@@ -4704,7 +4714,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           </details>
         )}
 
-        {/* CANCELACIÓN DISPONIBLE — DEBAJO DEL CHANGE ORDER */}
+        {/* CANCELACIÃ“N DISPONIBLE â€” DEBAJO DEL CHANGE ORDER */}
 
         {puedeCancelar &&
           !(
@@ -4713,7 +4723,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
           ) && (
           <section id="reclamos" className="mt-6 rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
             <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("¿Ya no necesitas el servicio?")}</span>
+              <span>{T("Â¿Ya no necesitas el servicio?")}</span>
             </div>
 
             {!mostrarCancelacion ? (
@@ -4726,7 +4736,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   </h2>
 
                   <p className="mt-2 text-sm text-slate-600">
-                    {T("La cancelación dejará de estar disponible cuando el profesional haya iniciado el trabajo.")}
+                    {T("La cancelaciÃ³n dejarÃ¡ de estar disponible cuando el profesional haya iniciado el trabajo.")}
                   </p>
 
                 </div>
@@ -4757,7 +4767,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </p>
 
                     <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                      {T("¿Por qué deseas cancelar?")}
+                      {T("Â¿Por quÃ© deseas cancelar?")}
                     </h2>
                   </div>
 
@@ -4773,7 +4783,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     }}
                     className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
                   >
-                    ✕
+                    âœ•
                   </button>
 
                 </div>
@@ -4797,12 +4807,12 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {T("Ya no necesito el servicio")}
                   </option>
 
-                  <option value="Encontré otra solución">
-                    {T("Encontré otra solución")}
+                  <option value="EncontrÃ© otra soluciÃ³n">
+                    {T("EncontrÃ© otra soluciÃ³n")}
                   </option>
 
-                  <option value="Cambió mi horario">
-                    {T("Cambió mi horario")}
+                  <option value="CambiÃ³ mi horario">
+                    {T("CambiÃ³ mi horario")}
                   </option>
 
                   <option value="El precio no me conviene">
@@ -4816,16 +4826,16 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                 <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
                   <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                    {T("Resumen de la cancelación")}
+                    {T("Resumen de la cancelaciÃ³n")}
                   </p>
 
                   {solicitud.status === "open" ? (
                     <div className="mt-3 rounded-xl bg-white p-4">
                       <p className="font-extrabold text-emerald-700">
-                        {T("Cancelación sin penalidad")}
+                        {T("CancelaciÃ³n sin penalidad")}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {T("Esta solicitud todavía no tiene un trabajo pagado en progreso.")}
+                        {T("Esta solicitud todavÃ­a no tiene un trabajo pagado en progreso.")}
                       </p>
                     </div>
                   ) : payment ? (
@@ -4868,7 +4878,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </div>
                   ) : (
                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                      {T("No encontramos el pago de este trabajo. Actualiza la página antes de cancelar.")}
+                      {T("No encontramos el pago de este trabajo. Actualiza la pÃ¡gina antes de cancelar.")}
                     </div>
                   )}
                 </div>
@@ -4906,7 +4916,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   >
                     {cancelando
                       ? T("Cancelando solicitud...")
-                      : T("Confirmar cancelación")}
+                      : T("Confirmar cancelaciÃ³n")}
                   </button>
 
                 </div>
@@ -4933,22 +4943,22 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-green-700">
-                    {T("✓ Profesional contratado")}
+                    {T("âœ“ Profesional contratado")}
                   </p>
                   <p className="mt-1 font-extrabold text-slate-950">
                     {ofertaSeleccionada.profesional?.business_name || T("Profesional RELYDO")}
                   </p>
                 </div>
-                <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
               </div>
             </summary>
             <section className="mt-2 rounded-3xl border-2 border-green-300 bg-green-50 p-7">
             <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("✓ Profesional contratado")}</span>
+              <span>{T("âœ“ Profesional contratado")}</span>
             </div>
 
             <p className="text-sm font-extrabold uppercase tracking-wide text-green-700">
-              {T("✓ Profesional contratado")}
+              {T("âœ“ Profesional contratado")}
             </p>
 
             <h2 className="mt-2 text-2xl font-extrabold text-green-900">
@@ -5040,13 +5050,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                   {payment.status === "refunded" && (
                     <p className="mt-3 text-xs leading-5 text-emerald-700">
-                      {T("RELYDO procesó el reembolso correspondiente a este trabajo.")}
+                      {T("RELYDO procesÃ³ el reembolso correspondiente a este trabajo.")}
                     </p>
                   )}
 
                   {payment.status === "partially_refunded" && (
                     <p className="mt-3 text-xs leading-5 text-violet-700">
-                      {T("RELYDO procesó un reembolso parcial para este trabajo.")}
+                      {T("RELYDO procesÃ³ un reembolso parcial para este trabajo.")}
                     </p>
                   )}
                 </div>
@@ -5069,7 +5079,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="rounded-xl bg-white p-4">
                 <p className="text-sm text-green-700">
-                  {T("Duración estimada")}
+                  {T("DuraciÃ³n estimada")}
                 </p>
 
                 <p className="mt-1 font-extrabold text-green-900">
@@ -5081,11 +5091,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
               <div className="rounded-xl bg-white p-4">
                 <p className="text-sm text-green-700">
-                  {T("Valoración")}
+                  {T("ValoraciÃ³n")}
                 </p>
 
                 <p className="mt-1 font-extrabold text-green-900">
-                  ⭐{" "}
+                  â­{" "}
                   {Number(
                     ofertaSeleccionada.profesional
                       ?.average_rating ||
@@ -5123,7 +5133,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   }
                   className="ml-0 mt-3 rounded-xl bg-green-700 px-5 py-3 font-extrabold text-white hover:bg-green-800 sm:ml-3"
                 >
-                  {T("🔁 Contratar de nuevo")}
+                  {T("ðŸ” Contratar de nuevo")}
                 </button>
               )}
 
@@ -5150,7 +5160,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-extrabold text-slate-950">
-                      📷 {language === "en" ? "Photos and evidence" : "Fotos y evidencias"}
+                      ðŸ“· {language === "en" ? "Photos and evidence" : "Fotos y evidencias"}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {language === "en"
@@ -5161,13 +5171,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 sm:inline-block">
-                      {fotosSolicitud.length} {language === "en" ? "request photo(s)" : "foto(s) de solicitud"} ·{" "}
+                      {fotosSolicitud.length} {language === "en" ? "request photo(s)" : "foto(s) de solicitud"} Â·{" "}
                       {
                         evidenciasFinales.filter(
                           (item) => item.file_type === "image"
                         ).length
                       }{" "}
-                      {language === "en" ? "professional photo(s)" : "foto(s) del profesional"} ·{" "}
+                      {language === "en" ? "professional photo(s)" : "foto(s) del profesional"} Â·{" "}
                       {
                         evidenciasFinales.filter(
                           (item) => item.file_type === "video"
@@ -5176,7 +5186,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       video(s)
                     </span>
 
-                    <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                    <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
                   </div>
                 </div>
               </summary>
@@ -5186,7 +5196,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {fotosSolicitud.length > 0 && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                       <h2 className="text-xl font-extrabold text-slate-900">
-                        {T("📷 Fotos de la solicitud")}
+                        {T("ðŸ“· Fotos de la solicitud")}
                       </h2>
 
                       <p className="mt-1 text-sm text-slate-600">
@@ -5220,7 +5230,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-sm font-black uppercase tracking-wide text-blue-700">
-                          {T("📸 Evidencia del trabajo terminado")}
+                          {T("ðŸ“¸ Evidencia del trabajo terminado")}
                         </p>
 
                         <h2 className="mt-2 text-2xl font-black text-slate-950">
@@ -5228,7 +5238,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                         </h2>
 
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protección y la del profesional.")}
+                          {T("Esta evidencia fue registrada por el profesional al finalizar el servicio y queda asociada a este trabajo para tu protecciÃ³n y la del profesional.")}
                         </p>
                       </div>
 
@@ -5238,7 +5248,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             (item) => item.file_type === "image"
                           ).length
                         }{" "}
-                        foto(s) ·{" "}
+                        foto(s) Â·{" "}
                         {
                           evidenciasFinales.filter(
                             (item) => item.file_type === "video"
@@ -5286,8 +5296,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
                               <span className="text-sm font-black text-slate-800">
                                 {item.file_type === "video"
-                                  ? T("🎥 Video")
-                                  : T("📷 Foto")}
+                                  ? T("ðŸŽ¥ Video")
+                                  : T("ðŸ“· Foto")}
                               </span>
 
                               <span className="text-xs font-semibold text-slate-500">
@@ -5301,7 +5311,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                     <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
                       <p className="text-sm font-bold leading-6 text-blue-900">
-                        {T("🔒 Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
+                        {T("ðŸ”’ Esta evidencia forma parte del registro del trabajo y no puede ser modificada desde esta pantalla.")}
                       </p>
                     </div>
                   </div>
@@ -5330,10 +5340,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-red-700">
-                    {claim ? T("⚠️ Problema reportado") : T("Reportar un problema")}
+                    {claim ? T("âš ï¸ Problema reportado") : T("Reportar un problema")}
                   </p>
                   <p className="mt-1 font-extrabold text-slate-950">
-                    {claim ? T("Tu reclamo quedó registrado") : T("¿Hubo un problema con el servicio?")}
+                    {claim ? T("Tu reclamo quedÃ³ registrado") : T("Â¿Hubo un problema con el servicio?")}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -5342,13 +5352,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {claim.status === "open"
                         ? (language === "en" ? "Open" : "Abierto")
                         : claim.status === "reviewing"
-                        ? T("En revisión")
+                        ? T("En revisiÃ³n")
                         : claim.status === "resolved"
                         ? (language === "en" ? "Resolved" : "Resuelto")
                         : (language === "en" ? "Rejected" : "Rechazado")}
                     </span>
                   )}
-                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
                 </div>
               </div>
             </summary>
@@ -5357,17 +5367,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               className="mt-2 rounded-3xl border border-red-200 bg-white p-8 shadow-xl"
             >
             <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("¿Hubo un problema con el servicio?")}</span>
+              <span>{T("Â¿Hubo un problema con el servicio?")}</span>
             </div>
             {claim ? (
               <>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-black uppercase tracking-wide text-red-700">
-                      {T("⚠️ Problema reportado")}
+                      {T("âš ï¸ Problema reportado")}
                     </p>
                     <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
-                      {T("Tu reclamo quedó registrado")}
+                      {T("Tu reclamo quedÃ³ registrado")}
                     </h2>
                     <p className="mt-2 text-slate-600">
                       {T("RELYDO conserva este reporte asociado al trabajo.")}
@@ -5378,7 +5388,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {claim.status === "open"
                       ? (language === "en" ? "Open" : "Abierto")
                       : claim.status === "reviewing"
-                      ? T("En revisión")
+                      ? T("En revisiÃ³n")
                       : claim.status === "resolved"
                       ? (language === "en" ? "Resolved" : "Resuelto")
                       : (language === "en" ? "Rejected" : "Rechazado")}
@@ -5394,7 +5404,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {claim.description && (
                     <>
                       <p className="mt-5 text-sm font-bold text-red-700">
-                        {T("Descripción")}
+                        {T("DescripciÃ³n")}
                       </p>
                       <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
                         {claim.description}
@@ -5406,7 +5416,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 {claim.status === "resolved" && (
                   <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-6">
                     <p className="text-sm font-black uppercase tracking-wide text-green-700">
-                      {T("✅ Reclamo resuelto")}
+                      {T("âœ… Reclamo resuelto")}
                     </p>
 
                     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -5423,7 +5433,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                       <div className="rounded-xl bg-white p-4">
                         <p className="text-sm font-bold text-slate-500">
-                          {T("Compensación al profesional")}
+                          {T("CompensaciÃ³n al profesional")}
                         </p>
                         <p className="mt-1 text-xl font-black text-slate-900">
                           ${Number(
@@ -5436,7 +5446,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     {claim.resolution_notes && (
                       <div className="mt-4 rounded-xl bg-white p-4">
                         <p className="text-sm font-bold text-slate-500">
-                          {T("Resolución de RELYDO")}
+                          {T("ResoluciÃ³n de RELYDO")}
                         </p>
                         <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-700">
                           {resolutionNoteText(language, claim.resolution_notes)}
@@ -5449,10 +5459,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             ) : solicitud.status === "cancelled" ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                 <p className="font-extrabold text-slate-900">
-                  {T("Este trabajo está cerrado.")}
+                  {T("Este trabajo estÃ¡ cerrado.")}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {T("No se pueden abrir nuevos reclamos después de que el trabajo ha sido cancelado.")}
+                  {T("No se pueden abrir nuevos reclamos despuÃ©s de que el trabajo ha sido cancelado.")}
                 </p>
               </div>
             ) : (
@@ -5463,7 +5473,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {T("Abrir reclamo")}
                     </p>
                     <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                      {T("Cuéntanos qué ocurrió")}
+                      {T("CuÃ©ntanos quÃ© ocurriÃ³")}
                     </h2>
                   </div>
 
@@ -5479,7 +5489,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     }}
                     className="rounded-lg px-3 py-2 font-bold text-slate-500 hover:bg-slate-100"
                   >
-                    ✕
+                    âœ•
                   </button>
                 </div>
 
@@ -5495,7 +5505,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     
                     <option value="Trabajo incompleto">{T("Trabajo incompleto")}</option>
                     <option value="Calidad del trabajo">{T("Calidad del trabajo")}</option>
-                    <option value="Daños durante el servicio">{T("Daños durante el servicio")}</option>
+                    <option value="DaÃ±os durante el servicio">{T("DaÃ±os durante el servicio")}</option>
                     <option value="Cobro adicional no acordado">{T("Cobro adicional no acordado")}</option>
                     <option value="Conducta del profesional">{T("Conducta del profesional")}</option>
                     <option value="Otro problema">{T("Otro problema")}</option>
@@ -5511,7 +5521,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     onChange={(e) => setDescripcionReclamo(e.target.value)}
                     rows={5}
                     maxLength={1500}
-                    placeholder={T("Describe qué ocurrió y qué parte del servicio tuvo el problema...")}
+                    placeholder={T("Describe quÃ© ocurriÃ³ y quÃ© parte del servicio tuvo el problema...")}
                     className="w-full resize-none rounded-xl border border-slate-300 p-4 text-slate-900"
                   />
                   <p className="mt-2 text-right text-sm text-slate-500">
@@ -5531,7 +5541,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </div>
 
                     <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-blue-700 bg-white px-5 py-3 font-extrabold text-blue-700 transition hover:bg-blue-50">
-                      {T("📎 Adjuntar archivos")}
+                      {T("ðŸ“Ž Adjuntar archivos")}
                       <input
                         type="file"
                         multiple
@@ -5548,7 +5558,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       {T("Formatos permitidos")}
                     </p>
                     <p className="mt-1">
-                      {T("Fotos: JPG, PNG, WEBP · Videos: MP4, WEBM, MOV · Máximo 50 MB por archivo.")}
+                      {T("Fotos: JPG, PNG, WEBP Â· Videos: MP4, WEBM, MOV Â· MÃ¡ximo 50 MB por archivo.")}
                     </p>
                   </div>
 
@@ -5563,8 +5573,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             <div className="min-w-0">
                               <p className="truncate font-bold text-slate-900">
                                 {file.type.startsWith("video/")
-                                  ? "🎥"
-                                  : "🖼️"}{" "}
+                                  ? "ðŸŽ¥"
+                                  : "ðŸ–¼ï¸"}{" "}
                                 {file.name}
                               </p>
 
@@ -5594,7 +5604,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                           (file) =>
                             file.type.startsWith("image/")
                         ).length}{" "}
-                        foto(s) ·{" "}
+                        foto(s) Â·{" "}
                         {evidenciasReclamo.filter(
                           (file) =>
                             file.type.startsWith("video/")
@@ -5608,11 +5618,11 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 {evidenciasReclamo.length > 0 && (
                   <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
                     <label className="mb-2 block font-extrabold text-slate-900">
-                      {T("Explicación de la evidencia *")}
+                      {T("ExplicaciÃ³n de la evidencia *")}
                     </label>
 
                     <p className="mb-3 text-sm text-slate-600">
-                      {T("Describe qué muestran las fotos o videos y qué debe considerar RELYDO al revisar tu reclamo.")}
+                      {T("Describe quÃ© muestran las fotos o videos y quÃ© debe considerar RELYDO al revisar tu reclamo.")}
                     </p>
 
                     <textarea
@@ -5623,7 +5633,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                       rows={5}
                       maxLength={1500}
                       disabled={enviandoReclamo}
-                      placeholder={T("Ejemplo: Estas fotos muestran la parte del trabajo que quedó incompleta y el daño que encontré después del servicio...")}
+                      placeholder={T("Ejemplo: Estas fotos muestran la parte del trabajo que quedÃ³ incompleta y el daÃ±o que encontrÃ© despuÃ©s del servicio...")}
                       className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-slate-900 outline-none focus:border-blue-500 disabled:bg-slate-100"
                     />
 
@@ -5689,10 +5699,10 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                   {T("Presupuestos recibidos")}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {T("Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.")}
+                  {T("Compara precio, tiempo de llegada, experiencia y valoraciÃ³n antes de elegir.")}
                 </p>
               </div>
-              <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+              <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
             </div>
           </summary>
 
@@ -5710,7 +5720,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               </h2>
 
               <p className="mt-2 text-slate-600">
-                {T("Compara precio, tiempo de llegada, experiencia y valoración antes de elegir.")}
+                {T("Compara precio, tiempo de llegada, experiencia y valoraciÃ³n antes de elegir.")}
               </p>
 
             </div>
@@ -5735,15 +5745,15 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-lg">
 
               <div className="text-5xl">
-                ⏳
+                â³
               </div>
 
               <h3 className="mt-4 text-2xl font-extrabold text-slate-900">
-                {T("Todavía no tienes presupuestos")}
+                {T("TodavÃ­a no tienes presupuestos")}
               </h3>
 
               <p className="mt-2 text-slate-600">
-                {T("Cuando un profesional envíe un presupuesto aparecerá aquí.")}
+                {T("Cuando un profesional envÃ­e un presupuesto aparecerÃ¡ aquÃ­.")}
               </p>
 
             </div>
@@ -5793,7 +5803,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                               {seleccionada && (
                                 <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
-                                  {T("✓ Contratado")}
+                                  {T("âœ“ Contratado")}
                                 </span>
                               )}
 
@@ -5809,7 +5819,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                               {oferta.profesional?.verified && (
                                 <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-                                  {T("✓ Verificado")}
+                                  {T("âœ“ Verificado")}
                                 </span>
                               )}
                             </div>
@@ -5834,7 +5844,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                               </p>
                             </div>
                             <span className="text-2xl text-slate-500 transition group-open:rotate-90">
-                              ›
+                              â€º
                             </span>
                           </div>
                         </div>
@@ -5854,7 +5864,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                             {seleccionada && (
                               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-800">
-                                {T("✓ Contratado")}
+                                {T("âœ“ Contratado")}
                               </span>
                             )}
 
@@ -5870,7 +5880,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                             {oferta.profesional?.verified && (
                               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-                                {T("✓ Verificado")}
+                                {T("âœ“ Verificado")}
                               </span>
                             )}
 
@@ -5926,7 +5936,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                         <div className="rounded-xl bg-slate-50 p-4">
                           <p className="text-sm text-slate-500">
-                            {T("🚗 Puede llegar")}
+                            {T("ðŸš— Puede llegar")}
                           </p>
 
                           <p className="mt-1 font-extrabold text-slate-900">
@@ -5939,7 +5949,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                         <div className="rounded-xl bg-slate-50 p-4">
                           <p className="text-sm text-slate-500">
-                            {T("⏱️ Duración")}
+                            {T("â±ï¸ DuraciÃ³n")}
                           </p>
 
                           <p className="mt-1 font-extrabold text-slate-900">
@@ -5952,7 +5962,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                         <div className="rounded-xl bg-slate-50 p-4">
                           <p className="text-sm text-slate-500">
-                            {T("⭐ Valoración")}
+                            {T("â­ ValoraciÃ³n")}
                           </p>
 
                           <p className="mt-1 font-extrabold text-slate-900">
@@ -5967,7 +5977,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
 
                         <div className="rounded-xl bg-slate-50 p-4">
                           <p className="text-sm text-slate-500">
-                            {T("🛠️ Experiencia")}
+                            {T("ðŸ› ï¸ Experiencia")}
                           </p>
 
                           <p className="mt-1 font-extrabold text-slate-900">
@@ -5978,8 +5988,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                                 ? "year"
                                 : "years"
                               : (oferta.profesional?.years_experience ?? 0) === 1
-                              ? "año"
-                              : "años"}
+                              ? "aÃ±o"
+                              : "aÃ±os"}
                           </p>
                         </div>
 
@@ -6046,7 +6056,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                             oferta.id
                               ? T("Contratando profesional...")
                               : paymentSettings
-                              ? `${T("Revisar y continuar")} · Total $${calcularMontosPago(
+                              ? `${T("Revisar y continuar")} Â· Total $${calcularMontosPago(
                                   oferta.price,
                                   paymentSettings
                                 ).customerTotalAmount.toFixed(2)}`
@@ -6085,13 +6095,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                      {T("🔒 Comunicación protegida")}
+                      {T("ðŸ”’ ComunicaciÃ³n protegida")}
                     </p>
                     <p className="mt-1 font-extrabold text-slate-950">
                       {T("Chat con")} {ofertaSeleccionada.profesional?.business_name || T("el profesional")}
                     </p>
                   </div>
-                  <span className="text-xl text-slate-500 transition group-open:rotate-90">›</span>
+                  <span className="text-xl text-slate-500 transition group-open:rotate-90">â€º</span>
                 </div>
               </summary>
               <section
@@ -6099,13 +6109,13 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 className="mt-2 scroll-mt-6 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-xl"
               >
               <div className="mb-5 font-extrabold text-slate-900">
-              <span>{T("🔒 Comunicación protegida")}</span>
+              <span>{T("ðŸ”’ ComunicaciÃ³n protegida")}</span>
             </div>
               <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-blue-300">
-                      {T("🔒 Comunicación protegida")}
+                      {T("ðŸ”’ ComunicaciÃ³n protegida")}
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
@@ -6116,7 +6126,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-300">
-                      {T("Los números de teléfono personales permanecen privados.")}
+                      {T("Los nÃºmeros de telÃ©fono personales permanecen privados.")}
                     </p>
                   </div>
 
@@ -6128,7 +6138,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     }`}
                   >
                     {chatRealtimeConectado
-                      ? T("● En tiempo real")
+                      ? T("â— En tiempo real")
                       : T("Conectando...")}
                   </span>
                 </div>
@@ -6137,20 +6147,20 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
               <div className="max-h-[430px] min-h-[260px] overflow-y-auto bg-slate-50 p-5">
                 {cargandoChat ? (
                   <div className="flex min-h-[220px] items-center justify-center text-sm font-bold text-slate-500">
-                    {T("Cargando conversación...")}
+                    {T("Cargando conversaciÃ³n...")}
                   </div>
                 ) : mensajesChat.length === 0 ? (
                   <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
                     <div className="text-4xl">
-                      💬
+                      ðŸ’¬
                     </div>
 
                     <p className="mt-3 font-black text-slate-800">
-                      {T("Todavía no hay mensajes")}
+                      {T("TodavÃ­a no hay mensajes")}
                     </p>
 
                     <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
-                      {T("Usa este chat para coordinar el servicio sin compartir tu número personal.")}
+                      {T("Usa este chat para coordinar el servicio sin compartir tu nÃºmero personal.")}
                     </p>
                   </div>
                 ) : (
@@ -6185,7 +6195,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                                 }`}
                               >
                                 {mio
-                                  ? T("Tú")
+                                  ? T("TÃº")
                                   : item.sender_role ===
                                     "admin"
                                   ? "RELYDO Admin"
@@ -6267,17 +6277,17 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                     </div>
 
                     <p className="mt-2 text-xs font-bold text-amber-700">
-                      {T("⏳ El chat permanecerá abierto hasta 12 horas después de que se completó el trabajo.")}
+                      {T("â³ El chat permanecerÃ¡ abierto hasta 12 horas despuÃ©s de que se completÃ³ el trabajo.")}
                     </p>
 
                     <p className="mt-2 text-xs leading-5 text-slate-500">
-                      {T("🔒 RELYDO mantiene privados los teléfonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
+                      {T("ðŸ”’ RELYDO mantiene privados los telÃ©fonos del cliente y del profesional. No compartas datos personales o formas de pago externas en el chat.")}
                     </p>
                   </>
                 ) : (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="font-black text-amber-950">
-                      {T("🔒 Chat bloqueado")}
+                      {T("ðŸ”’ Chat bloqueado")}
                     </p>
 
                     <p className="mt-1 text-sm leading-6 text-amber-900">
@@ -6310,7 +6320,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
             className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-3xl font-light text-white transition hover:bg-white/25"
             aria-label={language === "es" ? "Cerrar visor" : "Close viewer"}
           >
-            ×
+            Ã—
           </button>
 
           {fotosVisor.length > 1 && (
@@ -6324,7 +6334,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 className="absolute left-3 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-5xl font-light text-white transition hover:bg-white/25 sm:left-6"
                 aria-label={language === "es" ? "Foto anterior" : "Previous photo"}
               >
-                ‹
+                â€¹
               </button>
 
               <button
@@ -6336,7 +6346,7 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
                 className="absolute right-3 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-5xl font-light text-white transition hover:bg-white/25 sm:right-6"
                 aria-label={language === "es" ? "Foto siguiente" : "Next photo"}
               >
-                ›
+                â€º
               </button>
             </>
           )}
@@ -6357,6 +6367,8 @@ ${T("Al aceptar, continuarás al pago seguro de Stripe para pagar el monto adici
     </main>
   );
 }
+
+
 
 
 
