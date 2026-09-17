@@ -5179,8 +5179,8 @@ export default function TrabajoDetallePage() {
                               </p>
                               <p className="mt-1 text-sm leading-6 text-amber-900">
                                 {T(
-                                  "¿El trabajo que encontraste coincide razonablemente con lo presupuestado?",
-                                  "Does the job you found reasonably match the agreed quote?"
+                                  "¿El presupuesto acordado cubre el trabajo a realizar?",
+                                  "Does the agreed quote cover the work to be performed?"
                                 )}
                               </p>
 
