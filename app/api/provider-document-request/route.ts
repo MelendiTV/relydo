@@ -502,8 +502,9 @@ export async function POST(
         )
         .select(`
           user_id,
-          business_name
-        `)
+          business_name,
+          registration_source
+          `)
         .eq(
           "user_id",
           documentRequest.provider_id
@@ -570,7 +571,10 @@ export async function POST(
       ).replace(/\/+$/, "");
 
     const uploadUrl =
-      `${siteUrl}/login-profesional?documentos=1`;
+  providerProfile?.registration_source === "pro_mobile"
+    ? "relydopromobile://documents"
+    : `${siteUrl}/login-profesional?documentos=1`;
+      
 
     const documentName =
       documentLabel(

@@ -260,7 +260,8 @@ export default function RegistroProfesional() {
 
           data: {
             signup_type: "provider",
-
+            registration_source: "web",
+           
             legal_name: legalName,
             business_name: businessName,
             phone,
