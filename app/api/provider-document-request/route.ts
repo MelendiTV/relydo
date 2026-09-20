@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { createClient } from "@supabase/supabase-js";
+
 import { hasAdminPermission, isAdminRole } from "../../lib/adminPermissions";
+import { sendRelydoNotification } from "../../lib/serverNotifications";
+
+
 
 export const runtime = "nodejs";
 
@@ -572,6 +577,15 @@ export async function POST(
         documentRequest.document_type,
         language
       );
+      await sendRelydoNotification({
+  userId: documentRequest.provider_id,
+  type: "provider_document_requested",
+  title: "Documentación requerida",
+  titleEn: "Documentation required",
+  message: documentRequest.message,
+  messageEn: documentRequest.message,
+  url: "/panel-profesional?documentos=1",
+});
 
     const emailResult =
       sendEmail

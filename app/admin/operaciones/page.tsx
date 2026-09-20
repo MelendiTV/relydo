@@ -2482,11 +2482,8 @@ export default function AdminPage() {
 
       let avisoNotificacion =
         "";
-
-      if (
-        solicitudDocsPorEmail ||
-        solicitudDocsPorSms
-      ) {
+      
+      {
         const {
           data: {
             session,
