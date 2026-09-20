@@ -21,6 +21,15 @@ export async function POST(
   request: NextRequest
 ) {
   try {
+    const body = await request
+      .json()
+      .catch(() => ({}));
+
+    const source =
+      body?.source === "pro_mobile"
+        ? "pro_mobile"
+        : "web";
+
     const authorization =
       request.headers.get(
         "authorization"
@@ -322,6 +331,16 @@ export async function POST(
     const origin =
       request.nextUrl.origin;
 
+    const stripeRefreshUrl =
+      source === "pro_mobile"
+        ? "relydopromobile://settings?stripe=refresh"
+        : `${origin}/panel-profesional?stripe=refresh`;
+
+    const stripeReturnUrl =
+      source === "pro_mobile"
+        ? "relydopromobile://settings?stripe=return"
+        : `${origin}/panel-profesional?stripe=return`;
+
     const accountLink =
       await stripe.accountLinks.create(
         {
@@ -329,10 +348,10 @@ export async function POST(
             stripeAccountId,
 
           refresh_url:
-            `${origin}/panel-profesional?stripe=refresh`,
+            stripeRefreshUrl,
 
           return_url:
-            `${origin}/panel-profesional?stripe=return`,
+            stripeReturnUrl,
 
           type:
             "account_onboarding",
