@@ -331,14 +331,14 @@ export async function POST(
     const origin =
       request.nextUrl.origin;
 
-    const stripeRefreshUrl =
+   const stripeRefreshUrl =
       source === "pro_mobile"
-        ? "relydopromobile://settings?stripe=refresh"
+        ? `${origin}/api/stripe/connect/mobile-return`
         : `${origin}/panel-profesional?stripe=refresh`;
 
     const stripeReturnUrl =
       source === "pro_mobile"
-        ? "relydopromobile://settings?stripe=return"
+        ? `${origin}/api/stripe/connect/mobile-return`
         : `${origin}/panel-profesional?stripe=return`;
 
     const accountLink =
