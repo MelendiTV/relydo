@@ -1699,7 +1699,7 @@ function SolicitarTrabajoContenido() {
                     {text.servicios.poolSpa}
                   </option>
 
-                  <option value="pest_control">
+                  <option value="pest-control">
                     {text.servicios.pestControl}
                   </option>
 
