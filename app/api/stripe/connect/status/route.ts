@@ -153,9 +153,6 @@ export async function GET(
     let user: User | null =
       null;
 
-    let ultimoAuthError:
-      unknown = null;
-
     for (
       let intento = 0;
       intento < MAX_INTENTOS;
@@ -174,7 +171,6 @@ export async function GET(
         data.user
       ) {
         user = data.user;
-        ultimoAuthError = null;
         break;
       }
 
@@ -212,12 +208,8 @@ export async function GET(
         );
       }
 
-      ultimoAuthError =
-        error;
-
       console.warn(
-        `RELYDO Stripe status auth temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
-        error
+        `RELYDO Stripe status auth temporary failure (${intento + 1}/${MAX_INTENTOS}):`
       );
 
       await esperarReintento(
@@ -229,8 +221,7 @@ export async function GET(
       !user
     ) {
       console.error(
-        "RELYDO Stripe status auth failed after retries:",
-        ultimoAuthError
+        "RELYDO Stripe status auth failed after retries:"
       );
 
       return NextResponse.json(

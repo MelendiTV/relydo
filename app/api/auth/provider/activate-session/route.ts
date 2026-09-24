@@ -82,36 +82,6 @@ function obtenerStatusError(
   return null;
 }
 
-function obtenerMensajeError(
-  error: unknown
-) {
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error
-  ) {
-    const message = (
-      error as {
-        message?: unknown;
-      }
-    ).message;
-
-    if (
-      typeof message === "string"
-    ) {
-      return message;
-    }
-  }
-
-  if (
-    error instanceof Error
-  ) {
-    return error.message;
-  }
-
-  return String(error);
-}
-
 async function esperarReintento(
   intento: number
 ) {
@@ -245,9 +215,6 @@ async function validarSesionProfesional(
   let user:
     User | null = null;
 
-  let ultimoAuthError:
-    unknown = null;
-
   for (
     let intento = 0;
     intento < MAX_INTENTOS;
@@ -266,7 +233,6 @@ async function validarSesionProfesional(
       data.user
     ) {
       user = data.user;
-      ultimoAuthError = null;
       break;
     }
 
@@ -310,14 +276,7 @@ async function validarSesionProfesional(
       status === 401
     ) {
       console.warn(
-        "RELYDO provider auth session invalid:",
-        {
-          status,
-          message:
-            obtenerMensajeError(
-              error
-            ),
-        }
+        "RELYDO provider auth session invalid:"
       );
 
       return {
@@ -343,18 +302,8 @@ async function validarSesionProfesional(
       504, etc.
     */
 
-    ultimoAuthError =
-      error;
-
     console.warn(
-      `RELYDO provider auth check temporary failure (${intento + 1}/${MAX_INTENTOS}):`,
-      {
-        status,
-        message:
-          obtenerMensajeError(
-            error
-          ),
-      }
+      `RELYDO provider auth check temporary failure (${intento + 1}/${MAX_INTENTOS}):`
     );
 
     if (
@@ -369,8 +318,7 @@ async function validarSesionProfesional(
 
   if (!user) {
     console.error(
-      "RELYDO provider auth check failed after retries:",
-      ultimoAuthError
+      "RELYDO provider auth check failed after retries:"
     );
 
     return {
