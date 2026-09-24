@@ -1,3 +1,4 @@
+import { financialStripe, reserveJobResolution, FinancialGuardError } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -15,6 +16,8 @@ const supabaseAdmin = createClient(
     },
   }
 );
+
+const settlement = financialStripe(stripe, supabaseAdmin, "customer_cancel");
 
 function dinero(valor: unknown) {
   const numero = Number(valor);
@@ -214,7 +217,7 @@ async function refundAcrossFundingSources({
 
     const refundCents = Math.min(remainingCents, liveCents);
 
-    const refund = await stripe.refunds.create(
+    const refund = await settlement.refund(
       {
         payment_intent: source.stripe_payment_intent_id,
         amount: refundCents,
@@ -446,7 +449,7 @@ async function transferCancellationAwardAcrossFundingSources({
       );
     }
 
-    const transfer = await stripe.transfers.create(
+    const transfer = await settlement.transfer(
       {
         amount: transferCents,
         currency: currency.toLowerCase(),
@@ -616,6 +619,8 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    await reserveJobResolution(supabaseAdmin, requestId, "customer_cancel", {}, stripe);
 
     if (serviceRequest.status === "cancelled") {
       return NextResponse.json({
@@ -917,7 +922,7 @@ export async function POST(request: NextRequest) {
             customerRefundAmount
           );
 
-          const refund = await stripe.refunds.create(
+          const refund = await settlement.refund(
             {
               payment_intent:
                 originalPayment.provider_payment_id,
@@ -1602,7 +1607,7 @@ export async function POST(request: NextRequest) {
           }
 
           const transfer =
-            await stripe.transfers.create(
+            await settlement.transfer(
               {
                 amount:
                   expectedProviderCents,
@@ -1725,7 +1730,7 @@ export async function POST(request: NextRequest) {
 
       if (refundRemaining > 0) {
         const refund =
-          await stripe.refunds.create(
+          await settlement.refund(
             {
               payment_intent:
                 payment.provider_payment_id!,
@@ -1926,6 +1931,7 @@ export async function POST(request: NextRequest) {
       refundStatus,
     });
   } catch (error) {
+    if (error instanceof FinancialGuardError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error(
       "Error procesando cancelación del cliente:",
       error

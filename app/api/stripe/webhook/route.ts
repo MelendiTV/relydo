@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { confirmChangeOrderPayment } from "../../../lib/changeOrderPayments";
 
 export const runtime = "nodejs";
 
@@ -33,11 +34,26 @@ export async function POST(request: NextRequest) {
       signature,
       webhookSecret
     );
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Invalid Stripe signature." },
       { status: 400 }
     );
+  }
+
+  // Mobile PaymentSheet does not emit checkout.session.completed.
+  if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    if (intent.metadata?.payment_type !== "change_order") {
+      return NextResponse.json({ received: true, ignored: true });
+    }
+    try {
+      const result = await confirmChangeOrderPayment({ paymentIntentId: intent.id });
+      return NextResponse.json({ received: true, processed: true, ...result });
+    } catch (error) {
+      console.error("Change Order webhook requires retry/reconciliation", intent.id, error);
+      return NextResponse.json({ error: "Additional payment confirmation failed; retry required." }, { status: 500 });
+    }
   }
 
   if (
@@ -59,10 +75,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const endpoint =
-    session.metadata?.payment_type === "change_order"
-      ? "/api/change-orders/verify-payment"
-      : "/api/checkout/verify-payment";
+  if (session.metadata?.payment_type === "change_order") {
+    try {
+      const result = await confirmChangeOrderPayment({ sessionId: session.id });
+      return NextResponse.json({ received: true, processed: true, ...result });
+    } catch (error) {
+      console.error("Change Order webhook requires retry/reconciliation", session.id, error);
+      return NextResponse.json({ error: "Additional payment confirmation failed; retry required." }, { status: 500 });
+    }
+  }
+
+  const endpoint = "/api/checkout/verify-payment";
 
   const baseUrl = (
     process.env.RELYDO_BASE_URL ||

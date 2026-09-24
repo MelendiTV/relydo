@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
 import { getAuthenticatedUser } from "../../../lib/serverAuth";
+import { assertReassignmentSafe } from "../../../lib/jobFinancialGuard";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -26,6 +27,8 @@ async function refundUnexpectedPayment(
   sessionId: string
 ) {
   try {
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    await assertReassignmentSafe(supabaseAdmin, String(intent.metadata?.request_id || ""));
     const refund = await stripe.refunds.create(
       {
         payment_intent: paymentIntentId,

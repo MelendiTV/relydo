@@ -37,6 +37,15 @@ type Body = {
   requestId?: string;
 };
 
+type ExpoPushTicket = {
+  status?: "ok" | "error";
+  id?: string;
+  message?: string;
+  details?: {
+    error?: string;
+  };
+};
+
 type Coordinates = {
   lat: number;
   lon: number;
@@ -689,38 +698,53 @@ export async function POST(
       -> notify_new_open_request()
 
       Esta API NO debe crear ni comprobar la campana
-      interna porque eso bloqueaba el Web Push.
+      interna.
 
       Desde aquí la responsabilidad es exclusivamente:
-      enviar Web Push a los dispositivos registrados.
+      enviar Push a los dispositivos Web/PWA y móviles
+      registrados de los profesionales elegibles.
     */
 
     /*
       8. BUSCAR DISPOSITIVOS PUSH
     */
 
-    const {
-      data: subscriptions,
-      error: subscriptionsError,
-    } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select(`
-        id,
-        user_id,
-        endpoint,
-        p256dh,
-        auth
-      `)
-      .in(
-        "user_id",
-        providerIds
-      );
+    const [
+      webSubscriptionsResult,
+      mobileTokensResult,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("push_subscriptions")
+        .select(`
+          id,
+          user_id,
+          endpoint,
+          p256dh,
+          auth
+        `)
+        .in(
+          "user_id",
+          providerIds
+        ),
+      supabaseAdmin
+        .from("mobile_push_tokens")
+        .select(`
+          id,
+          user_id,
+          expo_push_token,
+          platform
+        `)
+        .in(
+          "user_id",
+          providerIds
+        ),
+    ]);
 
-    if (subscriptionsError) {
+    if (webSubscriptionsResult.error) {
       return NextResponse.json(
         {
           error:
-            subscriptionsError.message,
+            webSubscriptionsResult.error.message,
         },
         {
           status: 500,
@@ -728,9 +752,27 @@ export async function POST(
       );
     }
 
+    if (mobileTokensResult.error) {
+      return NextResponse.json(
+        {
+          error:
+            mobileTokensResult.error.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const webDevices =
+      webSubscriptionsResult.data ?? [];
+
+    const mobileDevices =
+      mobileTokensResult.data ?? [];
+
     if (
-      !subscriptions ||
-      subscriptions.length === 0
+      webDevices.length === 0 &&
+      mobileDevices.length === 0
     ) {
       return NextResponse.json({
         success: true,
@@ -740,6 +782,18 @@ export async function POST(
         sent: 0,
         failed: 0,
         removed: 0,
+        web: {
+          devices: 0,
+          sent: 0,
+          failed: 0,
+          removed: 0,
+        },
+        mobile: {
+          devices: 0,
+          sent: 0,
+          failed: 0,
+          removed: 0,
+        },
         message:
           "Los profesionales encontrados todavía no tienen Push activado.",
       });
@@ -749,12 +803,12 @@ export async function POST(
       9. ENVIAR WEB PUSH
     */
 
-    let enviados = 0;
-    let fallidos = 0;
-    let eliminados = 0;
+    let webSent = 0;
+    let webFailed = 0;
+    let webRemoved = 0;
 
     for (
-      const subscription of subscriptions
+      const subscription of webDevices
     ) {
       const providerLanguage =
         languageByProvider.get(
@@ -800,7 +854,7 @@ export async function POST(
           payload
         );
 
-        enviados += 1;
+        webSent += 1;
 
         try {
           const endpointHost =
@@ -809,7 +863,7 @@ export async function POST(
             ).host;
 
           console.log(
-            "Push nuevo trabajo enviado:",
+            "Push nuevo trabajo Web enviado:",
             {
               providerId:
                 subscription.user_id,
@@ -824,7 +878,7 @@ export async function POST(
       } catch (
         error: unknown
       ) {
-        fallidos += 1;
+        webFailed += 1;
 
         const pushError =
           error as {
@@ -845,7 +899,7 @@ export async function POST(
         }
 
         console.error(
-          "Error Push nuevo trabajo:",
+          "Error Push nuevo trabajo Web:",
           {
             providerId:
               subscription.user_id,
@@ -860,12 +914,6 @@ export async function POST(
               trabajo.id,
           }
         );
-
-        /*
-          404 / 410:
-          la suscripción ya no existe.
-          La eliminamos para no seguir intentando.
-        */
 
         if (
           pushError.statusCode === 404 ||
@@ -884,24 +932,221 @@ export async function POST(
             );
 
           if (!deleteError) {
-            eliminados += 1;
+            webRemoved += 1;
+          } else {
+            console.error(
+              "Error eliminando suscripción Web vencida:",
+              deleteError
+            );
           }
         }
       }
     }
+
+    /*
+      10. ENVIAR PUSH A APP MÓVIL
+    */
+
+    let mobileSent = 0;
+    let mobileFailed = 0;
+    let mobileRemoved = 0;
+
+    for (
+      const device of mobileDevices
+    ) {
+      const providerLanguage =
+        languageByProvider.get(
+          device.user_id
+        ) || "es";
+
+      const pushTitle =
+        providerLanguage === "en"
+          ? trabajo.preferred_provider_id
+            ? "🆕 New request for you"
+            : "🆕 New job available"
+          : trabajo.preferred_provider_id
+            ? "🆕 Nueva solicitud para ti"
+            : "🆕 Nuevo trabajo disponible";
+
+      const pushMessage =
+        `${trabajo.title} · ${trabajo.city}, ${trabajo.state}`;
+
+      try {
+        const expoResponse =
+          await fetch(
+            "https://exp.host/--/api/v2/push/send",
+            {
+              method: "POST",
+              headers: {
+                Accept:
+                  "application/json",
+                "Accept-Encoding":
+                  "gzip, deflate",
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                to:
+                  device.expo_push_token,
+                title:
+                  pushTitle,
+                body:
+                  pushMessage,
+                sound:
+                  "default",
+                priority:
+                  "high",
+                channelId:
+                  "default",
+                data: {
+                  requestId:
+                    trabajo.id,
+                  type:
+                    "new_job",
+                },
+              }),
+            }
+          );
+
+        if (!expoResponse.ok) {
+          mobileFailed += 1;
+
+          const responseText =
+            await expoResponse.text();
+
+          console.error(
+            "Error HTTP Expo Push nuevo trabajo:",
+            expoResponse.status,
+            responseText
+          );
+
+          continue;
+        }
+
+        const expoResult =
+          (await expoResponse.json()) as {
+            data?:
+              | ExpoPushTicket
+              | ExpoPushTicket[];
+          };
+
+        const ticket =
+          Array.isArray(
+            expoResult.data
+          )
+            ? expoResult.data[0]
+            : expoResult.data;
+
+        if (
+          ticket?.status === "ok"
+        ) {
+          mobileSent += 1;
+
+          console.log(
+            "Push nuevo trabajo móvil enviado:",
+            {
+              providerId:
+                device.user_id,
+              platform:
+                device.platform,
+              requestId:
+                trabajo.id,
+            }
+          );
+
+          continue;
+        }
+
+        mobileFailed += 1;
+
+        console.error(
+          "Expo Push rechazó la notificación de nuevo trabajo:",
+          ticket
+        );
+
+        if (
+          ticket?.details?.error ===
+          "DeviceNotRegistered"
+        ) {
+          const {
+            error: deleteError,
+          } = await supabaseAdmin
+            .from(
+              "mobile_push_tokens"
+            )
+            .delete()
+            .eq(
+              "id",
+              device.id
+            );
+
+          if (!deleteError) {
+            mobileRemoved += 1;
+          } else {
+            console.error(
+              "Error eliminando token móvil vencido:",
+              deleteError
+            );
+          }
+        }
+      } catch (error) {
+        mobileFailed += 1;
+
+        console.error(
+          "Error enviando Expo Push nuevo trabajo:",
+          error
+        );
+      }
+    }
+
+    const totalDevices =
+      webDevices.length +
+      mobileDevices.length;
+
+    const totalSent =
+      webSent +
+      mobileSent;
+
+    const totalFailed =
+      webFailed +
+      mobileFailed;
+
+    const totalRemoved =
+      webRemoved +
+      mobileRemoved;
 
     return NextResponse.json({
       success: true,
       providers:
         providerIds.length,
       devices:
-        subscriptions.length,
+        totalDevices,
       sent:
-        enviados,
+        totalSent,
       failed:
-        fallidos,
+        totalFailed,
       removed:
-        eliminados,
+        totalRemoved,
+      web: {
+        devices:
+          webDevices.length,
+        sent:
+          webSent,
+        failed:
+          webFailed,
+        removed:
+          webRemoved,
+      },
+      mobile: {
+        devices:
+          mobileDevices.length,
+        sent:
+          mobileSent,
+        failed:
+          mobileFailed,
+        removed:
+          mobileRemoved,
+      },
     });
   } catch (error) {
     console.error(

@@ -1,3 +1,4 @@
+import { financialStripe, reserveJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
 ﻿import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -789,6 +790,12 @@ export async function POST(request: NextRequest) {
     // 6. COMPROBAR TRANSFERENCIAS EXISTENTES
     // ======================================================
 
+    if (action === "partial" && (!Number.isFinite(providerAwardAmount) || !Number.isFinite(customerRefundAmount) || providerAwardAmount < 0 || customerRefundAmount < 0 || providerAwardAmount + customerRefundAmount <= 0 || providerAwardAmount > totalProviderNet || customerRefundAmount > totalJobAmount || dinero(providerAwardAmount + customerRefundAmount) > totalJobAmount)) {
+      return NextResponse.json({ error: "Los importes de la resolución parcial no son válidos." }, { status: 400 });
+    }
+    await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, { action: action === "pay_provider" && trabajoIniciado ? "continue_work" : action, providerAwardAmount: action === "partial" ? providerAwardAmount : null, customerRefundAmount: action === "partial" ? customerRefundAmount : null }, stripe);
+    const settlement = financialStripe(stripe, supabaseAdmin, `claim:${claim.id}`);
+
     const existingTransfers =
       await stripe.transfers.list({
         transfer_group: transferGroup,
@@ -840,6 +847,7 @@ export async function POST(request: NextRequest) {
         } = await supabaseAdmin
           .from("job_claims")
           .update({
+            co_no_settlement_resolution: true,
             status: "resolved",
             resolution_type:
               "pay_provider",
@@ -880,7 +888,7 @@ export async function POST(request: NextRequest) {
               type: "claim_resolved",
               title: "Reclamo resuelto",
               titleEn: "Claim resolved",
-              message: `RELYDO resolviÃ³ el reclamo a favor del profesional. El trabajo continuarÃ¡. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              message: `RELYDO resolvió el reclamo a favor del profesional. El trabajo continuará. ${serviceRequest.title || "Trabajo RELYDO"}.`,
               messageEn: `RELYDO resolved the claim in favor of the professional. The job will continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/mis-solicitudes/${claim.request_id}`,
@@ -890,7 +898,7 @@ export async function POST(request: NextRequest) {
               type: "claim_resolved",
               title: "Reclamo resuelto",
               titleEn: "Claim resolved",
-              message: `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo fue desbloqueado y puedes continuar. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              message: `RELYDO resolvió el reclamo a tu favor. El trabajo fue desbloqueado y puedes continuar. ${serviceRequest.title || "Trabajo RELYDO"}.`,
               messageEn: `RELYDO resolved the claim in your favor. The job was unlocked and you may continue. ${serviceRequest.title || "RELYDO job"}.`,
               requestId: claim.request_id,
               url: `/trabajos/${claim.request_id}`,
@@ -1171,7 +1179,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const transfer = await stripe.transfers.create(
+        const transfer = await settlement.transfer(
           {
             amount: expectedSourceCents,
             currency: (payment.currency || "usd").toLowerCase(),
@@ -1231,17 +1239,14 @@ export async function POST(request: NextRequest) {
       if (trabajoEnRevisionFinal) {
         const {
           error: completeRequestError,
-        } = await supabaseAdmin
-          .from("service_requests")
-          .update({
+        } = await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
             status: "completed",
             job_stage: "completed",
             completion_review_status: "approved",
             completion_approved_at: releasedAt,
             completed_at:
               serviceRequest.completed_at || releasedAt,
-          })
-          .eq("id", claim.request_id);
+          });
 
         if (completeRequestError) {
           return NextResponse.json(
@@ -1297,8 +1302,8 @@ export async function POST(request: NextRequest) {
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
             message: trabajoEnRevisionFinal
-              ? `RELYDO resolviÃ³ el reclamo a favor del profesional. El trabajo quedÃ³ completado y el pago fue liberado. ${serviceRequest.title || "Trabajo RELYDO"}.`
-              : `RELYDO resolviÃ³ el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              ? `RELYDO resolvió el reclamo a favor del profesional. El trabajo quedó completado y el pago fue liberado. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolvió el reclamo a favor del profesional. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: trabajoEnRevisionFinal
               ? `RELYDO resolved the claim in favor of the professional. The job was completed and payment was released. ${serviceRequest.title || "RELYDO job"}.`
               : `RELYDO resolved the claim in favor of the professional. ${serviceRequest.title || "RELYDO job"}.`,
@@ -1311,8 +1316,8 @@ export async function POST(request: NextRequest) {
             title: "Reclamo resuelto",
             titleEn: "Claim resolved",
             message: trabajoEnRevisionFinal
-              ? `RELYDO resolviÃ³ el reclamo a tu favor. El trabajo quedÃ³ completado y se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
-              : `RELYDO resolviÃ³ el reclamo a tu favor. Se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+              ? `RELYDO resolvió el reclamo a tu favor. El trabajo quedó completado y se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`
+              : `RELYDO resolvió el reclamo a tu favor. Se liberaron $${totalProviderNet.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
             messageEn: trabajoEnRevisionFinal
               ? `RELYDO resolved the claim in your favor. The job was completed and $${totalProviderNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`
               : `RELYDO resolved the claim in your favor. $${totalProviderNet.toFixed(2)} was released. ${serviceRequest.title || "RELYDO job"}.`,
@@ -1489,7 +1494,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const refund = await stripe.refunds.create(
+        const refund = await settlement.refund(
           {
             payment_intent: source.paymentIntentId,
             amount: Math.round(remainingPrincipal * 100),
@@ -1541,9 +1546,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { error: cancelRequestError } = await supabaseAdmin
-        .from("service_requests")
-        .update({
+      const { error: cancelRequestError } = await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
           status: "cancelled",
           job_stage: null,
           completion_review_status: null,
@@ -1551,8 +1554,7 @@ export async function POST(request: NextRequest) {
           cancellation_reason:
             "Reclamo resuelto a favor del cliente por RELYDO.",
           cancelled_at: refundRecordedAt,
-        })
-        .eq("id", claim.request_id);
+        });
 
       if (cancelRequestError) {
         return NextResponse.json(
@@ -2087,7 +2089,7 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          const transfer = await stripe.transfers.create(
+          const transfer = await settlement.transfer(
             {
               amount: source.providerCents,
               currency: (payment.currency || "usd").toLowerCase(),
@@ -2209,7 +2211,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const refund = await stripe.refunds.create(
+        const refund = await settlement.refund(
           {
             payment_intent: source.paymentIntentId,
             amount: source.refundCents,
@@ -2304,9 +2306,7 @@ export async function POST(request: NextRequest) {
       if (trabajoEnRevisionFinal) {
         const partialCompletedAt = new Date().toISOString();
         const { error: completePartialRequestError } =
-          await supabaseAdmin
-            .from("service_requests")
-            .update({
+          await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
               status: "completed",
               job_stage: "completed",
               completion_review_status: "approved",
@@ -2314,8 +2314,7 @@ export async function POST(request: NextRequest) {
               completed_at:
                 serviceRequest.completed_at ||
                 partialCompletedAt,
-            })
-            .eq("id", claim.request_id);
+            });
 
         if (completePartialRequestError) {
           return NextResponse.json(
@@ -2365,9 +2364,7 @@ export async function POST(request: NextRequest) {
 
       if (trabajoIniciado) {
         const { error: cancelRequestError } =
-          await supabaseAdmin
-            .from("service_requests")
-            .update({
+          await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
               status: "cancelled",
               job_stage: null,
               completion_review_status: null,
@@ -2375,8 +2372,7 @@ export async function POST(request: NextRequest) {
               cancellation_reason:
                 "Reclamo resuelto parcialmente por RELYDO.",
               cancelled_at: new Date().toISOString(),
-            })
-            .eq("id", claim.request_id);
+            });
 
         if (cancelRequestError) {
           return NextResponse.json(
@@ -2757,7 +2753,7 @@ export async function POST(request: NextRequest) {
       */
 
       const transfer =
-        await stripe.transfers.create(
+        await settlement.transfer(
           {
             amount:
               expectedProviderCents,
@@ -2854,7 +2850,7 @@ export async function POST(request: NextRequest) {
       !refundAlreadyProcessed
     ) {
       const refund =
-        await stripe.refunds.create(
+        await settlement.refund(
           {
             payment_intent:
               payment.provider_payment_id!,
@@ -3054,17 +3050,14 @@ export async function POST(request: NextRequest) {
 
       const {
         error: completePartialRequestError,
-      } = await supabaseAdmin
-        .from("service_requests")
-        .update({
+      } = await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
           status: "completed",
           job_stage: "completed",
           completion_review_status: "approved",
           completion_approved_at: partialCompletedAt,
           completed_at:
             serviceRequest.completed_at || partialCompletedAt,
-        })
-        .eq("id", claim.request_id);
+        });
 
       if (completePartialRequestError) {
         return NextResponse.json(
@@ -3103,7 +3096,7 @@ export async function POST(request: NextRequest) {
           customerRefundAmount,
 
         resolution_notes:
-          `[RESOLUCIÃ“N PARCIAL]\nProfesional: $${providerAwardAmount.toFixed(
+          `[RESOLUCIÓN PARCIAL]\nProfesional: $${providerAwardAmount.toFixed(
             2
           )}\nCliente: $${customerRefundAmount.toFixed(
             2
@@ -3147,9 +3140,7 @@ export async function POST(request: NextRequest) {
     if (trabajoIniciado) {
       const {
         error: cancelRequestError,
-      } = await supabaseAdmin
-        .from("service_requests")
-        .update({
+      } = await applyFinancialJobUpdate(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
           status:
             "cancelled",
 
@@ -3167,11 +3158,7 @@ export async function POST(request: NextRequest) {
 
           cancelled_at:
             new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          claim.request_id
-        );
+        });
 
       if (cancelRequestError) {
         return NextResponse.json(
@@ -3204,7 +3191,7 @@ export async function POST(request: NextRequest) {
             "claim_resolved",
           title: "Reclamo resuelto",
           titleEn: "Claim resolved",
-          message: `RELYDO resolviÃ³ parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          message: `RELYDO resolvió parcialmente el reclamo. Reembolso para ti: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
           messageEn: `RELYDO partially resolved the claim. Refund for you: $${customerRefundAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
@@ -3219,7 +3206,7 @@ export async function POST(request: NextRequest) {
             "claim_resolved",
           title: "Reclamo resuelto",
           titleEn: "Claim resolved",
-          message: `RELYDO resolviÃ³ parcialmente el reclamo. CompensaciÃ³n para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
+          message: `RELYDO resolvió parcialmente el reclamo. Compensación para ti: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "Trabajo RELYDO"}.`,
           messageEn: `RELYDO partially resolved the claim. Compensation for you: $${providerAwardAmount.toFixed(2)}. ${serviceRequest.title || "RELYDO job"}.`,
           requestId:
             claim.request_id,
@@ -3278,6 +3265,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof FinancialGuardError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error(
       "Error resolviendo reclamo:",
       error

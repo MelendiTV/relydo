@@ -1,3 +1,4 @@
+import { financialStripe, reserveJobResolution } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -595,6 +596,8 @@ async function procesarLiberacion({
     .eq("id", payment.id);
 
   try {
+    await reserveJobResolution(supabaseAdmin, requestId, "automatic_release", {}, stripe);
+    const settlement = financialStripe(stripe, supabaseAdmin, "automatic_release");
     let originalTransferId =
       payment.stripe_transfer_id || "";
 
@@ -654,7 +657,7 @@ async function procesarLiberacion({
           throw new Error(`No encontramos el cargo de Stripe de la fuente ${source.id}.`);
         }
 
-        const sourceTransfer = await stripe.transfers.create(
+        const sourceTransfer = await settlement.transfer(
           {
             amount: Math.round(sourceProviderAmount * 100),
             currency: (payment.currency || "usd").toLowerCase(),
@@ -772,7 +775,7 @@ async function procesarLiberacion({
       console.log("======================================");
 
       const transferOriginal =
-        await stripe.transfers.create(
+        await settlement.transfer(
           {
             amount:
               Math.round(
@@ -946,7 +949,7 @@ async function procesarLiberacion({
       console.log("======================================");
 
       const changeTransfer =
-        await stripe.transfers.create(
+        await settlement.transfer(
           {
             amount:
               Math.round(
