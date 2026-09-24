@@ -87,11 +87,31 @@ export async function POST(request: NextRequest) {
 
   const endpoint = "/api/checkout/verify-payment";
 
-  const baseUrl = (
+  const configuredOrigin =
     process.env.RELYDO_BASE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    request.nextUrl.origin
-  ).replace(/\/$/, "");
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "");
+
+  let baseUrl: string;
+  try {
+    const url = new URL(configuredOrigin);
+    if (
+      (url.protocol !== "https:" &&
+        (process.env.NODE_ENV === "production" || url.protocol !== "http:")) ||
+      url.username || url.password ||
+      url.pathname !== "/" || url.search || url.hash
+    ) {
+      throw new Error("Invalid application origin.");
+    }
+    baseUrl = url.origin;
+  } catch {
+    return NextResponse.json(
+      { error: "Trusted application origin is not configured or invalid; Stripe should retry this webhook." },
+      { status: 500 }
+    );
+  }
 
   const response = await fetch(`${baseUrl}${endpoint}`, {
     method: "POST",

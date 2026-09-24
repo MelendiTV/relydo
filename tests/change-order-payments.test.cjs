@@ -14,7 +14,7 @@ afterEach(() => {
   }
 });
 
-function fixture() {
+function fixture({ env = {}, fetch: fetchMock = () => { throw Error('Network forbidden'); } } = {}) {
   const identity = { payment_type: 'change_order', change_order_id: 'co1', request_id: 'job1', customer_id: 'customer1', provider_id: 'provider1' };
   const snapshot = { ...identity, original_amount: '200.00', additional_amount: '100.00', new_total_amount: '300.00', customer_fee_percent: '10.00', customer_fee_amount: '10.00', customer_total_amount: '110.00', provider_commission_percent: '20.00', provider_commission_amount: '20.00', provider_net_amount: '80.00', platform_revenue_amount: '30.00' };
   const state = {
@@ -121,7 +121,7 @@ function fixture() {
       if(name.startsWith('.'))return load(path.relative(root,path.resolve(path.dirname(filename),name+'.ts')));
       throw Error('Unmocked dependency: '+name);
     };
-    vm.runInNewContext(source,{module:testModule,exports:testModule.exports,require:mockedRequire,process:{env:{STRIPE_SECRET_KEY:'fake',STRIPE_WEBHOOK_SECRET:'fake',NEXT_PUBLIC_SUPABASE_URL:'https://example.invalid',SUPABASE_SECRET_KEY:'fake'}},console:{error(){},warn(){}},fetch:()=>{throw Error('Network forbidden');},Date,Response},{filename});
+    vm.runInNewContext(source,{module:testModule,exports:testModule.exports,require:mockedRequire,process:{env:{STRIPE_SECRET_KEY:'fake',STRIPE_WEBHOOK_SECRET:'fake',NEXT_PUBLIC_SUPABASE_URL:'https://example.invalid',SUPABASE_SECRET_KEY:'fake',...env}},console:{error(){},warn(){}},fetch:fetchMock,Date,Response,URL},{filename});
     return testModule.exports;
   }
   const helper=load('app/lib/changeOrderPayments.ts');
@@ -129,10 +129,48 @@ function fixture() {
   const request=(body={},token='valid')=>({headers:new Headers(token?{authorization:`Bearer ${token}`} : {}),json:async()=>body,nextUrl:{origin:'https://example.invalid'}});
   const webhook=async(type='checkout.session.completed')=>{
     state.event={type,data:{object:type==='payment_intent.succeeded'?state.intents.pi1:state.sessions.cs1}};
-    return load('app/api/stripe/webhook/route.ts').POST({headers:new Headers({'stripe-signature':'test'}),text:async()=>'{"mock":true}'});
+    return load('app/api/stripe/webhook/route.ts').POST({headers:new Headers({'stripe-signature':'test'}),text:async()=>'{"mock":true}',nextUrl:{origin:'https://attacker.invalid'}});
   };
   return {state,confirm,load,request,webhook,snapshot};
 }
+
+for (const [name, env, expectedOrigin] of [
+  ['RELYDO precedence', {RELYDO_BASE_URL:'https://relydo.invalid/',NEXT_PUBLIC_APP_URL:'https://public.invalid',VERCEL_PROJECT_PRODUCTION_URL:'project.vercel.app'}, 'https://relydo.invalid'],
+  ['public URL fallback', {NEXT_PUBLIC_APP_URL:'https://public.invalid',VERCEL_PROJECT_PRODUCTION_URL:'project.vercel.app'}, 'https://public.invalid'],
+  ['Vercel HTTPS fallback', {VERCEL_PROJECT_PRODUCTION_URL:'project.vercel.app'}, 'https://project.vercel.app'],
+  ['development HTTP', {NODE_ENV:'development',RELYDO_BASE_URL:'http://localhost:3000'}, 'http://localhost:3000'],
+]) test(`base-payment webhook ignores malicious request origin: ${name}`,async()=>{
+  const calls=[];
+  const f=fixture({env:{NODE_ENV:'production',...env},fetch:async(...args)=>{calls.push(args);return Response.json({});}});
+  f.state.sessions.cs1.metadata.payment_type='initial';
+  assert.equal((await f.webhook()).status,200);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0][0],`${expectedOrigin}/api/checkout/verify-payment`);
+  assert.equal(calls[0][1].headers['x-relydo-internal-stripe'],'fake');
+  assert.deepEqual(JSON.parse(calls[0][1].body),{sessionId:'cs1'});
+});
+
+for (const [name, env] of [
+  ['missing origin', {}],
+  ['malformed origin despite valid fallback', {RELYDO_BASE_URL:'not a URL',NEXT_PUBLIC_APP_URL:'https://public.invalid'}],
+  ['production HTTP', {RELYDO_BASE_URL:'http://relydo.invalid'}],
+  ['unsupported protocol', {RELYDO_BASE_URL:'ftp://relydo.invalid'}],
+  ['credentials', {RELYDO_BASE_URL:'https://user:secret@relydo.invalid'}],
+  ['path', {RELYDO_BASE_URL:'https://relydo.invalid/path'}],
+  ['query', {RELYDO_BASE_URL:'https://relydo.invalid/?secret=value'}],
+  ['fragment', {RELYDO_BASE_URL:'https://relydo.invalid/#fragment'}],
+  ['invalid Vercel hostname', {VERCEL_PROJECT_PRODUCTION_URL:'invalid host'}],
+]) test(`base-payment webhook fails retryably without fetch: ${name}`,async()=>{
+  let calls=0;
+  const f=fixture({env:{NODE_ENV:'production',...env},fetch:async()=>{calls++;return Response.json({});}});
+  f.state.sessions.cs1.metadata.payment_type='initial';
+  for(const type of ['checkout.session.completed','checkout.session.async_payment_succeeded']) {
+    const response=await f.webhook(type);
+    assert.equal(response.status,500);
+    assert.deepEqual(await response.json(),{error:'Trusted application origin is not configured or invalid; Stripe should retry this webhook.'});
+  }
+  assert.equal(calls,0);
+});
 
 test('web: real Session snapshot is persisted, including Stripe charge date',async()=>{
   const f=fixture();const r=await f.confirm();assert.equal(r.paymentStatus,'paid');assert.equal(f.state.order.additional_provider_net_amount,80);assert.equal(f.state.order.paid_at,new Date(1750000000*1000).toISOString());assert.equal(f.state.writes,1);assert.equal(f.state.notifications,1);
