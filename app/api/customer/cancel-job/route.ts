@@ -622,16 +622,43 @@ export async function POST(request: NextRequest) {
 
     await reserveJobResolution(supabaseAdmin, requestId, "customer_cancel", {}, stripe);
 
-    if (serviceRequest.status === "cancelled") {
-      return NextResponse.json({
-        success: true,
-        alreadyCancelled: true,
-        requestId,
-        customerRefundAmount: 0,
-        providerAwardAmount: 0,
-        relydoCancellationAmount: 0,
-      });
-    }
+   if (serviceRequest.status === "cancelled") {
+  const now = new Date().toISOString();
+
+  const { error: recoveryReassignmentError } =
+    await supabaseAdmin
+      .from("payment_reassignments")
+      .update({
+        status: "cancelled",
+        updated_at: now,
+      })
+      .eq("request_id", requestId)
+      .in("status", [
+        "available",
+        "pending_replacement",
+        "applied",
+      ]);
+
+  if (recoveryReassignmentError) {
+    return NextResponse.json(
+      {
+        error:
+          "El trabajo ya estaba cancelado, pero RELYDO no pudo terminar de cerrar la reasignación financiera. No repitas manualmente la operación.",
+        requestCancelled: true,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    alreadyCancelled: true,
+    requestId,
+    customerRefundAmount: 0,
+    providerAwardAmount: 0,
+    relydoCancellationAmount: 0,
+  });
+}
 
     if (
       serviceRequest.status !== "open" &&

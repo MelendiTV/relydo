@@ -75,9 +75,33 @@ begin
   end if;
   if public.co_has_unresolved_payment(p_request_id) and p_decision->>'action' is distinct from 'continue_work' then raise exception 'CHANGE_ORDER_RECONCILIATION_REQUIRED'; end if;
   if p_owner='automatic_release' and not exists(select 1 from public.service_requests where id=p_request_id and status='completed') then raise exception 'JOB_NOT_COMPLETED'; end if;
-  if p_owner='customer_cancel' and exists(select 1 from public.change_orders where request_id=p_request_id and payment_status='paid') then
+  if p_owner='customer_cancel' then
+
+  if not exists(
+    select 1
+    from public.service_requests
+    where id=p_request_id
+      and (
+        status='open'
+        or (
+          status='in_progress'
+          and coalesce(job_stage,'') <> 'working'
+        )
+      )
+  ) then
+    raise exception 'JOB_NOT_CANCELLABLE_BY_CUSTOMER';
+  end if;
+
+  if exists(
+    select 1
+    from public.change_orders
+    where request_id=p_request_id
+      and payment_status='paid'
+  ) then
     raise exception 'PAID_CHANGE_ORDER_REQUIRES_ADMIN';
   end if;
+
+end if;
   if p_owner like 'claim:%' then
     select * into v_claim from public.job_claims where request_id=p_request_id and id=substring(p_owner from 7)::uuid for update nowait;
     if found and v_claim.status='resolved' and v_claim.co_no_settlement_resolution=true and p_decision->>'action'='continue_work' then
@@ -227,10 +251,53 @@ begin
       if v_new->>'status'='resolved' and ((public.co_has_unresolved_payment(v_id) and new.co_no_settlement_resolution is distinct from true) or
         exists(select 1 from public.job_financial_steps where request_id=v_id and receipt is null)) then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
     end if;
-  elsif tg_table_name='payment_reassignments' then
-    if v_resolution.request_id is not null or public.co_has_unresolved_payment(v_id) or
-      exists(select 1 from public.change_orders where request_id=v_id and payment_status='paid') then raise exception 'CHANGE_ORDER_BLOCKS_REASSIGNMENT'; end if;
+    elsif tg_table_name='payment_reassignments' then
+
+  if (
+    tg_op='UPDATE'
+    and v_resolution.request_id is not null
+    and v_resolution.owner='customer_cancel'
+    and v_old->>'status' in ('available','pending_replacement','applied')
+    and v_new->>'status'='cancelled'
+    and (v_new - array['status','updated_at'])
+        =
+        (v_old - array['status','updated_at'])
+    and exists(
+      select 1
+      from public.service_requests
+      where id=v_id
+        and status='cancelled'
+    )
+    and not public.co_has_unresolved_payment(v_id)
+    and not exists(
+      select 1
+      from public.change_orders
+      where request_id=v_id
+        and payment_status='paid'
+    )
+    and not exists(
+      select 1
+      from public.job_financial_steps
+      where request_id=v_id
+        and receipt is null
+    )
+  ) then
+    null;
+
+  elsif (
+    v_resolution.request_id is not null
+    or public.co_has_unresolved_payment(v_id)
+    or exists(
+      select 1
+      from public.change_orders
+      where request_id=v_id
+        and payment_status='paid'
+    )
+  ) then
+    raise exception 'CHANGE_ORDER_BLOCKS_REASSIGNMENT';
   end if;
+
+end if;
   if tg_op='DELETE' then return old; else return new; end if;
 end $$;
 create trigger co_guard_change_order before insert or update or delete on public.change_orders for each row execute function public.co_guard_child_lifecycle();
