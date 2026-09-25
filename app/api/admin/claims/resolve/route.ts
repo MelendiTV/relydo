@@ -1996,14 +1996,16 @@ const reanudandoDecisionReservada =
         );
       }
 
-      const reserva = await reservarDecisionEconomica(
-        "partial",
-        providerAwardAmount,
-        customerRefundAmount
-      );
+      if (!reconciliandoResolucion) {
+        const reserva = await reservarDecisionEconomica(
+          "partial",
+          providerAwardAmount,
+          customerRefundAmount
+        );
 
-      if (!reserva.ok) {
-        return reserva.response;
+        if (!reserva.ok) {
+          return reserva.response;
+        }
       }
 
       let providerProfileForPartial:
@@ -2682,14 +2684,16 @@ const reanudandoDecisionReservada =
       activeTransferredCents ===
         expectedProviderCents;
 
-    const reserva = await reservarDecisionEconomica(
-      "partial",
-      providerAwardAmount,
-      customerRefundAmount
-    );
+    if (!reconciliandoResolucion) {
+      const reserva = await reservarDecisionEconomica(
+        "partial",
+        providerAwardAmount,
+        customerRefundAmount
+      );
 
-    if (!reserva.ok) {
-      return reserva.response;
+      if (!reserva.ok) {
+        return reserva.response;
+      }
     }
 
     // ======================================================
