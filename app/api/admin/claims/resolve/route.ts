@@ -178,9 +178,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reconciliandoResolucion =
-      claim.status === "resolved" &&
-      claim.resolution_type === action;
+   const reconciliandoResolucion =
+  claim.status === "resolved" &&
+  claim.resolution_type === action;
+
+const reanudandoDecisionReservada =
+  claim.status === "reviewing" &&
+  claim.resolution_type === action;
 
     if (claim.status !== "reviewing" && !reconciliandoResolucion) {
       return NextResponse.json(
@@ -208,7 +212,11 @@ export async function POST(request: NextRequest) {
         claim.provider_responded_at
       );
 
-    if (!reconciliandoResolucion && !providerResponded) {
+     if (
+  !reconciliandoResolucion &&
+  !reanudandoDecisionReservada &&
+  !providerResponded
+) {
       let plazoVigente =
         false;
 
@@ -325,9 +333,12 @@ export async function POST(request: NextRequest) {
       !trabajoEnRevisionFinal;
 
     const trabajoCanceladoPorResolucion =
-      reconciliandoResolucion &&
-      action === "refund_customer" &&
-      serviceRequest.status === "cancelled";
+  action === "refund_customer" &&
+  serviceRequest.status === "cancelled" &&
+  (
+    reconciliandoResolucion ||
+    reanudandoDecisionReservada
+  );
 
     if (
       !trabajoCompletado &&

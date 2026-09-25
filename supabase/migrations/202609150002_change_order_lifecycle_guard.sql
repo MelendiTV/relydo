@@ -107,8 +107,27 @@ end if;
     if found and v_claim.status='resolved' and v_claim.co_no_settlement_resolution=true and p_decision->>'action'='continue_work' then
       return jsonb_build_object('reserved',true);
     end if;
-    if not found or v_claim.status<>'reviewing' then raise exception 'HISTORICAL_OR_INVALID_CLAIM_REQUIRES_RECONCILIATION'; end if;
-    if exists(select 1 from public.change_orders where request_id=p_request_id and (stripe_transfer_id is not null or released_at is not null)) then
+    if not found or v_claim.status<>'reviewing' then raise exception 'HISTORICAL_OR_INVALID_CLAIM_REQUIRES_RECONCILIATION';
+     end if;
+    if p_decision->>'action'='refund_customer'
+  and exists(
+    select 1
+    from public.service_requests
+    where id=p_request_id
+      and status='cancelled'
+  )
+then
+  raise exception 'CANCELLED_JOB_REQUIRES_EXISTING_RESOLUTION';
+end if;
+    if exists(
+      select 1
+       from public.change_orders
+        where request_id=p_request_id
+         and (
+          stripe_transfer_id is not null
+           or released_at is not null
+           )
+           ) then
       raise exception 'HISTORICAL_SETTLEMENT_REQUIRES_RECONCILIATION';
     end if;
   elsif public.co_claim_blocks_finance(p_request_id) then
