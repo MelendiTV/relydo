@@ -1467,70 +1467,34 @@ const reanudandoDecisionReservada =
       let totalRefunded = 0;
       let baseRefundedTotal = 0;
 
-      for (const source of refundSources) {
-        const refunds = await stripe.refunds.list({
+      // Reconcile every full instruction before creating any missing refund.
+      // Historical effects without a matching durable step require manual
+      // reconciliation; neither Stripe totals nor refunded_amount prove this plan.
+      const refundPlan = refundSources.map(source => ({
+        source,
+        params: {
           payment_intent: source.paymentIntentId,
-          limit: 100,
-        });
-
-        const alreadyRefundedForSource = dinero(
-          refunds.data
-            .filter(
-              (refund) =>
-                refund.status !== "failed" &&
-                refund.status !== "canceled"
-            )
-            .reduce((total, refund) => total + refund.amount / 100, 0)
-        );
-
-        const refundablePrincipalAlreadyUsed = Math.min(
-          source.principal,
-          alreadyRefundedForSource
-        );
-
-        const remainingPrincipal = dinero(
-          source.principal - refundablePrincipalAlreadyUsed
-        );
-
-        totalRefunded = dinero(
-          totalRefunded + refundablePrincipalAlreadyUsed
-        );
-
-        if (source.basePayment) {
-          baseRefundedTotal = dinero(
-            baseRefundedTotal + refundablePrincipalAlreadyUsed
-          );
-        }
-
-        if (remainingPrincipal <= 0) {
-          continue;
-        }
-
-        const refund = await settlement.refund(
-          {
-            payment_intent: source.paymentIntentId,
-            amount: Math.round(remainingPrincipal * 100),
-            reason: "requested_by_customer",
-            metadata: {
-              request_id: String(claim.request_id),
-              claim_id: String(claim.id),
-              resolution: "refund_customer",
-              protected_customer_fee: totalCustomerFee.toFixed(2),
-              ...source.metadata,
-            },
+          amount: Math.round(source.principal * 100),
+          reason: "requested_by_customer",
+          metadata: {
+            request_id: String(claim.request_id),
+            claim_id: String(claim.id),
+            resolution: "refund_customer",
+            protected_customer_fee: totalCustomerFee.toFixed(2),
+            ...source.metadata,
           },
-          {
-            idempotencyKey: `relydo_claim_full_refund_${claim.id}_${source.key}`,
-          }
-        );
-
+        } satisfies Stripe.RefundCreateParams,
+      }));
+      for (const { params } of refundPlan) {
+        await settlement.recover("refund", params);
+      }
+      for (const { source, params } of refundPlan) {
+        // The guard returns only a confirmed, durably recorded receipt.
+        const refund = await settlement.refund(params);
         stripeRefundIds.push(refund.id);
         totalRefunded = dinero(totalRefunded + refund.amount / 100);
-
         if (source.basePayment) {
-          baseRefundedTotal = dinero(
-            baseRefundedTotal + refund.amount / 100
-          );
+          baseRefundedTotal = dinero(baseRefundedTotal + refund.amount / 100);
         }
       }
 

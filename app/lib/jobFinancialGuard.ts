@@ -59,7 +59,12 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
     const step = await rpc(db, "reserve_job_financial_step", {
       p_request_id: requestId, p_owner: owner, p_kind: kind, p_charge_id: chargeId, p_params: params,
     });
-    if (step.receipt) return step.receipt;
+    if (step.receipt) {
+      if (!step.receipt.id || step.receipt.status !== "succeeded" || step.receipt.amount !== params.amount) {
+        throw new FinancialGuardError("El comprobante durable no confirma la instrucción financiera.");
+      }
+      return step.receipt;
+    }
     if (!step.id || !step.params || !step.created_at) throw new FinancialGuardError("La reserva del movimiento está incompleta.");
     // Protect the transition from the OLD idempotency keys: a legacy Stripe
     // success with a missing local save must not become a new transfer/refund.
@@ -93,6 +98,13 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
       if (transfer.amount_reversed || destination !== (params as Stripe.TransferCreateParams).destination ||
         transfer.currency !== (params as Stripe.TransferCreateParams).currency || transfer.source_transaction !== chargeId) {
         throw new FinancialGuardError("La transferencia observada no coincide con la instrucción o fue revertida.");
+      }
+    }
+    if (kind === "refund") {
+      const refund = result as Stripe.Refund;
+      const charge = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+      if (charge !== chargeId || !Object.entries(params.metadata || {}).every(([key, value]) => refund.metadata?.[key] === value)) {
+        throw new FinancialGuardError("El reembolso observado no coincide con el cargo y la instrucción reservada.");
       }
     }
     // Minimal durable receipt: no client secrets, customer details or credentials.
