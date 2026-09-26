@@ -106,3 +106,93 @@ test('H8: actual TypeScript guard, SQL plan, receipt recovery and exact retry',a
  assert.equal((await call('settle_job_financial_resolution',[job,'automatic_release'])).settled,true);
  await f.run.transfer(params());assert.equal(f.creates,1);
 });
+
+// H9 uses the real finalization SQL and durable receipts, entirely in memory.
+const co2='00000000-0000-4000-8000-000000000006';
+function coInstruction(id=co,kind='transfer') {
+ const e=plan()[0]; e.key=id+':'+kind;e.source.changeOrderId=id;e.source.paymentIntentId='pi_'+id;
+ e.chargeId='ch_'+id;e.origin=e.chargeId;e.params.source_transaction=e.chargeId;
+ e.params.metadata.change_order_id=id;
+ if(kind==='refund') {
+  e.kind='refund';e.direction='to_customer';e.destination=null;
+  e.params={amount:1000,payment_intent:e.source.paymentIntentId,metadata:{request_id:job,change_order_id:id}};
+ }
+ return e;
+}
+async function openCoPlan(p=[coInstruction()],action='pay_provider') {
+ const fund=()=>pg.exec("update public.change_orders set payment_status='paid',stripe_payment_intent_id='pi_'||id::text,paid_at=now(),additional_customer_total_amount=21,additional_provider_net_amount=18 where payment_status='unpaid'");
+ await fund();
+ if(p.some(e=>e.source.changeOrderId===co2))await pg.query("insert into public.change_orders(id,request_id,customer_id,provider_id,original_amount,additional_amount,new_total_amount,status) values($1,$2,$3,$4,50,20,70,'accepted')",[co2,job,customer,provider]);
+ await fund();await pg.exec("update public.service_requests set status='completed'");await makeClaim();
+ await reserve('claim:'+claim,{action,providerAwardAmount:p.filter(e=>e.kind==='transfer').reduce((n,e)=>n+e.params.amount,0)/100,customerRefundAmount:p.filter(e=>e.kind==='refund').reduce((n,e)=>n+e.params.amount,0)/100,plan:p});return p;
+}
+const coRow=async(id=co)=>(await pg.query('select payment_status,paid_at,stripe_transfer_id,released_at,updated_at from public.change_orders where id=$1',[id])).rows[0];
+const unprojected=async(id=co)=>{const r=await coRow(id);assert.equal(r.stripe_transfer_id,null);assert.equal(r.released_at,null);assert.equal(r.payment_status,'paid');};
+test('H9: exact final CO receipt projects provider transfer and confirmation timestamp',async()=>{
+ const [e]=await openCoPlan();const s=await confirm(e);const before=await coRow();await settle();const row=await coRow();
+ assert.equal(row.stripe_transfer_id,finalReceipt(e).id);
+ assert.deepEqual(row.released_at,(await pg.query('select confirmed_at from public.job_financial_steps where id=$1',[s.id])).rows[0].confirmed_at);
+ assert.equal(row.payment_status,'paid');assert.deepEqual(row.paid_at,before.paid_at);
+});
+test('H9: exact retry preserves projection, receipt and row count',async()=>{
+ const [e]=await openCoPlan();await confirm(e);await settle();const before=await coRow();
+ await confirm(e);await settle();assert.deepEqual(await coRow(),before);
+ assert.equal((await pg.query('select count(*)::int n from public.job_financial_steps')).rows[0].n,1);
+ const s=await allocate(e);await assert.rejects(call('record_job_financial_step',[s.id,'claim:'+claim,JSON.stringify({...finalReceipt(e),id:'tr_other'})]),/RECEIPT_CONFLICT/);
+});
+test('H9: refund-only CO stays customer-paid, never provider-released',async()=>{
+ const [e]=await openCoPlan([coInstruction(co,'refund')],'refund_customer');await confirm(e);await settle();await unprojected();
+});
+test('H9: partial with separate CO provider/customer destinations projects only provider',async()=>{
+ const p=await openCoPlan([coInstruction(),coInstruction(co2,'refund')],'partial');for(const e of p)await confirm(e);await settle();
+ assert.equal((await coRow()).stripe_transfer_id,finalReceipt(p[0]).id);await unprojected(co2);
+});
+test('H9: split CO preserves customer funding and projects only its transfer receipt',async()=>{
+ const p=await openCoPlan([coInstruction(),coInstruction(co,'refund')],'partial');for(const e of p)await confirm(e);await settle();
+ assert.equal((await coRow()).stripe_transfer_id,finalReceipt(p[0]).id);assert.equal((await coRow()).payment_status,'paid');
+});
+test('H9: pending CO receipt cannot project or close',async()=>{
+ const [e]=await openCoPlan();const s=await allocate(e);
+ await assert.rejects(call('record_job_financial_step',[s.id,'claim:'+claim,JSON.stringify({...finalReceipt(e),status:'pending'})]),/INVALID_FINANCIAL_RECEIPT/);
+ await assert.rejects(settle(),/INCOMPLETE/);await unprojected();
+});
+test('H9: confirmed CO with another incomplete plan step also stays unprojected',async()=>{
+ const p=await openCoPlan([coInstruction(),coInstruction(co2)]);await confirm(p[0]);await assert.rejects(settle(),/INCOMPLETE/);await unprojected();
+});
+for(const fault of ['wrong intent','missing CO','different transfer'])test('H9: '+fault+' fails closed without replacing identity',async()=>{
+ const [e]=await openCoPlan();await confirm(e);
+ if(fault==='wrong intent')await pg.exec("alter table public.change_orders disable trigger co_guard_change_order;update public.change_orders set stripe_payment_intent_id='pi_wrong';alter table public.change_orders enable trigger co_guard_change_order");
+ if(fault==='missing CO')await pg.exec('alter table public.change_orders disable trigger co_guard_change_order;delete from public.change_orders;alter table public.change_orders enable trigger co_guard_change_order');
+ if(fault==='different transfer')await pg.exec("update public.change_orders set stripe_transfer_id='tr_other',released_at=now()");
+ await assert.rejects(settle(),/CHANGE_ORDER_SETTLEMENT_RECONCILIATION_REQUIRED/);
+ if(fault==='different transfer')assert.equal((await coRow()).stripe_transfer_id,'tr_other');
+ assert.equal((await pg.query('select state from public.job_financial_resolutions')).rows[0].state,'executing');
+});
+const adminRoute=fs.readFileSync(path.join(__dirname,'../app/api/admin/claims/resolve/route.ts'),'utf8');
+const closureStart=adminRoute.indexOf('      const transferId = transferIds[0]');
+// Actual Admin provider closure, including its error responses, backed by SQL.
+const closureCode=ts.transpileModule('async function close(){'+adminRoute.slice(closureStart,adminRoute.indexOf('      try {',closureStart))+'return {closed:true};}',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+async function adminClose(finalReview=false) {
+ const db={rpc:async(name,args)=>{try{return {data:await call(name,Object.values(args)),error:null};}catch(e){return {error:{message:e.message}};}},from:table=>({update:()=>({eq:async()=>{try{if(table==='job_claims')await pg.exec("update public.job_claims set status='resolved'");return {error:null};}catch(e){return {error:{message:e.message}};}}})})};
+ const context={transferIds:['tr_base'],activeTransfers:[],supabaseAdmin:db,payment:{id:'base'},claim:{id:claim,request_id:job},claimId:claim,user:{id:'admin'},notes:'local',totalProviderNet:20,trabajoEnRevisionFinal:finalReview,serviceRequest:{},applyFinancialJobUpdate:helperModule.exports.applyFinancialJobUpdate,Date,NextResponse:{json:(body,options)=>({body,status:options.status})}};
+ vm.createContext(context);vm.runInContext(closureCode,context);return context.close();
+}
+for(const alreadySettled of [false,true])for(const finalReview of [false,true])test(`H9: projection failure, previously settled=${alreadySettled}, final review=${finalReview}, is recoverable in Admin closure`,async()=>{
+ const p=await openCoPlan([coInstruction(),coInstruction(co2)]);for(const e of p)await confirm(e);
+ if(alreadySettled)await pg.exec("update public.job_financial_resolutions set state='settled'"); // pre-H9 finalization
+ await pg.exec(`create function public.fail_h9_projection() returns trigger language plpgsql as $$ begin if new.id='${co2}'::uuid then raise exception 'local projection unavailable'; end if;return new;end $$;create trigger fail_h9_projection before update on public.change_orders for each row execute function public.fail_h9_projection()`);
+ try {
+  const result=await adminClose(finalReview);assert.equal(result.status,500);assert.equal(result.body.reconciliation_required,true);
+  await unprojected();await unprojected(co2); // first CO also rolled back
+  assert.equal((await pg.query('select status from public.job_claims')).rows[0].status,'reviewing');
+  assert.equal((await pg.query('select count(*)::int n from public.job_financial_steps where receipt is not null')).rows[0].n,2);
+ } finally {await pg.exec('drop trigger fail_h9_projection on public.change_orders;drop function public.fail_h9_projection()');}
+ assert.equal((await adminClose(finalReview)).closed,true);
+ assert.equal((await coRow()).stripe_transfer_id,finalReceipt(p[0]).id);
+ assert.equal((await coRow(co2)).stripe_transfer_id,finalReceipt(p[1]).id);
+});
+for(const hasCo of [false,true])test('H9: base-only plan closes, existing CO='+hasCo,async()=>{
+ if(!hasCo)await pg.exec('delete from public.change_orders');
+ const p=await openPlan();for(const e of p)await confirm(e);assert.equal((await adminClose()).closed,true);
+ if(hasCo)await unprojected();else assert.equal((await pg.query('select count(*)::int n from public.change_orders')).rows[0].n,0);
+});

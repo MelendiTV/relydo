@@ -1201,6 +1201,7 @@ const reanudandoDecisionReservada =
         if (completeRequestError) {
           return NextResponse.json(
             {
+              reconciliation_required: true,
               error:
                 "Stripe procesÃ³ la transferencia y RELYDO registrÃ³ el pago, pero no pudo marcar el trabajo como completado. El reclamo sigue abierto para poder reconciliar el estado; no crees una nueva transferencia.",
               stripeTransferId: transferId,
@@ -1236,6 +1237,7 @@ const reanudandoDecisionReservada =
       if (updateClaimError) {
         return NextResponse.json(
           {
+            reconciliation_required: true,
             error:
               "El dinero fue procesado, pero no pudimos cerrar el reclamo. No repitas la operaciÃ³n.",
             stripeTransferId: transferId,
@@ -1480,6 +1482,7 @@ const reanudandoDecisionReservada =
       if (cancelRequestError) {
         return NextResponse.json(
           {
+            reconciliation_required: true,
             error:
               "El cliente fue reembolsado, pero no pudimos sincronizar el estado final del trabajo. No repitas el reembolso.",
             stripeRefundIds,
@@ -1508,6 +1511,7 @@ const reanudandoDecisionReservada =
       if (updateClaimError) {
         return NextResponse.json(
           {
+            reconciliation_required: true,
             error:
               "El dinero fue procesado y el trabajo sincronizado, pero no pudimos consolidar el reclamo. No repitas movimientos de dinero.",
             stripeRefundIds,
@@ -2128,6 +2132,7 @@ const reanudandoDecisionReservada =
         if (completePartialRequestError) {
           return NextResponse.json(
             {
+              reconciliation_required: true,
               error:
                 "La distribución económica fue procesada, pero RELYDO no pudo marcar el trabajo como completado. No repitas movimientos de dinero.",
               stripeTransferIds: partialTransferIds,
@@ -2159,6 +2164,7 @@ const reanudandoDecisionReservada =
       if (updateClaimError) {
         return NextResponse.json(
           {
+            reconciliation_required: true,
             error:
               "La distribución económica fue procesada, pero no pudimos cerrar el reclamo. No repitas movimientos de dinero.",
             stripeTransferIds: partialTransferIds,
@@ -2186,6 +2192,7 @@ const reanudandoDecisionReservada =
         if (cancelRequestError) {
           return NextResponse.json(
             {
+              reconciliation_required: true,
               error:
                 "La resolución económica fue procesada y el reclamo fue cerrado, pero no pudimos cancelar el trabajo. No repitas movimientos de dinero.",
               stripeTransferIds: partialTransferIds,

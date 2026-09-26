@@ -80,7 +80,7 @@ $$;
 
 create function public.settle_job_financial_resolution(p_request_id uuid,p_owner text) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare r public.job_financial_resolutions%rowtype;
+declare r public.job_financial_resolutions%rowtype; v_step record; v_order public.change_orders%rowtype;
 begin
  if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED'; end if;
  perform public.co_lock_job(p_request_id);
@@ -98,6 +98,44 @@ begin
  or exists(select 1 from public.job_financial_steps s where s.request_id=p_request_id and not exists(
    select 1 from jsonb_array_elements(r.plan) e where s.kind=e->>'kind' and s.charge_id=e->>'chargeId' and s.params=e->'params'))
  then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
+ -- H9 / LOCAL PROPOSAL ONLY: project provider settlement in this transaction.
+ -- payment_status/paid_at remain evidence of customer funding, even for refunds.
+ -- In a partial decision stripe_transfer_id/released_at attest only the provider
+ -- transfer in the plan; its receipt amount is authoritative, not the CO net.
+ if p_owner like 'claim:%' then
+   begin
+     for v_step in
+       select e as instruction,s.receipt,s.confirmed_at
+       from jsonb_array_elements(r.plan) e
+       join public.job_financial_steps s on s.request_id=p_request_id
+         and s.kind=e->>'kind' and s.charge_id=e->>'chargeId' and s.params=e->'params'
+       where e->>'kind'='transfer' and e->>'direction'='to_provider'
+         and e#>>'{source,changeOrderId}' is not null
+       order by e#>>'{source,changeOrderId}'
+     loop
+       select * into v_order from public.change_orders
+         where id::text=v_step.instruction#>>'{source,changeOrderId}'
+           and request_id=p_request_id for update nowait;
+       if not found or v_order.payment_status is distinct from 'paid'
+         or v_order.stripe_payment_intent_id is distinct from v_step.instruction#>>'{source,paymentIntentId}'
+         or v_step.confirmed_at is null
+         or not public.financial_receipt_matches(v_step.instruction,v_step.receipt)
+         or (v_order.stripe_transfer_id is not null and v_order.stripe_transfer_id is distinct from v_step.receipt->>'id')
+       then raise exception 'CHANGE_ORDER_SETTLEMENT_CONFLICT'; end if;
+       -- Exact retries preserve the transfer identity and first release time.
+       if v_order.stripe_transfer_id is null or v_order.released_at is null then
+         update public.change_orders set stripe_transfer_id=v_step.receipt->>'id',
+           released_at=coalesce(released_at,v_step.confirmed_at),
+           updated_at=clock_timestamp() where id=v_order.id;
+         if not found then raise exception 'CHANGE_ORDER_SETTLEMENT_NOT_PROJECTED'; end if;
+       end if;
+     end loop;
+   exception when others then
+     -- Abort finalization, including all CO projections. Durable receipts from
+     -- earlier calls survive; retry can reconcile without new money movements.
+     raise exception 'CHANGE_ORDER_SETTLEMENT_RECONCILIATION_REQUIRED' using detail=SQLERRM;
+   end;
+ end if;
  -- Exact set equality and per-step amounts also prove all per-currency/direction totals.
  update public.job_financial_resolutions set state='settled' where request_id=p_request_id;
  return jsonb_build_object('settled',true,'state','settled');
