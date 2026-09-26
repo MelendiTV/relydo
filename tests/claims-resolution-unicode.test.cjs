@@ -24,10 +24,10 @@ visit(source);
 const partials = updates.filter(node => node.properties.some(p => p.name?.getText(source) === 'resolution_type' && p.initializer?.text === 'partial'));
 const evaluate = (node, context) => JSON.parse(JSON.stringify(vm.runInNewContext(`(${node.getText(source)})`, context)));
 
-test('both partial resolution producers and notification calls remain covered', () => {
-  assert.equal(partials.length, 2);
-  assert.equal(updates.length, 6);
-  assert.equal(notifications.length, 10);
+test('shared partial resolution producer and notification calls remain covered', () => {
+  assert.equal(partials.length, 1);
+  assert.equal(updates.length, 5);
+  assert.equal(notifications.length, 8);
 });
 
 for (const [branch, node] of partials.entries()) {

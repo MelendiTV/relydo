@@ -6,8 +6,9 @@ type Receipt = { id: string; amount: number; status: string | null };
 
 /** Validate the entire plan before any create, then reconcile immutable guard steps. */
 export async function reconcilePartialClaimSources<T extends Source>({
-  stripe, settlement, sources, existingTransfers, transferParams, refundParams,
+  stripe, settlement, sources, existingTransfers, transferParams, refundParams, beforeRecover,
 }: {
+  beforeRecover?: () => Promise<void>;
   stripe: Stripe;
   settlement: ReturnType<typeof financialStripe>;
   sources: T[];
@@ -46,6 +47,8 @@ export async function reconcilePartialClaimSources<T extends Source>({
     }
     refunds.set(source.key, listed.data.map(r => ({ id: r.id, amount: r.amount, status: r.status })));
   }
+  // All source observations must be valid before reserving a durable decision.
+  await beforeRecover?.();
   // recover is read-only with respect to Stripe. It checks exact persisted params,
   // validates step identity and saves missing receipts; it never creates money.
   for (const source of sources) {

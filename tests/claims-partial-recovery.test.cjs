@@ -13,10 +13,10 @@ const route=fs.readFileSync(path.join(root,'app/api/admin/claims/resolve/route.t
 const begin=route.indexOf('      let providerProfileForPartial:');
 const fragment=route.slice(begin,route.indexOf('      const baseRefundedCents',begin));
 const code=ts.transpileModule(`async function run(){${fragment}\nreturn {partialTransferIds,partialRefundIds};}`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
-function fixture(kind) {
+function fixture(kind, normal = false) {
  const state={transfers:[],refunds:[],steps:new Map(),creates:[],failSecond:true,failSave:false};
  const sources=[6000,4000].map((amount,i)=>({key:`funding_source_${i}`,paymentIntentId:`pi_${i}`,providerCents:kind==='transfer'?amount:0,refundCents:kind==='refund'?amount:0,metadata:{funding_source_id:String(i)},fundingSourceId:String(i)}));
- const stripe={paymentIntents:{retrieve:async id=>({latest_charge:id.replace('pi_','ch_')})},accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})}};
+ const stripe={paymentIntents:{retrieve:async id=>({latest_charge:id.replace('pi_','ch_'),status:'succeeded',currency:'usd',amount_received:100000})},accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})}};
  for(const k of ['transfer','refund']) stripe[k+'s']={
   list:async ({charge})=>({has_more:!!state.hasMore,data:state[k+'s'].filter(r=>!charge||r.charge===charge)}),
   create:async p=>{
@@ -27,8 +27,13 @@ function fixture(kind) {
  };
  const db={rpc:async(name,a)=>{
   const fail=()=>({error:{message:'conflict'}});
-  if(name==='reserve_job_financial_resolution')return {data:{pending_steps:[...state.steps.values()].filter(s=>!s.receipt).map(s=>({kind:s.kind,params:s.params}))}};
+  if(name==='reserve_job_financial_resolution') {
+   const decision=JSON.stringify(a.p_decision);
+   if((state.owner && state.owner!==a.p_owner) || (state.decision && state.decision!==decision))return {error:{message:'FINANCIAL_OWNER_CONFLICT'}};
+   state.owner=a.p_owner;state.decision=decision;state.reservations=(state.reservations||0)+1;
+   return {data:{pending_steps:[...state.steps.values()].filter(s=>!s.receipt).map(s=>({kind:s.kind,params:s.params}))}}; }
   if(name==='reserve_job_financial_step'){
+   assert.ok(state.decision, 'resolution must be reserved before steps');
    const key=a.p_kind+a.p_charge_id;let step=state.steps.get(key);
    if(step&&JSON.stringify(step.params)!==JSON.stringify(a.p_params))return fail();
    if(!step){step={id:key,kind:a.p_kind,params:structuredClone(a.p_params),created_at:new Date().toISOString()};state.steps.set(key,step);}return {data:structuredClone(step)};
@@ -39,9 +44,11 @@ function fixture(kind) {
   assert.ok(['provider_profiles','payment_reassignment_source_refunds'].includes(table));
   const q={select(){return q;},eq(){return q;},limit(){return q;},maybeSingle:async()=>({data:table==='provider_profiles'?{stripe_account_id:'acct_1'}:{stripe_refund_id:'ledger'},error:null})};return q;
  }};
- const context={stripe,supabaseAdmin:db,settlement:guard.financialStripe(stripe,db,'claim:claim1'),reconcilePartialClaimSources,FinancialGuardError:guard.FinancialGuardError,sourcePlan:sources,providerAwardAmount:kind==='transfer'?100:0,customerRefundAmount:kind==='refund'?100:0,expectedProviderCents:kind==='transfer'?10000:0,totalCustomerFee:0,claim:{id:'claim1',request_id:'job1',provider_id:'provider1'},payment:{currency:'usd'},transferGroup:'relydo_request_job1',reconciliandoResolucion:true,NextResponse:{json:(body,options)=>({body,...options})},dinero:n=>Math.round(n*100)/100};
- vm.createContext(context);vm.runInContext(code,context);
- return {state,sources,run:async()=>{await guard.reserveJobResolution(db,'job1','claim:claim1',{},stripe);context.existingTransfers=await stripe.transfers.list({});return context.run();}};
+ const context={stripe,supabaseAdmin:db,settlement:guard.financialStripe(stripe,db,'claim:claim1'),reconcilePartialClaimSources,reserveJobResolution:guard.reserveJobResolution,FinancialGuardError:guard.FinancialGuardError,sourcePlan:sources,providerAwardAmount:kind==='transfer'?100:0,customerRefundAmount:kind==='refund'?100:0,expectedProviderCents:kind==='transfer'?10000:0,totalCustomerFee:0,claim:{id:'claim1',request_id:'job1',provider_id:'provider1'},payment:{id:'base',provider_payment_id:'pi_0',currency:'usd'},transferGroup:'relydo_request_job1',reconciliandoResolucion:true,NextResponse:{json:(body,options)=>({body,...options})},dinero:n=>Math.round(n*100)/100};
+ Object.assign(context,{esPagoReasignado:false,jobAmount:100,providerNet:80,customerTotal:100,reassignmentSources:[],changeOrders:[{id:'co1',stripe_payment_intent_id:'pi_1',additional_amount:50,additional_customer_fee_amount:0,additional_provider_net_amount:40}]});
+ const planning=route.slice(route.indexOf('      type PartialMoneySource'),begin);
+ vm.createContext(context);vm.runInContext(normal?ts.transpileModule(`async function run(){${planning}${fragment}\nreturn {partialTransferIds,partialRefundIds};}`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText:code,context);
+ return {state,sources,context,stripe,run:async()=>{context.existingTransfers=await stripe.transfers.list({});return context.run();}};
 }
 for(const kind of ['transfer','refund']) {
  test(`${kind}: 60 confirmed, 40 failed; retry creates only 40; full retry creates nothing`,async()=>{
@@ -81,3 +88,37 @@ for (const kind of ['transfer','refund']) {
   await assert.rejects(f.run(),e=>e.status===409);assert.equal(f.state.creates.length,0);
  });
 }
+
+for(const award of [100,60]) test(`normal base + CO: award ${award}, retry preserves plan and creates nothing twice`,async()=>{
+ const f=fixture('transfer',true);f.state.failSecond=false;f.context.providerAwardAmount=award;
+ await f.run();assert.deepEqual(f.state.creates,award===100?[['transfer',8000],['transfer',2000]]:[['transfer',6000]]);
+ const decision=f.state.decision;assert.ok(decision);assert.equal(JSON.parse(decision).sources.length,2);await f.run();assert.equal(f.state.decision,decision);assert.equal(f.state.creates.length,award===100?2:1);
+});
+test('award over total capacity fails before reservation',async()=>{
+ const f=fixture('transfer',true);f.context.providerAwardAmount=121;
+ const result=await f.run();assert.equal(result.status,409);assert.equal(f.state.reservations,undefined);assert.equal(f.state.creates.length,0);
+});
+for(const defect of ['absent','unpaid','insufficient','currency','duplicate']) test(`CO ${defect}: no durable decision or money`,async()=>{
+ const f=fixture('transfer',true);const retrieve=f.stripe.paymentIntents.retrieve;
+ f.stripe.paymentIntents.retrieve=async id=>{const pi=await retrieve(id);if(id==='pi_1'){
+ if(defect==='absent')pi.latest_charge=null;if(defect==='unpaid')pi.status='processing';
+ if(defect==='insufficient')pi.amount_received=100;if(defect==='currency')pi.currency='eur';
+ if(defect==='duplicate')pi.latest_charge='ch_0';}return pi;};
+ await assert.rejects(f.run(),e=>e.status===409);assert.equal(f.state.reservations,undefined);assert.equal(f.state.creates.length,0);
+});
+
+test('another financial owner remains excluded',async()=>{
+ const f=fixture('transfer',true);f.state.owner='automatic_release';
+ await assert.rejects(f.run(),e=>e.status===409);assert.equal(f.state.creates.length,0);
+});
+test('mixed allocation uses remaining physical capacity and retries',async()=>{
+ const f=fixture('transfer',true);f.state.failSecond=false;f.context.customerRefundAmount=50;
+ await f.run();assert.deepEqual(f.state.creates,[['transfer',8000],['transfer',2000],['refund',2000],['refund',3000]]);
+ await f.run();assert.equal(f.state.creates.length,4);
+});
+test('reassigned source and CO use the same reserved execution plan',async()=>{
+ const f=fixture('transfer',true);f.state.failSecond=false;f.context.esPagoReasignado=true;
+ f.context.reassignmentSources=[{id:'fund1',stripe_payment_intent_id:'pi_0',allocated_customer_amount:100,allocated_provider_amount:80}];
+ await f.run();assert.deepEqual(f.state.creates,[['transfer',8000],['transfer',2000]]);
+ await f.run();assert.equal(f.state.creates.length,2);
+});
