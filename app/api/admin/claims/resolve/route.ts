@@ -1,3 +1,4 @@
+import { reconcilePartialClaimSources } from "../../../../lib/partialClaimRecovery";
 import { financialStripe, reserveJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
 ﻿import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -1901,113 +1902,6 @@ const reanudandoDecisionReservada =
         );
       }
 
-      const nonPartialTransfers = activeTransfers.filter(
-        (transfer) =>
-          transfer.metadata?.resolution !== "partial"
-      );
-
-      if (nonPartialTransfers.length > 0) {
-        return NextResponse.json(
-          {
-            error:
-              "Ya existe una transferencia de otro tipo para este trabajo. No se hará una resolución parcial automática.",
-          },
-          { status: 409 }
-        );
-      }
-
-      const existingPartialTransferCents = activeTransfers.reduce(
-        (total, transfer) =>
-          total +
-          (transfer.amount - transfer.amount_reversed),
-        0
-      );
-
-      if (
-        existingPartialTransferCents > 0 &&
-        existingPartialTransferCents !== expectedProviderCents
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              `Stripe ya registra $${(
-                existingPartialTransferCents / 100
-              ).toFixed(2)} transferidos para esta resolución parcial, diferente a los $${providerAwardAmount.toFixed(2)} definidos ahora. No se duplicará dinero.`,
-          },
-          { status: 409 }
-        );
-      }
-
-      const existingRefundsBySource = new Map<
-        string,
-        { id: string; amount: number; status: string | null }[]
-      >();
-
-      let existingPartialRefundCents = 0;
-
-      for (const source of sourcePlan) {
-        if (source.refundCents <= 0) continue;
-
-        const refunds = await stripe.refunds.list({
-          payment_intent: source.paymentIntentId,
-          limit: 100,
-        });
-
-        const matchingRefunds = refunds.data
-          .filter(
-            (refund) =>
-              refund.metadata?.claim_id ===
-                String(claim.id) &&
-              refund.metadata?.resolution === "partial" &&
-              refund.metadata?.claim_source_key ===
-                source.key &&
-              refund.status !== "failed" &&
-              refund.status !== "canceled"
-          )
-          .map((refund) => ({
-            id: refund.id,
-            amount: refund.amount,
-            status: refund.status || null,
-          }));
-
-        existingRefundsBySource.set(
-          source.key,
-          matchingRefunds
-        );
-
-        existingPartialRefundCents += matchingRefunds.reduce(
-          (total, refund) => total + refund.amount,
-          0
-        );
-      }
-
-      if (
-        existingPartialRefundCents > 0 &&
-        existingPartialRefundCents !== expectedRefundCents
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              `Stripe ya registra $${(
-                existingPartialRefundCents / 100
-              ).toFixed(2)} reembolsados para esta resolución parcial, diferente a los $${customerRefundAmount.toFixed(2)} definidos ahora. No se duplicará dinero.`,
-          },
-          { status: 409 }
-        );
-      }
-
-      if (!reconciliandoResolucion) {
-        const reserva = await reservarDecisionEconomica(
-          "partial",
-          providerAwardAmount,
-          customerRefundAmount
-        );
-
-        if (!reserva.ok) {
-          return reserva.response;
-        }
-      }
-
       let providerProfileForPartial:
         | {
             user_id: string;
@@ -2015,10 +1909,7 @@ const reanudandoDecisionReservada =
           }
         | null = null;
 
-      if (
-        providerAwardAmount > 0 &&
-        existingPartialTransferCents === 0
-      ) {
+      if (providerAwardAmount > 0) {
         const {
           data: providerProfile,
           error: providerProfileError,
@@ -2051,8 +1942,72 @@ const reanudandoDecisionReservada =
           );
         }
 
+        providerProfileForPartial = providerProfile;
+      }
+
+      // Resolve every source before validating any observed movement.
+      const plannedSources: ((typeof sourcePlan)[number] & { chargeId: string })[] = [];
+      for (const source of sourcePlan) {
+        const intent = await stripe.paymentIntents.retrieve(source.paymentIntentId);
+        const chargeId = typeof intent.latest_charge === "string"
+          ? intent.latest_charge : intent.latest_charge?.id;
+        if (!chargeId) throw new FinancialGuardError("Falta el cargo de una fuente de la resolución parcial.");
+        plannedSources.push({ ...source, chargeId });
+      }
+      const transferParams = (source: (typeof plannedSources)[number]): Stripe.TransferCreateParams => ({
+        amount: source.providerCents,
+        currency: (payment.currency || "usd").toLowerCase(),
+        destination:
+          providerProfileForPartial!.stripe_account_id!,
+        source_transaction: source.chargeId,
+        transfer_group: transferGroup,
+        metadata: {
+          request_id: String(claim.request_id),
+          claim_id: String(claim.id),
+          professional_id: String(claim.provider_id),
+          resolution: "partial",
+          claim_source_key: source.key,
+          provider_award_amount:
+            providerAwardAmount.toFixed(2),
+          customer_refund_amount:
+            customerRefundAmount.toFixed(2),
+          ...source.metadata,
+        },
+      });
+      const refundParams = (source: (typeof plannedSources)[number]): Stripe.RefundCreateParams => ({
+        payment_intent: source.paymentIntentId,
+        amount: source.refundCents,
+        reason: "requested_by_customer",
+        metadata: {
+          request_id: String(claim.request_id),
+          claim_id: String(claim.id),
+          resolution: "partial",
+          claim_source_key: source.key,
+          customer_refund_amount:
+            customerRefundAmount.toFixed(2),
+          provider_award_amount:
+            providerAwardAmount.toFixed(2),
+          protected_customer_fee:
+            totalCustomerFee.toFixed(2),
+          ...source.metadata,
+        },
+      });
+      const recovered = await reconcilePartialClaimSources({
+        stripe, settlement, sources: plannedSources, existingTransfers,
+        transferParams, refundParams,
+      });
+      const existingPartialTransferCents = recovered.transferCents;
+      const existingPartialRefundCents = recovered.refundCents;
+      const existingRefundsBySource = recovered.refunds;
+
+      if (!reconciliandoResolucion) {
+        const reserva = await reservarDecisionEconomica("partial", providerAwardAmount, customerRefundAmount);
+        if (!reserva.ok) return reserva.response;
+      }
+
+      if (existingPartialTransferCents < expectedProviderCents) {
         const account = await stripe.accounts.retrieve(
-          providerProfile.stripe_account_id
+          providerProfileForPartial!.stripe_account_id!
         );
 
         if (account.capabilities?.transfers !== "active") {
@@ -2065,81 +2020,16 @@ const reanudandoDecisionReservada =
           );
         }
 
-        providerProfileForPartial = providerProfile;
       }
 
       const partialTransferIds: string[] = [];
       const partialRefundIds: string[] = [];
       let firstRefundStatus: string | null = null;
-
-      if (
-        providerAwardAmount > 0 &&
-        existingPartialTransferCents === 0 &&
-        providerProfileForPartial?.stripe_account_id
-      ) {
-        for (const source of sourcePlan) {
-          if (source.providerCents <= 0) continue;
-
-          const paymentIntent =
-            await stripe.paymentIntents.retrieve(
-              source.paymentIntentId,
-              { expand: ["latest_charge"] }
-            );
-
-          const latestCharge = paymentIntent.latest_charge;
-          const chargeId =
-            typeof latestCharge === "string"
-              ? latestCharge
-              : latestCharge?.id;
-
-          if (!chargeId) {
-            return NextResponse.json(
-              {
-                error:
-                  "No encontramos uno de los cargos Stripe necesarios para completar la resolución parcial. No repitas movimientos ya procesados.",
-              },
-              { status: 500 }
-            );
-          }
-
-          const transfer = await settlement.transfer(
-            {
-              amount: source.providerCents,
-              currency: (payment.currency || "usd").toLowerCase(),
-              destination:
-                providerProfileForPartial.stripe_account_id,
-              source_transaction: chargeId,
-              transfer_group: transferGroup,
-              metadata: {
-                request_id: String(claim.request_id),
-                claim_id: String(claim.id),
-                professional_id: String(claim.provider_id),
-                resolution: "partial",
-                claim_source_key: source.key,
-                provider_award_amount:
-                  providerAwardAmount.toFixed(2),
-                customer_refund_amount:
-                  customerRefundAmount.toFixed(2),
-                ...source.metadata,
-              },
-            },
-            {
-              idempotencyKey:
-                `relydo_claim_partial_transfer_${claim.id}_${source.key}_${source.providerCents}`,
-            }
-          );
-
-          partialTransferIds.push(transfer.id);
-        }
-      } else {
-        partialTransferIds.push(
-          ...activeTransfers
-            .filter(
-              (transfer) =>
-                transfer.metadata?.resolution === "partial"
-            )
-            .map((transfer) => transfer.id)
-        );
+      for (const source of plannedSources) {
+        if (source.providerCents <= 0) continue;
+        const transfer = recovered.transfers.get(source.key)
+          || await settlement.transfer(transferParams(source));
+        partialTransferIds.push(transfer.id);
       }
 
       async function ensureReassignmentRefundLedger(
@@ -2186,7 +2076,7 @@ const reanudandoDecisionReservada =
         }
       }
 
-      for (const source of sourcePlan) {
+      for (const source of plannedSources) {
         if (source.refundCents <= 0) continue;
 
         const existingForSource =
@@ -2224,30 +2114,7 @@ const reanudandoDecisionReservada =
           continue;
         }
 
-        const refund = await settlement.refund(
-          {
-            payment_intent: source.paymentIntentId,
-            amount: source.refundCents,
-            reason: "requested_by_customer",
-            metadata: {
-              request_id: String(claim.request_id),
-              claim_id: String(claim.id),
-              resolution: "partial",
-              claim_source_key: source.key,
-              customer_refund_amount:
-                customerRefundAmount.toFixed(2),
-              provider_award_amount:
-                providerAwardAmount.toFixed(2),
-              protected_customer_fee:
-                totalCustomerFee.toFixed(2),
-              ...source.metadata,
-            },
-          },
-          {
-            idempotencyKey:
-              `relydo_claim_partial_refund_${claim.id}_${source.key}_${source.refundCents}`,
-          }
-        );
+        const refund = await settlement.refund(refundParams(source));
 
         await ensureReassignmentRefundLedger(
           source,
