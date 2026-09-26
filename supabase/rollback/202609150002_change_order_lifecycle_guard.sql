@@ -1,3 +1,4 @@
+-- LOCAL PROPOSAL ONLY. Do not run against operational Supabase.
 -- Reverse stage 2 BEFORE stage 1. Stop all payment/lifecycle writers first.
 begin;
 lock table public.service_requests in access exclusive mode;
@@ -31,6 +32,8 @@ drop function public.guard_job_reassignment(uuid);
 drop function public.co_assert_job_operation(uuid,text);
 drop function public.co_claim_blocks_finance(uuid);
 drop function public.co_has_unresolved_payment(uuid);
+drop function public.settle_job_financial_resolution(uuid,text);
+drop function public.financial_receipt_matches(jsonb,jsonb);
 drop function public.co_lock_job(uuid);
 drop table public.job_financial_steps;
 drop table public.job_financial_resolutions;

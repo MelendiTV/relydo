@@ -1,5 +1,7 @@
 -- LOCAL PROPOSAL ONLY. Requires 202609150001. No historical backfill.
 -- New writers must be activated together. Stop old financial writers first.
+-- Callers without decision.plan (including release/cancel legacy writers) fail closed.
+-- No automatic conversion of historical decisions/sources into an attested plan.
 begin;
 
 -- NULL for every historical claim. Only a new, verified zero-money closure may
@@ -10,6 +12,8 @@ create table public.job_financial_resolutions (
   request_id uuid primary key references public.service_requests(id),
   owner text not null,
   decision jsonb not null,
+  plan jsonb, -- NULL is legacy/unplanned: never infer completion.
+  state text not null default 'reconciliation_required' check (state in ('reserved','executing','settled','reconciliation_required')),
   created_at timestamptz not null default clock_timestamp()
 );
 create table public.job_financial_steps (
@@ -59,18 +63,63 @@ language sql security definer set search_path='' as $$
     not(coalesce(co_no_settlement_resolution,false) and status='resolved'));
 $$;
 
+
+-- LOCAL PROPOSAL ONLY: immutable expected set, including zero-money decisions.
+create function public.financial_receipt_matches(p_instruction jsonb,p_receipt jsonb) returns boolean
+language sql immutable set search_path='' as $$
+ select coalesce(p_receipt->>'id'<>'' and p_receipt->>'status'='succeeded'
+   and p_receipt->>'kind'=p_instruction->>'kind'
+   and p_receipt->>'charge_id'=p_instruction->>'chargeId'
+   and p_receipt->'amount'=p_instruction#>'{params,amount}'
+   and p_receipt->'currency'=p_instruction->'currency'
+   and p_receipt->'direction'=p_instruction->'direction'
+   and p_receipt->'origin'=p_instruction->'origin'
+   and p_receipt->'destination'=p_instruction->'destination'
+   and p_receipt->'source'=p_instruction->'source',false);
+$$;
+
+create function public.settle_job_financial_resolution(p_request_id uuid,p_owner text) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare r public.job_financial_resolutions%rowtype;
+begin
+ if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED'; end if;
+ perform public.co_lock_job(p_request_id);
+ select * into r from public.job_financial_resolutions where request_id=p_request_id;
+ if not found or r.owner is distinct from p_owner then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
+ if r.plan is null or r.state='reconciliation_required' then
+   update public.job_financial_resolutions set state='reconciliation_required' where request_id=p_request_id;
+   return jsonb_build_object('settled',false,'state','reconciliation_required');
+ end if;
+ if public.co_has_unresolved_payment(p_request_id) and r.decision->>'action' is distinct from 'continue_work' then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
+ if exists(select 1 from jsonb_array_elements(r.plan) e where not exists(
+   select 1 from public.job_financial_steps s where s.request_id=p_request_id
+    and s.kind=e->>'kind' and s.charge_id=e->>'chargeId' and s.params=e->'params'
+    and public.financial_receipt_matches(e,s.receipt)))
+ or exists(select 1 from public.job_financial_steps s where s.request_id=p_request_id and not exists(
+   select 1 from jsonb_array_elements(r.plan) e where s.kind=e->>'kind' and s.charge_id=e->>'chargeId' and s.params=e->'params'))
+ then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
+ -- Exact set equality and per-step amounts also prove all per-currency/direction totals.
+ update public.job_financial_resolutions set state='settled' where request_id=p_request_id;
+ return jsonb_build_object('settled',true,'state','settled');
+end $$;
+
 create function public.reserve_job_financial_resolution(p_request_id uuid,p_owner text,p_decision jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare v_existing public.job_financial_resolutions%rowtype; v_claim public.job_claims%rowtype;
+declare v_existing public.job_financial_resolutions%rowtype; v_claim public.job_claims%rowtype; e jsonb; v_plan jsonb;
 begin
   if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED'; end if;
   perform public.co_lock_job(p_request_id);
   if p_owner is null or (p_owner not in ('automatic_release','customer_cancel') and p_owner !~ '^claim:[0-9a-f-]{36}$')
     or jsonb_typeof(p_decision) is distinct from 'object' then raise exception 'INVALID_RESOLUTION'; end if;
   select * into v_existing from public.job_financial_resolutions where request_id=p_request_id;
+  if found and v_existing.owner is distinct from p_owner then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
+  if found and v_existing.plan is null then
+    update public.job_financial_resolutions set state='reconciliation_required' where request_id=p_request_id;
+    return jsonb_build_object('reserved',false,'state','reconciliation_required');
+  end if;
   if found then
     if v_existing.owner<>p_owner or v_existing.decision<>p_decision then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
-    return jsonb_build_object('reserved',true,'pending_steps',(select coalesce(jsonb_agg(jsonb_build_object('kind',kind,'params',params)),'[]'::jsonb)
+    return jsonb_build_object('reserved',true,'state',v_existing.state,'pending_steps',(select coalesce(jsonb_agg(jsonb_build_object('kind',kind,'params',params)),'[]'::jsonb)
       from public.job_financial_steps where request_id=p_request_id and receipt is null));
   end if;
   if public.co_has_unresolved_payment(p_request_id) and p_decision->>'action' is distinct from 'continue_work' then raise exception 'CHANGE_ORDER_RECONCILIATION_REQUIRED'; end if;
@@ -134,17 +183,61 @@ end if;
     -- Resolved claims can already have moved money without marking COs released.
     raise exception 'CLAIM_REQUIRES_ADMIN_RECONCILIATION';
   end if;
-  insert into public.job_financial_resolutions(request_id,owner,decision) values(p_request_id,p_owner,p_decision);
-  return jsonb_build_object('reserved',true);
+  v_plan:=p_decision->'plan';
+  if v_plan is not null then
+    if jsonb_typeof(v_plan) is distinct from 'array' then raise exception 'INVALID_FINANCIAL_PLAN'; end if;
+    if p_owner like 'claim:%' and coalesce(p_decision->>'action','') not in ('continue_work','partial','pay_provider','refund_customer') then raise exception 'INVALID_FINANCIAL_PLAN'; end if;
+    if (p_decision->>'action'='continue_work' and jsonb_array_length(v_plan)<>0)
+      or (p_decision->>'action' in ('partial','pay_provider','refund_customer') and jsonb_array_length(v_plan)=0)
+      then raise exception 'INVALID_FINANCIAL_PLAN'; end if;
+    if p_decision->>'action' in ('partial','pay_provider','refund_customer') and (
+      jsonb_typeof(p_decision->'providerAwardAmount') is distinct from 'number'
+      or jsonb_typeof(p_decision->'customerRefundAmount') is distinct from 'number'
+      or (p_decision->>'providerAwardAmount')::numeric*100 is distinct from
+        (select coalesce(sum((item#>>'{params,amount}')::numeric),0) from jsonb_array_elements(v_plan) item where item->>'kind'='transfer')
+      or (p_decision->>'customerRefundAmount')::numeric*100 is distinct from
+        (select coalesce(sum((item#>>'{params,amount}')::numeric),0) from jsonb_array_elements(v_plan) item where item->>'kind'='refund')
+      or (select count(distinct item->>'currency') from jsonb_array_elements(v_plan) item)<>1
+    ) then raise exception 'FINANCIAL_PLAN_TOTAL_MISMATCH'; end if;
+    for e in select value from jsonb_array_elements(v_plan) loop
+      if jsonb_typeof(e) is distinct from 'object' or coalesce(e->>'key','')='' or coalesce(e->>'chargeId','')=''
+        or coalesce(e->>'kind','') not in ('transfer','refund')
+        or e->>'direction' is distinct from (case when e->>'kind'='transfer' then 'to_provider' else 'to_customer' end)
+        or e->>'origin' is distinct from e->>'chargeId'
+        or coalesce(e->>'currency','') !~ '^[a-z]{3}$'
+        or jsonb_typeof(e->'source') is distinct from 'object' or coalesce(e#>>'{source,paymentIntentId}','')=''
+        or jsonb_typeof(e#>'{params,amount}') is distinct from 'number'
+        or coalesce(e#>>'{params,amount}','') !~ '^[1-9][0-9]*$'
+        or (e#>>'{params,amount}')::numeric>9007199254740991
+        or e#>>'{params,metadata,request_id}' is distinct from p_request_id::text
+        or e#>>'{source,paymentId}' is distinct from e#>>'{params,metadata,payment_id}'
+        or e#>>'{source,changeOrderId}' is distinct from e#>>'{params,metadata,change_order_id}'
+        or e#>>'{source,fundingSourceId}' is distinct from e#>>'{params,metadata,funding_source_id}'
+        or (e->>'kind'='transfer' and (coalesce(e->>'destination','')='' or e->>'destination' is distinct from e#>>'{params,destination}'
+          or e->>'currency' is distinct from e#>>'{params,currency}' or e->>'chargeId' is distinct from e#>>'{params,source_transaction}'))
+        or (e->>'kind'='refund' and (e->'destination' is distinct from 'null'::jsonb or e#>>'{source,paymentIntentId}' is distinct from e#>>'{params,payment_intent}'))
+        then raise exception 'INVALID_FINANCIAL_PLAN'; end if;
+    end loop;
+    if exists(select 1 from jsonb_array_elements(v_plan) item group by item->>'key' having count(*)>1)
+      or exists(select 1 from jsonb_array_elements(v_plan) item group by item->>'chargeId',item->>'kind' having count(*)>1)
+      then raise exception 'INVALID_FINANCIAL_PLAN'; end if;
+  end if;
+  insert into public.job_financial_resolutions(request_id,owner,decision,plan,state)
+    values(p_request_id,p_owner,p_decision,v_plan,case when v_plan is null then 'reconciliation_required' else 'reserved' end);
+  return jsonb_build_object('reserved',v_plan is not null,'state',case when v_plan is null then 'reconciliation_required' else 'reserved' end);
 end $$;
 
 create function public.reserve_job_financial_step(p_request_id uuid,p_owner text,p_kind text,p_charge_id text,p_params jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare v_step public.job_financial_steps%rowtype;
+declare v_step public.job_financial_steps%rowtype; r public.job_financial_resolutions%rowtype; e jsonb;
 begin
   if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED'; end if;
   perform public.co_lock_job(p_request_id);
   if not exists(select 1 from public.job_financial_resolutions where request_id=p_request_id and owner=p_owner) then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
+  select * into r from public.job_financial_resolutions where request_id=p_request_id;
+  if r.plan is null or r.state='reconciliation_required' then raise exception 'FINANCIAL_PLAN_RECONCILIATION_REQUIRED'; end if;
+  select value into e from jsonb_array_elements(r.plan) where value->>'kind'=p_kind and value->>'chargeId'=p_charge_id;
+  if e is null or e->'params' is distinct from p_params then raise exception 'UNDECLARED_OR_DIVERGENT_FINANCIAL_STEP'; end if;
   if exists(select 1 from public.job_financial_resolutions where request_id=p_request_id and decision->>'action'='continue_work') then raise exception 'NON_FINANCIAL_RESOLUTION'; end if;
   if public.co_has_unresolved_payment(p_request_id) then raise exception 'CHANGE_ORDER_RECONCILIATION_REQUIRED'; end if;
   if p_kind is null or p_kind not in ('transfer','refund') or coalesce(p_charge_id,'')='' or jsonb_typeof(p_params) is distinct from 'object'
@@ -154,9 +247,11 @@ begin
   if found then
     if v_step.request_id<>p_request_id or v_step.params<>p_params then raise exception 'FINANCIAL_STEP_CONFLICT'; end if;
   else
+    if r.state='settled' then raise exception 'FINANCIAL_RESOLUTION_SETTLED'; end if;
+    update public.job_financial_resolutions set state='executing' where request_id=p_request_id;
     insert into public.job_financial_steps(request_id,kind,charge_id,params) values(p_request_id,p_kind,p_charge_id,p_params) returning * into v_step;
   end if;
-  return jsonb_build_object('id',v_step.id,'params',v_step.params,'receipt',v_step.receipt,'created_at',v_step.created_at);
+  return jsonb_build_object('id',v_step.id,'instruction',e,'params',v_step.params,'receipt',v_step.receipt,'created_at',v_step.created_at);
 end $$;
 
 create function public.record_job_financial_step(p_step_id uuid,p_owner text,p_receipt jsonb)
@@ -168,8 +263,13 @@ begin
   perform public.co_lock_job(v_request_id);
   select * into v_step from public.job_financial_steps where id=p_step_id for update;
   if not exists(select 1 from public.job_financial_resolutions where request_id=v_request_id and owner=p_owner) then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
+  if not exists(select 1 from public.job_financial_resolutions r, lateral jsonb_array_elements(r.plan) e
+    where r.request_id=v_request_id and r.state in ('reserved','executing','settled') and e->>'kind'=v_step.kind
+    and e->>'chargeId'=v_step.charge_id and e->'params'=v_step.params and public.financial_receipt_matches(e,p_receipt))
+    then raise exception 'INVALID_FINANCIAL_RECEIPT'; end if;
   if coalesce(p_receipt->>'id','')='' or p_receipt->>'status' is distinct from 'succeeded'
     or (p_receipt->>'amount')::numeric is distinct from (v_step.params->>'amount')::numeric then raise exception 'INVALID_FINANCIAL_RECEIPT'; end if;
+  if exists(select 1 from public.job_financial_steps where id<>p_step_id and receipt->>'id'=p_receipt->>'id') then raise exception 'FINANCIAL_RECEIPT_REUSED'; end if;
   if v_step.receipt is not null and v_step.receipt<>p_receipt then raise exception 'FINANCIAL_RECEIPT_CONFLICT'; end if;
   update public.job_financial_steps set receipt=p_receipt,confirmed_at=coalesce(confirmed_at,clock_timestamp()) where id=p_step_id;
   return jsonb_build_object('recorded',true);
@@ -248,6 +348,7 @@ begin
         or (old.payment_status<>'paid' and new.payment_status='paid') or (old.status is distinct from new.status and new.status in ('pending','accepted'))) then raise exception 'FINANCIAL_RESOLUTION_OWNS_JOB'; end if;
     end if;
   elsif tg_table_name='job_claims' then
+    if tg_op='UPDATE' and new.status='resolved' and old.status is distinct from 'resolved' and v_resolution.request_id is null then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
     if tg_op='INSERT' and new.co_no_settlement_resolution is not null then raise exception 'INVALID_NON_FINANCIAL_CLOSURE'; end if;
     if tg_op='UPDATE' and coalesce(old.co_no_settlement_resolution,false) and v_old is distinct from v_new then
       if new.status is distinct from old.status or to_jsonb(new)->'resolution_type' is distinct from to_jsonb(old)->'resolution_type'
@@ -257,7 +358,7 @@ begin
     end if;
     if tg_op='UPDATE' and new.co_no_settlement_resolution=true and old.co_no_settlement_resolution is distinct from true then
       if coalesce(auth.role(),'')<>'service_role' or v_resolution.owner is distinct from 'claim:'||old.id::text
-        or v_resolution.decision->>'action' is distinct from 'continue_work' or new.status<>'resolved'
+        or v_resolution.decision->>'action' is distinct from 'continue_work' or v_resolution.plan is distinct from '[]'::jsonb or new.status<>'resolved'
         or coalesce((v_new->>'provider_award_amount')::numeric,-1)<>0 or coalesce((v_new->>'customer_refund_amount')::numeric,-1)<>0
         or v_new->>'resolution_type' is distinct from 'pay_provider'
         or exists(select 1 from public.job_financial_steps where request_id=v_id)
@@ -267,6 +368,9 @@ begin
     if v_resolution.request_id is not null then
       if tg_op='DELETE' or tg_op='INSERT' or v_resolution.owner is distinct from 'claim:'||(v_old->>'id') then raise exception 'FINANCIAL_RESOLUTION_OWNS_JOB'; end if;
       if v_new->>'status' is distinct from v_old->>'status' and v_new->>'status'<>'resolved' then raise exception 'FINANCIAL_RESOLUTION_OWNS_JOB'; end if;
+      if v_new->>'status'='resolved' and new.co_no_settlement_resolution is distinct from true then
+        if (public.settle_job_financial_resolution(v_id,v_resolution.owner)->>'settled')::boolean is distinct from true then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
+      end if;
       if v_new->>'status'='resolved' and ((public.co_has_unresolved_payment(v_id) and new.co_no_settlement_resolution is distinct from true) or
         exists(select 1 from public.job_financial_steps where request_id=v_id and receipt is null)) then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
     end if;
@@ -332,6 +436,7 @@ begin
   if p_owner not like 'claim:%' or not exists(select 1 from public.job_financial_resolutions where request_id=p_request_id and owner=p_owner)
     or public.co_has_unresolved_payment(p_request_id)
     or exists(select 1 from public.job_financial_steps where request_id=p_request_id and receipt is null) then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
+  if (public.settle_job_financial_resolution(p_request_id,p_owner)->>'settled')::boolean is distinct from true then raise exception 'FINANCIAL_RESOLUTION_INCOMPLETE'; end if;
   if jsonb_typeof(p_patch) is distinct from 'object' or p_patch='{}'::jsonb or exists(select 1 from jsonb_object_keys(p_patch) k where k not in
     ('status','job_stage','completion_review_status','completion_approved_at','completed_at','cancellation_reason','cancelled_at')) then raise exception 'INVALID_JOB_PATCH'; end if;
   select string_agg(format('%1$I = r.%1$I',k),',') into v_columns from jsonb_object_keys(p_patch) k;
@@ -416,6 +521,9 @@ end $$;
 update public.co_stage2_function_backup b set installed_definition=pg_get_functiondef(p.oid)
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname=b.name;
 
+revoke all on function public.financial_receipt_matches(jsonb,jsonb) from public,anon,authenticated,service_role;
+revoke all on function public.settle_job_financial_resolution(uuid,text) from public,anon,authenticated;
+grant execute on function public.settle_job_financial_resolution(uuid,text) to service_role;
 -- Helpers/triggers are not public RPCs. Only five backend entry points are granted.
 revoke all on function public.co_lock_job(uuid),public.co_has_unresolved_payment(uuid),public.co_guard_job_lifecycle(),public.co_guard_child_lifecycle() from public,anon,authenticated,service_role;
 revoke all on function public.co_assert_job_operation(uuid,text) from public,anon,authenticated,service_role;

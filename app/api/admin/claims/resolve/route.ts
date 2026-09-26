@@ -1,5 +1,5 @@
 import { reconcilePartialClaimSources } from "../../../../lib/partialClaimRecovery";
-import { financialStripe, reserveJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
+import { financialPlan, financialStripe, reserveJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
 ﻿import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -805,7 +805,7 @@ const reanudandoDecisionReservada =
     if (action === "partial" && (!Number.isFinite(providerAwardAmount) || !Number.isFinite(customerRefundAmount) || providerAwardAmount < 0 || customerRefundAmount < 0 || providerAwardAmount + customerRefundAmount <= 0 || providerAwardAmount > totalProviderNet || customerRefundAmount > totalJobAmount || dinero(providerAwardAmount + customerRefundAmount) > totalJobAmount)) {
       return NextResponse.json({ error: "Los importes de la resolución parcial no son válidos." }, { status: 400 });
     }
-    if (action !== "partial") await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, { action: action === "pay_provider" && trabajoIniciado ? "continue_work" : action, providerAwardAmount: null, customerRefundAmount: null }, stripe);
+    if (action === "pay_provider" && trabajoIniciado) await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, { action: "continue_work", providerAwardAmount: null, customerRefundAmount: null, plan: [] }, stripe);
     const settlement = financialStripe(stripe, supabaseAdmin, `claim:${claim.id}`);
 
     const existingTransfers =
@@ -1122,77 +1122,14 @@ const reanudandoDecisionReservada =
         }
       }
 
-      const transferIds: string[] = [];
-
+      const transferPlan: { key: string; paymentIntentId: string; transfer: Stripe.TransferCreateParams }[] = [];
       for (const source of transferSources) {
         const expectedSourceCents = Math.round(source.amount * 100);
         if (expectedSourceCents <= 0) continue;
-
-        const existingForSource = activeTransfers.find((transfer) => {
-          if (source.metadata.funding_source_id) {
-            return (
-              transfer.metadata?.funding_source_id ===
-                source.metadata.funding_source_id &&
-              transfer.metadata?.resolution === "pay_provider"
-            );
-          }
-
-          if (source.metadata.payment_id) {
-            return (
-              transfer.metadata?.payment_id === source.metadata.payment_id &&
-              !transfer.metadata?.funding_source_id &&
-              transfer.metadata?.resolution === "pay_provider"
-            );
-          }
-
-          return (
-            transfer.metadata?.change_order_id ===
-              source.metadata.change_order_id &&
-            transfer.metadata?.resolution === "pay_provider"
-          );
-        });
-
-        if (existingForSource) {
-          const activeAmount =
-            existingForSource.amount - existingForSource.amount_reversed;
-
-          if (activeAmount !== expectedSourceCents) {
-            return NextResponse.json(
-              {
-                error:
-                  "Existe una transferencia previa para una parte de este trabajo con un importe diferente. Revisa Stripe antes de continuar.",
-              },
-              { status: 409 }
-            );
-          }
-
-          transferIds.push(existingForSource.id);
-          continue;
-        }
-
-        const paymentIntent = await stripe.paymentIntents.retrieve(
-          source.paymentIntentId,
-          { expand: ["latest_charge"] }
-        );
-
-        const latestCharge = paymentIntent.latest_charge;
-        const chargeId =
-          typeof latestCharge === "string"
-            ? latestCharge
-            : latestCharge?.id;
-
-        if (!chargeId) {
-          return NextResponse.json(
-            {
-              error:
-                "No encontramos uno de los cargos de Stripe necesarios para pagar al profesional.",
-            },
-            { status: 500 }
-          );
-        }
-
-        const transfer = await settlement.transfer(
-          {
+        const intent = await stripe.paymentIntents.retrieve(source.paymentIntentId);
+        const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+        if (!chargeId) throw new FinancialGuardError("Falta el cargo del plan de pago.");
+        transferPlan.push({ key: source.key, paymentIntentId: source.paymentIntentId, transfer: {
             amount: expectedSourceCents,
             currency: (payment.currency || "usd").toLowerCase(),
             destination: providerProfile.stripe_account_id,
@@ -1205,14 +1142,15 @@ const reanudandoDecisionReservada =
               resolution: "pay_provider",
               ...source.metadata,
             },
-          },
-          {
-            idempotencyKey: `relydo_claim_provider_${claim.id}_${source.key}`,
-          }
-        );
-
-        transferIds.push(transfer.id);
+          } });
       }
+      await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
+        action: "pay_provider", providerAwardAmount: totalProviderNet, customerRefundAmount: 0,
+        plan: await financialPlan(stripe, transferPlan),
+      }, stripe);
+      for (const source of transferPlan) await settlement.recover("transfer", source.transfer);
+      const transferIds: string[] = [];
+      for (const source of transferPlan) transferIds.push((await settlement.transfer(source.transfer)).id);
 
       const transferId = transferIds[0] || activeTransfers[0]?.id || null;
 
@@ -1485,6 +1423,13 @@ const reanudandoDecisionReservada =
           },
         } satisfies Stripe.RefundCreateParams,
       }));
+      await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
+        action: "refund_customer", providerAwardAmount: 0,
+        customerRefundAmount: dinero(refundSources.reduce((sum, source) => sum + source.principal, 0)),
+        plan: await financialPlan(stripe, refundPlan.map(({ source, params }) => ({
+          key: source.key, paymentIntentId: source.paymentIntentId, refund: params,
+        }))),
+      }, stripe);
       for (const { params } of refundPlan) {
         await settlement.recover("refund", params);
       }
@@ -1989,11 +1934,11 @@ const reanudandoDecisionReservada =
         beforeRecover: async () => {
           await reserveJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`, {
             action: "partial", providerAwardAmount, customerRefundAmount,
-            sources: plannedSources.map(source => ({
-              key: source.key, chargeId: source.chargeId,
+            plan: await financialPlan(stripe, plannedSources.map(source => ({
+              key: source.key, paymentIntentId: source.paymentIntentId,
               transfer: source.providerCents > 0 ? transferParams(source) : null,
               refund: source.refundCents > 0 ? refundParams(source) : null,
-            })),
+            }))),
           }, stripe);
         },
       });

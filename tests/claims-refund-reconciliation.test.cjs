@@ -19,7 +19,7 @@ const code = ts.transpileModule(`async function run() { ${fragment} }`, {
 function fixture() {
   const state = { refunds: [], steps: new Map(), creates: [], writes: [], status: 'succeeded' };
   const stripe = {
-    paymentIntents: { retrieve: async id => ({ latest_charge: id.replace('pi_', 'ch_') }) },
+    paymentIntents: { retrieve: async id => ({ latest_charge: id.replace('pi_', 'ch_'), status:'succeeded', currency:'usd' }) },
     refunds: {
       list: async ({ charge }) => ({ data: state.refunds.filter(r => r.charge === charge), has_more: !!state.hasMore }),
       create: async params => {
@@ -35,7 +35,7 @@ function fixture() {
       const fail = () => ({ error: { message: 'conflict' } });
       if (state.owner && state.owner !== args.p_owner) return fail();
       if (name === 'reserve_job_financial_resolution') {
-        state.owner = args.p_owner;
+        state.owner = args.p_owner; state.plan = args.p_decision.plan || state.plan;
         return { data: { pending_steps: [...state.steps.values()].filter(s => !s.receipt).map(s => ({ kind: 'refund', params: s.params })) } };
       }
       if (name === 'reserve_job_financial_step') {
@@ -43,7 +43,7 @@ function fixture() {
         let step = state.steps.get(args.p_charge_id);
         if (step && JSON.stringify(step.params) !== JSON.stringify(args.p_params)) return fail();
         if (!step) { step = { id: `step_${args.p_charge_id}`, params: structuredClone(args.p_params), created_at: new Date().toISOString() }; state.steps.set(args.p_charge_id, step); }
-        return { data: structuredClone(step) };
+        return { data: { ...structuredClone(step), instruction: state.plan.find(e=>e.kind===args.p_kind && e.chargeId===args.p_charge_id) } };
       }
       if (name === 'record_job_financial_step') {
         if (state.failSave) return fail();
@@ -59,7 +59,7 @@ function fixture() {
   };
   const context = {
     stripe, supabaseAdmin: db, settlement: guard.financialStripe(stripe, db, 'claim:claim1'),
-    applyFinancialJobUpdate: guard.applyFinancialJobUpdate,
+    applyFinancialJobUpdate: guard.applyFinancialJobUpdate, financialPlan: guard.financialPlan, reserveJobResolution: guard.reserveJobResolution,
     esPagoReasignado: false, reassignmentSources: [], changeOrders: [], jobAmount: 100, totalCustomerFee: 10,
     payment: { id: 'base', provider_payment_id: 'pi_base', refunded_amount: 0 },
     claim: { id: 'claim1', request_id: 'job1', status: 'reviewing' }, claimId: 'claim1', user: { id: 'admin' }, notes: 'test',
@@ -67,7 +67,7 @@ function fixture() {
   };
   vm.createContext(context); vm.runInContext(code, context);
   return { state, stripe, context, run: async () => {
-    await guard.reserveJobResolution(db, 'job1', 'claim:claim1', { action: 'refund_customer' }, stripe);
+    // The route reserves its complete plan before recovering any steps.
     return context.run();
   } };
 }

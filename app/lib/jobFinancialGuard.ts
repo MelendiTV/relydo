@@ -5,6 +5,36 @@ export class FinancialGuardError extends Error {
   readonly status = 409;
 }
 
+type Instruction = { key: string; chargeId: string; currency: string; kind: "transfer" | "refund";
+  direction: "to_provider" | "to_customer"; origin: string; destination: string | null;
+  source: { paymentIntentId: string | null; paymentId: string | null; changeOrderId: string | null; fundingSourceId: string | null };
+  params: Stripe.TransferCreateParams | Stripe.RefundCreateParams };
+
+/** Build all expected instructions before reserving a resolution or moving money. */
+export async function financialPlan(stripe: Stripe, sources: {
+  key: string; paymentIntentId: string; transfer?: Stripe.TransferCreateParams | null; refund?: Stripe.RefundCreateParams | null;
+}[]): Promise<Instruction[]> {
+  const plan: Instruction[] = [];
+  for (const source of sources) {
+    const intent = await stripe.paymentIntents.retrieve(source.paymentIntentId);
+    const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+    if (!chargeId || intent.status !== "succeeded" || !intent.currency) throw new FinancialGuardError("La fuente del plan requiere conciliación.");
+    for (const kind of ["transfer", "refund"] as const) {
+      const params = source[kind];
+      if (!params) continue;
+      if (!Number.isSafeInteger(params.amount) || Number(params.amount) <= 0 ||
+          (kind === "transfer" && ((params as Stripe.TransferCreateParams).source_transaction !== chargeId || (params as Stripe.TransferCreateParams).currency !== intent.currency)) ||
+          (kind === "refund" && (params as Stripe.RefundCreateParams).payment_intent !== source.paymentIntentId)) throw new FinancialGuardError("La instrucción no coincide con su fuente.");
+      plan.push({ key: `${source.key}:${kind}`, kind, chargeId, currency: intent.currency,
+        direction: kind === "transfer" ? "to_provider" : "to_customer", origin: chargeId,
+        destination: kind === "transfer" ? String((params as Stripe.TransferCreateParams).destination) : null,
+        source: { paymentIntentId: source.paymentIntentId, paymentId: String((params.metadata || {}).payment_id || "") || null,
+          changeOrderId: String((params.metadata || {}).change_order_id || "") || null, fundingSourceId: String((params.metadata || {}).funding_source_id || "") || null }, params });
+    }
+  }
+  return plan.sort((a, b) => a.key.localeCompare(b.key));
+}
+
 /** No fallback when the migration is missing or the database is unavailable. */
 async function rpc(db: SupabaseClient, name: string, args: Record<string, unknown>) {
   const { data, error } = await db.rpc(name, args);
@@ -14,6 +44,7 @@ async function rpc(db: SupabaseClient, name: string, args: Record<string, unknow
 
 export async function reserveJobResolution(db: SupabaseClient, requestId: string, owner: string, decision: Record<string, unknown> = {}, stripe?: Stripe) {
   const reservation = await rpc(db, "reserve_job_financial_resolution", { p_request_id: requestId, p_owner: owner, p_decision: decision });
+  if (reservation.state === "reconciliation_required") throw new FinancialGuardError("La reserva anterior no tiene un plan completo verificable. Requiere conciliación explícita.");
   // Recover receipts BEFORE legacy route logic lists/skips existing effects.
   // This path only observes Stripe; it never creates a financial movement.
   if (stripe) {
@@ -59,8 +90,13 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
     const step = await rpc(db, "reserve_job_financial_step", {
       p_request_id: requestId, p_owner: owner, p_kind: kind, p_charge_id: chargeId, p_params: params,
     });
+    const expected = step.instruction as Instruction | undefined;
+    if (!expected) throw new FinancialGuardError("Falta la instrucción del plan financiero completo.");
+    const matches = (receipt: Record<string, unknown>) => receipt.kind === kind && receipt.charge_id === chargeId &&
+      receipt.currency === expected.currency && receipt.direction === expected.direction && receipt.origin === expected.origin &&
+      receipt.destination === expected.destination && !!receipt.source && Object.entries(expected.source).every(([key, value]) => (receipt.source as Record<string, unknown>)[key] === value);
     if (step.receipt) {
-      if (!step.receipt.id || step.receipt.status !== "succeeded" || step.receipt.amount !== params.amount) {
+      if (!step.receipt.id || step.receipt.status !== "succeeded" || step.receipt.amount !== params.amount || !matches(step.receipt)) {
         throw new FinancialGuardError("El comprobante durable no confirma la instrucción financiera.");
       }
       return step.receipt;
@@ -103,12 +139,14 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
     if (kind === "refund") {
       const refund = result as Stripe.Refund;
       const charge = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
-      if (charge !== chargeId || !Object.entries(params.metadata || {}).every(([key, value]) => refund.metadata?.[key] === value)) {
+      const paymentIntentId = typeof refund.payment_intent === "string" ? refund.payment_intent : refund.payment_intent?.id;
+      if (charge !== chargeId || paymentIntentId !== expected.source.paymentIntentId || refund.currency !== expected.currency || !Object.entries(params.metadata || {}).every(([key, value]) => refund.metadata?.[key] === value)) {
         throw new FinancialGuardError("El reembolso observado no coincide con el cargo y la instrucción reservada.");
       }
     }
     // Minimal durable receipt: no client secrets, customer details or credentials.
     const receipt = { id: result.id, amount: result.amount, currency: result.currency,
+      kind, charge_id: chargeId, direction: expected.direction, origin: expected.origin, destination: expected.destination, source: expected.source,
       status: kind === "refund" ? (result as Stripe.Refund).status : "succeeded" };
     const saved = await rpc(db, "record_job_financial_step", { p_step_id: step.id, p_owner: owner, p_receipt: receipt });
     if (!saved.recorded) throw new FinancialGuardError("Stripe procesó el movimiento, pero falta guardar su comprobante.");
