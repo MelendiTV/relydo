@@ -1,4 +1,4 @@
-import { financialStripe, reserveJobResolution } from "../../../lib/jobFinancialGuard";
+import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -431,8 +431,9 @@ async function procesarLiberacion({
     Number(payment.provider_net_amount);
 
   if (
+    payment.provider_net_amount == null ||
     !Number.isFinite(providerNetAmountOriginal) ||
-    providerNetAmountOriginal <= 0
+    providerNetAmountOriginal < 0
   ) {
     return {
       success: false,
@@ -596,449 +597,81 @@ async function procesarLiberacion({
     .eq("id", payment.id);
 
   try {
-    await reserveJobResolution(supabaseAdmin, requestId, "automatic_release", {}, stripe);
-    const settlement = financialStripe(stripe, supabaseAdmin, "automatic_release");
-    let originalTransferId =
-      payment.stripe_transfer_id || "";
-
-    let originalLiberadoAhora =
-      false;
-
-    // ==========================================================
-    // 11. LIBERAR PAGO PRINCIPAL
-    // ==========================================================
-
-    if (!pagoOriginalYaLiberado && esPagoReasignado) {
-      const providerNetCents = Math.round(providerNetAmountOriginal * 100);
-      const allocatedProviderCents = reassignmentFundingSources.reduce(
-        (total, source) =>
-          total + Math.round(Number(source.allocated_provider_amount || 0) * 100),
-        0
-      );
-
-      if (allocatedProviderCents !== providerNetCents) {
-        throw new Error(
-          `Las fuentes de fondos de la reasignación suman $${(allocatedProviderCents / 100).toFixed(2)}, pero el neto del profesional es $${providerNetAmountOriginal.toFixed(2)}.`
-        );
-      }
-
-      const reassignmentTransferIds: string[] = [];
-
+    const previousResolution = await readJobResolution(supabaseAdmin, requestId, "automatic_release");
+    if (previousResolution && (!Array.isArray(previousResolution.plan) || previousResolution.state === "reconciliation_required")) {
+      await reserveJobResolution(supabaseAdmin, requestId, "automatic_release", previousResolution.decision, stripe);
+      throw new FinancialGuardError("La liberación anterior requiere conciliación explícita.");
+    }
+    // Include completed sources too: an exact retry must reserve the same full plan.
+    const sources: Parameters<typeof financialPlan>[1] = [];
+    const addTransfer = async (key: string, paymentIntentId: string, amount: number, metadata: Stripe.MetadataParam) => {
+      if (!Number.isFinite(amount) || amount < 0) throw new FinancialGuardError("El importe de la fuente no es válido.");
+      if (amount === 0) return;
+      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const charge = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+      sources.push({ key, paymentIntentId, transfer: {
+        amount: Math.round(amount * 100), currency: (payment.currency || "usd").toLowerCase(),
+        destination: providerProfile.stripe_account_id, source_transaction: charge,
+        transfer_group: `relydo_request_${requestId}`, metadata: {
+          request_id: String(requestId), professional_id: String(serviceRequest.preferred_provider_id),
+          provider_net_amount: amount.toFixed(2), release_reason: "job_completed_after_protection_window", ...metadata,
+        },
+      } });
+    };
+    if (esPagoReasignado) {
+      const allocated = reassignmentFundingSources.reduce((sum, source) => sum + Math.round(Number(source.allocated_provider_amount) * 100), 0);
+      if (allocated !== Math.round(providerNetAmountOriginal * 100)) throw new FinancialGuardError("Las fuentes no coinciden con el neto del profesional.");
       for (const source of reassignmentFundingSources) {
-        const sourceProviderAmount = Number(source.allocated_provider_amount || 0);
-
-        if (!Number.isFinite(sourceProviderAmount) || sourceProviderAmount < 0) {
-          throw new Error(`La fuente de fondos ${source.id} tiene un importe profesional inválido.`);
-        }
-
-        if (sourceProviderAmount === 0) continue;
-
-        if (source.transferred_at && source.stripe_transfer_id) {
-          reassignmentTransferIds.push(source.stripe_transfer_id);
-          continue;
-        }
-
-        if (!source.stripe_payment_intent_id) {
-          throw new Error(`La fuente de fondos ${source.id} no tiene PaymentIntent de Stripe.`);
-        }
-
-        const sourcePaymentIntent = await stripe.paymentIntents.retrieve(
-          source.stripe_payment_intent_id,
-          { expand: ["latest_charge"] }
-        );
-
-        const sourceLatestCharge = sourcePaymentIntent.latest_charge;
-        const sourceChargeId =
-          typeof sourceLatestCharge === "string"
-            ? sourceLatestCharge
-            : sourceLatestCharge?.id;
-
-        if (!sourceChargeId) {
-          throw new Error(`No encontramos el cargo de Stripe de la fuente ${source.id}.`);
-        }
-
-        const sourceTransfer = await settlement.transfer(
-          {
-            amount: Math.round(sourceProviderAmount * 100),
-            currency: (payment.currency || "usd").toLowerCase(),
-            destination: providerProfile.stripe_account_id,
-            source_transaction: sourceChargeId,
-            transfer_group: `relydo_request_${requestId}`,
-            metadata: {
-              request_id: String(requestId),
-              payment_id: String(payment.id),
-              reassignment_id: String(paymentReassignment!.id),
-              funding_source_id: String(source.id),
-              funding_source_type: String(source.source_type),
-              professional_id: String(serviceRequest.preferred_provider_id),
-              provider_net_amount: sourceProviderAmount.toFixed(2),
-              payment_type: "reassignment_funding_source",
-              release_reason: "job_completed_after_protection_window",
-            },
-          },
-          {
-            idempotencyKey: `relydo_release_reassignment_source_${source.id}`,
-          }
-        );
-
-        reassignmentTransferIds.push(sourceTransfer.id);
-
-        const sourceReleasedAt = new Date().toISOString();
-        const { error: updateFundingSourceError } = await supabaseAdmin
-          .from("payment_reassignment_funding_sources")
-          .update({
-            stripe_transfer_id: sourceTransfer.id,
-            transferred_at: sourceReleasedAt,
-            updated_at: sourceReleasedAt,
-          })
-          .eq("id", source.id);
-
-        if (updateFundingSourceError) {
-          throw new Error(
-            `Stripe transfirió la fuente ${source.id}, pero RELYDO no pudo registrar su liberación: ${updateFundingSourceError.message}`
-          );
-        }
+        if (source.allocated_provider_amount == null) throw new FinancialGuardError("Falta el importe de una fuente de reasignación.");
+        await addTransfer(`funding:${source.id}`, source.stripe_payment_intent_id, Number(source.allocated_provider_amount), {
+          payment_id: String(payment.id), reassignment_id: String(paymentReassignment!.id),
+          funding_source_id: String(source.id), funding_source_type: source.source_type, payment_type: "reassignment_funding_source",
+        });
       }
-
-      const sourcesWithProviderFunds = reassignmentFundingSources.filter(
-        (source) => Number(source.allocated_provider_amount || 0) > 0
-      );
-
-      if (reassignmentTransferIds.length !== sourcesWithProviderFunds.length) {
-        throw new Error("No se pudieron confirmar todas las transferencias de la reasignación.");
-      }
-
-      originalTransferId = reassignmentTransferIds[0] || "";
-      originalLiberadoAhora = true;
-
-      const releasedAt = new Date().toISOString();
-      const { error: updateReassignedPaymentError } = await supabaseAdmin
-        .from("payments")
-        .update({
-          released_at: releasedAt,
-          stripe_transfer_id: originalTransferId || null,
-          last_release_error: null,
-          status: "paid_out",
-          updated_at: releasedAt,
-        })
-        .eq("id", payment.id);
-
-      if (updateReassignedPaymentError) {
-        throw new Error(
-          `Stripe creó las transferencias de la reasignación, pero RELYDO no pudo marcar el pago como liberado: ${updateReassignedPaymentError.message}`
-        );
+    } else {
+      await addTransfer(`payment:${payment.id}`, payment.provider_payment_id!, providerNetAmountOriginal, {
+        payment_id: String(payment.id), offer_id: String(payment.offer_id || ""), payment_type: "original",
+      });
+    }
+    for (const changeOrder of changeOrders) {
+      if (changeOrder.additional_provider_net_amount == null) throw new FinancialGuardError("Falta el neto profesional del Change Order.");
+      await addTransfer(`co:${changeOrder.id}`, changeOrder.stripe_payment_intent_id!, Number(changeOrder.additional_provider_net_amount), {
+        change_order_id: String(changeOrder.id), payment_type: "change_order",
+      });
+    }
+    const plan = await financialPlan(stripe, sources);
+    await reserveJobResolution(supabaseAdmin, requestId, "automatic_release", { plan }, stripe);
+    const settlement = financialStripe(stripe, supabaseAdmin, "automatic_release");
+    let originalTransferId = payment.stripe_transfer_id || "";
+    const originalLiberadoAhora = !pagoOriginalYaLiberado;
+    const changeOrderTransferIds: string[] = [];
+    // Execute the actual reserved parameters, never reconstruct a second instruction.
+    for (const entry of plan) {
+      const receipt = await settlement.transfer(entry.params as Stripe.TransferCreateParams);
+      const now = new Date().toISOString();
+      if (entry.source.changeOrderId) {
+        changeOrderTransferIds.push(receipt.id);
+        const existing = changeOrders.find(co => co.id === entry.source.changeOrderId);
+        const { error } = await supabaseAdmin.from("change_orders").update({
+          stripe_transfer_id: receipt.id, released_at: existing?.released_at || now, updated_at: now,
+        }).eq("id", entry.source.changeOrderId);
+        if (error) throw new Error("Stripe transfirió el adicional, pero falta registrar su liberación.");
+      } else {
+        if (!originalTransferId) originalTransferId = receipt.id;
+        if (entry.source.fundingSourceId) {
+          const existing = reassignmentFundingSources.find(source => source.id === entry.source.fundingSourceId);
+          const { error } = await supabaseAdmin.from("payment_reassignment_funding_sources").update({
+            stripe_transfer_id: receipt.id, transferred_at: existing?.transferred_at || now, updated_at: now,
+          }).eq("id", entry.source.fundingSourceId);
+          if (error) throw new Error("Stripe transfirió la fuente, pero falta registrar su liberación.");
+        }
       }
     }
-
-    if (!pagoOriginalYaLiberado && !esPagoReasignado) {
-      const paymentIntent =
-        await stripe.paymentIntents.retrieve(
-          payment.provider_payment_id!,
-          {
-            expand: ["latest_charge"],
-          }
-        );
-
-      const latestCharge =
-        paymentIntent.latest_charge;
-
-      const chargeId =
-        typeof latestCharge === "string"
-          ? latestCharge
-          : latestCharge?.id;
-
-      if (!chargeId) {
-        return {
-          success: false,
-          status: 500,
-          error:
-            "No encontramos el cargo original de Stripe.",
-        };
-      }
-
-      console.log("======================================");
-      console.log("LIBERANDO PAGO ORIGINAL AL PROFESIONAL");
-      console.log("Trabajo:", requestId);
-      console.log("Payment:", payment.id);
-      console.log(
-        "Profesional:",
-        serviceRequest.preferred_provider_id
-      );
-      console.log(
-        "Cuenta Stripe:",
-        providerProfile.stripe_account_id
-      );
-      console.log(
-        "Monto original:",
-        providerNetAmountOriginal
-      );
-      console.log("======================================");
-
-      const transferOriginal =
-        await settlement.transfer(
-          {
-            amount:
-              Math.round(
-                providerNetAmountOriginal *
-                  100
-              ),
-
-            currency: (
-              payment.currency || "usd"
-            ).toLowerCase(),
-
-            destination:
-              providerProfile.stripe_account_id,
-
-            source_transaction:
-              chargeId,
-
-            transfer_group:
-              `relydo_request_${requestId}`,
-
-            metadata: {
-              request_id:
-                String(requestId),
-
-              payment_id:
-                String(payment.id),
-
-              offer_id:
-                String(
-                  payment.offer_id || ""
-                ),
-
-              professional_id:
-                String(
-                  serviceRequest.preferred_provider_id
-                ),
-
-              provider_net_amount:
-                providerNetAmountOriginal.toFixed(
-                  2
-                ),
-
-              payment_type:
-                "original",
-
-              release_reason:
-                "job_completed_after_protection_window",
-            },
-          },
-          {
-            idempotencyKey:
-              `relydo_release_payment_${payment.id}`,
-          }
-        );
-
-      originalTransferId =
-        transferOriginal.id;
-
-      originalLiberadoAhora =
-        true;
-
-      const releasedAt =
-        new Date().toISOString();
-
-      const {
-        error: updateReleaseError,
-      } = await supabaseAdmin
-        .from("payments")
-        .update({
-          released_at: releasedAt,
-          stripe_transfer_id:
-            transferOriginal.id,
-          last_release_error: null,
-          status: "paid_out",
-          updated_at: releasedAt,
-        })
-        .eq("id", payment.id);
-
-      if (updateReleaseError) {
-        console.error(
-          "La transferencia original se creó, pero no pudimos actualizar payments:",
-          updateReleaseError
-        );
-
-        return {
-          success: false,
-          status: 500,
-          error:
-            "Stripe creó la transferencia original, pero RELYDO no pudo registrar la liberación en la base de datos.",
-        };
-      }
-    }
-
-    // ==========================================================
-    // 12. LIBERAR CADA CHANGE ORDER PAGADO
-    // ==========================================================
-
-    const changeOrderTransferIds:
-      string[] = [];
-
-    for (
-      const changeOrder of changeOrders
-    ) {
-      if (
-        changeOrder.released_at &&
-        changeOrder.stripe_transfer_id
-      ) {
-        changeOrderTransferIds.push(
-          changeOrder.stripe_transfer_id
-        );
-
-        continue;
-      }
-
-      const netoAdicional =
-        Number(
-          changeOrder.additional_provider_net_amount
-        );
-
-      if (
-        !Number.isFinite(netoAdicional) ||
-        netoAdicional <= 0
-      ) {
-        throw new Error(
-          `El Change Order ${changeOrder.id} tiene un neto profesional inválido.`
-        );
-      }
-
-      if (
-        !changeOrder.stripe_payment_intent_id
-      ) {
-        throw new Error(
-          `El Change Order ${changeOrder.id} no tiene PaymentIntent de Stripe registrado.`
-        );
-      }
-
-      const changePaymentIntent =
-        await stripe.paymentIntents.retrieve(
-          changeOrder.stripe_payment_intent_id,
-          {
-            expand: ["latest_charge"],
-          }
-        );
-
-      const changeLatestCharge =
-        changePaymentIntent.latest_charge;
-
-      const changeChargeId =
-        typeof changeLatestCharge ===
-        "string"
-          ? changeLatestCharge
-          : changeLatestCharge?.id;
-
-      if (!changeChargeId) {
-        throw new Error(
-          `No encontramos el cargo de Stripe del Change Order ${changeOrder.id}.`
-        );
-      }
-
-      console.log("======================================");
-      console.log("LIBERANDO CHANGE ORDER AL PROFESIONAL");
-      console.log("Trabajo:", requestId);
-      console.log(
-        "Change Order:",
-        changeOrder.id
-      );
-      console.log(
-        "Monto adicional neto:",
-        netoAdicional
-      );
-      console.log("======================================");
-
-      const changeTransfer =
-        await settlement.transfer(
-          {
-            amount:
-              Math.round(
-                netoAdicional * 100
-              ),
-
-            currency: (
-              payment.currency || "usd"
-            ).toLowerCase(),
-
-            destination:
-              providerProfile.stripe_account_id,
-
-            source_transaction:
-              changeChargeId,
-
-            transfer_group:
-              `relydo_request_${requestId}`,
-
-            metadata: {
-              request_id:
-                String(requestId),
-
-              change_order_id:
-                String(
-                  changeOrder.id
-                ),
-
-              professional_id:
-                String(
-                  serviceRequest.preferred_provider_id
-                ),
-
-              provider_net_amount:
-                netoAdicional.toFixed(
-                  2
-                ),
-
-              payment_type:
-                "change_order",
-
-              release_reason:
-                "job_completed_after_protection_window",
-            },
-          },
-          {
-            idempotencyKey:
-              `relydo_release_change_order_${changeOrder.id}`,
-          }
-        );
-
-      changeOrderTransferIds.push(
-        changeTransfer.id
-      );
-
-      const changeReleasedAt =
-        new Date().toISOString();
-
-      const {
-        error:
-          updateChangeOrderError,
-      } = await supabaseAdmin
-        .from("change_orders")
-        .update({
-          stripe_transfer_id:
-            changeTransfer.id,
-          released_at:
-            changeReleasedAt,
-          updated_at:
-            changeReleasedAt,
-        })
-        .eq(
-          "id",
-          changeOrder.id
-        );
-
-      if (
-        updateChangeOrderError
-      ) {
-        console.error(
-          "La transferencia del Change Order se creó, pero no pudimos actualizar change_orders:",
-          updateChangeOrderError
-        );
-
-        throw new Error(
-          "Stripe transfirió el adicional, pero RELYDO no pudo registrar la liberación del Change Order."
-        );
-      }
-    }
+    const { error: releaseSaveError } = await supabaseAdmin.from("payments").update({
+      released_at: payment.released_at || new Date().toISOString(), stripe_transfer_id: originalTransferId || null,
+      last_release_error: null, status: "paid_out", updated_at: new Date().toISOString(),
+    }).eq("id", payment.id);
+    if (releaseSaveError) throw new Error("Stripe procesó la liberación, pero falta actualizar el pago.");
 
     // ==========================================================
     // 13. RESPUESTA FINAL
@@ -1134,7 +767,7 @@ async function procesarLiberacion({
 
     return {
       success: false,
-      status: 500,
+      status: transferError instanceof FinancialGuardError ? transferError.status : 500,
       error: mensajeError,
     };
   }

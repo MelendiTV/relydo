@@ -1,4 +1,4 @@
-import { financialStripe, reserveJobResolution, FinancialGuardError } from "../../../lib/jobFinancialGuard";
+import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -54,7 +54,7 @@ type FundingSourceRefund = {
   refunded_amount: number | string;
 };
 
-async function loadLiveFundingSources(paymentId: string) {
+async function loadLiveFundingSources(paymentId: string, ownRefunds: OwnRefund[] = []) {
   const { data: sources, error: sourceError } = await supabaseAdmin
     .from("payment_reassignment_funding_sources")
     .select(`
@@ -113,6 +113,14 @@ async function loadLiveFundingSources(paymentId: string) {
   const refundedBySource = new Map<string, number>();
 
   for (const refund of (refunds || []) as FundingSourceRefund[]) {
+    // Remove only ledger projections proven to belong to this resolution's receipts.
+    const own = ownRefunds.find(receipt => receipt.id === refund.stripe_refund_id);
+    if (own) {
+      if (own.source.fundingSourceId !== refund.funding_source_id || own.source.paymentIntentId !== refund.stripe_payment_intent_id || own.amount !== cents(refund.refunded_amount)) {
+        throw new FinancialGuardError("El ledger de reembolsos no coincide con su comprobante.");
+      }
+      continue;
+    }
     const current = refundedBySource.get(refund.funding_source_id) || 0;
     const amount = dinero(refund.refunded_amount);
 
@@ -166,329 +174,75 @@ async function loadLiveFundingSources(paymentId: string) {
   };
 }
 
-async function refundAcrossFundingSources({
-  requestId,
-  paymentId,
-  sources,
-  amountToRefund,
-  cancellationStage,
-  reason,
-}: {
-  requestId: string;
-  paymentId: string;
-  sources: Array<
-    FundingSource & {
-      refundedAmount: number;
-      liveCustomerAmount: number;
-    }
-  >;
-  amountToRefund: number;
-  cancellationStage: string;
-  reason: string;
-}) {
-  let remainingCents = cents(amountToRefund);
+type OwnRefund = { id: string; amount: number; source: { paymentId: string | null; paymentIntentId: string | null; fundingSourceId: string | null } };
+type PlanSources = Parameters<typeof financialPlan>[1];
+type LiveSource = FundingSource & { refundedAmount: number; liveCustomerAmount: number };
 
-  if (!Number.isFinite(remainingCents) || remainingCents < 0) {
-    throw new Error("El importe de reembolso solicitado no es válido.");
+/** Allocate refunds newest first, then compensation oldest first from retained funds. */
+async function cancellationSources({ requestId, paymentId, sources, refundAmount, awardAmount = 0,
+  providerId = "", destination = "", currency = "usd", stage, reason, penaltyPercent = 0, providerPercent = 0,
+}: { requestId: string; paymentId: string; sources: LiveSource[]; refundAmount: number; awardAmount?: number;
+  providerId?: string; destination?: string; currency?: string; stage: string; reason: string; penaltyPercent?: number; providerPercent?: number }) {
+  let refundRemaining = cents(refundAmount), awardRemaining = cents(awardAmount);
+  if (!Number.isSafeInteger(refundRemaining) || refundRemaining < 0 || !Number.isSafeInteger(awardRemaining) || awardRemaining < 0) {
+    throw new FinancialGuardError("Los importes de cancelación no son válidos.");
   }
-
-  const refundIds: string[] = [];
-
-  // Reembolsamos primero las fuentes más recientes. Esto hace el reparto
-  // determinista y mantiene el comportamiento usado en la reasignación.
-  const orderedSources = [...sources].sort((a, b) => {
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return bTime - aTime;
+  const chronological = [...sources].sort((a, b) => {
+    const time = (value: LiveSource) => value.created_at ? Date.parse(value.created_at) : 0;
+    return time(a) - time(b) || a.id.localeCompare(b.id);
   });
-
-  for (const source of orderedSources) {
-    if (remainingCents <= 0) break;
-
-    const liveCents = cents(source.liveCustomerAmount);
-
-    if (!Number.isFinite(liveCents) || liveCents < 0) {
-      throw new Error(
-        `La fuente ${source.id} tiene un crédito vivo inválido.`
-      );
-    }
-
-    if (liveCents === 0) continue;
-
-    const refundCents = Math.min(remainingCents, liveCents);
-
-    const refund = await settlement.refund(
-      {
-        payment_intent: source.stripe_payment_intent_id,
-        amount: refundCents,
-        reason: "requested_by_customer",
-        metadata: {
-          request_id: String(requestId),
-          payment_id: String(paymentId),
-          funding_source_id: String(source.id),
-          cancellation_stage: String(cancellationStage),
-          cancellation_reason: String(reason),
-          customer_refund_amount: (refundCents / 100).toFixed(2),
-          payment_type: "customer_cancellation_reassignment_refund",
-        },
-      },
-      {
-        idempotencyKey:
-          `relydo_customer_cancel_source_refund_${paymentId}_${source.id}_${refundCents}`,
-      }
-    );
-
-    const { error: refundLedgerError } = await supabaseAdmin
-      .from("payment_reassignment_source_refunds")
-      .upsert(
-        {
-          funding_source_id: source.id,
-          stripe_payment_intent_id: source.stripe_payment_intent_id,
-          stripe_refund_id: refund.id,
-          refunded_amount: refundCents / 100,
-          refund_reason: "customer_cancellation",
-        },
-        {
-          onConflict: "stripe_refund_id",
-        }
-      );
-
-    if (refundLedgerError) {
-      throw new Error(
-        `Stripe creó el reembolso ${refund.id}, pero RELYDO no pudo registrarlo: ${refundLedgerError.message}`
-      );
-    }
-
-    refundIds.push(refund.id);
-    remainingCents -= refundCents;
+  const allocations = new Map<string, { refund: number; retained: number }>();
+  for (const source of [...chronological].reverse()) {
+    const live = cents(source.liveCustomerAmount);
+    if (!Number.isSafeInteger(live) || live < 0) throw new FinancialGuardError("La fuente tiene un saldo inválido.");
+    const refund = Math.min(refundRemaining, live);
+    allocations.set(source.id, { refund, retained: live - refund });
+    refundRemaining -= refund;
   }
-
-  if (remainingCents !== 0) {
-    throw new Error(
-      `Las fuentes de fondos no alcanzan para completar el reembolso. Faltan $${(
-        remainingCents / 100
-      ).toFixed(2)}.`
-    );
+  if (refundRemaining) throw new FinancialGuardError("Las fuentes no cubren el reembolso.");
+  const result: PlanSources = [];
+  for (const source of chronological) {
+    const allocation = allocations.get(source.id)!;
+    const award = Math.min(awardRemaining, allocation.retained);
+    awardRemaining -= award;
+    if (!award && !allocation.refund) continue;
+    const metadata = { request_id: requestId, payment_id: paymentId, funding_source_id: source.id, cancellation_stage: stage };
+    const intent = await stripe.paymentIntents.retrieve(source.stripe_payment_intent_id);
+    const charge = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+    result.push({ key: `funding:${source.id}`, paymentIntentId: source.stripe_payment_intent_id,
+      transfer: award ? { amount: award, currency: currency.toLowerCase(), destination, source_transaction: charge,
+        transfer_group: `relydo_request_${requestId}`, metadata: { ...metadata, professional_id: providerId,
+          cancellation_penalty_percent: penaltyPercent.toFixed(2), cancellation_provider_percent: providerPercent.toFixed(2),
+          cancellation_provider_amount: (award / 100).toFixed(2), payment_type: "customer_cancellation_reassignment" } } : null,
+      refund: allocation.refund ? { payment_intent: source.stripe_payment_intent_id, amount: allocation.refund, reason: "requested_by_customer",
+        metadata: { ...metadata, cancellation_reason: reason, customer_refund_amount: (allocation.refund / 100).toFixed(2),
+          payment_type: "customer_cancellation_reassignment_refund" } } : null,
+    });
   }
-
-  return refundIds;
+  if (awardRemaining) throw new FinancialGuardError("Las fuentes no cubren la compensación.");
+  return result;
 }
 
-async function transferCancellationAwardAcrossFundingSources({
-  requestId,
-  paymentId,
-  providerId,
-  providerAccountId,
-  currency,
-  sources,
-  providerAwardAmount,
-  customerRefundAmount,
-  cancellationStage,
-  penaltyPercent,
-  providerJobPercent,
-}: {
-  requestId: string;
-  paymentId: string;
-  providerId: string;
-  providerAccountId: string;
-  currency: string;
-  sources: Array<
-    FundingSource & {
-      refundedAmount: number;
-      liveCustomerAmount: number;
+async function executeCancellationPlan(requestId: string, sources: PlanSources, baselineRefundedAmount?: number) {
+  const plan = await financialPlan(stripe, sources);
+  const decision = baselineRefundedAmount === undefined ? { plan } : { plan, baselineRefundedAmount };
+  await reserveJobResolution(supabaseAdmin, requestId, "customer_cancel", decision, stripe);
+  const transfers: string[] = [], refunds: string[] = [];
+  // Preserve compensation-before-refund ordering using the same reserved entries.
+  for (const entry of [...plan.filter(e => e.kind === "transfer"), ...plan.filter(e => e.kind === "refund")]) {
+    const receipt = entry.kind === "transfer"
+      ? await settlement.transfer(entry.params as Stripe.TransferCreateParams)
+      : await settlement.refund(entry.params as Stripe.RefundCreateParams);
+    (entry.kind === "transfer" ? transfers : refunds).push(receipt.id);
+    if (entry.kind === "refund" && entry.source.fundingSourceId) {
+      const { error } = await supabaseAdmin.from("payment_reassignment_source_refunds").upsert({
+        funding_source_id: entry.source.fundingSourceId, stripe_payment_intent_id: entry.source.paymentIntentId,
+        stripe_refund_id: receipt.id, refunded_amount: receipt.amount / 100, refund_reason: "customer_cancellation",
+      }, { onConflict: "stripe_refund_id" });
+      if (error) throw new FinancialGuardError("Stripe confirmó el reembolso, pero falta registrar su ledger. Reintenta la misma cancelación.");
     }
-  >;
-  providerAwardAmount: number;
-  customerRefundAmount: number;
-  cancellationStage: string;
-  penaltyPercent: number;
-  providerJobPercent: number;
-}) {
-  const providerAwardCents = cents(providerAwardAmount);
-  const refundCents = cents(customerRefundAmount);
-
-  if (
-    !Number.isFinite(providerAwardCents) ||
-    providerAwardCents < 0 ||
-    !Number.isFinite(refundCents) ||
-    refundCents < 0
-  ) {
-    throw new Error("Los importes de cancelación no son válidos.");
   }
-
-  if (providerAwardCents === 0) {
-    return [] as string[];
-  }
-
-  // Calculamos cuánto quedará vivo por PI DESPUÉS del reembolso.
-  // El mismo orden de refundAcrossFundingSources (más reciente primero)
-  // garantiza que nunca intentemos transferir desde una parte que será reembolsada.
-  let simulatedRefundRemaining = refundCents;
-
-  const newestFirst = [...sources].sort((a, b) => {
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return bTime - aTime;
-  });
-
-  const retainedBySource = new Map<string, number>();
-
-  for (const source of newestFirst) {
-    const liveCents = cents(source.liveCustomerAmount);
-
-    if (!Number.isFinite(liveCents) || liveCents < 0) {
-      throw new Error(
-        `La fuente ${source.id} tiene un crédito vivo inválido.`
-      );
-    }
-
-    const simulatedRefund = Math.min(
-      simulatedRefundRemaining,
-      liveCents
-    );
-
-    retainedBySource.set(
-      source.id,
-      liveCents - simulatedRefund
-    );
-
-    simulatedRefundRemaining -= simulatedRefund;
-  }
-
-  if (simulatedRefundRemaining !== 0) {
-    throw new Error(
-      "No hay fondos suficientes para calcular la compensación del profesional."
-    );
-  }
-
-  const transferGroup = `relydo_request_${requestId}`;
-
-  const existingTransfers = await stripe.transfers.list({
-    transfer_group: transferGroup,
-    limit: 100,
-  });
-
-  const cancellationTransfersForPayment =
-    existingTransfers.data.filter((transfer) => {
-      const samePayment =
-        transfer.metadata?.payment_id === String(paymentId);
-      const sameProvider =
-        transfer.metadata?.professional_id === String(providerId);
-      const active =
-        transfer.amount > transfer.amount_reversed;
-
-      const looksLikeCancellation =
-        transfer.metadata?.payment_type ===
-          "customer_cancellation_reassignment" ||
-        Boolean(transfer.metadata?.cancellation_stage);
-
-      return samePayment && sameProvider && active && looksLikeCancellation;
-    });
-
-  const existingActiveCents =
-    cancellationTransfersForPayment.reduce(
-      (total, transfer) =>
-        total +
-        (transfer.amount - transfer.amount_reversed),
-      0
-    );
-
-  if (
-    existingActiveCents > 0 &&
-    existingActiveCents !== providerAwardCents
-  ) {
-    throw new Error(
-      "Ya existe una compensación diferente para este pago. No se hará otra transferencia automática."
-    );
-  }
-
-  if (existingActiveCents === providerAwardCents) {
-    return cancellationTransfersForPayment.map(
-      (transfer) => transfer.id
-    );
-  }
-
-  let remainingProviderCents = providerAwardCents;
-  const transferIds: string[] = [];
-
-  // Para transferir usamos primero las fuentes más antiguas entre los
-  // saldos que quedarán retenidos después del refund.
-  const oldestFirst = [...sources].sort((a, b) => {
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return aTime - bTime;
-  });
-
-  for (const source of oldestFirst) {
-    if (remainingProviderCents <= 0) break;
-
-    const retainedCents = retainedBySource.get(source.id) || 0;
-    if (retainedCents <= 0) continue;
-
-    const transferCents = Math.min(
-      remainingProviderCents,
-      retainedCents
-    );
-
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      source.stripe_payment_intent_id,
-      {
-        expand: ["latest_charge"],
-      }
-    );
-
-    const latestCharge = paymentIntent.latest_charge;
-    const chargeId =
-      typeof latestCharge === "string"
-        ? latestCharge
-        : latestCharge?.id;
-
-    if (!chargeId) {
-      throw new Error(
-        `No encontramos el cargo de Stripe de la fuente ${source.id}.`
-      );
-    }
-
-    const transfer = await settlement.transfer(
-      {
-        amount: transferCents,
-        currency: currency.toLowerCase(),
-        destination: providerAccountId,
-        source_transaction: chargeId,
-        transfer_group: transferGroup,
-        metadata: {
-          request_id: String(requestId),
-          payment_id: String(paymentId),
-          funding_source_id: String(source.id),
-          professional_id: String(providerId),
-          cancellation_stage: String(cancellationStage),
-          cancellation_penalty_percent: penaltyPercent.toFixed(2),
-          cancellation_provider_percent: providerJobPercent.toFixed(2),
-          cancellation_provider_amount: (
-            transferCents / 100
-          ).toFixed(2),
-          payment_type: "customer_cancellation_reassignment",
-        },
-      },
-      {
-        idempotencyKey:
-          `relydo_customer_cancel_reassignment_transfer_${paymentId}_${source.id}_${transferCents}`,
-      }
-    );
-
-    transferIds.push(transfer.id);
-    remainingProviderCents -= transferCents;
-  }
-
-  if (remainingProviderCents !== 0) {
-    throw new Error(
-      `No se pudo distribuir toda la compensación del profesional. Faltan $${(
-        remainingProviderCents / 100
-      ).toFixed(2)}.`
-    );
-  }
-
-  return transferIds;
+  return { transfers, refunds };
 }
 
 export async function POST(request: NextRequest) {
@@ -620,9 +374,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await reserveJobResolution(supabaseAdmin, requestId, "customer_cancel", {}, stripe);
+    if (serviceRequest.status === "in_progress" && serviceRequest.job_stage === "working") {
+      throw new FinancialGuardError("El trabajo ya fue iniciado. Debe gestionarse mediante un reclamo.");
+    }
+    const previousResolution = await readJobResolution(supabaseAdmin, requestId, "customer_cancel");
+    let ownRefunds: OwnRefund[] = [];
+    if (previousResolution) {
+      // This only recovers receipts; it cannot create or replace a legacy plan.
+      await reserveJobResolution(supabaseAdmin, requestId, "customer_cancel", previousResolution.decision, stripe);
+      const recovered = await readJobResolution(supabaseAdmin, requestId, "customer_cancel");
+      ownRefunds = (recovered?.receipts || []).filter((receipt: { kind: string }) => receipt.kind === "refund");
+    }
+    const baselineRefunded = (current: unknown, paymentId: string) => {
+      const amount = dinero(current || 0);
+      const baseline = previousResolution?.decision?.baselineRefundedAmount;
+      if (baseline === undefined) return amount;
+      const own = ownRefunds.filter(receipt => receipt.source.paymentId === paymentId && !receipt.source.fundingSourceId)
+        .reduce((sum, receipt) => sum + receipt.amount, 0);
+      if (cents(amount) !== cents(baseline) && cents(amount) !== cents(baseline) + own) {
+        throw new FinancialGuardError("El reembolso registrado cambió fuera de esta cancelación. Requiere conciliación.");
+      }
+      return Number(baseline);
+    };
 
    if (serviceRequest.status === "cancelled") {
+  if (!previousResolution) throw new FinancialGuardError("La cancelación histórica requiere conciliación explícita.");
+  const { data: settled, error: settleError } = await supabaseAdmin.rpc("settle_job_financial_resolution", {
+    p_request_id: requestId, p_owner: "customer_cancel",
+  });
+  if (settleError || !settled?.settled) throw new FinancialGuardError("La cancelación conserva pasos pendientes de conciliación.");
   const now = new Date().toISOString();
 
   const { error: recoveryReassignmentError } =
@@ -673,19 +453,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      serviceRequest.status === "in_progress" &&
-      serviceRequest.job_stage === "working"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "El trabajo ya fue iniciado. No puede cancelarse automáticamente; debe gestionarse mediante un reclamo.",
-        },
-        { status: 409 }
-      );
-    }
-
     // ======================================================
     // 4. SOLICITUD ABIERTA
     //
@@ -729,6 +496,12 @@ export async function POST(request: NextRequest) {
 
       // OPEN REALMENTE SIN DINERO
       if (!activeReassignment) {
+        const { data: payments, error } = await supabaseAdmin.from("payments")
+          .select("id").eq("request_id", requestId).limit(1);
+        if (error || payments?.length) {
+          throw new FinancialGuardError("El trabajo abierto tiene un pago sin crédito de reasignación verificable. Requiere conciliación explícita.");
+        }
+        await executeCancellationPlan(requestId, []);
         const { error: cancelError } =
           await supabaseUser.rpc("cancel_job", {
             p_request_id: requestId,
@@ -810,7 +583,7 @@ export async function POST(request: NextRequest) {
       const {
         sources: liveSources,
         liveCustomerTotal,
-      } = await loadLiveFundingSources(originalPayment.id);
+      } = await loadLiveFundingSources(originalPayment.id, ownRefunds);
 
       let customerRefundAmount = 0;
       let stripeRefundIds: string[] = [];
@@ -889,18 +662,9 @@ export async function POST(request: NextRequest) {
           )
         );
 
-        if (customerRefundAmount > 0) {
-          stripeRefundIds =
-            await refundAcrossFundingSources({
-              requestId,
-              paymentId: originalPayment.id,
-              sources: liveSources,
-              amountToRefund: customerRefundAmount,
-              cancellationStage:
-                "open_after_provider_release",
-              reason,
-            });
-        }
+        const sources = await cancellationSources({ requestId, paymentId: originalPayment.id, sources: liveSources,
+          refundAmount: customerRefundAmount, stage: "open_after_provider_release", reason });
+        stripeRefundIds = (await executeCancellationPlan(requestId, sources)).refunds;
       } else {
         if (!originalPayment.provider_payment_id) {
           return NextResponse.json(
@@ -915,9 +679,7 @@ export async function POST(request: NextRequest) {
         const paymentTotal = dinero(
           originalPayment.customer_total_amount
         );
-        const alreadyRefunded = dinero(
-          originalPayment.refunded_amount || 0
-        );
+        const alreadyRefunded = baselineRefunded(originalPayment.refunded_amount, originalPayment.id);
 
         if (
           !Number.isFinite(paymentTotal) ||
@@ -944,37 +706,13 @@ export async function POST(request: NextRequest) {
           )
         );
 
-        if (customerRefundAmount > 0) {
-          const refundCents = cents(
-            customerRefundAmount
-          );
-
-          const refund = await settlement.refund(
-            {
-              payment_intent:
-                originalPayment.provider_payment_id,
-              amount: refundCents,
-              reason: "requested_by_customer",
-              metadata: {
-                request_id: String(requestId),
-                payment_id: String(originalPayment.id),
-                cancellation_stage:
-                  "open_after_provider_release",
-                cancellation_reason: String(reason),
-                customer_refund_amount:
-                  customerRefundAmount.toFixed(2),
-                payment_type:
-                  "customer_cancellation_open_credit_refund",
-              },
-            },
-            {
-              idempotencyKey:
-                `relydo_customer_cancel_open_credit_refund_${originalPayment.id}_${refundCents}`,
-            }
-          );
-
-          stripeRefundIds = [refund.id];
-        }
+        const sources: PlanSources = customerRefundAmount > 0 ? [{ key: `payment:${originalPayment.id}`,
+          paymentIntentId: originalPayment.provider_payment_id, refund: {
+            payment_intent: originalPayment.provider_payment_id, amount: cents(customerRefundAmount), reason: "requested_by_customer",
+            metadata: { request_id: requestId, payment_id: String(originalPayment.id), cancellation_stage: "open_after_provider_release",
+              cancellation_reason: reason, customer_refund_amount: customerRefundAmount.toFixed(2), payment_type: "customer_cancellation_open_credit_refund" },
+          } }] : [];
+        stripeRefundIds = (await executeCancellationPlan(requestId, sources, alreadyRefunded)).refunds;
 
         const now = new Date().toISOString();
 
@@ -1318,7 +1056,7 @@ export async function POST(request: NextRequest) {
       liveCustomerTotal:
         reassignmentLiveCustomerTotal,
     } = esPagoReasignado
-      ? await loadLiveFundingSources(payment.id)
+      ? await loadLiveFundingSources(payment.id, ownRefunds)
       : {
           sources: [],
           liveCustomerTotal: 0,
@@ -1495,309 +1233,36 @@ export async function POST(request: NextRequest) {
     // 9. COMPENSAR AL PROFESIONAL
     // ======================================================
 
-    let stripeTransferId: string | null = null;
-    let stripeTransferIds: string[] = [];
-
-    if (providerAwardAmount > 0) {
-      if (
-        esPagoReasignado &&
-        providerAccountId
-      ) {
-        stripeTransferIds =
-          await transferCancellationAwardAcrossFundingSources(
-            {
-              requestId,
-              paymentId: payment.id,
-              providerId: payment.provider_id,
-              providerAccountId,
-              currency:
-                payment.currency ||
-                settings.currency ||
-                "usd",
-              sources: reassignmentSources,
-              providerAwardAmount,
-              customerRefundAmount,
-              cancellationStage:
-                serviceRequest.job_stage ||
-                "contracted",
-              penaltyPercent,
-              providerJobPercent,
-            }
-          );
-
-        stripeTransferId =
-          stripeTransferIds[0] || null;
-      } else if (
-        !esPagoReasignado &&
-        providerAccountId &&
-        payment.provider_payment_id
-      ) {
-        const transferGroup =
-          `relydo_request_${requestId}`;
-
-        const existingTransfers =
-          await stripe.transfers.list({
-            transfer_group: transferGroup,
-            limit: 100,
-          });
-
-        const matchingTransfers =
-          existingTransfers.data.filter(
-            (transfer) => {
-              const samePayment =
-                transfer.metadata?.payment_id ===
-                String(payment.id);
-              const sameProvider =
-                transfer.metadata
-                  ?.professional_id ===
-                String(payment.provider_id);
-              const active =
-                transfer.amount >
-                transfer.amount_reversed;
-              const looksLikeCancellation =
-                Boolean(
-                  transfer.metadata
-                    ?.cancellation_stage
-                );
-
-              return (
-                samePayment &&
-                sameProvider &&
-                active &&
-                looksLikeCancellation
-              );
-            }
-          );
-
-        const activeTransferredCents =
-          matchingTransfers.reduce(
-            (total, transfer) =>
-              total +
-              (transfer.amount -
-                transfer.amount_reversed),
-            0
-          );
-
-        const expectedProviderCents =
-          cents(providerAwardAmount);
-
-        if (
-          activeTransferredCents > 0 &&
-          activeTransferredCents !==
-            expectedProviderCents
-        ) {
-          return NextResponse.json(
-            {
-              error:
-                "Ya existe una transferencia diferente para este pago. No se hará una distribución automática para evitar duplicar dinero.",
-            },
-            { status: 409 }
-          );
-        }
-
-        if (
-          activeTransferredCents ===
-            expectedProviderCents &&
-          matchingTransfers.length > 0
-        ) {
-          stripeTransferIds =
-            matchingTransfers.map(
-              (transfer) => transfer.id
-            );
-          stripeTransferId =
-            stripeTransferIds[0] || null;
-        } else {
-          const paymentIntent =
-            await stripe.paymentIntents.retrieve(
-              payment.provider_payment_id,
-              {
-                expand: ["latest_charge"],
-              }
-            );
-
-          const latestCharge =
-            paymentIntent.latest_charge;
-
-          const chargeId =
-            typeof latestCharge === "string"
-              ? latestCharge
-              : latestCharge?.id || null;
-
-          if (!chargeId) {
-            return NextResponse.json(
-              {
-                error:
-                  "No encontramos el cargo original de Stripe.",
-              },
-              { status: 500 }
-            );
-          }
-
-          const transfer =
-            await settlement.transfer(
-              {
-                amount:
-                  expectedProviderCents,
-                currency: (
-                  payment.currency ||
-                  settings.currency ||
-                  "usd"
-                ).toLowerCase(),
-                destination:
-                  providerAccountId,
-                source_transaction:
-                  chargeId,
-                transfer_group:
-                  transferGroup,
-                metadata: {
-                  request_id:
-                    String(requestId),
-                  payment_id:
-                    String(payment.id),
-                  professional_id:
-                    String(payment.provider_id),
-                  cancellation_stage:
-                    String(
-                      serviceRequest.job_stage ||
-                        "contracted"
-                    ),
-                  cancellation_penalty_percent:
-                    penaltyPercent.toFixed(2),
-                  cancellation_provider_percent:
-                    providerJobPercent.toFixed(
-                      2
-                    ),
-                  cancellation_provider_amount:
-                    providerAwardAmount.toFixed(
-                      2
-                    ),
-                  payment_type:
-                    "customer_cancellation",
-                },
-              },
-              {
-                idempotencyKey:
-                  `relydo_customer_cancel_transfer_${payment.id}_${expectedProviderCents}`,
-              }
-            );
-
-          stripeTransferId = transfer.id;
-          stripeTransferIds = [
-            transfer.id,
-          ];
-        }
-      }
-    }
-
-    // ======================================================
-    // 10. REEMBOLSAR AL CLIENTE
-    // ======================================================
-
-    let stripeRefundId: string | null = null;
-    let stripeRefundIds: string[] = [];
-    let refundStatus: string | null = null;
-
+    let sources: PlanSources;
+    let previousRefunded: number | undefined;
     if (esPagoReasignado) {
-      if (customerRefundAmount > 0) {
-        stripeRefundIds =
-          await refundAcrossFundingSources({
-            requestId,
-            paymentId: payment.id,
-            sources: reassignmentSources,
-            amountToRefund:
-              customerRefundAmount,
-            cancellationStage:
-              serviceRequest.job_stage ||
-              "contracted",
-            reason,
-          });
-
-        stripeRefundId =
-          stripeRefundIds[0] || null;
-        refundStatus =
-          stripeRefundIds.length > 0
-            ? "succeeded"
-            : null;
-      }
+      sources = await cancellationSources({ requestId, paymentId: payment.id, sources: reassignmentSources,
+        refundAmount: customerRefundAmount, awardAmount: providerAwardAmount, providerId: payment.provider_id,
+        destination: providerAccountId || "", currency: payment.currency || settings.currency || "usd",
+        stage: serviceRequest.job_stage || "contracted", reason, penaltyPercent, providerPercent: providerJobPercent });
     } else {
-      const previousRefunded = dinero(
-        payment.refunded_amount || 0
-      );
-
-      if (
-        !Number.isFinite(previousRefunded) ||
-        previousRefunded < 0
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "El importe de reembolso previo no es válido.",
-          },
-          { status: 409 }
-        );
+      previousRefunded = baselineRefunded(payment.refunded_amount, payment.id);
+      if (!Number.isFinite(previousRefunded) || previousRefunded < 0 || previousRefunded > customerRefundAmount) {
+        throw new FinancialGuardError("El reembolso previo no coincide con esta cancelación.");
       }
-
-      if (
-        previousRefunded >
-        customerRefundAmount
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Este pago ya tiene un reembolso superior al calculado para esta cancelación. No se hará otro reembolso automáticamente.",
-          },
-          { status: 409 }
-        );
-      }
-
-      const refundRemaining = dinero(
-        customerRefundAmount -
-          previousRefunded
-      );
-
-      if (refundRemaining > 0) {
-        const refund =
-          await settlement.refund(
-            {
-              payment_intent:
-                payment.provider_payment_id!,
-              amount:
-                cents(refundRemaining),
-              reason:
-                "requested_by_customer",
-              metadata: {
-                request_id:
-                  String(requestId),
-                payment_id:
-                  String(payment.id),
-                cancellation_stage:
-                  String(
-                    serviceRequest.job_stage ||
-                      "contracted"
-                  ),
-                cancellation_penalty_percent:
-                  penaltyPercent.toFixed(2),
-                customer_refund_amount:
-                  customerRefundAmount.toFixed(
-                    2
-                  ),
-                payment_type:
-                  "customer_cancellation_refund",
-              },
-            },
-            {
-              idempotencyKey:
-                `relydo_customer_cancel_refund_${payment.id}_${cents(
-                  customerRefundAmount
-                )}`,
-            }
-          );
-
-        stripeRefundId = refund.id;
-        stripeRefundIds = [refund.id];
-        refundStatus = refund.status;
-      }
+      const refundRemaining = dinero(customerRefundAmount - previousRefunded);
+      const intent = await stripe.paymentIntents.retrieve(payment.provider_payment_id!);
+      const charge = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+      const metadata = { request_id: requestId, payment_id: String(payment.id),
+        cancellation_stage: serviceRequest.job_stage || "contracted", cancellation_penalty_percent: penaltyPercent.toFixed(2) };
+      sources = [{ key: `payment:${payment.id}`, paymentIntentId: payment.provider_payment_id!,
+        transfer: providerAwardAmount > 0 ? { amount: cents(providerAwardAmount), currency: (payment.currency || settings.currency || "usd").toLowerCase(),
+          destination: providerAccountId!, source_transaction: charge, transfer_group: `relydo_request_${requestId}`,
+          metadata: { ...metadata, professional_id: String(payment.provider_id), cancellation_provider_percent: providerJobPercent.toFixed(2),
+            cancellation_provider_amount: providerAwardAmount.toFixed(2), payment_type: "customer_cancellation" } } : null,
+        refund: refundRemaining > 0 ? { payment_intent: payment.provider_payment_id!, amount: cents(refundRemaining), reason: "requested_by_customer",
+          metadata: { ...metadata, customer_refund_amount: customerRefundAmount.toFixed(2), payment_type: "customer_cancellation_refund" } } : null,
+      }];
     }
+    const effects = await executeCancellationPlan(requestId, sources, previousRefunded);
+    const stripeTransferIds = effects.transfers, stripeRefundIds = effects.refunds;
+    const stripeTransferId = stripeTransferIds[0] || null, stripeRefundId = stripeRefundIds[0] || null;
+    const refundStatus = stripeRefundIds.length ? "succeeded" : null;
 
     // ======================================================
     // 11. CANCELAR LA SOLICITUD EN SUPABASE

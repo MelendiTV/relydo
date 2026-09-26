@@ -141,6 +141,22 @@ begin
  return jsonb_build_object('settled',true,'state','settled');
 end $$;
 
+-- LOCAL PROPOSAL ONLY: inspect an existing decision for caller retry recovery.
+-- No table grants, ownership changes, plan reconstruction or receipt writes.
+create function public.read_job_financial_resolution(p_request_id uuid,p_owner text)
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare r public.job_financial_resolutions%rowtype;
+begin
+  if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED'; end if;
+  if p_owner is null or p_owner not in ('automatic_release','customer_cancel') then raise exception 'INVALID_RESOLUTION'; end if;
+  select * into r from public.job_financial_resolutions where request_id=p_request_id;
+  if not found then return jsonb_build_object('found',false); end if;
+  if r.owner<>p_owner then raise exception 'FINANCIAL_OWNER_CONFLICT'; end if;
+  return jsonb_build_object('found',true,'decision',r.decision,'plan',r.plan,'state',r.state,
+    'receipts',(select coalesce(jsonb_agg(s.receipt),'[]'::jsonb) from public.job_financial_steps s
+      where s.request_id=p_request_id and s.receipt is not null));
+end $$;
+
 create function public.reserve_job_financial_resolution(p_request_id uuid,p_owner text,p_decision jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_existing public.job_financial_resolutions%rowtype; v_claim public.job_claims%rowtype; e jsonb; v_plan jsonb;
@@ -562,7 +578,9 @@ from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='publ
 revoke all on function public.financial_receipt_matches(jsonb,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.settle_job_financial_resolution(uuid,text) from public,anon,authenticated;
 grant execute on function public.settle_job_financial_resolution(uuid,text) to service_role;
--- Helpers/triggers are not public RPCs. Only five backend entry points are granted.
+-- Helpers/triggers are not public RPCs. Grant only the explicit backend entry points.
+revoke all on function public.read_job_financial_resolution(uuid,text) from public,anon,authenticated;
+grant execute on function public.read_job_financial_resolution(uuid,text) to service_role;
 revoke all on function public.co_lock_job(uuid),public.co_has_unresolved_payment(uuid),public.co_guard_job_lifecycle(),public.co_guard_child_lifecycle() from public,anon,authenticated,service_role;
 revoke all on function public.co_assert_job_operation(uuid,text) from public,anon,authenticated,service_role;
 revoke all on function public.co_claim_blocks_finance(uuid) from public,anon,authenticated,service_role;

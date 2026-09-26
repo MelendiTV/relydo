@@ -54,6 +54,12 @@ export async function reserveJobResolution(db: SupabaseClient, requestId: string
   return reservation;
 }
 
+/** Owner-scoped read only; the financial tables remain inaccessible to SDK queries. */
+export async function readJobResolution(db: SupabaseClient, requestId: string, owner: "automatic_release" | "customer_cancel") {
+  const result = await rpc(db, "read_job_financial_resolution", { p_request_id: requestId, p_owner: owner });
+  return result.found ? result : null;
+}
+
 export async function assertReassignmentSafe(db: SupabaseClient, requestId: string) {
   if (!requestId) throw new FinancialGuardError("No se pudo identificar el trabajo de la reasignación.");
   return rpc(db, "guard_job_reassignment", { p_request_id: requestId });

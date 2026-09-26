@@ -26,6 +26,7 @@ drop function public.apply_job_financial_update(uuid,text,jsonb);
 drop function public.record_job_financial_step(uuid,text,jsonb);
 drop function public.reserve_job_financial_step(uuid,text,text,text,jsonb);
 drop function public.reserve_job_financial_resolution(uuid,text,jsonb);
+drop function if exists public.read_job_financial_resolution(uuid,text);
 drop function public.co_guard_job_lifecycle();
 drop function public.co_guard_child_lifecycle();
 drop function public.guard_job_reassignment(uuid);
