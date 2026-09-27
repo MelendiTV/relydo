@@ -1,5 +1,5 @@
 import { reconcilePartialClaimSources } from "../../../../lib/partialClaimRecovery";
-import { financialPlan, financialStripe, reserveJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
+import { financialPlan, financialStripe, reserveJobResolution, settleJobResolution, FinancialGuardError, applyFinancialJobUpdate } from "../../../../lib/jobFinancialGuard";
 ﻿import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -1246,6 +1246,8 @@ const reanudandoDecisionReservada =
         );
       }
 
+      await settleJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`);
+
       try {
         await Promise.allSettled([
           sendRelydoNotification({
@@ -1522,6 +1524,8 @@ const reanudandoDecisionReservada =
           { status: 500 }
         );
       }
+
+      await settleJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`);
 
       try {
         await Promise.allSettled([
@@ -2208,6 +2212,8 @@ const reanudandoDecisionReservada =
 
         workCancelled = true;
       }
+
+      await settleJobResolution(supabaseAdmin, claim.request_id, `claim:${claim.id}`);
 
       try {
         await Promise.allSettled([

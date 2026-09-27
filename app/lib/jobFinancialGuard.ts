@@ -64,6 +64,13 @@ export async function reserveJobResolution(db: SupabaseClient, requestId: string
   return reservation;
 }
 
+/** Finalize only the owner's confirmed plan; this RPC creates no Stripe movements. */
+export async function settleJobResolution(db: SupabaseClient, requestId: string, owner: string) {
+  const result = await rpc(db, "settle_job_financial_resolution", { p_request_id: requestId, p_owner: owner });
+  if (result.settled !== true) throw new FinancialGuardError("No se pudo liquidar la resolución financiera. Requiere conciliación; no repitas movimientos de dinero.");
+  return result;
+}
+
 /** Owner-scoped read only; the financial tables remain inaccessible to SDK queries. */
 export async function readJobResolution(db: SupabaseClient, requestId: string, owner: "automatic_release" | "customer_cancel") {
   const result = await rpc(db, "read_job_financial_resolution", { p_request_id: requestId, p_owner: owner });

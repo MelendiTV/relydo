@@ -51,6 +51,10 @@ function fixture() {
         assert.equal(args.p_receipt.status, 'succeeded');
         step.receipt = structuredClone(args.p_receipt); return { data: { recorded: true } };
       }
+      if (name === 'settle_job_financial_resolution') {
+        assert.ok([...state.steps.values()].every(s => s.receipt));
+        return { data: { settled: true, state: 'settled' } };
+      }
       assert.equal(name, 'apply_job_financial_update');
       assert.ok([...state.steps.values()].every(s => s.receipt));
       state.writes.push(['service_requests', args.p_patch]); return { data: {}, error: null };
@@ -59,7 +63,7 @@ function fixture() {
   };
   const context = {
     stripe, supabaseAdmin: db, settlement: guard.financialStripe(stripe, db, 'claim:claim1'),
-    applyFinancialJobUpdate: guard.applyFinancialJobUpdate, financialPlan: guard.financialPlan, reserveJobResolution: guard.reserveJobResolution,
+    settleJobResolution: guard.settleJobResolution, applyFinancialJobUpdate: guard.applyFinancialJobUpdate, financialPlan: guard.financialPlan, reserveJobResolution: guard.reserveJobResolution,
     esPagoReasignado: false, reassignmentSources: [], changeOrders: [], jobAmount: 100, totalCustomerFee: 10,
     payment: { id: 'base', provider_payment_id: 'pi_base', refunded_amount: 0 },
     claim: { id: 'claim1', request_id: 'job1', status: 'reviewing' }, claimId: 'claim1', user: { id: 'admin' }, notes: 'test',
