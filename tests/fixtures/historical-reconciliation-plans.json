@@ -1,0 +1,98 @@
+{
+  "059532b3-2572-426a-a3d9-7c99a65193e9": [
+    {
+      "key": "co:110b2353-d119-48db-9c43-820fe192cc8a:transfer",
+      "kind": "transfer",
+      "origin": "ch_3UC5VNIEn05DVPjv1l39jQYP",
+      "params": {
+        "amount": 4500,
+        "currency": "usd",
+        "metadata": {
+          "request_id": "059532b3-2572-426a-a3d9-7c99a65193e9",
+          "payment_type": "change_order",
+          "release_reason": "job_completed_after_protection_window",
+          "change_order_id": "110b2353-d119-48db-9c43-820fe192cc8a",
+          "professional_id": "36c86c6d-7428-46bf-a16a-635d23619354",
+          "provider_net_amount": "45.00"
+        },
+        "destination": "acct_1U8I9TIyP2FO3lKM",
+        "transfer_group": "relydo_request_059532b3-2572-426a-a3d9-7c99a65193e9",
+        "source_transaction": "ch_3UC5VNIEn05DVPjv1l39jQYP"
+      },
+      "source": {
+        "paymentId": null,
+        "changeOrderId": "110b2353-d119-48db-9c43-820fe192cc8a",
+        "fundingSourceId": null,
+        "paymentIntentId": "pi_3UC5VNIEn05DVPjv1ROW8Eeq"
+      },
+      "chargeId": "ch_3UC5VNIEn05DVPjv1l39jQYP",
+      "currency": "usd",
+      "direction": "to_provider",
+      "destination": "acct_1U8I9TIyP2FO3lKM"
+    },
+    {
+      "key": "payment:4843d36b-2828-4a83-b15f-01332ec9b86b:transfer",
+      "kind": "transfer",
+      "origin": "ch_3UC46SIEn05DVPjv07BFJ61z",
+      "params": {
+        "amount": 4500,
+        "currency": "usd",
+        "metadata": {
+          "offer_id": "46c79563-2704-421c-bf41-942a0fcb2ff0",
+          "payment_id": "4843d36b-2828-4a83-b15f-01332ec9b86b",
+          "request_id": "059532b3-2572-426a-a3d9-7c99a65193e9",
+          "payment_type": "original",
+          "release_reason": "job_completed_after_protection_window",
+          "professional_id": "36c86c6d-7428-46bf-a16a-635d23619354",
+          "provider_net_amount": "45.00"
+        },
+        "destination": "acct_1U8I9TIyP2FO3lKM",
+        "transfer_group": "relydo_request_059532b3-2572-426a-a3d9-7c99a65193e9",
+        "source_transaction": "ch_3UC46SIEn05DVPjv07BFJ61z"
+      },
+      "source": {
+        "paymentId": "4843d36b-2828-4a83-b15f-01332ec9b86b",
+        "changeOrderId": null,
+        "fundingSourceId": null,
+        "paymentIntentId": "pi_3UC46SIEn05DVPjv002zuytV"
+      },
+      "chargeId": "ch_3UC46SIEn05DVPjv07BFJ61z",
+      "currency": "usd",
+      "direction": "to_provider",
+      "destination": "acct_1U8I9TIyP2FO3lKM"
+    }
+  ],
+  "d22970ec-9da5-4f11-b79b-e7acba81b28b": [
+    {
+      "key": "payment:b7f6d787-0af2-4e63-8eeb-419e6140f45b:transfer",
+      "kind": "transfer",
+      "origin": "ch_3U4IGSIEn05DVPjv02H68io6",
+      "params": {
+        "amount": 54000,
+        "currency": "usd",
+        "metadata": {
+          "offer_id": "cf2b406e-5f6c-4e70-8ce5-be666ea40b56",
+          "payment_id": "b7f6d787-0af2-4e63-8eeb-419e6140f45b",
+          "request_id": "d22970ec-9da5-4f11-b79b-e7acba81b28b",
+          "payment_type": "original",
+          "release_reason": "job_completed_after_protection_window",
+          "professional_id": "5f092ad1-b678-4840-bb6b-cfb2e0df01a6",
+          "provider_net_amount": "540.00"
+        },
+        "destination": "acct_1U406yRAhnBdm5Ow",
+        "transfer_group": "relydo_request_d22970ec-9da5-4f11-b79b-e7acba81b28b",
+        "source_transaction": "ch_3U4IGSIEn05DVPjv02H68io6"
+      },
+      "source": {
+        "paymentId": "b7f6d787-0af2-4e63-8eeb-419e6140f45b",
+        "changeOrderId": null,
+        "fundingSourceId": null,
+        "paymentIntentId": "pi_3U4IGSIEn05DVPjv0Gvj9xYJ"
+      },
+      "chargeId": "ch_3U4IGSIEn05DVPjv02H68io6",
+      "currency": "usd",
+      "direction": "to_provider",
+      "destination": "acct_1U406yRAhnBdm5Ow"
+    }
+  ]
+}

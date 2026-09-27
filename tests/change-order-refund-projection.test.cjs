@@ -44,6 +44,10 @@ before(async()=>{
  await pg.exec('create function public.finalize_payment_reassignment(p_reassignment_id uuid) returns void language plpgsql security definer as $$ begin null; end $$');
  await pg.exec(migration);
  await pg.exec(fs.readFileSync(path.join(__dirname,'../supabase/migrations/202609270001_change_order_refund_projection.sql'),'utf8'));
+ // Ordinary refund paths must still work with the historical-only exception installed.
+ await pg.exec(`create table public.payments(id uuid primary key,request_id uuid);
+   create table public.payment_reassignment_funding_sources(id uuid primary key,request_id uuid,stripe_transfer_id text);`);
+ await pg.exec(fs.readFileSync(path.join(__dirname,'../supabase/migrations/202609270002_historical_release_reconciliation.sql'),'utf8'));
 });
 beforeEach(async()=>{
  await pg.exec("reset role;set request.jwt.claim.role='service_role';truncate public.job_financial_steps,public.job_financial_resolutions,public.change_orders,public.job_claims,public.payment_reassignments,public.service_requests cascade;");
