@@ -20,6 +20,7 @@ const {financialStripe,reserveJobResolution}=helperModule.exports;
 function fakeClient({saveFails=false,legacy=false,pendingRefund=false,listFails=false}={}) {
  const transfers=[],refunds=[];let creates=0;
  const stripe={
+  charges:{retrieve:async id=>({id,transfer_group:null})},
   paymentIntents:{retrieve:async()=>({latest_charge:'ch_fake',status:'succeeded',currency:'usd'})},
   transfers:{list:async()=>{if(listFails)throw Error('offline');return {has_more:false,data:legacy?[{id:'tr_old',source_transaction:'ch_fake',metadata:{},amount:1800}]:transfers};},create:async(p)=>{creates++;const obj={...p,id:'tr_new',amount_reversed:0};transfers.push(obj);return obj;}},
   refunds:{list:async()=>({has_more:false,data:refunds}),create:async(p)=>{creates++;const obj={...p,id:'re_new',currency:'usd',status:pendingRefund?'pending':'succeeded'};refunds.push(obj);return obj;}}

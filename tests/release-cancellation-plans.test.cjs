@@ -75,9 +75,12 @@ function endpoint(kind='release') {
    payment_provider:'stripe',provider_payment_id:'pi_base',release_due_at:'2020-01-01T00:00:00Z',created_at:'2020-01-01',updated_at:'2020-01-01'}],
    provider_profiles:[{user_id:provider,stripe_account_id:'acct_fake'}],provider_active_sessions:[{user_id:provider,session_id:'session'}],
    payment_settings:[{id:'settings',active:true,currency:'usd'}],payment_reassignment_funding_sources:[],payment_reassignment_source_refunds:[]}};
- const stripe={accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})},
+ const stripe={charges:{retrieve:async id=>{if(state.failChargeRead)throw Error('charge unavailable');return {id,transfer_group:state.noChargeGroup?null:state.transfers.find(t=>t.source_transaction===id)?.transfer_group||'inherited_'+id};}},accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})},
   paymentIntents:{retrieve:async id=>{state.intentReads.push(id);assert.ok(id);return {id,status:state.invalidIntent===id?'processing':'succeeded',currency:'usd',latest_charge:id.replace('pi_','ch_')};}},
-  transfers:{list:async()=>({data:state.transfers,has_more:false}),create:async params=>{const item={...structuredClone(params),id:'tr_'+(state.transfers.length+1),amount_reversed:0};state.transfers.push(item);return item;}},
+  transfers:{list:async({transfer_group})=>({data:state.transfers.filter(t=>!transfer_group||t.transfer_group===transfer_group),has_more:!!state.moreTransfers}),create:async params=>{
+   if(kind==='release'&&params.transfer_group)throw Error('You cannot use transfer_group if the source_transaction already has one set.');
+   if(state.failTransferCharge===params.source_transaction)throw Error('simulated transfer failure');
+   const item={...structuredClone(params),transfer_group:params.transfer_group||'inherited_'+params.source_transaction,id:'tr_'+(state.transfers.length+1),amount_reversed:0};state.transfers.push(item);return item;}},
   refunds:{list:async({charge})=>({data:state.refunds.filter(r=>r.charge===charge),has_more:false}),create:async params=>{const item={...structuredClone(params),id:'re_'+(state.refunds.length+1),charge:params.payment_intent.replace('pi_','ch_'),currency:'usd',status:'succeeded'};state.refunds.push(item);return item;}}};
  const db={auth:{getUser:async()=>({data:{user:{id:kind==='release'?provider:customer}}})},
   rpc:async(name,args)=>{
@@ -90,6 +93,8 @@ function endpoint(kind='release') {
   from(table){
    const predicates=[];let single=false,limit=Infinity,order=null,mutation=null;
    const q={select(){return q;},eq(k,v){predicates.push(r=>r[k]===v);return q;},in(k,v){predicates.push(r=>v.includes(r[k]));return q;},
+    not(k,op,v){assert.equal(op,'is');predicates.push(r=>(r[k]??null)!==v);return q;},
+    lte(k,v){predicates.push(r=>r[k]<=v);return q;},
     is(k,v){predicates.push(r=>(r[k]??null)===v);return q;},order(k,{ascending}){order=[k,ascending];return q;},limit(n){limit=n;return q;},
     maybeSingle(){single=true;return q;},update(p){mutation=['update',p];return q;},upsert(p){mutation=['upsert',p];return q;},
     async then(resolve,reject){try{
@@ -118,7 +123,7 @@ function endpoint(kind='release') {
  const code=ts.transpileModule(fs.readFileSync(path.join(__dirname,'../app/api',file,'route.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
  const routeModule={exports:{}};
  vm.runInNewContext(code,{module:routeModule,exports:routeModule.exports,Buffer,Date,Number,Error,console:{log(){},warn(){},error(){}},
-  process:{env:{STRIPE_SECRET_KEY:'fake',NEXT_PUBLIC_SUPABASE_URL:'https://invalid.example',SUPABASE_SECRET_KEY:'fake',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'fake'}},
+  process:{env:{RELYDO_CRON_SECRET:'fake-cron',STRIPE_SECRET_KEY:'fake',NEXT_PUBLIC_SUPABASE_URL:'https://invalid.example',SUPABASE_SECRET_KEY:'fake',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'fake'}},
   require(name){
    if(name==='stripe')return function(){return stripe;};
    if(name==='@supabase/supabase-js')return {createClient:()=>db};
@@ -128,7 +133,7 @@ function endpoint(kind='release') {
    throw Error('Unexpected dependency '+name);
   }});
  const token='x.'+Buffer.from(JSON.stringify({session_id:'session'})).toString('base64url')+'.x';
- return {state,db,stripe,run:()=>routeModule.exports.POST({headers:{get:()=>`Bearer ${token}`},json:async()=>({requestId:job,reason:'test cancellation'})})};
+ return {state,db,stripe,cron:()=>routeModule.exports.GET({headers:{get:()=>'Bearer fake-cron'}}),run:()=>routeModule.exports.POST({headers:{get:()=>`Bearer ${token}`},json:async()=>({requestId:job,reason:'test cancellation'})})};
 }
 
 test('caller release -> helper -> SQL reserves full base plan and creates exactly one simulated transfer',async()=>{
@@ -166,6 +171,7 @@ test('caller release divergent retry is rejected without an extra step or moveme
 test('caller release genuinely zero financial amount reserves explicit empty plan',async()=>{
  await setupJob();const f=endpoint();f.state.rows.payments[0].provider_net_amount=0;
  assert.equal((await f.run()).status,200);assert.deepEqual((await resolution()).plan,[]);assert.equal(f.state.transfers.length,0);
+ assert.equal((await f.run()).status,200);assert.equal(f.state.transfers.length,0);
 });
 test('caller customer_cancel open with no payment explicitly reserves [] and continues SQL lifecycle',async()=>{
  await setupJob('open');const f=endpoint('cancel');f.state.rows.payments=[];
@@ -284,4 +290,78 @@ test('read-only recovery RPC enforces service role and owner, never exposes dire
 test('caller release cannot disguise an unknown amount as a zero-money plan',async()=>{
  await setupJob();const f=endpoint();f.state.rows.payments[0].provider_net_amount=null;
  assert.equal((await f.run()).status,400);assert.equal(await resolution(),undefined);assert.equal(f.state.transfers.length,0);
+});
+
+const historicalBase=f=>Object.assign(f.state.rows.payments[0],{status:'paid_out',released_at:'2026-09-24T00:00:00Z',stripe_transfer_id:'tr_historical'});
+test('cron releases only pending CO when base was historically paid out',async()=>{
+ await paid();const f=endpoint();historicalBase(f);const before=structuredClone(f.state.rows.payments[0]);
+ const result=await f.cron();assert.equal(result.status,200);assert.equal(result.body.checked,1);assert.equal(result.body.results[0].success,true);
+ assert.equal(result.body.pendingOriginalPayments,0);assert.equal(result.body.pendingChangeOrders,1);
+ const plan=(await resolution()).plan;assert.equal(plan.length,1);assert.equal(plan[0].source.changeOrderId,co);
+ assert.equal(f.state.transfers.length,1);assert.equal(f.state.transfers[0].source_transaction,'ch_fake');
+ assert.ok(!f.state.intentReads.includes('pi_base'));assert.equal(f.state.rows.payments[0].stripe_transfer_id,before.stripe_transfer_id);assert.equal(f.state.rows.payments[0].released_at,before.released_at);
+ assert.equal((await f.run()).status,200);assert.equal(f.state.transfers.length,1);
+});
+test('historical base and CO are excluded from a new plan',async()=>{
+ await paid();await pg.exec("update public.change_orders set stripe_transfer_id='tr_old_co',released_at=now()");
+ const f=endpoint();historicalBase(f);assert.equal((await f.run()).status,200);
+ assert.deepEqual((await resolution()).plan,[]);assert.equal(f.state.transfers.length,0);
+});
+for(const field of ['released_at','stripe_transfer_id'])test('partial historical base marker blocks: '+field,async()=>{
+ await paid();const f=endpoint();historicalBase(f);f.state.rows.payments[0][field]=null;
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+});
+test('historical paid base in an unconfirmed existing plan blocks without rewriting it',async()=>{
+ await paid();const f=endpoint();f.state.failTransferCharge='ch_base';assert.equal((await f.run()).status,500);
+ historicalBase(f);const before=await resolution(),beforeSteps=await steps(),count=f.state.transfers.length;
+ f.state.failTransferCharge=null;assert.equal((await f.run()).status,409);
+ assert.deepEqual(await resolution(),before);assert.deepEqual(await steps(),beforeSteps);assert.equal(f.state.transfers.length,count);
+});
+test('old explicit transfer_group plan stays immutable and blocked',async()=>{
+ await setupJob();const f=endpoint();f.state.failTransferCharge='ch_base';assert.equal((await f.run()).status,500);
+ const r=await resolution();r.plan[0].params.transfer_group='relydo_request_'+job;r.decision.plan=r.plan;
+ await pg.query('update public.job_financial_resolutions set plan=$1,decision=$2 where request_id=$3',[JSON.stringify(r.plan),JSON.stringify(r.decision),job]);
+ const before=await resolution();f.state.failTransferCharge=null;assert.equal((await f.run()).status,409);
+ assert.deepEqual(await resolution(),before);assert.equal(f.state.transfers.length,0);
+});
+test('CO receipt survives partial release failure; exact retry creates only missing base transfer',async()=>{
+ await paid();const f=endpoint();f.state.failTransferCharge='ch_base';assert.equal((await f.run()).status,500);
+ assert.equal(f.state.transfers.length,1);const decision=(await resolution()).decision;
+ f.state.failTransferCharge=null;assert.equal((await f.run()).status,200);assert.equal(f.state.transfers.length,2);assert.deepEqual((await resolution()).decision,decision);
+});
+test('inherited-group legacy transfer blocks a new transfer',async()=>{
+ await setupJob();const f=endpoint();f.state.transfers.push({id:'tr_legacy',source_transaction:'ch_base',transfer_group:'group_pi_base',metadata:{}});
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,1);
+});
+test('incomplete transfer listing fails closed',async()=>{
+ await setupJob();const f=endpoint();f.state.moreTransfers=true;
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);
+});
+test('historical reassignment funding is excluded while pending CO is released',async()=>{
+ await pg.exec('delete from public.change_orders');
+ await pg.query("insert into public.payment_reassignments(id,request_id,status,replacement_payment_id) values($1,$2,'applied',$3)",[reassignmentId,job,paymentId]);
+ await pg.query("insert into public.change_orders(id,request_id,customer_id,provider_id,original_amount,additional_amount,new_total_amount,status) values($1,$2,$3,$4,50,20,70,'accepted')",[co,job,customer,provider]);await paid();
+ const f=endpoint();historicalBase(f);f.state.rows.payment_reassignment_funding_sources.push({id:fundingId,reassignment_id:reassignmentId,source_type:'base',stripe_payment_intent_id:'pi_funding',allocated_provider_amount:90,stripe_transfer_id:'tr_historical',transferred_at:'2026-09-24T00:00:00Z'});
+ assert.equal((await f.run()).status,200);assert.equal((await resolution()).plan.length,1);assert.equal(f.state.transfers.length,1);assert.equal(f.state.transfers[0].source_transaction,'ch_fake');
+});
+
+test('missing charge group uses an unfiltered, fail-closed recovery lookup',async()=>{
+ await setupJob();const f=endpoint();f.state.noChargeGroup=true;f.state.failReceipt=true;
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,1);
+ f.state.failReceipt=false;assert.equal((await f.run()).status,200);assert.equal(f.state.transfers.length,1);
+});
+test('charge lookup failure never creates a transfer',async()=>{
+ await setupJob();const f=endpoint();f.state.failChargeRead=true;
+ assert.equal((await f.run()).status,500);assert.equal(f.state.transfers.length,0);
+});
+
+test('paid_out without release markers requires reconciliation',async()=>{
+ await paid();const f=endpoint();f.state.rows.payments[0].status='paid_out';
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+});
+
+test('released reassignment with missing source markers blocks',async()=>{
+ await setupJob();await pg.query("insert into public.payment_reassignments(id,request_id,status,replacement_payment_id) values($1,$2,'applied',$3)",[reassignmentId,job,paymentId]);
+ const f=endpoint();historicalBase(f);f.state.rows.payment_reassignment_funding_sources.push({id:fundingId,reassignment_id:reassignmentId,source_type:'base',stripe_payment_intent_id:'pi_funding',allocated_provider_amount:90});
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
 });

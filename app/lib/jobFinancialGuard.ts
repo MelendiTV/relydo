@@ -110,8 +110,13 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
     if (!step.id || !step.params || !step.created_at) throw new FinancialGuardError("La reserva del movimiento está incompleta.");
     // Protect the transition from the OLD idempotency keys: a legacy Stripe
     // success with a missing local save must not become a new transfer/refund.
+    // Transfers inherit the charge's group when creation omits transfer_group.
+    // Read the charge so recovery also finds inherited/generated Stripe groups.
+    const transferGroup = kind === "transfer"
+      ? (params as Stripe.TransferCreateParams).transfer_group || (await stripe.charges.retrieve(chargeId)).transfer_group
+      : null;
     const existing = kind === "transfer"
-      ? await stripe.transfers.list({ transfer_group: `relydo_request_${requestId}`, limit: 100 })
+      ? await stripe.transfers.list({ ...(transferGroup ? { transfer_group: transferGroup } : {}), limit: 100 })
       : await stripe.refunds.list({ charge: chargeId, limit: 100 });
     if (existing.has_more) throw new FinancialGuardError("Hay más movimientos que revisar antes de continuar.");
     const relevant = existing.data.filter(item => kind === "refund" ||

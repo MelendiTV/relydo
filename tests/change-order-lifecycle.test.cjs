@@ -36,6 +36,7 @@ function fakeClient({saveFails=false,legacy=false,pendingRefund=false,listFails=
  const transfers=[],refunds=[];let creates=0;
  const calls={transferList:0,transferCreate:0,refundList:0,refundCreate:0,intentRead:0,reserve:0,step:0,record:0};
  const stripe={
+  charges:{retrieve:async id=>({id,transfer_group:null})},
   paymentIntents:{retrieve:async()=>{calls.intentRead++;return {latest_charge:'ch_fake',status:'succeeded',currency:'usd'};}},
   transfers:{list:async()=>{calls.transferList++;if(listFails)throw Error('offline');return {has_more:false,data:legacy?[{id:'tr_old',source_transaction:'ch_fake',metadata:{},amount:1800}]:transfers};},create:async(p)=>{calls.transferCreate++;creates++;const obj={...p,id:'tr_new',amount_reversed:0};transfers.push(obj);return obj;}},
   refunds:{list:async()=>{calls.refundList++;return {has_more:false,data:refunds};},create:async(p)=>{calls.refundCreate++;creates++;const obj={...p,charge:'ch_fake',id:'re_new',currency:'usd',status:pendingRefund?'pending':'succeeded'};refunds.push(obj);return obj;}}

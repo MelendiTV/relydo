@@ -597,12 +597,28 @@ async function procesarLiberacion({
     .eq("id", payment.id);
 
   try {
+    if (payment.status === "paid_out" && providerNetAmountOriginal > 0 && !pagoOriginalYaLiberado) {
+      throw new FinancialGuardError("El pago figura liberado sin comprobante completo; requiere conciliación.");
+    }
     const previousResolution = await readJobResolution(supabaseAdmin, requestId, "automatic_release");
     if (previousResolution && (!Array.isArray(previousResolution.plan) || previousResolution.state === "reconciliation_required")) {
       await reserveJobResolution(supabaseAdmin, requestId, "automatic_release", previousResolution.decision, stripe);
       throw new FinancialGuardError("La liberación anterior requiere conciliación explícita.");
     }
-    // Include completed sources too: an exact retry must reserve the same full plan.
+    const previousPlan = (previousResolution?.plan || []) as Awaited<ReturnType<typeof financialPlan>>;
+    // A released source belongs to a retry only when this ledger confirms it.
+    // Historical releases must never become new instructions.
+    const includeSource = (key: string, transferId: string | null, releasedAt: string | null) => {
+      const entry = previousPlan.find(item => item.key === key + ":transfer");
+      if (!transferId && !releasedAt) return true;
+      if (!transferId || !releasedAt) throw new FinancialGuardError("La fuente tiene una liberación incompleta; requiere conciliación.");
+      if (!entry) return false;
+      const receipts = (previousResolution?.receipts || []) as Array<{ id: string; kind: string; charge_id: string }>;
+      if (!receipts.some(receipt => receipt.id === transferId && receipt.kind === "transfer" && receipt.charge_id === entry.chargeId)) {
+        throw new FinancialGuardError("La liberación registrada no coincide con el comprobante del plan; requiere conciliación.");
+      }
+      return true;
+    };
     const sources: Parameters<typeof financialPlan>[1] = [];
     const addTransfer = async (key: string, paymentIntentId: string, amount: number, metadata: Stripe.MetadataParam) => {
       if (!Number.isFinite(amount) || amount < 0) throw new FinancialGuardError("El importe de la fuente no es válido.");
@@ -612,7 +628,8 @@ async function procesarLiberacion({
       sources.push({ key, paymentIntentId, transfer: {
         amount: Math.round(amount * 100), currency: (payment.currency || "usd").toLowerCase(),
         destination: providerProfile.stripe_account_id, source_transaction: charge,
-        transfer_group: `relydo_request_${requestId}`, metadata: {
+        // Stripe inherits transfer_group from source_transaction.
+        metadata: {
           request_id: String(requestId), professional_id: String(serviceRequest.preferred_provider_id),
           provider_net_amount: amount.toFixed(2), release_reason: "job_completed_after_protection_window", ...metadata,
         },
@@ -623,17 +640,23 @@ async function procesarLiberacion({
       if (allocated !== Math.round(providerNetAmountOriginal * 100)) throw new FinancialGuardError("Las fuentes no coinciden con el neto del profesional.");
       for (const source of reassignmentFundingSources) {
         if (source.allocated_provider_amount == null) throw new FinancialGuardError("Falta el importe de una fuente de reasignación.");
+        if (Number(source.allocated_provider_amount) === 0) continue;
+        if (pagoOriginalYaLiberado && (!source.stripe_transfer_id || !source.transferred_at)) {
+          throw new FinancialGuardError("El pago reasignado figura liberado sin comprobante de su fuente; requiere conciliación.");
+        }
+        if (!includeSource(`funding:${source.id}`, source.stripe_transfer_id, source.transferred_at)) continue;
         await addTransfer(`funding:${source.id}`, source.stripe_payment_intent_id, Number(source.allocated_provider_amount), {
           payment_id: String(payment.id), reassignment_id: String(paymentReassignment!.id),
           funding_source_id: String(source.id), funding_source_type: source.source_type, payment_type: "reassignment_funding_source",
         });
       }
-    } else {
+    } else if (providerNetAmountOriginal === 0 || includeSource(`payment:${payment.id}`, payment.stripe_transfer_id, payment.released_at)) {
       await addTransfer(`payment:${payment.id}`, payment.provider_payment_id!, providerNetAmountOriginal, {
         payment_id: String(payment.id), offer_id: String(payment.offer_id || ""), payment_type: "original",
       });
     }
     for (const changeOrder of changeOrders) {
+      if (!includeSource(`co:${changeOrder.id}`, changeOrder.stripe_transfer_id, changeOrder.released_at)) continue;
       if (changeOrder.additional_provider_net_amount == null) throw new FinancialGuardError("Falta el neto profesional del Change Order.");
       await addTransfer(`co:${changeOrder.id}`, changeOrder.stripe_payment_intent_id!, Number(changeOrder.additional_provider_net_amount), {
         change_order_id: String(changeOrder.id), payment_type: "change_order",
