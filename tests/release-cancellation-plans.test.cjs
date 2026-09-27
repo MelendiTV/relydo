@@ -46,6 +46,7 @@ before(async()=>{
  for(const name of ['cleanup_failed_change_order','respond_to_change_order']) await pg.exec('create function public.'+name+'(p_change_order_id uuid) returns void language plpgsql security definer as $$ begin null; end $$');
  await pg.exec('create function public.finalize_payment_reassignment(p_reassignment_id uuid) returns void language plpgsql security definer as $$ begin null; end $$');
  await pg.exec(migration);
+ await pg.exec(fs.readFileSync(path.join(__dirname,'../supabase/migrations/202609270001_change_order_refund_projection.sql'),'utf8'));
  await pg.exec("alter table public.payment_reassignments add column original_payment_id uuid, add column replacement_payment_id uuid, add column available_credit numeric, add column created_at timestamptz default now(), add column updated_at timestamptz;");
 });
 beforeEach(async()=>{
@@ -75,13 +76,13 @@ function endpoint(kind='release') {
    payment_provider:'stripe',provider_payment_id:'pi_base',release_due_at:'2020-01-01T00:00:00Z',created_at:'2020-01-01',updated_at:'2020-01-01'}],
    provider_profiles:[{user_id:provider,stripe_account_id:'acct_fake'}],provider_active_sessions:[{user_id:provider,session_id:'session'}],
    payment_settings:[{id:'settings',active:true,currency:'usd'}],payment_reassignment_funding_sources:[],payment_reassignment_source_refunds:[]}};
- const stripe={charges:{retrieve:async id=>{if(state.failChargeRead)throw Error('charge unavailable');return {id,transfer_group:state.noChargeGroup?null:state.transfers.find(t=>t.source_transaction===id)?.transfer_group||'inherited_'+id};}},accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})},
+ const stripe={charges:{retrieve:async id=>{if(state.failChargeRead)throw Error('charge unavailable');return {id,refunded:!!state.refundedCharges?.[id],amount_refunded:state.refundedCharges?.[id]||0,transfer_group:state.noChargeGroup?null:state.transfers.find(t=>t.source_transaction===id)?.transfer_group||'inherited_'+id};}},accounts:{retrieve:async()=>({capabilities:{transfers:'active'}})},
   paymentIntents:{retrieve:async id=>{state.intentReads.push(id);assert.ok(id);return {id,status:state.invalidIntent===id?'processing':'succeeded',currency:'usd',latest_charge:id.replace('pi_','ch_')};}},
   transfers:{list:async({transfer_group})=>({data:state.transfers.filter(t=>!transfer_group||t.transfer_group===transfer_group),has_more:!!state.moreTransfers}),create:async params=>{
    if(kind==='release'&&params.transfer_group)throw Error('You cannot use transfer_group if the source_transaction already has one set.');
    if(state.failTransferCharge===params.source_transaction)throw Error('simulated transfer failure');
    const item={...structuredClone(params),transfer_group:params.transfer_group||'inherited_'+params.source_transaction,id:'tr_'+(state.transfers.length+1),amount_reversed:0};state.transfers.push(item);return item;}},
-  refunds:{list:async({charge})=>({data:state.refunds.filter(r=>r.charge===charge),has_more:false}),create:async params=>{const item={...structuredClone(params),id:'re_'+(state.refunds.length+1),charge:params.payment_intent.replace('pi_','ch_'),currency:'usd',status:'succeeded'};state.refunds.push(item);return item;}}};
+  refunds:{list:async({charge})=>({data:state.refunds.filter(r=>r.charge===charge),has_more:!!state.moreRefunds}),create:async params=>{const item={...structuredClone(params),id:'re_'+(state.refunds.length+1),charge:params.payment_intent.replace('pi_','ch_'),currency:'usd',status:'succeeded'};state.refunds.push(item);return item;}}};
  const db={auth:{getUser:async()=>({data:{user:{id:kind==='release'?provider:customer}}})},
   rpc:async(name,args)=>{
    state.calls.push([name,structuredClone(args)]);
@@ -92,7 +93,7 @@ function endpoint(kind='release') {
   },
   from(table){
    const predicates=[];let single=false,limit=Infinity,order=null,mutation=null;
-   const q={select(){return q;},eq(k,v){predicates.push(r=>r[k]===v);return q;},in(k,v){predicates.push(r=>v.includes(r[k]));return q;},
+   const q={select(){return q;},eq(k,v){predicates.push(r=>k==='refunded_amount'?Number(r[k])===v:r[k]===v);return q;},in(k,v){predicates.push(r=>v.includes(r[k]));return q;},
     not(k,op,v){assert.equal(op,'is');predicates.push(r=>(r[k]??null)!==v);return q;},
     lte(k,v){predicates.push(r=>r[k]<=v);return q;},
     is(k,v){predicates.push(r=>(r[k]??null)===v);return q;},order(k,{ascending}){order=[k,ascending];return q;},limit(n){limit=n;return q;},
@@ -364,4 +365,41 @@ test('released reassignment with missing source markers blocks',async()=>{
  await setupJob();await pg.query("insert into public.payment_reassignments(id,request_id,status,replacement_payment_id) values($1,$2,'applied',$3)",[reassignmentId,job,paymentId]);
  const f=endpoint();historicalBase(f);f.state.rows.payment_reassignment_funding_sources.push({id:fundingId,reassignment_id:reassignmentId,source_type:'base',stripe_payment_intent_id:'pi_funding',allocated_provider_amount:90});
  assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+});
+
+for(const amount of [1,5250])test(`stale paid CO with Stripe refund ${amount} blocks before any reservation or transfer`,async()=>{
+ await paid();const f=endpoint();f.state.refundedCharges={ch_fake:amount};
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+ historicalBase(f);const cron=await f.cron();assert.equal(cron.body.results[0].success,false);
+ assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+});
+
+for(const defect of ['pending','pagination','read_failure'])test('CO refund observation fails closed: '+defect,async()=>{
+ await paid();const f=endpoint();
+ if(defect==='pending')f.state.refunds.push({id:'re_pending',charge:'ch_fake',status:'pending',amount:100});
+ if(defect==='pagination')f.state.moreRefunds=true;
+ if(defect==='read_failure')f.stripe.refunds.list=async()=>{throw Error('unavailable');};
+ assert.ok([409,500].includes((await f.run()).status));assert.equal(f.state.transfers.length,0);assert.equal(await resolution(),undefined);
+});
+
+test('refund appearing after preflight blocks at the guard before transfer creation',async()=>{
+ await paid();const f=endpoint();let reads=0;const read=f.stripe.refunds.list;
+ f.stripe.refunds.list=async args=>{if(args.charge==='ch_fake'&&++reads>1)return {data:[{status:'pending'}],has_more:false};return read(args);};
+ assert.equal((await f.run()).status,409);assert.equal(f.state.transfers.length,0);
+});
+
+test('persisted CO refund is excluded from cron and manual release cannot transfer it',async()=>{
+ await paid();
+ const claimId='00000000-0000-4000-8000-000000000020',owner='claim:'+claimId;
+ await pg.query("insert into public.job_claims(id,request_id,status) values($1,$2,'reviewing')",[claimId,job]);
+ const f=endpoint();historicalBase(f);
+ const plan=await helperModule.exports.financialPlan(f.stripe,[{key:'co:'+co,paymentIntentId:'pi_fake',refund:{
+  payment_intent:'pi_fake',amount:100,metadata:{request_id:job,change_order_id:co},
+ }}]);
+ await reserve(owner,{action:'partial',providerAwardAmount:0,customerRefundAmount:1,plan});
+ const e=plan[0];const step=await call('reserve_job_financial_step',[job,owner,'refund',e.chargeId,JSON.stringify(e.params)]);
+ await call('record_job_financial_step',[step.id,owner,JSON.stringify({id:'re_confirmed',status:'succeeded',amount:100,
+  currency:e.currency,kind:e.kind,charge_id:e.chargeId,direction:e.direction,origin:e.origin,destination:e.destination,source:e.source})]);
+ assert.equal((await f.cron()).body.checked,0);assert.equal((await f.run()).status,409);
+ assert.equal(f.state.transfers.length,0);assert.equal((await resolution()).owner,owner);
 });

@@ -1,4 +1,4 @@
-import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError } from "../../../lib/jobFinancialGuard";
+import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError, assertChangeOrderChargeReleasable } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -522,6 +522,9 @@ async function procesarLiberacion({
       status,
       payment_status,
       additional_amount,
+      refunded_amount,
+      stripe_refund_id,
+      refunded_at,
       additional_provider_net_amount,
       stripe_payment_intent_id,
       stripe_transfer_id,
@@ -625,6 +628,10 @@ async function procesarLiberacion({
       if (amount === 0) return;
       const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
       const charge = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
+      if (metadata.change_order_id) {
+        if (!charge) throw new FinancialGuardError("Falta el cargo del Change Order.");
+        await assertChangeOrderChargeReleasable(stripe, charge);
+      }
       sources.push({ key, paymentIntentId, transfer: {
         amount: Math.round(amount * 100), currency: (payment.currency || "usd").toLowerCase(),
         destination: providerProfile.stripe_account_id, source_transaction: charge,
@@ -657,6 +664,10 @@ async function procesarLiberacion({
     }
     for (const changeOrder of changeOrders) {
       if (!includeSource(`co:${changeOrder.id}`, changeOrder.stripe_transfer_id, changeOrder.released_at)) continue;
+      if (changeOrder.refunded_amount == null || Number(changeOrder.refunded_amount) !== 0 ||
+          changeOrder.stripe_refund_id || changeOrder.refunded_at) {
+        throw new FinancialGuardError("El Change Order tiene un reembolso registrado o estado incompleto; requiere conciliación.");
+      }
       if (changeOrder.additional_provider_net_amount == null) throw new FinancialGuardError("Falta el neto profesional del Change Order.");
       await addTransfer(`co:${changeOrder.id}`, changeOrder.stripe_payment_intent_id!, Number(changeOrder.additional_provider_net_amount), {
         change_order_id: String(changeOrder.id), payment_type: "change_order",
@@ -997,6 +1008,9 @@ export async function GET(
       `)
       .eq("status", "accepted")
       .eq("payment_status", "paid")
+      .eq("refunded_amount", 0)
+      .is("stripe_refund_id", null)
+      .is("refunded_at", null)
       .is("released_at", null)
       .limit(50);
 

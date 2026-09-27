@@ -36,7 +36,7 @@ function fakeClient({saveFails=false,legacy=false,pendingRefund=false,listFails=
  const transfers=[],refunds=[];let creates=0;
  const calls={transferList:0,transferCreate:0,refundList:0,refundCreate:0,intentRead:0,reserve:0,step:0,record:0};
  const stripe={
-  charges:{retrieve:async id=>({id,transfer_group:null})},
+  charges:{retrieve:async id=>({id,refunded:false,amount_refunded:0,transfer_group:null})},
   paymentIntents:{retrieve:async()=>{calls.intentRead++;return {latest_charge:'ch_fake',status:'succeeded',currency:'usd'};}},
   transfers:{list:async()=>{calls.transferList++;if(listFails)throw Error('offline');return {has_more:false,data:legacy?[{id:'tr_old',source_transaction:'ch_fake',metadata:{},amount:1800}]:transfers};},create:async(p)=>{calls.transferCreate++;creates++;const obj={...p,id:'tr_new',amount_reversed:0};transfers.push(obj);return obj;}},
   refunds:{list:async()=>{calls.refundList++;return {has_more:false,data:refunds};},create:async(p)=>{calls.refundCreate++;creates++;const obj={...p,charge:'ch_fake',id:'re_new',currency:'usd',status:pendingRefund?'pending':'succeeded'};refunds.push(obj);return obj;}}
@@ -256,14 +256,14 @@ test('SQL stage2: unused rollback restores exact saved definitions and preserves
 
 test('Application stage2: repeated transfer returns persisted receipt without another Stripe call',async()=>{
  await paid();await reserve();const fake=fakeClient();await fake.run.transfer(params());await fake.run.transfer(params());assert.equal(fake.creates,1);
- expectCalls(fake,{step:2,transferList:1,transferCreate:1,record:1});
+ expectCalls(fake,{step:2,transferList:1,transferCreate:1,refundList:1,record:1});
  assert.deepEqual((await storedSteps())[0].receipt,{...fullReceipt(),id:'tr_new'});
 });
 test('Application stage2: database save failure recovers Stripe result without another movement',async()=>{
  await paid();await reserve();const fake=fakeClient({saveFails:true});await assert.rejects(fake.run.transfer(params()));assert.equal(fake.creates,1);
  assert.equal((await storedSteps())[0].receipt,null);
  fake.setSaveFails(false);await fake.run.transfer(params());assert.equal(fake.creates,1);
- expectCalls(fake,{step:2,transferList:2,transferCreate:1,record:2});
+ expectCalls(fake,{step:2,transferList:2,transferCreate:1,refundList:1,record:2});
  assert.equal((await storedSteps())[0].receipt.id,'tr_new');
 });
 test('Application stage2: old transfer with absent local id blocks new key',async()=>{
@@ -290,7 +290,7 @@ test('Application stage2: reservation older than 20h with no evidence creates no
 test('Application stage2: migrated recovery after 20h uses observed receipt, never posts another movement',async()=>{
  await paid();await reserve();const fake=fakeClient({saveFails:true});await assert.rejects(fake.run.transfer(params()));
  await pg.exec("update public.job_financial_steps set created_at=now()-interval '21 hours'");fake.setSaveFails(false);await fake.run.transfer(params());assert.equal(fake.creates,1);
- expectCalls(fake,{step:2,transferList:2,transferCreate:1,record:2});
+ expectCalls(fake,{step:2,transferList:2,transferCreate:1,refundList:1,record:2});
  assert.equal((await storedSteps())[0].receipt.id,'tr_new');
 });
 test('Application stage2: missing resolution prevents any simulated financial creation',async()=>{
@@ -327,7 +327,7 @@ test('Application stage2: preflight recovers receipt before route can skip the e
  await paid();await reserve();const fake=fakeClient({saveFails:true});await assert.rejects(fake.run.transfer(params()));assert.equal((await storedSteps())[0].receipt,null);fake.setSaveFails(false);
  await reserveJobResolution(fake.db,job,'automatic_release',{plan:[instruction()]},fake.stripe);
  assert.equal((await step()).receipt.id,'tr_new');assert.equal(fake.creates,1);
- expectCalls(fake,{reserve:1,step:2,transferList:2,transferCreate:1,record:2});
+ expectCalls(fake,{reserve:1,step:2,transferList:2,transferCreate:1,refundList:1,record:2});
 });
 test('Application stage2: preflight with no observed effect performs reads only',async()=>{
  await paid();await reserve();await step();const fake=fakeClient();await reserveJobResolution(fake.db,job,'automatic_release',{plan:[instruction()]},fake.stripe);

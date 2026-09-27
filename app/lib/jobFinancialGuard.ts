@@ -5,6 +5,16 @@ export class FinancialGuardError extends Error {
   readonly status = 409;
 }
 
+/** Automatic CO release must never reuse customer funds involved in a refund. */
+export async function assertChangeOrderChargeReleasable(stripe: Stripe, chargeId: string) {
+  const charge = await stripe.charges.retrieve(chargeId);
+  const refunds = await stripe.refunds.list({ charge: chargeId, limit: 100 });
+  if (charge.id !== chargeId || charge.refunded !== false ||
+      charge.amount_refunded !== 0 || refunds.has_more || refunds.data.length > 0) {
+    throw new FinancialGuardError("El Change Order tiene un reembolso o evidencia incompleta; requiere conciliación antes de liberar fondos.");
+  }
+}
+
 type Instruction = { key: string; chargeId: string; currency: string; kind: "transfer" | "refund";
   direction: "to_provider" | "to_customer"; origin: string; destination: string | null;
   source: { paymentIntentId: string | null; paymentId: string | null; changeOrderId: string | null; fundingSourceId: string | null };
@@ -133,6 +143,11 @@ export function financialStripe(stripe: Stripe, db: SupabaseClient, owner: strin
     }
     const options = { idempotencyKey: `relydo_financial_step_${step.id}` };
     const instruction = { ...step.params, metadata: { ...step.params.metadata, relydo_financial_step_id: step.id } };
+    // Recheck immediately before a new automatic CO transfer. Claim partial
+    // allocations remain governed by their separately reserved immutable plan.
+    if (!recovered && kind === "transfer" && owner === "automatic_release" && expected.source.changeOrderId) {
+      await assertChangeOrderChargeReleasable(stripe, chargeId);
+    }
     const result = recovered || (kind === "transfer"
       ? await stripe.transfers.create(instruction, options)
       : await stripe.refunds.create(instruction, options));

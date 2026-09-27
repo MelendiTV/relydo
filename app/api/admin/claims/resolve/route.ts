@@ -1437,6 +1437,9 @@ const reanudandoDecisionReservada =
       }
       for (const { source, params } of refundPlan) {
         // The guard returns only a confirmed, durably recorded receipt.
+        // co_project_refund_receipt atomically projects CO refund evidence when
+        // that receipt is recorded (also for partial decisions). Keep paid/paid_at
+        // as funding history so retries reconstruct the same immutable plan.
         const refund = await settlement.refund(params);
         stripeRefundIds.push(refund.id);
         totalRefunded = dinero(totalRefunded + refund.amount / 100);
