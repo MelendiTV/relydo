@@ -1,5 +1,6 @@
 "use client";
 
+import { EstadoAdmin } from "@/app/admin/_components/EstadoAdmin";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -41,42 +42,6 @@ type FiltroOrden =
   | "in_progress"
   | "completed"
   | "cancelled";
-
-function nombreEstadoOrden(
-  status: string,
-  jobStage: string | null
-) {
-  if (status === "open") return "Abierta";
-  if (status === "completed") return "Completada";
-  if (status === "cancelled") return "Cancelada";
-
-  if (status === "in_progress") {
-    if (jobStage === "on_the_way") return "Profesional en camino";
-    if (jobStage === "arrived") return "Profesional llegó";
-    if (jobStage === "working") return "Trabajo iniciado";
-    return "Profesional contratado";
-  }
-
-  return status;
-}
-
-function estiloEstadoOrden(
-  status: string,
-  jobStage: string | null
-) {
-  if (status === "open") return "bg-blue-100 text-blue-800";
-  if (status === "completed") return "bg-green-100 text-green-800";
-  if (status === "cancelled") return "bg-red-100 text-red-800";
-
-  if (status === "in_progress") {
-    if (jobStage === "working") return "bg-amber-100 text-amber-800";
-    if (jobStage === "arrived") return "bg-purple-100 text-purple-800";
-    if (jobStage === "on_the_way") return "bg-sky-100 text-sky-800";
-    return "bg-emerald-100 text-emerald-800";
-  }
-
-  return "bg-slate-100 text-slate-700";
-}
 
 export default function AdminOrdenesPage() {
   const router = useRouter();
@@ -391,17 +356,11 @@ export default function AdminOrdenesPage() {
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm font-extrabold ${estiloEstadoOrden(
-                        solicitud.status,
-                        solicitud.job_stage
-                      )}`}
-                    >
-                      {nombreEstadoOrden(
-                        solicitud.status,
-                        solicitud.job_stage
-                      )}
-                    </span>
+                    <EstadoAdmin
+                      status={solicitud.status}
+                      jobStage={solicitud.job_stage}
+                      contexto="orden"
+                    />
 
                     <h2 className="mt-3 text-xl font-extrabold text-slate-900">
                       {solicitud.title}

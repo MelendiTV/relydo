@@ -1,5 +1,6 @@
 "use client";
 
+import { EstadoAdmin } from "@/app/admin/_components/EstadoAdmin";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useParams, useRouter } from "next/navigation";
@@ -165,16 +166,6 @@ function formatearFecha(fecha: string | null | undefined) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(fecha));
-}
-
-function estadoTrabajo(status: string, stage: string | null) {
-  if (status === "completed") return "Completado";
-  if (status === "cancelled") return "Cancelado";
-  if (status === "open") return "Abierto";
-  if (stage === "working") return "Trabajo iniciado";
-  if (stage === "arrived") return "Profesional llegó";
-  if (stage === "on_the_way") return "Profesional en camino";
-  return "Profesional contratado";
 }
 
 export default function AdminTrabajoDetallePage() {
@@ -709,12 +700,11 @@ export default function AdminTrabajoDetallePage() {
                 </p>
               </div>
 
-              <span className="w-fit rounded-full bg-white/10 px-4 py-2 text-sm font-black">
-                {estadoTrabajo(
-                  solicitud.status,
-                  solicitud.job_stage
-                )}
-              </span>
+              <EstadoAdmin
+                status={solicitud.status}
+                jobStage={solicitud.job_stage}
+                contexto="trabajo"
+              />
             </div>
           </div>
 
