@@ -189,6 +189,7 @@ export default function AdminTrabajoDetallePage() {
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [claims, setClaims] = useState<JobClaim[]>([]);
   const [evidencias, setEvidencias] = useState<CompletionEvidence[]>([]);
+  const [errorEvidencias, setErrorEvidencias] = useState("");
   const [mensajesChat, setMensajesChat] = useState<JobMessage[]>([]);
   const [chatRealtime, setChatRealtime] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -255,6 +256,7 @@ export default function AdminTrabajoDetallePage() {
   async function cargarTodo() {
     setLoading(true);
     setError("");
+    setErrorEvidencias("");
 
     try {
       const {
@@ -575,6 +577,9 @@ export default function AdminTrabajoDetallePage() {
           "Error cargando evidencia final:",
           evidenceError
         );
+        setErrorEvidencias(
+          "No se pudieron cargar las evidencias finales. Intenta nuevamente."
+        );
         setEvidencias([]);
       } else {
         const base =
@@ -865,7 +870,11 @@ export default function AdminTrabajoDetallePage() {
             </span>
           </div>
 
-          {evidencias.length === 0 ? (
+          {errorEvidencias ? (
+            <p role="alert" className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-6 text-center font-bold text-red-700">
+              {errorEvidencias}
+            </p>
+          ) : evidencias.length === 0 ? (
             <p className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center font-bold text-slate-500">
               Este trabajo no tiene evidencia final registrada.
             </p>
