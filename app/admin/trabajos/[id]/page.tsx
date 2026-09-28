@@ -168,6 +168,14 @@ function formatearFecha(fecha: string | null | undefined) {
   }).format(new Date(fecha));
 }
 
+const etapasSeguimiento = [
+  { valor: "hired", etiqueta: "Contratado" },
+  { valor: "on_the_way", etiqueta: "En camino" },
+  { valor: "arrived", etiqueta: "Llegó" },
+  { valor: "working", etiqueta: "Trabajo iniciado" },
+  { valor: "completed", etiqueta: "Completado" },
+];
+
 export default function AdminTrabajoDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -740,6 +748,17 @@ export default function AdminTrabajoDetallePage() {
     );
   }
 
+  // El estado terminal prevalece; no deducir avances de etapas inconsistentes.
+  const etapaActual = solicitud.status === "completed"
+    ? "completed"
+    : solicitud.status === "in_progress" && solicitud.job_stage !== "completed"
+      ? solicitud.job_stage ?? "hired"
+      : null;
+  const indiceEtapaActual = etapasSeguimiento.findIndex(
+    (etapa) => etapa.valor === etapaActual
+  );
+  const cancelado = solicitud.status === "cancelled";
+
   const totalFotos = evidencias.filter(
     (item) => item.file_type === "image"
   ).length;
@@ -789,58 +808,107 @@ export default function AdminTrabajoDetallePage() {
                   {solicitud.description}
                 </p>
               </div>
-
-              <div className="space-y-2 lg:max-w-sm">
-                <EstadoAdmin
-                  status={solicitud.status}
-                  jobStage={solicitud.job_stage}
-                  contexto="trabajo"
-                />
-                <p className="text-sm text-slate-300" role="status">
-                  {errorSeguimiento
-                    ? "No se pudo verificar el estado. Reintentando automáticamente; se muestra el último estado conocido."
-                    : ordenRealtime
-                      ? "Estado conectado en vivo · verificación cada 15 s"
-                      : "Estado con consulta automática cada 15 s"}
-                </p>
-                {ultimaConsulta && (
-                  <p className="text-xs text-slate-400">
-                    Última consulta del estado: {formatearFecha(ultimaConsulta)}.
-                    No indica la hora del cambio.
-                  </p>
-                )}
-                <p className="text-xs text-slate-400">
-                  Seguimiento del estado actual. Sin historial de etapas.
-                  Los demás datos se consultan con Actualizar expediente.
-                </p>
-              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 p-7 md:grid-cols-2 xl:grid-cols-4">
-            <Dato
-              titulo="Cliente"
-              valor={
-                solicitud.customer_name ||
-                "Cliente RELYDO"
-              }
-              secundario={
-                solicitud.customer_email ||
-                "Email no disponible"
-              }
-            />
-            <Dato
-              titulo="Profesional"
-              valor={
-                provider?.business_name ||
-                "Sin profesional asignado"
-              }
-              secundario={
-                provider
-                  ? nombreOficio(provider.trade)
-                  : "No disponible"
-              }
-            />
+          <section aria-labelledby="seguimiento-titulo" className="border-b border-slate-200 p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 id="seguimiento-titulo" className="text-2xl font-black text-slate-950">
+                  Seguimiento en vivo
+                </h2>
+                <div className="mt-3" role="status" aria-atomic="true">
+                  <EstadoAdmin
+                    status={solicitud.status}
+                    jobStage={solicitud.job_stage}
+                    contexto="orden"
+                  />
+                </div>
+              </div>
+              <p role="status" className={
+                "rounded-full px-3 py-2 text-sm font-bold " +
+                (ordenRealtime ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900")
+              }>
+                <span aria-hidden="true">● </span>
+                {ordenRealtime ? "En vivo" : "Reconectando"}
+              </p>
+            </div>
+
+            {errorSeguimiento && (
+              <p role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                No se pudo verificar el estado. Reintentando automáticamente; se muestra el último estado conocido.
+              </p>
+            )}
+
+            {cancelado ? (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-900">
+                <p className="font-black">Trabajo cancelado</p>
+                <p className="mt-2 break-words">
+                  {solicitud.cancellation_reason || "No se registró un motivo."}
+                </p>
+                {solicitud.cancelled_at && (
+                  <p className="mt-2 text-sm">
+                    Cancelación registrada: {formatearFecha(solicitud.cancelled_at)}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <ol aria-label="Etapas del trabajo" className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-5">
+                  {etapasSeguimiento.map((etapa, indice) => {
+                    const actual = indice === indiceEtapaActual;
+                    const anterior = indiceEtapaActual >= 0 && indice < indiceEtapaActual;
+                    return (
+                      <li
+                        key={etapa.valor}
+                        aria-current={actual ? "step" : undefined}
+                        className={"min-w-0 rounded-2xl border p-3 " + (
+                          actual
+                            ? "border-blue-700 bg-blue-700 text-white ring-2 ring-blue-200"
+                            : anterior
+                              ? "border-blue-200 bg-blue-50 text-blue-900"
+                              : "border-slate-200 bg-slate-50 text-slate-600"
+                        )}
+                      >
+                        <span aria-hidden="true" className="text-xs font-bold">{indice + 1}</span>
+                        <p className="mt-1 break-words text-sm font-black">{etapa.etiqueta}</p>
+                        {actual && <p className="mt-1 text-xs font-bold">Etapa actual</p>}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {indiceEtapaActual < 0 && (
+                  <p className="mt-3 text-sm text-slate-600">
+                    El estado registrado no permite situar el trabajo en esta progresión.
+                  </p>
+                )}
+              </>
+            )}
+
+            <dl className="mt-5 grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+              <div className="min-w-0">
+                <dt className="font-bold text-slate-500">Cliente</dt>
+                <dd className="mt-1 break-words font-black text-slate-950">{solicitud.customer_name || "Nombre no disponible"}</dd>
+                {solicitud.customer_email && <dd className="mt-1 break-words text-slate-600">{solicitud.customer_email}</dd>}
+              </div>
+              <div className="min-w-0">
+                <dt className="font-bold text-slate-500">Profesional</dt>
+                <dd className="mt-1 break-words font-black text-slate-950">{provider?.business_name || "Nombre no disponible"}</dd>
+                {provider?.trade && <dd className="mt-1 break-words text-slate-600">{nombreOficio(provider.trade)}</dd>}
+              </div>
+              <div className="min-w-0">
+                <dt className="font-bold text-slate-500">Servicio</dt>
+                <dd className="mt-1 break-words font-black text-slate-950">{solicitud.title || "No disponible"}</dd>
+              </div>
+            </dl>
+            <div className="mt-4 space-y-1 text-xs leading-5 text-slate-500">
+              <p>Última consulta: {ultimaConsulta ? formatearFecha(ultimaConsulta) : "Pendiente de verificación"}. Verificación automática cada 15 s.</p>
+              <p>La progresión representa el estado actual; no hay historial horario de etapas. La última consulta no indica la hora del cambio.</p>
+              <p>Los datos del expediente se consultan con Actualizar expediente.</p>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 gap-4 p-7 md:grid-cols-2">
             <Dato
               titulo="Ubicación"
               valor={
@@ -1345,25 +1413,6 @@ export default function AdminTrabajoDetallePage() {
             </p>
           )}
         </section>
-
-        {solicitud.status === "cancelled" && (
-          <section className="mt-6 rounded-3xl border-2 border-red-300 bg-red-50 p-7 shadow-sm">
-            <p className="font-black text-red-900">
-              🚫 Trabajo cancelado
-            </p>
-            <p className="mt-2 leading-6 text-red-800">
-              {solicitud.cancellation_reason ||
-                "No se registró un motivo."}
-            </p>
-            {solicitud.cancelled_at && (
-              <p className="mt-2 text-sm font-bold text-red-700">
-                {formatearFecha(
-                  solicitud.cancelled_at
-                )}
-              </p>
-            )}
-          </section>
-        )}
       </div>
     </main>
   );
