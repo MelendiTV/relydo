@@ -184,11 +184,14 @@ export default function AdminUsuariosPage() {
         if (!texto) return true;
 
         const provider = providers.find((x) => x.user_id === p.id);
+        const contacto = contactoUsuario(p);
 
         return [
           p.full_name,
           p.email,
           p.phone,
+          contacto.email,
+          contacto.telefono,
           p.city,
           p.state,
           p.zip_code,
@@ -201,7 +204,7 @@ export default function AdminUsuariosPage() {
           .toLowerCase()
           .includes(texto);
       });
-  }, [profiles, providers, filtro, buscando]);
+  }, [profiles, providers, requests, filtro, buscando]);
 
   const clientes = profiles.filter((p) => p.role === "customer").length;
   const profesionales = profiles.filter((p) => p.role === "provider").length;
