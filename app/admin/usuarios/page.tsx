@@ -448,8 +448,17 @@ export default function AdminUsuariosPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
-                      {contacto.telefono && (
-                        <>
+                     <button
+                      type="button"
+                       onClick={() =>
+                       router.push(`/admin/usuarios/${profile.id}`)
+                           }
+                         className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800"
+                           >
+                          Ver expediente
+                           </button>
+                           {contacto.telefono && (
+                          <>
                           <a
                             href={`tel:${contacto.telefono}`}
                             className="rounded-xl bg-green-700 px-4 py-2.5 text-sm font-black text-white hover:bg-green-800"
