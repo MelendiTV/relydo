@@ -1110,7 +1110,7 @@ AdminUsuarioDetallePage() {
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/admin/ordenes/${row.id}`
+                          `/admin/trabajos/${row.id}`
                         )
                       }
                       className="w-fit rounded-xl border-2 border-blue-700 bg-white px-4 py-2 font-black text-blue-700 hover:bg-blue-50"

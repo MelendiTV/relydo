@@ -129,6 +129,10 @@ export function permissionForAdminPath(
   if (
     pathname.startsWith(
       "/admin/ordenes"
+    ) ||
+    pathname === "/admin/trabajos" ||
+    pathname.startsWith(
+      "/admin/trabajos/"
     )
   ) {
     return "orders";
