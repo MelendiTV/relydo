@@ -738,6 +738,9 @@ AdminUsuarioDetallePage() {
     profile.role ===
     "provider";
 
+  const perfilProfesionalConError =
+    seccionesConError.includes("Perfil profesional");
+
   const trabajosCliente = requests.filter(
     (r) => r.customer_id === userId
   );
@@ -954,9 +957,12 @@ AdminUsuarioDetallePage() {
           {esProvider && (
             <Bloque
               titulo="Perfil profesional"
-              subtitulo="Estado, oficio y datos operativos."
+              subtitulo={perfilProfesionalConError
+                ? "No se pudo cargar el perfil profesional."
+                : "Estado, oficio y datos operativos."}
             >
               <DatosGrid
+                noDisponible={perfilProfesionalConError}
                 items={[
                   [
                     "Negocio",
@@ -1020,7 +1026,7 @@ AdminUsuarioDetallePage() {
                 ]}
               />
 
-              {provider?.bio && (
+              {!perfilProfesionalConError && provider?.bio && (
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                   {provider.bio}
                 </div>
@@ -1033,9 +1039,12 @@ AdminUsuarioDetallePage() {
           <section className="mt-6 grid gap-6 lg:grid-cols-2">
             <Bloque
               titulo="Licencia, seguro y bond"
-              subtitulo="Información declarada por el profesional."
+              subtitulo={perfilProfesionalConError
+                ? "No se pudo cargar la información de licencia, seguro y bond."
+                : "Información declarada por el profesional."}
             >
               <DatosGrid
+                noDisponible={perfilProfesionalConError}
                 items={[
                   [
                     "Licencia requerida",
@@ -1439,7 +1448,9 @@ function Bloque({
 
 function DatosGrid({
   items,
+  noDisponible = false,
 }: {
+  noDisponible?: boolean;
   items: Array<
     [string, React.ReactNode]
   >;
@@ -1456,7 +1467,7 @@ function DatosGrid({
               {label}
             </p>
             <div className="mt-1 break-words font-bold text-slate-900">
-              {value}
+              {noDisponible ? "No disponible" : value}
             </div>
           </div>
         )
