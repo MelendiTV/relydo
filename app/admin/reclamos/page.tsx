@@ -486,7 +486,6 @@ export default function AdminReclamosPage() {
       setProcesando(null);
     }
   }
-
   async function abrirParcial(
     reclamo: JobClaim
   ) {
@@ -496,23 +495,43 @@ export default function AdminReclamosPage() {
     setCargandoParcial(true);
 
     try {
-      const pago = await supabase
-        .from("payments")
-        .select(`
+      const [pago, changeOrdersResp] = await Promise.all([
+        supabase
+          .from("payments")
+          .select(`
           provider_net_amount,
           job_amount
         `)
-        .eq("request_id", reclamo.request_id)
-        .eq("provider_id", reclamo.provider_id)
-        .eq("customer_id", reclamo.customer_id)
-        .order("updated_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
+          .eq("request_id", reclamo.request_id)
+          .eq("provider_id", reclamo.provider_id)
+          .eq("customer_id", reclamo.customer_id)
+          .order("updated_at", {
+            ascending: false,
+          })
+          .limit(1)
+          .maybeSingle(),
+
+        supabase
+          .from("change_orders")
+          .select(`
+          additional_amount,
+          additional_customer_fee_amount,
+          additional_provider_net_amount,
+          stripe_payment_intent_id,
+          payment_status
+        `)
+          .eq("request_id", reclamo.request_id)
+          .eq("provider_id", reclamo.provider_id)
+          .eq("customer_id", reclamo.customer_id)
+          .eq("payment_status", "paid"),
+      ]);
 
       if (pago.error) {
         throw new Error(pago.error.message);
+      }
+
+      if (changeOrdersResp.error) {
+        throw new Error(changeOrdersResp.error.message);
       }
 
       if (!pago.data) {
@@ -521,39 +540,81 @@ export default function AdminReclamosPage() {
         );
       }
 
-      const total =
-        Number(
-          pago.data.job_amount
-        );
+      const jobAmount =
+        Number(pago.data.job_amount);
 
-      const maxProfesional =
-        Number(
-          pago.data.provider_net_amount
-        );
+      const providerNet =
+        Number(pago.data.provider_net_amount);
 
       if (
-        !Number.isFinite(total) ||
-        total <= 0 ||
-        !Number.isFinite(maxProfesional) ||
-        maxProfesional <= 0
+        !Number.isFinite(jobAmount) ||
+        jobAmount <= 0 ||
+        !Number.isFinite(providerNet) ||
+        providerNet <= 0
       ) {
         throw new Error(
           "Los importes del pago no son válidos."
         );
       }
 
-      setTotalPagoParcial(
-        Math.round(
-          (total + Number.EPSILON) * 100
-        ) / 100
-      );
+      const changeOrders =
+        changeOrdersResp.data || [];
 
-      setMaxProfesionalParcial(
-        Math.round(
-          (maxProfesional + Number.EPSILON) * 100
-        ) / 100
-      );
+      let additionalJobAmount = 0;
+      let additionalProviderNet = 0;
 
+      for (const changeOrder of changeOrders) {
+        const additionalAmount =
+          Number(changeOrder.additional_amount);
+
+        const additionalCustomerFee =
+          Number(
+            changeOrder.additional_customer_fee_amount || 0
+          );
+
+        const additionalProvider =
+          Number(
+            changeOrder.additional_provider_net_amount
+          );
+
+        if (
+          !changeOrder.stripe_payment_intent_id ||
+          !Number.isFinite(additionalAmount) ||
+          additionalAmount <= 0 ||
+          !Number.isFinite(additionalCustomerFee) ||
+          additionalCustomerFee < 0 ||
+          !Number.isFinite(additionalProvider) ||
+          additionalProvider <= 0
+        ) {
+          throw new Error(
+            "Hay un cambio de presupuesto pagado con datos financieros incompletos. No se puede calcular una resolución parcial segura."
+          );
+        }
+
+        additionalJobAmount += additionalAmount;
+        additionalProviderNet += additionalProvider;
+      }
+
+      const total =
+        Math.round(
+          (
+            jobAmount +
+            additionalJobAmount +
+            Number.EPSILON
+          ) * 100
+        ) / 100;
+
+      const maxProfesional =
+        Math.round(
+          (
+            providerNet +
+            additionalProviderNet +
+            Number.EPSILON
+          ) * 100
+        ) / 100;
+
+      setTotalPagoParcial(total);
+      setMaxProfesionalParcial(maxProfesional);
       setReclamoParcial(reclamo);
     } catch (err) {
       setError(
@@ -565,7 +626,6 @@ export default function AdminReclamosPage() {
       setCargandoParcial(false);
     }
   }
-
   function montoProNumero() {
     const numero =
       Number(montoProfesionalParcial);
