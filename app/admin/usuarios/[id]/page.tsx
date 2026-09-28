@@ -738,6 +738,26 @@ AdminUsuarioDetallePage() {
     profile.role ===
     "provider";
 
+  const trabajosCliente = requests.filter(
+    (r) => r.customer_id === userId
+  );
+
+  trabajosCliente.sort((a, b) =>
+    Date.parse(b.created_at) - Date.parse(a.created_at) ||
+    b.id.localeCompare(a.id)
+  );
+
+  const telefonoSolicitud =
+    trabajosCliente.find((r) => r.customer_phone)?.customer_phone || null;
+
+  const emailSolicitud =
+    trabajosCliente.find((r) => r.customer_email)?.customer_email || null;
+
+  const contacto = {
+    telefono: profile.phone || telefonoSolicitud,
+    email: profile.email || emailSolicitud,
+  };
+
   const completados =
     requests.filter(
       (r) =>
@@ -812,17 +832,17 @@ AdminUsuarioDetallePage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {profile.phone && (
+                {contacto.telefono && (
                   <>
                     <a
-                      href={`tel:${profile.phone}`}
+                      href={`tel:${contacto.telefono}`}
                       className="rounded-xl bg-green-600 px-4 py-2.5 font-black text-white"
                     >
                       📞 Llamar
                     </a>
 
                     <a
-                      href={`sms:${profile.phone}`}
+                      href={`sms:${contacto.telefono}`}
                       className="rounded-xl bg-blue-600 px-4 py-2.5 font-black text-white"
                     >
                       💬 Mensaje
@@ -830,9 +850,9 @@ AdminUsuarioDetallePage() {
                   </>
                 )}
 
-                {profile.email && (
+                {contacto.email && (
                   <a
-                    href={`mailto:${profile.email}`}
+                    href={`mailto:${contacto.email}`}
                     className="rounded-xl bg-white px-4 py-2.5 font-black text-slate-950"
                   >
                     ✉️ Email
@@ -898,12 +918,12 @@ AdminUsuarioDetallePage() {
                 ],
                 [
                   "Email",
-                  profile.email ||
+                  contacto.email ||
                     "No registrado",
                 ],
                 [
                   "Teléfono",
-                  profile.phone ||
+                  contacto.telefono ||
                     "No registrado",
                 ],
                 [
