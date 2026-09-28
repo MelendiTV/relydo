@@ -1338,56 +1338,60 @@ export default function AdminReclamosPage() {
                             </button>
                           )}
 
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                              reclamo.id
-                            }
-                            onClick={() =>
-                              resolver(
-                                reclamo,
-                                "pay_provider"
-                              )
-                            }
-                            className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            💰 Pagar profesional
-                          </button>
+                          {reclamo.status === "reviewing" && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={
+                                  procesando ===
+                                  reclamo.id
+                                }
+                                onClick={() =>
+                                  resolver(
+                                    reclamo,
+                                    "pay_provider"
+                                  )
+                                }
+                                className="rounded-xl bg-green-600 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                              >
+                                💰 Pagar profesional
+                              </button>
 
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                              reclamo.id
-                            }
-                            onClick={() =>
-                              resolver(
-                                reclamo,
-                                "refund_customer"
-                              )
-                            }
-                            className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            ↩️ Reembolsar cliente
-                          </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  procesando ===
+                                  reclamo.id
+                                }
+                                onClick={() =>
+                                  resolver(
+                                    reclamo,
+                                    "refund_customer"
+                                  )
+                                }
+                                className="rounded-xl bg-blue-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                              >
+                                ↩️ Reembolsar cliente
+                              </button>
 
-                          <button
-                            type="button"
-                            disabled={
-                              procesando ===
-                                reclamo.id ||
-                              cargandoParcial
-                            }
-                            onClick={() =>
-                              abrirParcial(
-                                reclamo
-                              )
-                            }
-                            className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
-                          >
-                            ⚖️ Resolución parcial
-                          </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  procesando ===
+                                    reclamo.id ||
+                                  cargandoParcial
+                                }
+                                onClick={() =>
+                                  abrirParcial(
+                                    reclamo
+                                  )
+                                }
+                                className="rounded-xl bg-purple-700 px-5 py-3 font-extrabold text-white disabled:opacity-50"
+                              >
+                                ⚖️ Resolución parcial
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
