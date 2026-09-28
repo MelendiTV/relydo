@@ -183,6 +183,9 @@ export default function AdminTrabajoDetallePage() {
   const [errorEvidencias, setErrorEvidencias] = useState("");
   const [mensajesChat, setMensajesChat] = useState<JobMessage[]>([]);
   const [chatRealtime, setChatRealtime] = useState(false);
+  const [ordenRealtime, setOrdenRealtime] = useState(false);
+  const [ultimaConsulta, setUltimaConsulta] = useState<string | null>(null);
+  const [errorSeguimiento, setErrorSeguimiento] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -243,6 +246,93 @@ export default function AdminTrabajoDetallePage() {
       );
     };
   }, [id]);
+
+  // Iniciar después de la carga autorizada; nunca recargar datos financieros.
+  const ordenSeguida = !loading && solicitud?.id === id ? id : null;
+
+  useEffect(() => {
+    if (!ordenSeguida) return;
+
+    let activo = true;
+    let consultando = false;
+    let revision = 0;
+    const controller = new AbortController();
+    setOrdenRealtime(false);
+    setUltimaConsulta(null);
+    setErrorSeguimiento(false);
+
+    async function consultarEstado() {
+      if (!activo || document.visibilityState === "hidden") return;
+      revision += 1;
+      if (consultando) return;
+      consultando = true;
+      const revisionConsulta = revision;
+
+      try {
+        const { data, error: consultaError } = await supabase
+          .from("service_requests")
+          .select("id,status,job_stage,cancellation_reason,cancelled_at")
+          .eq("id", ordenSeguida)
+          .abortSignal(controller.signal)
+          .maybeSingle();
+
+        if (!activo || revisionConsulta !== revision) return;
+        if (consultaError || !data) {
+          setErrorSeguimiento(true);
+          return;
+        }
+
+        setSolicitud((actual) =>
+          actual?.id === ordenSeguida ? { ...actual, ...data } : actual
+        );
+        setUltimaConsulta(new Date().toISOString());
+        setErrorSeguimiento(false);
+      } catch {
+        if (activo && revisionConsulta === revision) setErrorSeguimiento(true);
+      } finally {
+        consultando = false;
+        // Un evento durante la consulta exige una nueva lectura, no aplicar datos viejos.
+        if (activo && revisionConsulta !== revision) void consultarEstado();
+      }
+    }
+
+    const canalOrden = supabase
+      .channel(`admin-estado-orden-${ordenSeguida}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "service_requests",
+          filter: `id=eq.${ordenSeguida}`,
+        },
+        () => { void consultarEstado(); }
+      )
+      .subscribe((status) => {
+        if (!activo) return;
+        setOrdenRealtime(status === "SUBSCRIBED");
+        // Recuperar cambios anteriores a la suscripción o durante una desconexión.
+        if (status === "SUBSCRIBED") void consultarEstado();
+      });
+
+    void consultarEstado();
+    // También cubre publicaciones Realtime ausentes y eventos perdidos.
+    const intervalo = window.setInterval(() => { void consultarEstado(); }, 15000);
+    const alVolver = () => { void consultarEstado(); };
+    window.addEventListener("focus", alVolver);
+    window.addEventListener("online", alVolver);
+    document.addEventListener("visibilitychange", alVolver);
+
+    return () => {
+      activo = false;
+      controller.abort();
+      window.clearInterval(intervalo);
+      window.removeEventListener("focus", alVolver);
+      window.removeEventListener("online", alVolver);
+      document.removeEventListener("visibilitychange", alVolver);
+      void supabase.removeChannel(canalOrden);
+    };
+  }, [ordenSeguida]);
 
   async function cargarTodo() {
     setLoading(true);
@@ -700,11 +790,30 @@ export default function AdminTrabajoDetallePage() {
                 </p>
               </div>
 
-              <EstadoAdmin
-                status={solicitud.status}
-                jobStage={solicitud.job_stage}
-                contexto="trabajo"
-              />
+              <div className="space-y-2 lg:max-w-sm">
+                <EstadoAdmin
+                  status={solicitud.status}
+                  jobStage={solicitud.job_stage}
+                  contexto="trabajo"
+                />
+                <p className="text-sm text-slate-300" role="status">
+                  {errorSeguimiento
+                    ? "No se pudo verificar el estado. Reintentando automáticamente; se muestra el último estado conocido."
+                    : ordenRealtime
+                      ? "Estado conectado en vivo · verificación cada 15 s"
+                      : "Estado con consulta automática cada 15 s"}
+                </p>
+                {ultimaConsulta && (
+                  <p className="text-xs text-slate-400">
+                    Última consulta del estado: {formatearFecha(ultimaConsulta)}.
+                    No indica la hora del cambio.
+                  </p>
+                )}
+                <p className="text-xs text-slate-400">
+                  Seguimiento del estado actual. Sin historial de etapas.
+                  Los demás datos se consultan con Actualizar expediente.
+                </p>
+              </div>
             </div>
           </div>
 
