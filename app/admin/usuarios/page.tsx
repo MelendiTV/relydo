@@ -360,7 +360,7 @@ export default function AdminUsuariosPage() {
                         <h2 className="text-xl font-black text-slate-950">
                           {profile.full_name ||
                             provider?.business_name ||
-                            "Usuario FixFlow"}
+                            "Usuario RELYDO"}
                         </h2>
 
                         <span
