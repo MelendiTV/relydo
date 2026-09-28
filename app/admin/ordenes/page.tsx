@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { hasAdminPermission, isAdminRole } from "@/app/lib/adminPermissions";
 
 
@@ -81,10 +81,24 @@ function estiloEstadoOrden(
 export default function AdminOrdenesPage() {
   const router = useRouter();
 
+  const searchParams = useSearchParams();
   const [solicitudes, setSolicitudes] = useState<SolicitudAdmin[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [buscando, setBuscando] = useState("");
-  const [filtro, setFiltro] = useState<FiltroOrden>("todas");
+  const [filtro, setFiltro] = useState<FiltroOrden>(() => {
+    const status = searchParams.get("status");
+
+    if (
+      status === "open" ||
+      status === "in_progress" ||
+      status === "completed" ||
+      status === "cancelled"
+    ) {
+      return status;
+    }
+
+    return "todas";
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
