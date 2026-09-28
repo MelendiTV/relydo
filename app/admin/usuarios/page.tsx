@@ -33,6 +33,7 @@ type Provider = {
 
 type RequestRow = {
   id: string;
+  created_at: string;
   customer_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -132,6 +133,7 @@ export default function AdminUsuariosPage() {
             .from("service_requests")
             .select(`
               id,
+              created_at,
               customer_id,
               customer_name,
               customer_phone,
@@ -212,6 +214,11 @@ export default function AdminUsuariosPage() {
   function contactoUsuario(profile: Profile) {
     const trabajosCliente = requests.filter(
       (r) => r.customer_id === profile.id
+    );
+
+    trabajosCliente.sort((a, b) =>
+      Date.parse(b.created_at) - Date.parse(a.created_at) ||
+      b.id.localeCompare(a.id)
     );
 
     const telefonoSolicitud =
