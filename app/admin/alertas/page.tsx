@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
 import {
+  type AdminRole,
   hasAdminPermission,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
@@ -46,7 +47,7 @@ type Alerta = {
   titulo: string;
   detalle: string;
   fecha: string | null;
-  destino: string;
+  destino: string | null;
 };
 
 function fecha(fechaIso: string | null) {
@@ -62,6 +63,7 @@ function fecha(fechaIso: string | null) {
 
 export default function AdminAlertasPage() {
   const router = useRouter();
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -75,6 +77,7 @@ export default function AdminAlertasPage() {
   async function cargar() {
     setLoading(true);
     setError("");
+    setAdminRole(null);
 
     try {
       const { data: { user }, error: authError } =
@@ -110,6 +113,8 @@ export default function AdminAlertasPage() {
         router.replace("/admin");
         return;
       }
+
+      setAdminRole(adminProfile.admin_role);
 
       const [providerResp, claimResp, paymentResp] = await Promise.all([
         supabase
@@ -166,7 +171,12 @@ export default function AdminAlertasPage() {
           titulo: "Profesional pendiente de verificación",
           detalle: p.business_name || `ID ${p.user_id}`,
           fecha: p.created_at,
-          destino: "/admin",
+          destino:
+            adminRole && hasAdminPermission(adminRole, "users")
+              ? `/admin/usuarios/${p.user_id}`
+              : adminRole && hasAdminPermission(adminRole, "providers")
+              ? "/admin/operaciones"
+              : null,
         });
       });
 
@@ -218,7 +228,7 @@ export default function AdminAlertasPage() {
       if (a.prioridad !== b.prioridad) return a.prioridad === "alta" ? -1 : 1;
       return new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime();
     });
-  }, [providers, claims, payments]);
+  }, [providers, claims, payments, adminRole]);
 
   const altas = alertas.filter((a) => a.prioridad === "alta").length;
   const reclamos = alertas.filter((a) => a.tipo === "reclamo").length;
@@ -328,12 +338,20 @@ export default function AdminAlertasPage() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => router.push(alerta.destino)}
-                    className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-slate-800"
-                  >
-                    Revisar →
-                  </button>
+                  {alerta.destino ? (
+                    <button
+                      onClick={() => {
+                        if (alerta.destino) router.push(alerta.destino);
+                      }}
+                      className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-slate-800"
+                    >
+                      Revisar →
+                    </button>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-500">
+                      Sin permiso para revisar este profesional.
+                    </p>
+                  )}
                 </div>
               </article>
             ))
