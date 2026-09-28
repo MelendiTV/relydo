@@ -70,6 +70,7 @@ export default function AdminActividadPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
 
   const [periodo, setPeriodo] = useState<Periodo>("mes");
+  const [actualizacion, setActualizacion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -198,6 +199,7 @@ export default function AdminActividadPage() {
       setProviders(
         (providersResp.data || []) as ProviderRow[]
       );
+      setActualizacion((actual) => actual + 1);
     } catch (err) {
       setError(
         err instanceof Error
@@ -258,7 +260,7 @@ export default function AdminActividadPage() {
       1
     );
     return { inicio, fin };
-  }, [periodo]);
+  }, [periodo, actualizacion]);
 
   function dentro(fechaIso: string | null | undefined) {
     if (!fechaIso) return false;
