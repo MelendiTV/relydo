@@ -282,6 +282,13 @@ export default function AdminUsuariosPage() {
           </div>
         )}
 
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600 shadow">
+          Esta vista se basa en los registros cargados, que pueden estar limitados.
+          Los totales, los filtros (incluido “Todos”), las búsquedas, los contactos
+          y la actividad pueden no reflejar toda la información disponible. Una
+          búsqueda sin resultados no confirma que el usuario no exista.
+        </div>
+
         <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Resumen titulo="Usuarios" valor={clientes + profesionales} />
           <Resumen titulo="Clientes" valor={clientes} />
