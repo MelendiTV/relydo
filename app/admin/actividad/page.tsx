@@ -466,6 +466,12 @@ export default function AdminActividadPage() {
               </button>
             ))}
           </div>
+
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Las métricas se calculan sobre los registros cargados. El filtro “Todo”
+            puede no incluir el histórico completo si existen más registros que los
+            recuperados por la consulta.
+          </p>
         </section>
 
         <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
