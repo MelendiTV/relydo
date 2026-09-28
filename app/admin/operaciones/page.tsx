@@ -4068,6 +4068,7 @@ export default function AdminPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {adminRole && hasAdminPermission(adminRole, "financial_settings") && (
             <button
               type="button"
               onClick={() =>
@@ -4099,7 +4100,9 @@ export default function AdminPage() {
                 Administrar configuración
               </p>
             </button>
+            )}
 
+            {adminRole && hasAdminPermission(adminRole, "claims") && (
             <button
               type="button"
               onClick={() =>
@@ -4131,7 +4134,9 @@ export default function AdminPage() {
                 {totalReclamosActivos} reclamo{totalReclamosActivos === 1 ? "" : "s"} activo{totalReclamosActivos === 1 ? "" : "s"}
               </p>
             </button>
+            )}
 
+            {adminRole && hasAdminPermission(adminRole, "orders") && (
             <button
               type="button"
               onClick={() =>
@@ -4163,7 +4168,9 @@ export default function AdminPage() {
                 {solicitudesAdmin.length} orden{solicitudesAdmin.length === 1 ? "" : "es"} registrada{solicitudesAdmin.length === 1 ? "" : "s"}
               </p>
             </button>
+            )}
 
+            {adminRole && hasAdminPermission(adminRole, "finance") && (
             <button
               type="button"
               onClick={() =>
@@ -4195,7 +4202,9 @@ export default function AdminPage() {
                 Abrir panel financiero
               </p>
             </button>
+            )}
 
+            {adminRole && hasAdminPermission(adminRole, "users") && (
             <button
               type="button"
               onClick={() =>
@@ -4227,6 +4236,7 @@ export default function AdminPage() {
                 Abrir gestión de usuarios
               </p>
             </button>
+            )}
 
             <button
               type="button"
@@ -4287,6 +4297,7 @@ export default function AdminPage() {
               </p>
             </button>
 
+            {adminRole && hasAdminPermission(adminRole, "alerts") && (
             <button
               type="button"
               onClick={() =>
@@ -4312,7 +4323,9 @@ export default function AdminPage() {
                 {totalReclamosActivos + providers.length} alerta{totalReclamosActivos + providers.length === 1 ? "" : "s"} pendiente{totalReclamosActivos + providers.length === 1 ? "" : "s"}
               </p>
             </button>
+            )}
 
+            {adminRole && hasAdminPermission(adminRole, "activity") && (
             <button
               type="button"
               onClick={() =>
@@ -4344,6 +4357,7 @@ export default function AdminPage() {
                 Ver actividad
               </p>
             </button>
+            )}
           </div>
         </section>
 
