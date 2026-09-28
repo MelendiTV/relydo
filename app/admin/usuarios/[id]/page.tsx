@@ -738,6 +738,17 @@ AdminUsuarioDetallePage() {
     profile.role ===
     "provider";
 
+  const esCustomer =
+    profile.role === "customer";
+
+  const etiquetaRol = esProvider
+    ? "Profesional"
+    : esCustomer
+      ? "Cliente"
+      : profile.role
+        ? textoEstado(profile.role)
+        : "Rol no registrado";
+
   const perfilProfesionalConError =
     seccionesConError.includes("Perfil profesional");
 
@@ -811,11 +822,11 @@ AdminUsuarioDetallePage() {
                   <span className={`rounded-full px-3 py-1 text-xs font-black ${
                     esProvider
                       ? "bg-purple-200 text-purple-950"
-                      : "bg-blue-200 text-blue-950"
+                      : esCustomer
+                        ? "bg-blue-200 text-blue-950"
+                        : "bg-slate-200 text-slate-950"
                   }`}>
-                    {esProvider
-                      ? "Profesional"
-                      : "Cliente"}
+                    {etiquetaRol}
                   </span>
                 </div>
 
@@ -931,9 +942,7 @@ AdminUsuarioDetallePage() {
                 ],
                 [
                   "Rol",
-                  esProvider
-                    ? "Profesional"
-                    : "Cliente",
+                  etiquetaRol,
                 ],
                 [
                   "Ciudad",
