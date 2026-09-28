@@ -534,6 +534,8 @@ export default function AdminPage() {
   ] =
     useState<Record<string, ProviderContact>>({});
 
+  const [providerContactsError, setProviderContactsError] = useState(false);
+
   const [
     documents,
     setDocuments,
@@ -1146,6 +1148,7 @@ export default function AdminPage() {
         );
 
         setProviderContacts({});
+        setProviderContactsError(true);
       } else {
         const contactos =
           (providerContactResult.data || []) as ProviderContact[];
@@ -1158,6 +1161,7 @@ export default function AdminPage() {
         }, {});
 
         setProviderContacts(contactosPorId);
+        setProviderContactsError(false);
       }
 
       /*
@@ -4037,6 +4041,12 @@ export default function AdminPage() {
         </div>
 
         {/* MENSAJES */}
+
+        {providerContactsError && (
+          <div role="alert" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 font-medium text-amber-800">
+            No se pudieron cargar los datos de contacto de los profesionales. La información mostrada puede estar incompleta; ‘No registrado’ no confirma que falten esos datos. Recarga la página para volver a intentarlo.
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 font-medium text-red-700">
