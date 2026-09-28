@@ -406,7 +406,7 @@ export default function ConfiguracionFinancieraPage() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-slate-300">
-              Administra las comisiones de FixFlow, la tarifa de servicio al cliente y las reglas económicas de cancelación.
+              Administra las comisiones de RELYDO, la tarifa de servicio al cliente y las reglas económicas de cancelación.
             </p>
           </div>
 
@@ -531,7 +531,7 @@ export default function ConfiguracionFinancieraPage() {
 
                 <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                   <p className="font-extrabold text-emerald-900">
-                    Ingreso estimado de FixFlow en un trabajo de $300
+                    Ingreso estimado de RELYDO en un trabajo de $300
                   </p>
 
                   <p className="mt-2 text-3xl font-black text-emerald-800">
@@ -615,7 +615,7 @@ export default function ConfiguracionFinancieraPage() {
                   </div>
 
                   <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">
-                    Contratado: cancelación gratis · Trabajo iniciado: no se cancela, pasa a reclamo · El resto de la penalidad corresponde a FixFlow.
+                    Contratado: cancelación gratis · Trabajo iniciado: no se cancela, pasa a reclamo · El resto de la penalidad corresponde a RELYDO.
                   </div>
                 </div>
 
