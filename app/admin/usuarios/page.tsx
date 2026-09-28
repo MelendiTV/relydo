@@ -265,7 +265,7 @@ export default function AdminUsuariosPage() {
             Gestión de usuarios
           </h1>
           <p className="mt-3 max-w-3xl text-slate-300">
-            Consulta clientes y profesionales, sus datos de contacto y su actividad dentro de FixFlow.
+            Consulta clientes y profesionales, sus datos de contacto y su actividad dentro de RELYDO.
           </p>
         </section>
 
