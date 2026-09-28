@@ -204,12 +204,20 @@ AdminUsuarioDetallePage() {
   ] =
     useState("");
 
+  const [
+    seccionesConError,
+    setSeccionesConError,
+  ] =
+    useState<string[]>([]);
+
   useEffect(() => {
     cargar();
   }, [userId]);
 
   async function
   cargar() {
+    setSeccionesConError([]);
+
     if (!userId) {
       setError(
         "No encontramos el ID del usuario."
@@ -503,9 +511,12 @@ AdminUsuarioDetallePage() {
           .limit(200),
       ]);
 
+      const seccionesFallidas: string[] = [];
+
       if (
         providerResp.error
       ) {
+        seccionesFallidas.push("Perfil profesional");
         console.error(
           "provider_profiles:",
           providerResp.error
@@ -605,17 +616,24 @@ AdminUsuarioDetallePage() {
       );
 
       const erroresSecundarios = [
-        customerRequestsResp.error,
-        providerRequestsResp.error,
-        offersResp.error,
-        paymentsResp.error,
-        claimsOpenedResp.error,
-        claimsAgainstResp.error,
-        reviewsWrittenResp.error,
-        reviewsReceivedResp.error,
-        docsResp.error,
-        notificationsResp.error,
-      ].filter(Boolean);
+        { seccion: "Trabajos y órdenes", error: customerRequestsResp.error },
+        { seccion: "Trabajos y órdenes", error: providerRequestsResp.error },
+        { seccion: "Ofertas", error: offersResp.error },
+        { seccion: "Pagos", error: paymentsResp.error },
+        { seccion: "Reclamos", error: claimsOpenedResp.error },
+        { seccion: "Reclamos", error: claimsAgainstResp.error },
+        { seccion: "Reseñas", error: reviewsWrittenResp.error },
+        { seccion: "Reseñas", error: reviewsReceivedResp.error },
+        { seccion: "Documentos", error: docsResp.error },
+        { seccion: "Actividad y notificaciones", error: notificationsResp.error },
+      ].filter(({ error }) => Boolean(error));
+
+      setSeccionesConError(
+        Array.from(new Set([
+          ...seccionesFallidas,
+          ...erroresSecundarios.map(({ seccion }) => seccion),
+        ]))
+      );
 
       if (
         erroresSecundarios.length >
@@ -623,7 +641,7 @@ AdminUsuarioDetallePage() {
       ) {
         console.warn(
           "Algunas secciones no pudieron cargarse:",
-          erroresSecundarios
+          erroresSecundarios.map(({ error }) => error)
         );
       }
     } catch (err) {
@@ -824,6 +842,20 @@ AdminUsuarioDetallePage() {
             </div>
           </div>
         </section>
+
+        {seccionesConError.length > 0 && (
+          <div
+            role="alert"
+            className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950"
+          >
+            <p className="font-black">Expediente incompleto</p>
+            <p className="mt-2 text-sm">
+              No se pudieron cargar estas secciones: {seccionesConError.join(", ")}.
+              Los ceros o mensajes de ausencia en estas secciones no confirman
+              que no existan datos. Usa “Actualizar expediente” para reintentar.
+            </p>
+          </div>
+        )}
 
         <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
           <Metrica
