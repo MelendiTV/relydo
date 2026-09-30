@@ -27,6 +27,9 @@ type Profile = {
   city: string | null;
   state: string | null;
   zip_code: string | null;
+  zip: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
 };
 
 type ProviderProfile = {
@@ -945,18 +948,30 @@ AdminUsuarioDetallePage() {
                   etiquetaRol,
                 ],
                 [
+                  "Dirección / calle",
+                  profile.address_line1?.trim() ||
+                    "No registrado",
+                ],
+                [
+                  "Apto / Unidad",
+                  profile.address_line2?.trim() ||
+                    "No registrado",
+                ],
+                [
                   "Ciudad",
-                  profile.city ||
-                    "No registrada",
+                  profile.city?.trim() ||
+                    "No registrado",
                 ],
                 [
                   "Estado",
-                  profile.state ||
+                  profile.state?.trim() ||
                     "No registrado",
                 ],
                 [
                   "ZIP",
-                  profile.zip_code ||
+                  (profile.role === "customer"
+                    ? profile.zip?.trim() || profile.zip_code?.trim()
+                    : profile.zip_code?.trim()) ||
                     "No registrado",
                 ],
               ]}
