@@ -742,6 +742,10 @@ export default function AdminTrabajoDetallePage() {
   const cancelado = solicitud.status === "cancelled";
 
   const resumen = payment && solicitud ? orderFinancialSummary(payment, changeOrders, solicitud.id) : null;
+  const baseConfiable = !errorCambios && resumen?.baseConfirmed === true;
+  const cambiosCronologicos = [...changeOrders].sort((a, b) =>
+    a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)
+  );
 
   const totalFotos = evidencias.filter(
     (item) => item.file_type === "image"
@@ -938,29 +942,20 @@ export default function AdminTrabajoDetallePage() {
             💰 Pagos
           </p>
           <h2 className="mt-2 text-2xl font-black text-slate-950">
-            Resumen financiero
+            Informe financiero
           </h2>
 
+          <h3 className="mt-6 font-black uppercase tracking-wide text-emerald-700">PAGO INICIAL</h3>
           {payment ? (
             <>
-              {errorCambios && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-5 font-bold text-red-700">{errorCambios} El resumen de cambios no está disponible.</p>}
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Monto titulo="Valor original del servicio" valor={errorCambios ? null : resumen!.original} />
-                <Monto titulo="Cambios de presupuesto pagados" valor={errorCambios ? null : resumen!.changes} />
-                <Monto titulo="Valor actual del servicio" valor={errorCambios ? null : resumen!.serviceTotal} />
-                <Monto titulo="Pago original cliente" valor={errorCambios ? null : resumen!.originalCustomer} />
-                <Monto titulo="Pagos adicionales cliente" valor={errorCambios ? null : resumen!.additionalCustomer} />
-                <Monto titulo="Total pagado cliente" valor={errorCambios ? null : resumen!.customerTotal} />
-                <Monto titulo="Comisión profesional" valor={errorCambios ? null : resumen!.commission} />
-                <Monto titulo="Neto profesional" valor={errorCambios ? null : resumen!.net} />
-                <Monto titulo="Ingreso RELYDO" valor={errorCambios ? null : resumen!.revenue} />
-                <Monto titulo="Tarifa cliente" valor={errorCambios ? null : resumen!.fee} />
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <Monto titulo="Valor del servicio original" valor={errorCambios ? null : resumen!.original} />
+                <Monto titulo="Tarifa cliente original" valor={baseConfiable ? payment.customer_fee_amount : null} />
+                <Monto titulo="Total pagado cliente original" valor={errorCambios ? null : resumen!.originalCustomer} />
+                <Monto titulo="Comisión profesional original" valor={baseConfiable ? payment.provider_commission_amount : null} />
+                <Monto titulo="Neto profesional original" valor={baseConfiable ? payment.provider_net_amount : null} />
+                <Monto titulo="Ingreso RELYDO original" valor={baseConfiable ? payment.platform_revenue_amount : null} />
               </div>
-              {!errorCambios && resumen && Object.values(resumen).some(value => value === null) && (
-                <p className="mt-5 rounded-2xl bg-amber-50 p-5 text-sm text-amber-900">
-                  {resumen.baseConfirmed ? "Faltan importes registrados del pago o de los cambios pagados para completar las cifras no disponibles." : "El importe del pago registrado no coincide con el presupuesto original. No se sumaron adicionales a ese pago para evitar duplicarlos; falta identificar el cobro base separado."}
-                </p>
-              )}
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Dato titulo="Estado del pago original" valor={payment.status} secundario={payment.released_at ? `Liberado ${formatearFecha(payment.released_at)}` : "Todavía no liberado"} />
               </div>
@@ -981,6 +976,79 @@ export default function AdminTrabajoDetallePage() {
               No hay pago registrado para este trabajo.
             </p>
           )}
+          <div className="mt-6 border-t border-slate-200 pt-6">
+            {errorCambios ? (
+              <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-5 font-bold text-red-700">{errorCambios}</p>
+            ) : cambiosCronologicos.length === 0 ? (
+              <p className="mt-5 rounded-2xl bg-slate-50 p-5 font-bold text-slate-500">
+                No hubo cambios de presupuesto.
+              </p>
+            ) : (
+              <div className="mt-5 space-y-4">
+                {cambiosCronologicos.map((item, index) => (
+                  <article
+                    key={item.id}
+                    className="rounded-2xl border border-purple-200 bg-purple-50 p-5"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="font-black text-purple-950">CAMBIO DE PRESUPUESTO #{index + 1}</h3>
+                        <p className="mt-2 break-words text-sm text-purple-900">Motivo: {item.reason || "No disponible"}</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-purple-900">
+                          Descripción: {item.description || "No disponible"}
+                        </p>
+                      </div>
+                      <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-black text-purple-700">
+                        Estado: {item.status} · Pago: {item.payment_status}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <Monto
+                        titulo="Original"
+                        valor={item.original_amount}
+                      />
+                      <Monto
+                        titulo="Adicional"
+                        valor={item.additional_amount}
+                      />
+                      <Monto
+                        titulo="Nuevo total"
+                        valor={item.new_total_amount}
+                      />
+                      <Monto titulo="Tarifa cliente adicional" valor={item.additional_customer_fee_amount} />
+                      <Monto titulo="Pago adicional cliente" valor={item.additional_customer_total_amount} />
+                      <Monto titulo="Comisión profesional adicional" valor={item.additional_provider_commission_amount} />
+                      <Monto titulo="Neto profesional adicional" valor={item.additional_provider_net_amount} />
+                      <Monto titulo="Ingreso RELYDO adicional" valor={item.additional_platform_revenue_amount} />
+                    </div>
+                    <p className="mt-4 break-words text-xs text-purple-900">Cambio ID: {item.id}</p>
+                    <p className="mt-2 text-xs text-purple-900">Creado: {formatearFecha(item.created_at)} · Actualizado: {formatearFecha(item.updated_at)}</p>
+                    {item.accepted_at && <p className="mt-2 text-xs text-purple-900">Aceptado: {formatearFecha(item.accepted_at)}</p>}
+                    {item.rejected_at && <p className="mt-2 text-xs text-purple-900">Rechazado: {formatearFecha(item.rejected_at)}</p>}
+                    {item.paid_at && <p className="mt-2 text-xs text-purple-900">Pagado: {formatearFecha(item.paid_at)}</p>}
+                    {item.released_at && <p className="mt-2 text-xs text-purple-900">Liberado: {formatearFecha(item.released_at)}</p>}
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mt-6 border-t border-slate-200 pt-6">
+            <h3 className="font-black uppercase tracking-wide text-emerald-700">TOTALES DE LA ORDEN</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Monto titulo="Valor actual del servicio" valor={errorCambios ? null : resumen?.serviceTotal ?? null} />
+              <Monto titulo="Total pagado cliente" valor={errorCambios ? null : resumen?.customerTotal ?? null} />
+              <Monto titulo="Comisión profesional total" valor={errorCambios ? null : resumen?.commission ?? null} />
+              <Monto titulo="Neto profesional total" valor={errorCambios ? null : resumen?.net ?? null} />
+              <Monto titulo="Ingreso RELYDO total" valor={errorCambios ? null : resumen?.revenue ?? null} />
+              <Monto titulo="Tarifa cliente total" valor={errorCambios ? null : resumen?.fee ?? null} />
+            </div>
+            {!errorCambios && resumen && Object.values(resumen).some(value => value === null) && (
+              <p className="mt-5 rounded-2xl bg-amber-50 p-5 text-sm text-amber-900">
+                {resumen.baseConfirmed ? "Faltan importes registrados del pago o de los cambios pagados para completar las cifras no disponibles." : "El importe del pago registrado no coincide con el presupuesto original. No se sumaron adicionales a ese pago para evitar duplicarlos; falta identificar el cobro base separado."}
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
@@ -1055,74 +1123,6 @@ export default function AdminTrabajoDetallePage() {
                       {formatearFecha(item.created_at)}
                     </span>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
-          <p className="text-sm font-black uppercase tracking-wide text-purple-700">
-            💵 Cambios de presupuesto
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">
-            Change Orders
-          </h2>
-
-          {errorCambios ? (
-            <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-5 font-bold text-red-700">{errorCambios}</p>
-          ) : changeOrders.length === 0 ? (
-            <p className="mt-5 rounded-2xl bg-slate-50 p-5 font-bold text-slate-500">
-              No hubo cambios de presupuesto.
-            </p>
-          ) : (
-            <div className="mt-5 space-y-4">
-              {changeOrders.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-2xl border border-purple-200 bg-purple-50 p-5"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-black text-purple-950">
-                        {item.reason}
-                      </p>
-                      {item.description && (
-                        <p className="mt-1 text-sm text-purple-900">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-black text-purple-700">
-                      {item.status} · {item.payment_status}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <Monto
-                      titulo="Original"
-                      valor={item.original_amount}
-                    />
-                    <Monto
-                      titulo="Adicional"
-                      valor={item.additional_amount}
-                    />
-                    <Monto
-                      titulo="Nuevo total"
-                      valor={item.new_total_amount}
-                    />
-                    <Monto titulo="Tarifa cliente adicional" valor={item.additional_customer_fee_amount} />
-                    <Monto titulo="Pago adicional cliente" valor={item.additional_customer_total_amount} />
-                    <Monto titulo="Comisión profesional adicional" valor={item.additional_provider_commission_amount} />
-                    <Monto titulo="Neto profesional adicional" valor={item.additional_provider_net_amount} />
-                    <Monto titulo="Ingreso RELYDO adicional" valor={item.additional_platform_revenue_amount} />
-                  </div>
-                  <p className="mt-4 break-words text-xs text-purple-900">Cambio ID: {item.id}</p>
-                  <p className="mt-2 text-xs text-purple-900">Creado: {formatearFecha(item.created_at)} · Actualizado: {formatearFecha(item.updated_at)}</p>
-                  {item.accepted_at && <p className="mt-2 text-xs text-purple-900">Aceptado: {formatearFecha(item.accepted_at)}</p>}
-                  {item.rejected_at && <p className="mt-2 text-xs text-purple-900">Rechazado: {formatearFecha(item.rejected_at)}</p>}
-                  {item.paid_at && <p className="mt-2 text-xs text-purple-900">Pagado: {formatearFecha(item.paid_at)}</p>}
-                  {item.released_at && <p className="mt-2 text-xs text-purple-900">Liberado: {formatearFecha(item.released_at)}</p>}
                 </article>
               ))}
             </div>
@@ -1435,7 +1435,7 @@ function Monto({
         {titulo}
       </p>
       <p className="mt-1 text-2xl font-black text-slate-950">
-        {valor == null ? "No disponible" : `${Number(valor).toFixed(2)}`}
+        {valor == null || !Number.isFinite(Number(valor)) ? "No disponible" : `${Number(valor).toFixed(2)}`}
       </p>
     </div>
   );
