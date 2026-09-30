@@ -117,7 +117,7 @@ export default function PerfilProfesional() {
       data,
       error: profesionalError,
     } = await supabase
-      .from("provider_profiles")
+      .from("public_provider_profiles")
       .select(`
         user_id,
         business_name,

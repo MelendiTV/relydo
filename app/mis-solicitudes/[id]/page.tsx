@@ -1809,7 +1809,7 @@ export default function MisSolicitudDetallePage() {
       */
       const preferredProviderPromise = solicitudData.preferred_provider_id
         ? supabase
-            .from("provider_profiles")
+            .from("public_provider_profiles")
             .select("user_id, business_name, trade, verified")
             .eq("user_id", solicitudData.preferred_provider_id)
             .maybeSingle()
@@ -2047,7 +2047,7 @@ export default function MisSolicitudDetallePage() {
       if (ofertasBase.length > 0) {
         const professionalIds = [...new Set(ofertasBase.map((oferta) => oferta.professional_id))];
         const { data: profesionalesData, error: profesionalesError } = await supabase
-          .from("provider_profiles")
+          .from("public_provider_profiles")
           .select(`
             user_id, business_name, trade, years_experience,
             average_rating, completed_jobs, verified
