@@ -1,5 +1,6 @@
 "use client";
 
+import { orderFinancialSummary } from "../orderFinancialSummary";
 import { EstadoAdmin } from "@/app/admin/_components/EstadoAdmin";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
@@ -95,6 +96,10 @@ type ChangeOrder = {
   additional_provider_commission_amount: number | null;
   additional_provider_net_amount: number | null;
   additional_platform_revenue_amount: number | null;
+  updated_at: string | null;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  released_at: string | null;
   paid_at: string | null;
   created_at: string;
 };
@@ -186,6 +191,7 @@ export default function AdminTrabajoDetallePage() {
   const [oferta, setOferta] = useState<Offer | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
+  const [errorCambios, setErrorCambios] = useState("");
   const [claims, setClaims] = useState<JobClaim[]>([]);
   const [evidencias, setEvidencias] = useState<CompletionEvidence[]>([]);
   const [errorEvidencias, setErrorEvidencias] = useState("");
@@ -346,6 +352,9 @@ export default function AdminTrabajoDetallePage() {
     setLoading(true);
     setError("");
     setErrorEvidencias("");
+    setErrorCambios("");
+    setChangeOrders([]);
+    setPayment(null);
 
     try {
       const {
@@ -532,46 +541,19 @@ export default function AdminTrabajoDetallePage() {
         paymentData ? (paymentData as Payment) : null
       );
 
-      const {
-        data: changeOrdersData,
-        error: changeOrdersError,
-      } = await supabase
-        .from("change_orders")
-        .select(`
-          id,
-          request_id,
-          provider_id,
-          customer_id,
-          reason,
-          description,
-          original_amount,
-          additional_amount,
-          new_total_amount,
-          status,
-          payment_status,
-          additional_customer_fee_amount,
-          additional_customer_total_amount,
-          additional_provider_commission_amount,
-          additional_provider_net_amount,
-          additional_platform_revenue_amount,
-          paid_at,
-          created_at
-        `)
-        .eq("request_id", id)
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (changeOrdersError) {
-        console.error(
-          "Error cargando cambios de presupuesto:",
-          changeOrdersError
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("Sesión no válida.");
+        const response = await fetch(
+          `/api/admin/orders/change-orders?request_id=${encodeURIComponent(solicitudActual.id)}`,
+          { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" }
         );
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        setChangeOrders(result.changeOrders as ChangeOrder[]);
+      } catch {
+        setErrorCambios("No se pudieron cargar los cambios de presupuesto. Recarga el expediente para intentar nuevamente.");
       }
-
-      setChangeOrders(
-        (changeOrdersData || []) as ChangeOrder[]
-      );
 
       const { data: claimsData, error: claimsError } =
         await supabase
@@ -758,6 +740,8 @@ export default function AdminTrabajoDetallePage() {
     (etapa) => etapa.valor === etapaActual
   );
   const cancelado = solicitud.status === "cancelled";
+
+  const resumen = payment && solicitud ? orderFinancialSummary(payment, changeOrders, solicitud.id) : null;
 
   const totalFotos = evidencias.filter(
     (item) => item.file_type === "image"
@@ -959,45 +943,26 @@ export default function AdminTrabajoDetallePage() {
 
           {payment ? (
             <>
+              {errorCambios && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-5 font-bold text-red-700">{errorCambios} El resumen de cambios no está disponible.</p>}
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Monto
-                  titulo="Valor del servicio"
-                  valor={payment.job_amount}
-                />
-                <Monto
-                  titulo="Total pagado cliente"
-                  valor={payment.customer_total_amount}
-                />
-                <Monto
-                  titulo="Neto profesional"
-                  valor={payment.provider_net_amount}
-                />
-                <Monto
-                  titulo="Ingreso RELYDO"
-                  valor={payment.platform_revenue_amount}
-                />
+                <Monto titulo="Valor original del servicio" valor={errorCambios ? null : resumen!.original} />
+                <Monto titulo="Cambios de presupuesto pagados" valor={errorCambios ? null : resumen!.changes} />
+                <Monto titulo="Valor actual del servicio" valor={errorCambios ? null : resumen!.serviceTotal} />
+                <Monto titulo="Pago original cliente" valor={errorCambios ? null : resumen!.originalCustomer} />
+                <Monto titulo="Pagos adicionales cliente" valor={errorCambios ? null : resumen!.additionalCustomer} />
+                <Monto titulo="Total pagado cliente" valor={errorCambios ? null : resumen!.customerTotal} />
+                <Monto titulo="Comisión profesional" valor={errorCambios ? null : resumen!.commission} />
+                <Monto titulo="Neto profesional" valor={errorCambios ? null : resumen!.net} />
+                <Monto titulo="Ingreso RELYDO" valor={errorCambios ? null : resumen!.revenue} />
+                <Monto titulo="Tarifa cliente" valor={errorCambios ? null : resumen!.fee} />
               </div>
-
+              {!errorCambios && resumen && Object.values(resumen).some(value => value === null) && (
+                <p className="mt-5 rounded-2xl bg-amber-50 p-5 text-sm text-amber-900">
+                  {resumen.baseConfirmed ? "Faltan importes registrados del pago o de los cambios pagados para completar las cifras no disponibles." : "El importe del pago registrado no coincide con el presupuesto original. No se sumaron adicionales a ese pago para evitar duplicarlos; falta identificar el cobro base separado."}
+                </p>
+              )}
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Dato
-                  titulo="Estado del pago"
-                  valor={payment.status}
-                  secundario={
-                    payment.released_at
-                      ? `Liberado ${formatearFecha(payment.released_at)}`
-                      : "Todavía no liberado"
-                  }
-                />
-                <Dato
-                  titulo="Comisión profesional"
-                  valor={`${Number(payment.provider_commission_percent).toFixed(2)}%`}
-                  secundario={`$${Number(payment.provider_commission_amount).toFixed(2)}`}
-                />
-                <Dato
-                  titulo="Tarifa cliente"
-                  valor={`${Number(payment.customer_fee_percent).toFixed(2)}%`}
-                  secundario={`$${Number(payment.customer_fee_amount).toFixed(2)}`}
-                />
+                <Dato titulo="Estado del pago original" valor={payment.status} secundario={payment.released_at ? `Liberado ${formatearFecha(payment.released_at)}` : "Todavía no liberado"} />
               </div>
 
               {Number(payment.refunded_amount || 0) > 0 && (
@@ -1104,7 +1069,9 @@ export default function AdminTrabajoDetallePage() {
             Change Orders
           </h2>
 
-          {changeOrders.length === 0 ? (
+          {errorCambios ? (
+            <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-5 font-bold text-red-700">{errorCambios}</p>
+          ) : changeOrders.length === 0 ? (
             <p className="mt-5 rounded-2xl bg-slate-50 p-5 font-bold text-slate-500">
               No hubo cambios de presupuesto.
             </p>
@@ -1144,7 +1111,18 @@ export default function AdminTrabajoDetallePage() {
                       titulo="Nuevo total"
                       valor={item.new_total_amount}
                     />
+                    <Monto titulo="Tarifa cliente adicional" valor={item.additional_customer_fee_amount} />
+                    <Monto titulo="Pago adicional cliente" valor={item.additional_customer_total_amount} />
+                    <Monto titulo="Comisión profesional adicional" valor={item.additional_provider_commission_amount} />
+                    <Monto titulo="Neto profesional adicional" valor={item.additional_provider_net_amount} />
+                    <Monto titulo="Ingreso RELYDO adicional" valor={item.additional_platform_revenue_amount} />
                   </div>
+                  <p className="mt-4 break-words text-xs text-purple-900">Cambio ID: {item.id}</p>
+                  <p className="mt-2 text-xs text-purple-900">Creado: {formatearFecha(item.created_at)} · Actualizado: {formatearFecha(item.updated_at)}</p>
+                  {item.accepted_at && <p className="mt-2 text-xs text-purple-900">Aceptado: {formatearFecha(item.accepted_at)}</p>}
+                  {item.rejected_at && <p className="mt-2 text-xs text-purple-900">Rechazado: {formatearFecha(item.rejected_at)}</p>}
+                  {item.paid_at && <p className="mt-2 text-xs text-purple-900">Pagado: {formatearFecha(item.paid_at)}</p>}
+                  {item.released_at && <p className="mt-2 text-xs text-purple-900">Liberado: {formatearFecha(item.released_at)}</p>}
                 </article>
               ))}
             </div>
@@ -1449,7 +1427,7 @@ function Monto({
   valor,
 }: {
   titulo: string;
-  valor: number;
+  valor: number | null;
 }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-5">
@@ -1457,7 +1435,7 @@ function Monto({
         {titulo}
       </p>
       <p className="mt-1 text-2xl font-black text-slate-950">
-        ${Number(valor || 0).toFixed(2)}
+        {valor == null ? "No disponible" : `${Number(valor).toFixed(2)}`}
       </p>
     </div>
   );
