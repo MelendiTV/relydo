@@ -1,0 +1,398 @@
+[
+  {
+    "number": 1,
+    "title": {
+      "en": "Agreement and scope",
+      "es": "Acuerdo y alcance"
+    },
+    "en": "These Terms govern RELYDO’s website, Client app, Pro app, and related platform services. When you create an account or accept a transaction through an acceptance control, you agree to these Terms. Read the Privacy Policy for information about personal data; acknowledging it does not waive privacy rights or authorize optional processing. If you do not agree to the Terms, do not register or transact.",
+    "es": "Estos Términos regulan el sitio web, la aplicación Cliente, la aplicación Pro y los servicios relacionados de RELYDO. Al crear una cuenta o aceptar una transacción mediante un control de aceptación, usted acepta estos Términos. Consulte la Política de Privacidad sobre datos personales; reconocerla no renuncia a sus derechos ni autoriza tratamientos opcionales. Si no acepta los Términos, no se registre ni realice transacciones."
+  },
+  {
+    "number": 2,
+    "title": {
+      "en": "Platform operator",
+      "es": "Operador de la plataforma"
+    },
+    "en": "RELYDO is operated by the legal entity [PENDIENTE], with registered address [PENDIENTE]. These Terms concern RELYDO only. Legal notices may be sent to the legal contact in section 44. A Pro’s business is distinct from the platform operator.",
+    "es": "RELYDO es operado por la entidad legal [PENDIENTE], con domicilio registrado [PENDIENTE]. Estos Términos se refieren exclusivamente a RELYDO. Las notificaciones legales pueden enviarse al contacto de la sección 44. El negocio del Pro es distinto del operador de la plataforma."
+  },
+  {
+    "number": 3,
+    "title": {
+      "en": "Eligibility",
+      "es": "Elegibilidad"
+    },
+    "en": "You must be at least 18 and have legal capacity to enter contracts. A person acting for a business must have authority to bind it. Pros must meet the legal and professional requirements of the services and locations in which they work. Do not register on behalf of a minor.",
+    "es": "Debe tener al menos 18 años y capacidad legal para contratar. Quien actúe por un negocio debe estar autorizado para obligarlo. Los Pros deben cumplir los requisitos legales y profesionales de los servicios y lugares donde trabajan. No se registre en nombre de un menor."
+  },
+  {
+    "number": 4,
+    "title": {
+      "en": "Registration and account information",
+      "es": "Registro e información de cuenta"
+    },
+    "en": "Provide accurate, current account, contact, address, and role information. Keep it updated and complete any required email confirmation. Do not impersonate another person or create accounts to evade a restriction. RELYDO may request clarification necessary to administer an account or transaction.",
+    "es": "Proporcione datos actuales y exactos de cuenta, contacto, dirección y rol. Manténgalos actualizados y complete la confirmación de correo requerida. No suplante a otra persona ni cree cuentas para evadir restricciones. RELYDO puede pedir aclaraciones necesarias para administrar una cuenta o transacción."
+  },
+  {
+    "number": 5,
+    "title": {
+      "en": "Account security",
+      "es": "Seguridad de cuenta"
+    },
+    "en": "Protect passwords and login links, use only accounts you are authorized to access, and report suspected compromise through Help and Support. You are responsible for activity you authorize; responsibility for unauthorized transactions remains subject to applicable law. RELYDO may restrict access while investigating a security incident.",
+    "es": "Proteja contraseñas y enlaces de acceso, use únicamente cuentas autorizadas e informe de sospechas de acceso indebido mediante Ayuda y soporte. Responde por la actividad que autorice; la responsabilidad por transacciones no autorizadas está sujeta a la ley aplicable. RELYDO puede restringir el acceso mientras investiga un incidente."
+  },
+  {
+    "number": 6,
+    "title": {
+      "en": "Client responsibilities",
+      "es": "Responsabilidades del Cliente"
+    },
+    "en": "Clients must describe the requested service accurately, provide a usable service location and authorized payment method, and disclose relevant access constraints and hazards. Do not request unlawful work. Confirm that you have the property owner’s permission and any authority needed to commission the service.",
+    "es": "Los Clientes deben describir correctamente el servicio, proporcionar una ubicación utilizable y un método de pago autorizado, y comunicar restricciones de acceso y peligros relevantes. No solicite trabajos ilegales. Confirme que cuenta con permiso del propietario y la autoridad necesaria para encargar el servicio."
+  },
+  {
+    "number": 7,
+    "title": {
+      "en": "Pro responsibilities",
+      "es": "Responsabilidades del Pro"
+    },
+    "en": "Pros are responsible for their business descriptions, experience, services, offers, performance, and legal compliance. Offer only work you are qualified and permitted to perform. Maintain required licenses, insurance, and bonding, and update changes affecting eligibility. You are responsible for your personnel and subcontractors.",
+    "es": "Los Pros responden por la descripción de su negocio, experiencia, servicios, ofertas, ejecución y cumplimiento legal. Ofrezca únicamente trabajos para los que esté cualificado y autorizado. Mantenga las licencias, seguros y fianzas requeridos y actualice los cambios que afecten a su elegibilidad. Responde por su personal y subcontratistas."
+  },
+  {
+    "number": 8,
+    "title": {
+      "en": "Marketplace role",
+      "es": "Función de intermediación"
+    },
+    "en": "RELYDO provides tools to find Pros, request services, exchange offers and messages, manage jobs, and process payments and claims. The Pro performs the underlying service and the Client commissions it. RELYDO’s platform administration does not make RELYDO the contractor performing the work or remove duties imposed on RELYDO by law.",
+    "es": "RELYDO facilita herramientas para encontrar Pros, solicitar servicios, intercambiar ofertas y mensajes, gestionar trabajos y procesar pagos y reclamos. El Pro realiza el servicio y el Cliente lo encarga. La administración de la plataforma no convierte a RELYDO en el contratista que ejecuta el trabajo ni elimina sus obligaciones legales."
+  },
+  {
+    "number": 9,
+    "title": {
+      "en": "Verification and profile badges",
+      "es": "Verificación e insignias del perfil"
+    },
+    "en": "Profile approval and badges reflect platform checks or information supplied for the account. They do not guarantee identity in every interaction, current coverage, workmanship, or future conduct. Clients should confirm licenses, insurance, and suitability for the particular job; Pros must not describe a badge as a warranty by RELYDO.",
+    "es": "La aprobación del perfil y las insignias reflejan comprobaciones de la plataforma o información aportada para la cuenta. No garantizan identidad en cada interacción, cobertura vigente, calidad ni conducta futura. Los Clientes deben confirmar licencias, seguros e idoneidad para el trabajo; los Pros no deben presentar una insignia como garantía de RELYDO."
+  },
+  {
+    "number": 10,
+    "title": {
+      "en": "Requests and service availability",
+      "es": "Solicitudes y disponibilidad"
+    },
+    "en": "A request describes a proposed job, location, category, timing, and any photos supplied. Publishing it does not guarantee an offer, a particular response time, or availability. Correct material errors before accepting an offer and communicate changes promptly through the job’s available tools.",
+    "es": "Una solicitud describe el trabajo propuesto, ubicación, categoría, horario y fotografías aportadas. Publicarla no garantiza ofertas, un plazo de respuesta ni disponibilidad. Corrija errores importantes antes de aceptar una oferta y comunique los cambios oportunamente mediante las herramientas del trabajo."
+  },
+  {
+    "number": 11,
+    "title": {
+      "en": "Offers and agreed scope",
+      "es": "Ofertas y alcance acordado"
+    },
+    "en": "Review the Pro, price, description, timing, and included work before accepting an offer. The accepted offer and approved changes establish the service scope between Client and Pro. Clarify exclusions, materials, permits, and scheduling before commitment. A message alone does not replace a required acceptance or payment step.",
+    "es": "Revise Pro, precio, descripción, horario y trabajo incluido antes de aceptar una oferta. La oferta aceptada y los cambios aprobados establecen el alcance entre Cliente y Pro. Aclare exclusiones, materiales, permisos y programación antes de comprometerse. Un mensaje no sustituye los pasos requeridos de aceptación o pago."
+  },
+  {
+    "number": 12,
+    "title": {
+      "en": "Site access and safety",
+      "es": "Acceso y seguridad en el lugar"
+    },
+    "en": "Clients must provide agreed access and disclose known hazards; Pros must use safe practices and comply with applicable safety rules. Stop work if conditions are unsafe and communicate the issue. RELYDO is not an emergency service. Contact emergency services for imminent danger rather than relying on platform messages.",
+    "es": "Los Clientes deben facilitar el acceso acordado y comunicar peligros conocidos; los Pros deben trabajar con seguridad y cumplir las normas aplicables. Detenga el trabajo ante condiciones inseguras y comunique el problema. RELYDO no es un servicio de emergencias. Contacte a los servicios de emergencia ante peligro inmediato en vez de depender de mensajes."
+  },
+  {
+    "number": 13,
+    "title": {
+      "en": "Licenses, permits, and insurance",
+      "es": "Licencias, permisos y seguros"
+    },
+    "en": "Client and Pro must establish who obtains required permits and approvals before work begins. A Pro remains responsible for professional licensing and insurance required by law or the agreement. RELYDO does not provide general property, liability, or workmanship insurance through these Terms.",
+    "es": "Cliente y Pro deben acordar quién obtiene permisos y aprobaciones antes del inicio. El Pro sigue siendo responsable de las licencias profesionales y seguros exigidos por ley o contrato. Estos Términos no proporcionan un seguro general de propiedad, responsabilidad o calidad a través de RELYDO."
+  },
+  {
+    "number": 14,
+    "title": {
+      "en": "Job stages and accurate updates",
+      "es": "Etapas del trabajo y actualizaciones exactas"
+    },
+    "en": "Use job status controls accurately, including contracted, on the way, arrived, working, and completion steps where available. Status affects cancellation and payment handling. Do not advance stages to obtain money or avoid an obligation. Report an incorrect stage promptly; disputed facts may require administrative review.",
+    "es": "Use correctamente los controles de estado, incluidas las etapas contratado, en camino, llegó, trabajando y finalización cuando estén disponibles. El estado afecta cancelaciones y pagos. No avance etapas para obtener dinero o evitar obligaciones. Informe de un estado incorrecto oportunamente; los hechos disputados pueden requerir revisión administrativa."
+  },
+  {
+    "number": 15,
+    "title": {
+      "en": "Prices and disclosed fees",
+      "es": "Precios y cargos informados"
+    },
+    "en": "The checkout and offer identify the applicable service price, currency, Client service fee, and Pro commission where relevant. Rates are configured in the platform and may differ by transaction; these Terms do not establish a universal fee rate. Review the total before authorizing payment. Mandatory disclosures and consumer rights prevail.",
+    "es": "La oferta y el pago identifican el precio, moneda, cargo de servicio del Cliente y comisión del Pro cuando corresponda. Las tasas se configuran en la plataforma y pueden variar por transacción; estos Términos no fijan una tasa universal. Revise el total antes de autorizar el pago. Prevalecen las divulgaciones obligatorias y derechos del consumidor."
+  },
+  {
+    "number": 16,
+    "title": {
+      "en": "Payment authorization",
+      "es": "Autorización de pago"
+    },
+    "en": "Use only a payment method you are authorized to use. By confirming checkout or a paid change order, you authorize the amount shown for that transaction through Stripe. Payment failure can prevent contracting or approval. Do not assume a charge succeeded until the platform confirms it; report duplicate or incorrect charges.",
+    "es": "Use únicamente métodos de pago autorizados. Al confirmar el pago o una orden de cambio pagada, autoriza el importe mostrado para esa transacción mediante Stripe. Un fallo puede impedir contratar o aprobar. No dé por efectuado el cargo hasta la confirmación de la plataforma; informe de cargos duplicados o incorrectos."
+  },
+  {
+    "number": 17,
+    "title": {
+      "en": "Stripe and Pro payout setup",
+      "es": "Stripe y configuración de cobros del Pro"
+    },
+    "en": "Stripe processes platform payments and connected-account payouts. Pros must complete the required Stripe onboarding and maintain payout eligibility; Stripe’s applicable terms also govern its services. RELYDO is not a bank. Payment collection is not a promise of immediate transfer, deposit protection, or a legally designated escrow account.",
+    "es": "Stripe procesa pagos de la plataforma y cobros de cuentas conectadas. Los Pros deben completar su incorporación a Stripe y mantener elegibilidad; sus términos aplicables también regulan esos servicios. RELYDO no es un banco. Cobrar un pago no promete transferencia inmediata, protección de depósitos ni una cuenta de depósito en garantía legalmente designada."
+  },
+  {
+    "number": 18,
+    "title": {
+      "en": "Completion and payment release",
+      "es": "Finalización y liberación del pago"
+    },
+    "en": "Completion records, evidence, payment verification, and claim status affect release. RELYDO may block release when an active claim, missing payment source, inconsistent records, or unresolved financial operation requires review. A displayed job status is not confirmation that a payout reached a bank. Bank and processor timing also apply.",
+    "es": "Los registros de finalización, evidencias, verificación de pago y estado de reclamos afectan la liberación. RELYDO puede bloquearla por un reclamo activo, una fuente de pago ausente, registros inconsistentes u operación financiera pendiente de revisión. Un estado del trabajo no confirma un depósito bancario. También aplican plazos del banco y procesador."
+  },
+  {
+    "number": 19,
+    "title": {
+      "en": "Change orders",
+      "es": "Órdenes de cambio"
+    },
+    "en": "Use the change-order workflow for additional or changed work requiring approval or payment. State the revised scope and price and obtain the Client’s required acceptance and payment before treating the change as approved. Paid changes have separate payment records and can affect completion, refunds, and claim resolution.",
+    "es": "Use el flujo de órdenes de cambio para trabajo adicional o modificado que requiera aprobación o pago. Indique alcance y precio revisados y obtenga la aceptación y pago requeridos antes de considerar aprobado el cambio. Los cambios pagados tienen registros de pago propios y pueden afectar finalización, reembolsos y reclamos."
+  },
+  {
+    "number": 20,
+    "title": {
+      "en": "Client cancellation before work",
+      "es": "Cancelación del Cliente antes del trabajo"
+    },
+    "en": "Use the cancellation control and review the displayed financial breakdown before confirming. For ordinary funded jobs, current rules apply a 5% cancellation penalty when contracted before travel, 12.5% when on the way (including 5.5% Pro compensation), and 23.5% when arrived (including 12% Pro compensation), calculated on the applicable service amount. The original Client service fee is retained under these rules. An open unpaid request has no paid service amount to refund. Mandatory refund rights and case-specific administrative corrections prevail.",
+    "es": "Use el control de cancelación y revise el desglose antes de confirmar. En trabajos ordinarios financiados, las reglas actuales aplican una penalización del 5% cuando están contratados antes del desplazamiento, 12,5% en camino (incluye 5,5% de compensación al Pro) y 23,5% al llegar (incluye 12% al Pro), sobre el importe de servicio aplicable. Estas reglas conservan el cargo de servicio original del Cliente. Una solicitud abierta sin pago no tiene un importe pagado que reembolsar. Prevalecen derechos obligatorios de reembolso y correcciones administrativas del caso."
+  },
+  {
+    "number": 21,
+    "title": {
+      "en": "Cancellation after work starts",
+      "es": "Cancelación después del inicio"
+    },
+    "en": "The ordinary Client cancellation flow does not cancel a job already in the working stage. Use the claim or support process to address incomplete work, safety, disputed stages, or a requested termination. This technical restriction does not waive statutory cancellation rights. Jobs with paid change orders may require administrative financial resolution rather than automatic cancellation.",
+    "es": "El flujo ordinario de cancelación del Cliente no cancela trabajos en la etapa trabajando. Use reclamos o soporte ante trabajo incompleto, seguridad, etapas disputadas o terminación solicitada. Esta restricción técnica no renuncia a derechos legales de cancelación. Los trabajos con órdenes de cambio pagadas pueden requerir resolución financiera administrativa en lugar de cancelación automática."
+  },
+  {
+    "number": 22,
+    "title": {
+      "en": "Pro cancellation and reassignment",
+      "es": "Cancelación del Pro y reasignación"
+    },
+    "en": "Pros must promptly report inability to perform an accepted job and use available cancellation or support procedures. A replacement is subject to availability and a new valid assignment; it is not guaranteed. Amounts retained or credited for reassignment are tracked separately, and final refunds or compensation depend on the recorded funding and resolution.",
+    "es": "Los Pros deben informar oportunamente si no pueden ejecutar un trabajo aceptado y usar cancelación o soporte disponibles. Un reemplazo depende de disponibilidad y asignación válida; no está garantizado. Los importes retenidos o acreditados para reasignación se registran separadamente, y los reembolsos o compensaciones dependen de la financiación y resolución registradas."
+  },
+  {
+    "number": 23,
+    "title": {
+      "en": "Refunds and reconciliation",
+      "es": "Reembolsos y conciliación"
+    },
+    "en": "Refunds are calculated from verified payments, applicable fees, approved changes, prior refunds, and the case outcome. RELYDO may require review when records conflict and must not treat an unknown amount as zero. Refund processing and posting depend on Stripe and the payment issuer. Report a missing refund through support with its transaction reference.",
+    "es": "Los reembolsos se calculan según pagos verificados, cargos aplicables, cambios aprobados, reembolsos anteriores y resultado del caso. RELYDO puede requerir revisión si hay registros contradictorios y no debe tratar un importe desconocido como cero. El procesamiento y abono dependen de Stripe y del emisor. Informe a soporte de un reembolso ausente con su referencia."
+  },
+  {
+    "number": 24,
+    "title": {
+      "en": "Claims and service disputes",
+      "es": "Reclamos y disputas del servicio"
+    },
+    "en": "Use the job’s claim process where available and identify the disputed work, amount, and requested remedy accurately. Supply relevant evidence and respond to requests for clarification. An active claim can block automatic payout or completion. Platform review does not replace courts, regulators, or rights against a Pro or RELYDO under applicable law.",
+    "es": "Use el proceso de reclamo del trabajo cuando esté disponible e identifique correctamente trabajo, importe y solución solicitada. Aporte evidencia pertinente y responda a aclaraciones. Un reclamo activo puede bloquear pagos o finalización automática. La revisión de plataforma no sustituye tribunales, autoridades ni derechos contra un Pro o RELYDO según la ley."
+  },
+  {
+    "number": 25,
+    "title": {
+      "en": "Evidence and administrative resolution",
+      "es": "Evidencias y resolución administrativa"
+    },
+    "en": "Photos, messages, completion records, and change-order evidence may be considered in a claim. Do not alter or fabricate evidence. Administrative outcomes may include continuation, a refund, Pro compensation, or reassignment as supported by the case and verified funds. Unresolved payment effects may delay closure while they are reconciled; no outcome is guaranteed in advance.",
+    "es": "Fotografías, mensajes, registros de finalización y evidencia de cambios pueden examinarse en un reclamo. No altere ni fabrique evidencias. Los resultados administrativos pueden incluir continuación, reembolso, compensación al Pro o reasignación según el caso y fondos verificados. Efectos de pago pendientes pueden retrasar el cierre mientras se concilian; no se garantiza un resultado por anticipado."
+  },
+  {
+    "number": 26,
+    "title": {
+      "en": "Charge disputes",
+      "es": "Disputas de cargos"
+    },
+    "en": "Contact support about an incorrect charge and retain the transaction reference. You may also exercise lawful rights with your bank or payment issuer. Do not submit knowingly false charge disputes or seek duplicate recovery for the same amount. RELYDO may provide relevant transaction and service evidence to the processor or issuer.",
+    "es": "Contacte a soporte ante un cargo incorrecto y conserve su referencia. También puede ejercer sus derechos legales ante banco o emisor. No presente disputas de cargo deliberadamente falsas ni busque recuperar dos veces el mismo importe. RELYDO puede aportar evidencia pertinente de la transacción y servicio al procesador o emisor."
+  },
+  {
+    "number": 27,
+    "title": {
+      "en": "Taxes and business obligations",
+      "es": "Impuestos y obligaciones del negocio"
+    },
+    "en": "Pros are responsible for their business registrations, tax reporting, and taxes on earnings except where law places an obligation on another party. Clients are responsible for taxes lawfully charged to them and disclosed in the transaction. RELYDO may retain or report payment information when legally required. These Terms do not provide tax advice.",
+    "es": "Los Pros responden por registro de negocio, declaraciones e impuestos sobre ingresos, salvo obligaciones legales de otra parte. Los Clientes responden por impuestos legalmente cobrados y divulgados en la transacción. RELYDO puede conservar o comunicar información de pagos por obligación legal. Estos Términos no proporcionan asesoramiento fiscal."
+  },
+  {
+    "number": 28,
+    "title": {
+      "en": "Messages and notifications",
+      "es": "Mensajes y notificaciones"
+    },
+    "en": "Use platform messages for accurate job communications and keep contact details current. Notifications may concern offers, job events, payments, verification, or support. Push delivery depends on device permissions and network services; check the account rather than relying solely on push messages for a time-sensitive action.",
+    "es": "Use mensajes de plataforma para comunicaciones exactas y mantenga contactos actuales. Las notificaciones pueden referirse a ofertas, eventos, pagos, verificación o soporte. La entrega push depende de permisos del dispositivo y red; consulte la cuenta en vez de depender únicamente de notificaciones para acciones urgentes."
+  },
+  {
+    "number": 29,
+    "title": {
+      "en": "Reviews and ratings",
+      "es": "Reseñas y calificaciones"
+    },
+    "en": "Submit honest reviews based on your own service experience. Do not post threats, personal contact details, fabricated experiences, or paid undisclosed endorsements. RELYDO may review reported content and remove content violating these Terms or law. A rating is user feedback, not a guarantee of service quality.",
+    "es": "Publique reseñas honestas basadas en su experiencia. No publique amenazas, datos personales de contacto, experiencias inventadas ni recomendaciones pagadas sin divulgación. RELYDO puede revisar denuncias y retirar contenido que infrinja estos Términos o la ley. Una calificación es opinión del usuario, no garantía de calidad."
+  },
+  {
+    "number": 30,
+    "title": {
+      "en": "User content and permission",
+      "es": "Contenido del usuario y autorización"
+    },
+    "en": "You retain your rights in content you upload. You grant RELYDO a nonexclusive permission to store, reproduce, display, and transmit that content only as needed to operate the platform, fulfill the service, handle claims, and comply with law. You must have the necessary rights and permissions, including for images of people or property. This permission does not authorize unrelated advertising use.",
+    "es": "Conserva sus derechos sobre el contenido que carga. Autoriza a RELYDO de forma no exclusiva a almacenarlo, reproducirlo, mostrarlo y transmitirlo solo cuando sea necesario para operar, prestar el servicio, gestionar reclamos y cumplir la ley. Debe contar con derechos y permisos, incluidas imágenes de personas o propiedades. Esto no autoriza publicidad ajena a esos fines."
+  },
+  {
+    "number": 31,
+    "title": {
+      "en": "Prohibited conduct",
+      "es": "Conductas prohibidas"
+    },
+    "en": "Do not commit fraud, harassment, discrimination prohibited by law, impersonation, unlawful service activity, credential theft, malware distribution, or unauthorized access. Do not manipulate offers, job stages, ratings, payments, or claims. Do not scrape private information or bypass access controls. Report misuse through support.",
+    "es": "No cometa fraude, acoso, discriminación ilegal, suplantación, servicios ilícitos, robo de credenciales, distribución de malware ni acceso no autorizado. No manipule ofertas, etapas, calificaciones, pagos o reclamos. No extraiga información privada ni eluda controles de acceso. Informe de abusos a soporte."
+  },
+  {
+    "number": 32,
+    "title": {
+      "en": "Off-platform arrangements",
+      "es": "Acuerdos fuera de la plataforma"
+    },
+    "en": "Transactions arranged outside RELYDO do not automatically create a RELYDO payment, evidence record, or claim workflow. Do not represent an outside payment as platform-protected or use an outside arrangement to falsify a platform record. The parties remain responsible for lawful outside agreements and their own statutory rights.",
+    "es": "Las transacciones fuera de RELYDO no crean automáticamente pagos, evidencias ni procesos de reclamo en RELYDO. No presente un pago externo como protegido por la plataforma ni use acuerdos externos para falsear registros. Las partes siguen siendo responsables de sus acuerdos legales externos y conservan sus derechos legales."
+  },
+  {
+    "number": 33,
+    "title": {
+      "en": "Platform intellectual property",
+      "es": "Propiedad intelectual de la plataforma"
+    },
+    "en": "RELYDO’s software, branding, and platform materials are protected by applicable intellectual property laws. You may use them only for authorized platform use. Do not copy, resell, or misrepresent ownership of them, or use RELYDO branding to imply an endorsement that has not been granted. User content remains subject to section 30.",
+    "es": "El software, marca y materiales de RELYDO están protegidos por las leyes de propiedad intelectual. Úselos solo para usos autorizados de plataforma. No copie, revenda ni atribuya propiedad falsa, ni use la marca para sugerir una aprobación no concedida. El contenido del usuario se rige por la sección 30."
+  },
+  {
+    "number": 34,
+    "title": {
+      "en": "Third-party services",
+      "es": "Servicios de terceros"
+    },
+    "en": "Payment processing, authentication, maps, hosting, and notification delivery can involve third-party services. Their terms govern their own services where applicable. External links do not imply approval of all external content. RELYDO remains responsible for its obligations and cannot waive them merely by using a third party.",
+    "es": "Pagos, autenticación, mapas, alojamiento y entrega de notificaciones pueden involucrar terceros. Sus términos regulan sus servicios cuando corresponda. Los enlaces externos no aprueban todo su contenido. RELYDO conserva sus obligaciones y no puede excluirlas simplemente por utilizar terceros."
+  },
+  {
+    "number": 35,
+    "title": {
+      "en": "Privacy and permissions",
+      "es": "Privacidad y permisos"
+    },
+    "en": "The Privacy Policy explains data collection, use, disclosure, retention, and available rights. Grant device permissions only when you choose to use the relevant feature. Acceptance of these Terms is not blanket consent to marketing, sensitive-data processing, or a waiver of privacy rights. Do not upload unnecessary sensitive information about others.",
+    "es": "La Política de Privacidad explica recopilación, uso, comunicación, retención y derechos. Conceda permisos del dispositivo cuando elija la función correspondiente. Aceptar estos Términos no es consentimiento general a publicidad, tratamiento sensible ni renuncia a privacidad. No cargue información sensible innecesaria de otras personas."
+  },
+  {
+    "number": 36,
+    "title": {
+      "en": "Account deletion",
+      "es": "Eliminación de cuenta"
+    },
+    "en": "Use Delete Account where available or ask support for assistance. Deletion can be blocked while active jobs or unresolved obligations require attention. Some transaction, claim, evidence, and legal records may remain after access and public profile removal. Deletion does not cancel an existing claim, erase a debt, or guarantee immediate deletion of third-party payment records. See the Privacy Policy.",
+    "es": "Use Eliminar cuenta cuando esté disponible o solicite ayuda a soporte. La eliminación puede bloquearse por trabajos activos u obligaciones pendientes. Algunos registros de transacciones, reclamos, evidencias y legales pueden permanecer tras retirar acceso y perfil público. Eliminar no cancela reclamos, borra deudas ni garantiza borrado inmediato de registros de pago externos. Consulte Privacidad."
+  },
+  {
+    "number": 37,
+    "title": {
+      "en": "Restrictions and suspension",
+      "es": "Restricciones y suspensión"
+    },
+    "en": "RELYDO may restrict an account or feature for a material breach, security risk, fraud, payment inconsistency, or legal requirement. Where lawful and practical, it will explain the reason and permit a response through support. Restriction does not automatically forfeit earned amounts; funds remain subject to verified obligations, claims, and applicable law.",
+    "es": "RELYDO puede restringir cuentas o funciones por incumplimiento importante, riesgo de seguridad, fraude, inconsistencias de pago u obligación legal. Cuando sea legal y viable, explicará el motivo y permitirá responder por soporte. La restricción no confisca automáticamente importes ganados; los fondos siguen sujetos a obligaciones verificadas, reclamos y ley aplicable."
+  },
+  {
+    "number": 38,
+    "title": {
+      "en": "Availability and changes to features",
+      "es": "Disponibilidad y cambios de funciones"
+    },
+    "en": "The platform may experience maintenance, outages, and changes to available features. RELYDO does not guarantee uninterrupted access or a minimum number of jobs. Changes do not erase an accepted service obligation or mandatory remedy. Report a technical problem affecting payment or a deadline so the records can be reviewed.",
+    "es": "La plataforma puede tener mantenimiento, interrupciones y cambios de funciones. RELYDO no garantiza acceso continuo ni un número mínimo de trabajos. Los cambios no eliminan obligaciones aceptadas ni soluciones legales obligatorias. Informe de problemas técnicos que afecten pagos o plazos para revisar los registros."
+  },
+  {
+    "number": 39,
+    "title": {
+      "en": "Service assurances and disclaimers",
+      "es": "Garantías y limitaciones del servicio"
+    },
+    "en": "Except for express commitments and rights required by law, RELYDO does not guarantee a Pro’s future performance, that every profile statement is accurate, or that every dispute will be resolved in your favor. The Client and Pro must document any specific workmanship warranty in their agreement. These disclaimers do not exclude mandatory consumer guarantees or RELYDO’s own legal duties.",
+    "es": "Salvo compromisos expresos y derechos legales, RELYDO no garantiza el desempeño futuro de un Pro, la exactitud de cada declaración del perfil ni una resolución favorable de cada disputa. Cliente y Pro deben documentar garantías específicas de ejecución en su acuerdo. Estas limitaciones no excluyen garantías obligatorias del consumidor ni deberes legales propios de RELYDO."
+  },
+  {
+    "number": 40,
+    "title": {
+      "en": "Responsibility and liability",
+      "es": "Responsabilidad"
+    },
+    "en": "Each party is responsible under applicable law for its acts, omissions, and contractual obligations. Nothing in these Terms excludes liability that cannot lawfully be excluded, including mandatory consumer remedies or responsibility for fraud or willful misconduct. Any limitation is enforceable only to the extent permitted by the law governing the claim; these Terms do not set an arbitrary monetary cap.",
+    "es": "Cada parte responde según la ley por sus actos, omisiones y obligaciones contractuales. Estos Términos no excluyen responsabilidad que legalmente no pueda excluirse, incluidas soluciones obligatorias del consumidor o responsabilidad por fraude o conducta dolosa. Cualquier limitación solo es exigible dentro de lo permitido por la ley del reclamo; no se fija un límite monetario arbitrario."
+  },
+  {
+    "number": 41,
+    "title": {
+      "en": "Complaints and legal remedies",
+      "es": "Quejas y recursos legales"
+    },
+    "en": "You may request review through Help and Support and provide the relevant job or payment reference. Using support is not a mandatory waiver of court, regulator, or payment-issuer remedies. These Terms do not impose mandatory arbitration or waive class-action rights. Applicable law determines the competent forum and any required pre-action procedure.",
+    "es": "Puede solicitar revisión mediante Ayuda y soporte con la referencia del trabajo o pago. Usar soporte no renuncia obligatoriamente a recursos judiciales, autoridades o emisores. Estos Términos no imponen arbitraje obligatorio ni renuncian a acciones colectivas. La ley aplicable determina el foro competente y procedimientos previos exigidos."
+  },
+  {
+    "number": 42,
+    "title": {
+      "en": "Applicable law and mandatory rights",
+      "es": "Ley aplicable y derechos obligatorios"
+    },
+    "en": "Applicable conflict-of-law rules determine the law governing a dispute. Consumers retain protections that cannot be waived in their jurisdiction. No foreign venue or governing-law election is imposed before the operator and its legal jurisdiction are identified. A service agreement cannot override mandatory licensing, safety, payment, or privacy law.",
+    "es": "Las reglas aplicables de conflicto de leyes determinan la ley de una disputa. Los consumidores conservan protecciones irrenunciables de su jurisdicción. No se impone foro extranjero ni elección de ley antes de identificar operador y jurisdicción legal. Un contrato de servicio no prevalece sobre normas obligatorias de licencias, seguridad, pagos o privacidad."
+  },
+  {
+    "number": 43,
+    "title": {
+      "en": "Updates, language, and interpretation",
+      "es": "Actualizaciones, idioma e interpretación"
+    },
+    "en": "Version 2.0 takes effect on [PENDIENTE: effective date]. Material changes will be made available with notice appropriate to the change and renewed acceptance where required. They do not retroactively rewrite completed transactions. English and Spanish versions express the same terms; mandatory local interpretation rules prevail over any discrepancy. If one provision is unenforceable, the remaining lawful provisions remain effective.",
+    "es": "La versión 2.0 entra en vigor el [PENDIENTE: fecha de vigencia]. Los cambios importantes se comunicarán de forma adecuada y se solicitará nueva aceptación cuando corresponda. No reescriben retroactivamente transacciones finalizadas. Las versiones inglesa y española expresan los mismos términos; ante discrepancias prevalecen reglas locales obligatorias de interpretación. Si una disposición no es exigible, las demás disposiciones legales siguen vigentes."
+  },
+  {
+    "number": 44,
+    "title": {
+      "en": "Contact and legal notices",
+      "es": "Contacto y notificaciones legales"
+    },
+    "en": "For operational assistance, use Help and Support in RELYDO. Legal contact email: [PENDIENTE]. Postal address for notices: [PENDIENTE]. Identify the account or transaction and the issue, without sending a password or full card number. Privacy requests are addressed through the channels described in the Privacy Policy.",
+    "es": "Para asistencia operativa, use Ayuda y soporte en RELYDO. Correo de contacto legal: [PENDIENTE]. Dirección postal para notificaciones: [PENDIENTE]. Identifique cuenta o transacción y problema sin enviar contraseñas ni números completos de tarjeta. Las solicitudes de privacidad se atienden por los canales de la Política de Privacidad."
+  }
+]

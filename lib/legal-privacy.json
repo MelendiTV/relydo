@@ -1,0 +1,407 @@
+[
+  {
+    "number": 1,
+    "title": {
+      "en": "Scope of this policy",
+      "es": "Alcance de esta política"
+    },
+    "en": "This Policy describes personal information handled through RELYDO Web, Client, Pro, and related support and payment operations. It covers Clients, Pros, and visitors. Independent Pros and third-party services may separately process information under their own responsibilities. This Policy is a notice, not a waiver of your rights.",
+    "es": "Esta Política describe datos personales tratados en Web, Cliente, Pro y operaciones relacionadas de soporte y pagos de RELYDO. Cubre Clientes, Pros y visitantes. Los Pros independientes y terceros pueden tratar datos por responsabilidades propias. Es un aviso, no una renuncia a derechos."
+  },
+  {
+    "number": 2,
+    "title": {
+      "en": "Responsible entity",
+      "es": "Entidad responsable"
+    },
+    "en": "The entity responsible for RELYDO’s processing is [PENDIENTE: legal entity], at [PENDIENTE: registered address]. Privacy contact: [PENDIENTE: privacy email]. Use the in-platform support channel for assistance while contact details are completed. Do not infer the operator’s legal identity from a developer account or device username.",
+    "es": "La entidad responsable del tratamiento de RELYDO es [PENDIENTE: entidad legal], con domicilio en [PENDIENTE: dirección registrada]. Contacto de privacidad: [PENDIENTE: correo de privacidad]. Use soporte de la plataforma para asistencia mientras se completan esos datos. No deduzca la identidad del operador de una cuenta de desarrollo ni nombre de dispositivo."
+  },
+  {
+    "number": 3,
+    "title": {
+      "en": "Information sources",
+      "es": "Fuentes de información"
+    },
+    "en": "Information comes from what you submit, your platform transactions and interactions, the other party to a job, technical requests to our services, and connected providers such as authentication and payment services. We distinguish user statements from payment confirmations and administrative records when handling a dispute.",
+    "es": "La información procede de lo que aporta, transacciones e interacciones, la otra parte de un trabajo, solicitudes técnicas y proveedores conectados como autenticación y pagos. Distinguimos declaraciones del usuario de confirmaciones de pago y registros administrativos al gestionar disputas."
+  },
+  {
+    "number": 4,
+    "title": {
+      "en": "Account and authentication data",
+      "es": "Datos de cuenta y autenticación"
+    },
+    "en": "Account data includes identifiers, role, name, email, login credentials handled by the authentication service, email confirmation, session data, and account status. It supports sign-in, access control, security, and account administration. Do not send passwords to support.",
+    "es": "Los datos de cuenta incluyen identificadores, rol, nombre, correo, credenciales gestionadas por autenticación, confirmación de correo, sesión y estado. Se usan para acceso, control de permisos, seguridad y administración. No envíe contraseñas a soporte."
+  },
+  {
+    "number": 5,
+    "title": {
+      "en": "Client profile data",
+      "es": "Datos del perfil del Cliente"
+    },
+    "en": "Clients provide profile and contact information such as name, phone, address, city, state, ZIP, and profile image where supplied. We use it to administer the account, arrange requested services, and communicate about jobs. Only information needed for the relevant workflow should be provided.",
+    "es": "Los Clientes aportan nombre, teléfono, dirección, ciudad, estado, código postal e imagen de perfil cuando la añaden. Los usamos para administrar la cuenta, organizar servicios solicitados y comunicar eventos. Aporte solo información necesaria para el proceso correspondiente."
+  },
+  {
+    "number": 6,
+    "title": {
+      "en": "Pro profile and business data",
+      "es": "Datos profesionales y del negocio"
+    },
+    "en": "Pro data includes legal and business name, contact details, trade, biography, experience, service radius, service area and address, service categories, profile images, ratings, job counts, and verification and activity status. These fields support eligibility, matching, professional profiles, and administration.",
+    "es": "Los datos Pro incluyen nombre legal y comercial, contactos, oficio, biografía, experiencia, radio de servicio, zona y dirección, categorías, imágenes, calificaciones, trabajos realizados y estados de verificación y actividad. Sirven para elegibilidad, búsqueda, perfiles y administración."
+  },
+  {
+    "number": 7,
+    "title": {
+      "en": "Licensing and verification documents",
+      "es": "Licencias y documentos de verificación"
+    },
+    "en": "Pros may provide license numbers, issuing state, expiration dates, insurance company and expiration, bonding declarations, and documents requested for professional review. Authorized review staff use them to administer verification. These details and documents are distinct from the limited badges and fields shown on a public profile.",
+    "es": "Los Pros pueden aportar números de licencia, estado emisor, vencimientos, compañía y vigencia de seguro, declaraciones de fianza y documentos solicitados para revisión profesional. El personal autorizado los utiliza para administrar la verificación. Son distintos de las insignias y campos limitados del perfil público."
+  },
+  {
+    "number": 8,
+    "title": {
+      "en": "Requests and service location",
+      "es": "Solicitudes y ubicación del servicio"
+    },
+    "en": "Service requests include category, description, schedule, service location, preferences, photos, and job identifiers. Address and derived coordinates can be used to locate a service and support matching or distance calculations. Do not place unrelated personal information in a public description or photo.",
+    "es": "Las solicitudes incluyen categoría, descripción, horario, ubicación, preferencias, fotos e identificadores. Dirección y coordenadas derivadas pueden usarse para ubicar servicios y facilitar búsquedas o distancias. No incluya datos personales ajenos al servicio en descripciones o fotos públicas."
+  },
+  {
+    "number": 9,
+    "title": {
+      "en": "Offers and job activity",
+      "es": "Ofertas y actividad del trabajo"
+    },
+    "en": "We record offers, agreed amounts, Client and Pro identifiers, acceptance or rejection, job stages, cancellation and completion events, and relevant timestamps. These records support service administration, notifications, payment handling, and dispute review.",
+    "es": "Registramos ofertas, importes acordados, identificadores de Cliente y Pro, aceptación o rechazo, etapas, cancelación, finalización y fechas pertinentes. Permiten administrar servicios, notificaciones, pagos y revisión de disputas."
+  },
+  {
+    "number": 10,
+    "title": {
+      "en": "Messages",
+      "es": "Mensajes"
+    },
+    "en": "Messages and their participants, job references, and timestamps are processed to provide job communication and support dispute handling. The recipient can retain a copy. Do not send card credentials, identity documents unrelated to a requested verification, or unnecessary sensitive information in chat.",
+    "es": "Procesamos mensajes, participantes, referencias del trabajo y fechas para comunicar y gestionar disputas. El destinatario puede conservar una copia. No envíe credenciales de tarjetas, documentos de identidad ajenos a una verificación solicitada ni datos sensibles innecesarios por chat."
+  },
+  {
+    "number": 11,
+    "title": {
+      "en": "Photos and uploaded files",
+      "es": "Fotografías y archivos cargados"
+    },
+    "en": "Uploads may include avatars, logos, covers, request photos, professional documents, and service evidence. Images may reveal people, property, addresses, or embedded metadata. Upload only material you are entitled to share and avoid unrelated sensitive details. Visibility depends on the file’s use and storage access configuration.",
+    "es": "Las cargas pueden incluir avatares, logos, portadas, fotos de solicitudes, documentos profesionales y evidencia. Las imágenes pueden revelar personas, propiedades, direcciones o metadatos. Cargue solo material autorizado y evite datos sensibles ajenos. La visibilidad depende del uso y configuración de acceso del almacenamiento."
+  },
+  {
+    "number": 12,
+    "title": {
+      "en": "Change-order information",
+      "es": "Información de órdenes de cambio"
+    },
+    "en": "We process the proposed scope, price, acceptance, status, evidence, payment references, and timestamps of change orders. This separates additional work from the base job and supports accurate charging, refunds, completion, and claims.",
+    "es": "Tratamos alcance propuesto, precio, aceptación, estado, evidencia, referencias de pago y fechas de órdenes de cambio. Separa trabajo adicional del original y permite cargos, reembolsos, finalización y reclamos exactos."
+  },
+  {
+    "number": 13,
+    "title": {
+      "en": "Completion evidence",
+      "es": "Evidencias de finalización"
+    },
+    "en": "Completion information may include photos or files submitted to document the work, the submitting party, job reference, and time. We use it to administer completion, payment release, and disputes. Evidence can remain associated with a transaction after profile removal when needed for an unresolved case.",
+    "es": "La información de finalización puede incluir fotos o archivos del trabajo, quién los aporta, referencia y fecha. Se usa para finalización, liberación del pago y disputas. La evidencia puede seguir asociada a una transacción tras retirar el perfil cuando sea necesaria para un caso pendiente."
+  },
+  {
+    "number": 14,
+    "title": {
+      "en": "Claims and support records",
+      "es": "Registros de reclamos y soporte"
+    },
+    "en": "Claims contain descriptions, requested remedies, involved parties, evidence, messages, administrative decisions, and financial outcomes. Support interactions may contain contact and account references. We use these records to investigate, respond, preserve relevant evidence, and prevent repeated or conflicting financial outcomes.",
+    "es": "Los reclamos contienen descripciones, soluciones solicitadas, partes, evidencia, mensajes, decisiones administrativas y resultados financieros. Soporte puede incluir contactos y referencias de cuenta. Se usan para investigar, responder, conservar evidencia pertinente y evitar resultados financieros repetidos o contradictorios."
+  },
+  {
+    "number": 15,
+    "title": {
+      "en": "Payment and transaction records",
+      "es": "Registros de pagos y transacciones"
+    },
+    "en": "RELYDO processes transaction identifiers, amounts, currency, fees, commissions, payment and refund status, and funding or transfer references. Stripe handles payment credentials through its payment interfaces. RELYDO uses payment-method references and limited display details rather than requiring full card numbers in profiles or chat.",
+    "es": "RELYDO trata identificadores de transacción, importes, moneda, cargos, comisiones, estados y referencias de financiación o transferencias. Stripe gestiona credenciales mediante sus interfaces. RELYDO usa referencias y datos limitados de visualización en lugar de pedir números completos de tarjeta en perfiles o chat."
+  },
+  {
+    "number": 16,
+    "title": {
+      "en": "Connected payout accounts",
+      "es": "Cuentas conectadas de cobro"
+    },
+    "en": "For Pros, RELYDO uses Stripe account identifiers and onboarding and payout-readiness status to enable payment workflows. Stripe may separately collect identity, banking, and compliance information for its service. Deleting RELYDO does not itself delete the external Stripe account or all records Stripe must retain.",
+    "es": "Para Pros, RELYDO usa identificadores Stripe y estados de incorporación y elegibilidad para pagos. Stripe puede recopilar por separado datos de identidad, bancarios y cumplimiento. Eliminar RELYDO no elimina por sí solo la cuenta externa Stripe ni todos los registros que Stripe deba conservar."
+  },
+  {
+    "number": 17,
+    "title": {
+      "en": "Reviews and reputation",
+      "es": "Reseñas y reputación"
+    },
+    "en": "We process ratings, review content, associated service references, and reputation aggregates such as average rating and completed-job count. Publicly displayed reviews and reputation inform users choosing a Pro. Avoid posting private addresses, phone numbers, or unrelated information about another person.",
+    "es": "Tratamos calificaciones, contenido de reseñas, referencias del servicio y agregados como promedio y trabajos completados. Las reseñas y reputación públicas informan la elección de un Pro. Evite publicar direcciones privadas, teléfonos o información ajena de otra persona."
+  },
+  {
+    "number": 18,
+    "title": {
+      "en": "Device and technical information",
+      "es": "Información técnica y del dispositivo"
+    },
+    "en": "When your device contacts RELYDO or its infrastructure, technical information can include IP address, browser or app characteristics, request times, error details, and security events. It is used to serve requests, diagnose failures, and secure the service. This does not imply collection of every file or activity on your device.",
+    "es": "Al contactar con RELYDO o su infraestructura, la información técnica puede incluir IP, características del navegador o app, fechas, errores y eventos de seguridad. Se usa para atender solicitudes, diagnosticar fallos y proteger el servicio. No implica recopilar todos los archivos o actividades de su dispositivo."
+  },
+  {
+    "number": 19,
+    "title": {
+      "en": "Notifications and delivery tokens",
+      "es": "Notificaciones y tokens de entrega"
+    },
+    "en": "Push subscriptions or device tokens, permission status, recipient identifiers, and notification events support delivery of offers, job updates, and other operational alerts. Delivery may involve Expo or browser push services. Disable notifications through device or browser settings; account records remain available in the platform.",
+    "es": "Suscripciones push o tokens, permisos, identificadores del destinatario y eventos permiten entregar ofertas, actualizaciones y avisos operativos. La entrega puede involucrar Expo o servicios push del navegador. Desactive notificaciones en ajustes del dispositivo o navegador; los registros de cuenta siguen disponibles en la plataforma."
+  },
+  {
+    "number": 20,
+    "title": {
+      "en": "Language and local storage",
+      "es": "Idioma y almacenamiento local"
+    },
+    "en": "The browser or device language is used to select English or Spanish automatically, and a preferred-language value may be associated with the profile. Mobile legal links carry that language to the same web documents. Local application storage can retain session and interface state; no separate legal language selector is required.",
+    "es": "El idioma del navegador o dispositivo selecciona inglés o español automáticamente, y el perfil puede guardar una preferencia. Los enlaces legales móviles transmiten ese idioma a los mismos documentos web. El almacenamiento local puede conservar sesión y estado de interfaz; no se requiere selector legal separado."
+  },
+  {
+    "number": 21,
+    "title": {
+      "en": "Cookies and session technologies",
+      "es": "Cookies y tecnologías de sesión"
+    },
+    "en": "Authentication and session technologies, including cookies or local storage depending on the surface, keep you signed in and support security and operation. Browser controls can clear or restrict them, which may interrupt sign-in. This Policy does not treat acceptance of Terms as consent to optional advertising cookies.",
+    "es": "Las tecnologías de autenticación y sesión, incluidas cookies o almacenamiento local según la superficie, mantienen acceso y seguridad. El navegador permite borrarlas o restringirlas, lo que puede interrumpir el acceso. Aceptar Términos no se considera consentimiento a cookies publicitarias opcionales."
+  },
+  {
+    "number": 22,
+    "title": {
+      "en": "Location and maps",
+      "es": "Ubicación y mapas"
+    },
+    "en": "Service and business addresses, ZIP codes, and geocoded coordinates support location display, service areas, and approximate distances. Google Maps geocoding receives location input used for that lookup. These address-based functions do not by themselves indicate continuous GPS tracking. Do not submit a location you are not authorized to use.",
+    "es": "Direcciones de servicio y negocio, códigos postales y coordenadas geocodificadas permiten mostrar ubicaciones, áreas y distancias aproximadas. La geocodificación de Google Maps recibe la ubicación consultada. Estas funciones basadas en dirección no indican por sí mismas seguimiento GPS continuo. No aporte ubicaciones sin autorización."
+  },
+  {
+    "number": 23,
+    "title": {
+      "en": "Google authentication",
+      "es": "Autenticación con Google"
+    },
+    "en": "When you choose an available Google sign-in flow, authentication providers exchange identifiers and account information needed for sign-in, such as email and profile information supplied by that flow. This choice does not authorize RELYDO to read your Google Drive, contacts, or mail. The provider’s own privacy terms also apply.",
+    "es": "Al elegir un flujo disponible de acceso con Google, los proveedores intercambian identificadores y datos necesarios, como correo e información de perfil aportada en ese flujo. Esa elección no autoriza a RELYDO a leer Drive, contactos ni correo. También aplica la privacidad del proveedor."
+  },
+  {
+    "number": 24,
+    "title": {
+      "en": "Purposes of processing",
+      "es": "Finalidades del tratamiento"
+    },
+    "en": "We use relevant information to create and secure accounts, show and match services, manage offers and jobs, communicate, process payments and refunds, review professional eligibility, handle support and claims, maintain transaction integrity, and comply with legal obligations. Information is not needed for every purpose merely because it is held in an account.",
+    "es": "Usamos datos pertinentes para crear y proteger cuentas, mostrar y buscar servicios, gestionar ofertas y trabajos, comunicar, procesar pagos y reembolsos, revisar elegibilidad profesional, atender soporte y reclamos, preservar integridad y cumplir obligaciones legales. Tener un dato en cuenta no lo hace necesario para todas las finalidades."
+  },
+  {
+    "number": 25,
+    "title": {
+      "en": "Legal grounds where applicable",
+      "es": "Bases legales cuando correspondan"
+    },
+    "en": "Where applicable law requires a legal basis, necessary account and transaction processing relies on contract performance; required reporting and preservation on legal obligations; proportionate security and dispute handling on legitimate interests where allowed; and optional permission-based features on the consent required for that feature. You may object or withdraw consent as provided by law; withdrawal does not undo prior lawful processing.",
+    "es": "Cuando la ley exige base legal, los tratamientos necesarios de cuenta y transacción se apoyan en ejecutar el contrato; reportes y conservación obligatorios en deberes legales; seguridad proporcionada y disputas en intereses legítimos cuando se permitan; y funciones opcionales en el consentimiento requerido. Puede oponerse o retirar consentimiento según la ley; retirarlo no anula tratamientos anteriores lícitos."
+  },
+  {
+    "number": 26,
+    "title": {
+      "en": "Required and optional information",
+      "es": "Datos obligatorios y opcionales"
+    },
+    "en": "Forms identify information needed for an account, verification, request, or payment. Without necessary information, the corresponding feature may not work or be approved. Optional images or permissions can be declined without authorizing unrelated collection. Do not provide extra sensitive data simply because a text field accepts it.",
+    "es": "Los formularios identifican datos necesarios para cuenta, verificación, solicitud o pago. Sin ellos la función puede no operar o aprobarse. Puede rechazar imágenes o permisos opcionales sin autorizar recopilación ajena. No aporte datos sensibles adicionales solo porque un campo de texto los admita."
+  },
+  {
+    "number": 27,
+    "title": {
+      "en": "Public Pro profiles",
+      "es": "Perfiles públicos Pro"
+    },
+    "en": "Public Pro profiles can show business name, biography, trade, experience, service radius, city, state, five-digit ZIP, profile images, ratings, completed jobs, active or verified status, and license-presence, insured, or bonded badges. Detailed street address, coordinates, license number, verification documents, and Stripe identifiers are not public profile fields. Badges do not constitute a guarantee of current coverage.",
+    "es": "Los perfiles públicos Pro pueden mostrar negocio, biografía, oficio, experiencia, radio, ciudad, estado, ZIP de cinco dígitos, imágenes, calificaciones, trabajos, estado activo o verificado e insignias de existencia de licencia, seguro o fianza. Dirección detallada, coordenadas, número de licencia, documentos e identificadores Stripe no son campos públicos. Las insignias no garantizan cobertura vigente."
+  },
+  {
+    "number": 28,
+    "title": {
+      "en": "Disclosure to other users",
+      "es": "Comunicación a otros usuarios"
+    },
+    "en": "We disclose job and communication information to users participating in the relevant request, offer, assignment, or dispute as required by that workflow. Eligible Pros can receive relevant service opportunities. Assigned parties receive information needed to coordinate and perform the job. Information you publish or send may be copied by its recipient; do not include unrelated private details.",
+    "es": "Comunicamos información del trabajo y mensajes a usuarios participantes en solicitud, oferta, asignación o disputa según el proceso. Pros elegibles pueden recibir oportunidades pertinentes. Las partes asignadas reciben datos necesarios para coordinar y ejecutar. El destinatario puede copiar lo publicado o enviado; evite detalles privados ajenos."
+  },
+  {
+    "number": 29,
+    "title": {
+      "en": "Infrastructure and service providers",
+      "es": "Infraestructura y proveedores"
+    },
+    "en": "Service providers support hosting, authentication, database and file storage through Supabase, hosting infrastructure, maps through Google Maps, payment processing through Stripe, and notification delivery through Expo or browser push infrastructure where used. They receive information needed for their service. Their independent processing, especially payments or identity compliance, is also governed by their notices.",
+    "es": "Los proveedores apoyan alojamiento, autenticación, bases y archivos mediante Supabase, infraestructura de alojamiento, mapas mediante Google Maps, pagos mediante Stripe y notificaciones mediante Expo o infraestructura push del navegador cuando se usa. Reciben datos necesarios para su servicio. Sus tratamientos independientes, especialmente pagos o cumplimiento de identidad, también se rigen por sus avisos."
+  },
+  {
+    "number": 30,
+    "title": {
+      "en": "Administrative access",
+      "es": "Acceso administrativo"
+    },
+    "en": "Authorized administrators and operational services access information relevant to verification, orders, claims, payments, security, or support according to their assigned responsibilities. Administrative and financial records are not intended as public profile content. No system can guarantee that every unauthorized-access attempt will be prevented; report suspected exposure to support.",
+    "es": "Administradores autorizados y servicios operativos acceden a datos pertinentes para verificación, órdenes, reclamos, pagos, seguridad o soporte según responsabilidades. Los registros administrativos y financieros no están destinados al perfil público. Ningún sistema garantiza impedir todos los accesos indebidos; informe de exposiciones sospechosas a soporte."
+  },
+  {
+    "number": 31,
+    "title": {
+      "en": "Legal and safety disclosures",
+      "es": "Comunicaciones legales y de seguridad"
+    },
+    "en": "Information may be disclosed to comply with a valid legal requirement, respond to authorized legal process, investigate fraud, protect safety, or establish or defend legal claims, to the extent permitted by law. We seek to limit disclosure to information relevant to the purpose. A request from another user does not itself authorize access to your private account.",
+    "es": "Puede comunicarse información por exigencia legal válida, proceso autorizado, investigación de fraude, seguridad o defensa de reclamaciones dentro de lo permitido. Procuramos limitarla a lo pertinente. Una solicitud de otro usuario no autoriza por sí sola acceso a su cuenta privada."
+  },
+  {
+    "number": 32,
+    "title": {
+      "en": "Sale, sharing, and advertising",
+      "es": "Venta, intercambio y publicidad"
+    },
+    "en": "The documented RELYDO workflows use information for platform operations and do not include selling personal information or sharing it for cross-context behavioral advertising. Operational disclosure to a payment, hosting, or notification provider is described separately. If practices change, RELYDO must provide required notice and choices before processing requiring them.",
+    "es": "Los procesos documentados de RELYDO usan datos para operar y no incluyen vender información personal ni compartirla para publicidad conductual entre contextos. La comunicación operativa a proveedores de pagos, alojamiento o notificaciones se describe separadamente. Si cambian prácticas, RELYDO deberá dar avisos y opciones requeridos antes del tratamiento correspondiente."
+  },
+  {
+    "number": 33,
+    "title": {
+      "en": "International processing",
+      "es": "Tratamiento internacional"
+    },
+    "en": "Connected infrastructure and providers may process information in countries different from your residence. Applicable legal safeguards are required where a transfer is regulated. This Policy does not certify a particular hosting region or transfer mechanism without verifying it. You may ask the privacy contact about the locations and safeguards applicable to your information.",
+    "es": "Infraestructura y proveedores pueden tratar datos fuera de su país. Cuando la transferencia esté regulada, se requieren garantías legales aplicables. Esta Política no certifica región de alojamiento ni mecanismo sin verificarlo. Puede consultar al contacto de privacidad sobre ubicaciones y garantías aplicables a sus datos."
+  },
+  {
+    "number": 34,
+    "title": {
+      "en": "Security",
+      "es": "Seguridad"
+    },
+    "en": "RELYDO uses account authentication, role-based access, server-side checks, and transaction controls to reduce unauthorized access and conflicting operations. You should protect your credentials and device. Internet services, uploaded files, and third-party systems are not risk-free. Notify support of suspected compromise; legally required incident notices remain applicable.",
+    "es": "RELYDO usa autenticación, acceso por roles, comprobaciones del servidor y controles de transacciones para reducir accesos indebidos y operaciones contradictorias. Proteja credenciales y dispositivo. Internet, archivos y sistemas externos no están libres de riesgo. Informe de accesos sospechosos; siguen aplicando avisos de incidentes exigidos por ley."
+  },
+  {
+    "number": 35,
+    "title": {
+      "en": "Retention criteria",
+      "es": "Criterios de conservación"
+    },
+    "en": "Retention depends on account operation, service performance, payment and tax obligations, dispute status, security needs, and applicable law. Not all categories share a fixed period. Current retention rules can preserve unresolved claim and financial evidence without an automatic expiry; you may request review of continued retention. We do not promise that all information disappears when the account closes.",
+    "es": "La conservación depende de operación, servicio, pagos e impuestos, disputas, seguridad y ley. No todas las categorías tienen plazo fijo. Las reglas actuales pueden conservar evidencia financiera y de reclamos pendientes sin vencimiento automático; puede solicitar revisión de esa conservación. No prometemos que toda información desaparezca al cerrar la cuenta."
+  },
+  {
+    "number": 36,
+    "title": {
+      "en": "Delete Account procedure",
+      "es": "Procedimiento de Eliminar cuenta"
+    },
+    "en": "Use Delete Account in the available account settings or request assistance through support. The workflow checks active jobs and unresolved obligations and can refuse deletion until they are addressed. When deletion proceeds, account access and ordinary profile data are removed or anonymized according to the supported process; retained case and payment information is handled separately.",
+    "es": "Use Eliminar cuenta en ajustes disponibles o solicite ayuda a soporte. El flujo comprueba trabajos activos y obligaciones pendientes y puede rechazar el borrado hasta resolverlos. Cuando procede, se retira acceso y se borran o anonimizan datos ordinarios según el proceso soportado; casos y pagos retenidos se tratan separadamente."
+  },
+  {
+    "number": 37,
+    "title": {
+      "en": "Retained claims and financial links",
+      "es": "Reclamos y vínculos financieros retenidos"
+    },
+    "en": "Deletion may preserve restricted identifiers and Stripe payout links needed for existing claims, refunds, or compensation, together with relevant transaction and case evidence. These records do not keep a public Pro profile active. Retention must be assessed against the continuing purpose and legal requirements; deletion is not a mechanism to erase an unresolved financial obligation.",
+    "es": "El borrado puede conservar identificadores restringidos y vínculos Stripe necesarios para reclamos, reembolsos o compensación existentes, junto con transacciones y evidencia pertinentes. No mantienen activo un perfil público. Debe evaluarse la finalidad vigente y ley; el borrado no sirve para eliminar obligaciones financieras pendientes."
+  },
+  {
+    "number": 38,
+    "title": {
+      "en": "File cleanup and external copies",
+      "es": "Limpieza de archivos y copias externas"
+    },
+    "en": "Eligible uploaded files may require separate cleanup after account deletion. Failed cleanup can leave a file available until a safe retry succeeds; shared files, uncertain ownership, and case evidence can be retained for review. Other users’ copies, processor records, and backups are not necessarily erased at the same time. Ask support about a file you believe remains improperly accessible.",
+    "es": "Los archivos elegibles pueden requerir limpieza separada tras borrar cuenta. Un fallo puede dejar archivos disponibles hasta reintento seguro; archivos compartidos, propiedad incierta y evidencia pueden conservarse para revisión. Copias de usuarios, procesadores y respaldos no se borran necesariamente a la vez. Consulte soporte sobre archivos que considere indebidamente accesibles."
+  },
+  {
+    "number": 39,
+    "title": {
+      "en": "Access, correction, and copies",
+      "es": "Acceso, corrección y copias"
+    },
+    "en": "You can review and update supported profile fields in the account. Depending on applicable law, you may request access to personal information, correction of inaccurate data, or a portable copy of eligible data through support or the privacy contact. Transaction records may require an annotation instead of erasing accurate historical facts.",
+    "es": "Puede revisar y actualizar campos disponibles del perfil. Según la ley, puede solicitar acceso, corrección o copia portátil de datos elegibles mediante soporte o contacto de privacidad. Los registros de transacciones pueden requerir una anotación en vez de borrar hechos históricos exactos."
+  },
+  {
+    "number": 40,
+    "title": {
+      "en": "Deletion, objection, and restriction rights",
+      "es": "Derechos de borrado, oposición y limitación"
+    },
+    "en": "Where applicable, you may request deletion, object to certain processing, restrict use, or withdraw consent for optional processing. Rights have legal conditions and exceptions, including necessary transaction and claim records. Turning off a device permission affects future use of that feature and does not automatically delete records already lawfully collected.",
+    "es": "Cuando corresponda, puede pedir borrado, oponerse, limitar uso o retirar consentimiento opcional. Existen condiciones y excepciones legales, incluidos registros necesarios de transacciones y reclamos. Desactivar permisos afecta uso futuro y no borra automáticamente registros ya recopilados legalmente."
+  },
+  {
+    "number": 41,
+    "title": {
+      "en": "Regional privacy rights",
+      "es": "Derechos regionales de privacidad"
+    },
+    "en": "California residents have CCPA rights when that law applies, including knowing, correcting, deleting, opting out of sale or sharing, limiting qualifying sensitive-information use, and non-discrimination. Other applicable laws may provide access, portability, objection, restriction, or appeal rights. RELYDO does not require you to waive these rights; applicability depends on the operator and legal criteria, not merely the language of the app.",
+    "es": "Residentes de California tienen derechos CCPA cuando aplica, incluidos conocer, corregir, borrar, rechazar venta o intercambio, limitar uso de datos sensibles calificados y no discriminación. Otras leyes pueden dar acceso, portabilidad, oposición, limitación o apelación. RELYDO no exige renunciarlos; su aplicación depende del operador y criterios legales, no del idioma de la app."
+  },
+  {
+    "number": 42,
+    "title": {
+      "en": "Requests, verification, and appeals",
+      "es": "Solicitudes, verificación y apelaciones"
+    },
+    "en": "Submit a privacy request through Help and Support or the privacy contact, identifying the requested action. We may verify identity proportionately and request authority for an authorized agent, without asking for your password. Applicable statutory response periods and exceptions govern. If denied, you may seek review and complain to the competent authority where the law provides that right.",
+    "es": "Presente solicitudes mediante Ayuda y soporte o contacto de privacidad, indicando la acción. Podemos verificar identidad proporcionalmente y autorización de representantes sin pedir contraseña. Rigen plazos y excepciones legales aplicables. Ante rechazo, puede pedir revisión y reclamar a la autoridad competente cuando la ley lo permita."
+  },
+  {
+    "number": 43,
+    "title": {
+      "en": "Children and sensitive information",
+      "es": "Menores e información sensible"
+    },
+    "en": "RELYDO is intended for adults at least 18. Do not create accounts for children or knowingly upload unnecessary information about them. Contact support if a minor’s account or data is identified. Payment, credential, precise location, and verification information can require heightened protection; submit it only through the relevant authorized workflow, not public profile fields.",
+    "es": "RELYDO está destinado a adultos de al menos 18 años. No cree cuentas de menores ni cargue deliberadamente datos innecesarios de ellos. Informe a soporte de cuentas o datos de menores. Pagos, credenciales, ubicación precisa y verificación pueden requerir mayor protección; apórtelos solo en procesos autorizados, no campos públicos."
+  },
+  {
+    "number": 44,
+    "title": {
+      "en": "Changes and bilingual notice",
+      "es": "Cambios y aviso bilingüe"
+    },
+    "en": "This is Policy version 2.0, effective [PENDIENTE: effective date]. RELYDO will provide appropriate notice of material changes and obtain any consent required by law before new processing requiring it. English and Spanish versions describe the same practices and follow the detected app or browser language. Continued use is not blanket consent to optional processing.",
+    "es": "Esta es la Política versión 2.0, vigente desde [PENDIENTE: fecha de vigencia]. RELYDO comunicará cambios importantes y obtendrá consentimiento legal antes de nuevos tratamientos que lo requieran. Inglés y español describen las mismas prácticas y siguen el idioma detectado. Continuar usando no es consentimiento general a tratamientos opcionales."
+  },
+  {
+    "number": 45,
+    "title": {
+      "en": "Privacy contact",
+      "es": "Contacto de privacidad"
+    },
+    "en": "For privacy questions and requests, use Help and Support in RELYDO or email [PENDIENTE: privacy email]. Responsible entity: [PENDIENTE: legal entity]. Postal address: [PENDIENTE: registered address]. Include only the account or job reference necessary to locate your request; do not send passwords or full payment credentials.",
+    "es": "Para preguntas y solicitudes de privacidad, use Ayuda y soporte de RELYDO o escriba a [PENDIENTE: correo de privacidad]. Entidad responsable: [PENDIENTE: entidad legal]. Dirección postal: [PENDIENTE: dirección registrada]. Incluya solo la referencia necesaria de cuenta o trabajo; no envíe contraseñas ni credenciales completas de pago."
+  }
+]

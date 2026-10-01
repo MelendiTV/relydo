@@ -592,6 +592,9 @@ function RegistroClienteContenido() {
               `${window.location.origin}/verificar-email`,
 
             data: {
+              legal_version: "2.0",
+              legal_accepted_at: new Date().toISOString(),
+              legal_language: language,
               full_name:
                 nombreLimpio,
 

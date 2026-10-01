@@ -259,6 +259,9 @@ export default function RegistroProfesional() {
           */
 
           data: {
+            legal_version: "2.0",
+            legal_accepted_at: new Date().toISOString(),
+            legal_language: language,
             signup_type: "provider",
             registration_source: "web",
            
