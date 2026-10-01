@@ -89,7 +89,7 @@ async function sendResendEmail({
   const copy =
     language === "en"
       ? {
-          subject: "RELYDO needs additional documentation",
+          subject: "Action required: Additional documents needed for your RELYDO account",
           title: "Documentation required",
           hello: "Hello",
           intro:
@@ -101,7 +101,7 @@ async function sendResendEmail({
             "For security, you will need to sign in with your professional account. While your account remains under review, you can view and upload the requested documentation.",
         }
       : {
-          subject: "RELYDO necesita documentación adicional",
+          subject: "Acción requerida: necesitamos documentos adicionales para tu cuenta RELYDO",
           title: "Documentación requerida",
           hello: "Hola",
           intro:
