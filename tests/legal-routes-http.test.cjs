@@ -18,8 +18,8 @@ for (const [route, sections] of [['terms', terms], ['privacy', privacy]]) {
       assert.ok(main.includes(`${language === 'es' ? 'Versión' : 'Version'} 2.0`));
       assert.equal((main.match(/<section /g) || []).length, sections.length);
       for (const section of sections) {
-        assert.ok(main.includes(escape(`${section.number}. ${section.title[language]}`)), `Missing heading ${section.number}`);
-        assert.ok(main.includes(escape(section[language])), `Missing body ${section.number}`);
+        assert.ok(main.replace(/<[^>]*>/g, '').includes(escape(`${section.number}. ${section.title[language]}`)), `Missing heading ${section.number}`);
+        assert.ok(main.replace(/<[^>]*>/g, '').includes(escape(section[language])), `Missing body ${section.number}`);
       }
     });
   }

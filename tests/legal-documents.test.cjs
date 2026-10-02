@@ -41,6 +41,12 @@ function renderDocument(language, isPrivacy, query) {
   loaded.paths = Module._nodeModulePaths(path.dirname(filename));
   const originalRequire = loaded.require.bind(loaded);
   loaded.require = id => {
+    if (id === '@/lib/legal-links') {
+      const helperFile = path.resolve(__dirname, '../lib/legal-links.ts');
+      const helper = new Module(helperFile, module);
+      helper._compile(ts.transpileModule(fs.readFileSync(helperFile, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2020}}).outputText, helperFile);
+      return helper.exports;
+    }
     if (id === 'react' && query !== undefined) return { ...React, useSyncExternalStore: (_subscribe, snapshot) => snapshot() };
     if (id === './LanguageProvider') return { useLanguage: () => ({ language }) };
     if (id.startsWith('@/lib/')) return require(path.resolve(__dirname, '..', id.slice(2)));
@@ -73,10 +79,25 @@ for (const language of ['en', 'es']) {
       const escape = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
       for (const section of sections) {
         assert.ok(html.includes(escape(section.title[language])));
-        assert.ok(html.includes(escape(section[language])));
+        assert.ok(html.replace(/<[^>]*>/g, '').includes(escape(section[language])));
       }
       assert.ok(html.includes(metadata.version));
+      assert.ok(html.includes('href="mailto:'));
       assert.doesNotMatch(html, /<select|role="combobox"/);
     });
   }
 }
+
+test('Web renders accessible mailto links and keeps URLs as visible plain text', () => {
+  const original = terms[0].en;
+  try {
+    terms[0].en = 'Email hello@relydo.co; URL www.relydo.co. <script>alert(1)</script>';
+    const html = renderDocument('en', false);
+    assert.ok(html.includes('URL www.relydo.co.'));
+    assert.doesNotMatch(html, /href="https?:|target="_blank"/);
+    assert.ok(html.includes('focus-visible:outline-2'));
+    assert.ok([...html.matchAll(/href="([^"]+)"/g)].every(match => match[1].startsWith('mailto:')));
+    assert.ok(html.includes('&lt;script&gt;'));
+    assert.ok(html.includes('href="mailto:hello@relydo.co"'));
+  } finally { terms[0].en = original; }
+});

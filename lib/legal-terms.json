@@ -41,8 +41,8 @@
       "en": "Account security",
       "es": "Seguridad de cuenta"
     },
-    "en": "Protect passwords and login links, use only accounts you are authorized to access, and report suspected compromise through Help and Support (security@relydo.co). You are responsible for activity you authorize; responsibility for unauthorized transactions remains subject to applicable law. RELYDO may restrict access while investigating a security incident.",
-    "es": "Proteja contraseñas y enlaces de acceso, use únicamente cuentas autorizadas e informe de sospechas de acceso indebido mediante Ayuda y soporte (security@relydo.co). Responde por la actividad que autorice; la responsabilidad por transacciones no autorizadas está sujeta a la ley aplicable. RELYDO puede restringir el acceso mientras investiga un incidente."
+    "en": "Protect passwords and login links, use only accounts you are authorized to access, and report suspected compromise through Help and Support security@relydo.co. You are responsible for activity you authorize; responsibility for unauthorized transactions remains subject to applicable law. RELYDO may restrict access while investigating a security incident.",
+    "es": "Proteja contraseñas y enlaces de acceso, use únicamente cuentas autorizadas e informe de sospechas de acceso indebido mediante Ayuda y soporte security@relydo.co. Responde por la actividad que autorice; la responsabilidad por transacciones no autorizadas está sujeta a la ley aplicable. RELYDO puede restringir el acceso mientras investiga un incidente."
   },
   {
     "number": 6,
@@ -104,8 +104,8 @@
       "en": "Site access and safety",
       "es": "Acceso y seguridad en el lugar"
     },
-    "en": "Clients must provide agreed access and disclose known hazards; Pros must use safe practices and comply with applicable safety rules. Stop work if conditions are unsafe and communicate the issue (safety@relydo.co). RELYDO is not an emergency service. Contact emergency services for imminent danger rather than relying on platform messages.",
-    "es": "Los Clientes deben facilitar el acceso acordado y comunicar peligros conocidos; los Pros deben trabajar con seguridad y cumplir las normas aplicables. Detenga el trabajo ante condiciones inseguras y comunique el problema (safety@relydo.co). RELYDO no es un servicio de emergencias. Contacte a los servicios de emergencia ante peligro inmediato en vez de depender de mensajes."
+    "en": "Clients must provide agreed access and disclose known hazards; Pros must use safe practices and comply with applicable safety rules. Stop work if conditions are unsafe and communicate the issue safety@relydo.co. RELYDO is not an emergency service. Contact emergency services for imminent danger rather than relying on platform messages.",
+    "es": "Los Clientes deben facilitar el acceso acordado y comunicar peligros conocidos; los Pros deben trabajar con seguridad y cumplir las normas aplicables. Detenga el trabajo ante condiciones inseguras y comunique el problema safety@relydo.co. RELYDO no es un servicio de emergencias. Contacte a los servicios de emergencia ante peligro inmediato en vez de depender de mensajes."
   },
   {
     "number": 13,
@@ -140,8 +140,8 @@
       "en": "Payment authorization",
       "es": "Autorización de pago"
     },
-    "en": "Use only a payment method you are authorized to use. By confirming checkout or a paid change order, you authorize the amount shown for that transaction through Stripe. Payment failure can prevent contracting or approval. Do not assume a charge succeeded until the platform confirms it; report duplicate or incorrect charges (billing@relydo.co).",
-    "es": "Use únicamente métodos de pago autorizados. Al confirmar el pago o una orden de cambio pagada, autoriza el importe mostrado para esa transacción mediante Stripe. Un fallo puede impedir contratar o aprobar. No dé por efectuado el cargo hasta la confirmación de la plataforma; informe de cargos duplicados o incorrectos (billing@relydo.co)."
+    "en": "Use only a payment method you are authorized to use. By confirming checkout or a paid change order, you authorize the amount shown for that transaction through Stripe. Payment failure can prevent contracting or approval. Do not assume a charge succeeded until the platform confirms it; report duplicate or incorrect charges billing@relydo.co.",
+    "es": "Use únicamente métodos de pago autorizados. Al confirmar el pago o una orden de cambio pagada, autoriza el importe mostrado para esa transacción mediante Stripe. Un fallo puede impedir contratar o aprobar. No dé por efectuado el cargo hasta la confirmación de la plataforma; informe de cargos duplicados o incorrectos billing@relydo.co."
   },
   {
     "number": 17,
@@ -203,8 +203,8 @@
       "en": "Refunds and reconciliation",
       "es": "Reembolsos y conciliación"
     },
-    "en": "Refunds are calculated from verified payments, applicable fees, approved changes, prior refunds, and the case outcome. RELYDO may require review when records conflict and must not treat an unknown amount as zero. Refund processing and posting depend on Stripe and the payment issuer. Report a missing refund through support (billing@relydo.co) with its transaction reference.",
-    "es": "Los reembolsos se calculan según pagos verificados, cargos aplicables, cambios aprobados, reembolsos anteriores y resultado del caso. RELYDO puede requerir revisión si hay registros contradictorios y no debe tratar un importe desconocido como cero. El procesamiento y abono dependen de Stripe y del emisor. Informe a soporte (billing@relydo.co) de un reembolso ausente con su referencia."
+    "en": "Refunds are calculated from verified payments, applicable fees, approved changes, prior refunds, and the case outcome. RELYDO may require review when records conflict and must not treat an unknown amount as zero. Refund processing and posting depend on Stripe and the payment issuer. Report a missing refund through support billing@relydo.co with its transaction reference.",
+    "es": "Los reembolsos se calculan según pagos verificados, cargos aplicables, cambios aprobados, reembolsos anteriores y resultado del caso. RELYDO puede requerir revisión si hay registros contradictorios y no debe tratar un importe desconocido como cero. El procesamiento y abono dependen de Stripe y del emisor. Informe a soporte billing@relydo.co de un reembolso ausente con su referencia."
   },
   {
     "number": 24,
@@ -230,8 +230,8 @@
       "en": "Charge disputes",
       "es": "Disputas de cargos"
     },
-    "en": "Contact support (billing@relydo.co) about an incorrect charge and retain the transaction reference. You may also exercise lawful rights with your bank or payment issuer. Do not submit knowingly false charge disputes or seek duplicate recovery for the same amount. RELYDO may provide relevant transaction and service evidence to the processor or issuer.",
-    "es": "Contacte a soporte (billing@relydo.co) ante un cargo incorrecto y conserve su referencia. También puede ejercer sus derechos legales ante banco o emisor. No presente disputas de cargo deliberadamente falsas ni busque recuperar dos veces el mismo importe. RELYDO puede aportar evidencia pertinente de la transacción y servicio al procesador o emisor."
+    "en": "Contact support billing@relydo.co about an incorrect charge and retain the transaction reference. You may also exercise lawful rights with your bank or payment issuer. Do not submit knowingly false charge disputes or seek duplicate recovery for the same amount. RELYDO may provide relevant transaction and service evidence to the processor or issuer.",
+    "es": "Contacte a soporte billing@relydo.co ante un cargo incorrecto y conserve su referencia. También puede ejercer sus derechos legales ante banco o emisor. No presente disputas de cargo deliberadamente falsas ni busque recuperar dos veces el mismo importe. RELYDO puede aportar evidencia pertinente de la transacción y servicio al procesador o emisor."
   },
   {
     "number": 27,
@@ -275,8 +275,8 @@
       "en": "Prohibited conduct",
       "es": "Conductas prohibidas"
     },
-    "en": "Do not commit fraud, harassment, discrimination prohibited by law, impersonation, unlawful service activity, credential theft, malware distribution, or unauthorized access. Do not manipulate offers, job stages, ratings, payments, or claims. Do not scrape private information or bypass access controls. Report misuse through support (support@relydo.co).",
-    "es": "No cometa fraude, acoso, discriminación ilegal, suplantación, servicios ilícitos, robo de credenciales, distribución de malware ni acceso no autorizado. No manipule ofertas, etapas, calificaciones, pagos o reclamos. No extraiga información privada ni eluda controles de acceso. Informe de abusos a soporte (support@relydo.co)."
+    "en": "Do not commit fraud, harassment, discrimination prohibited by law, impersonation, unlawful service activity, credential theft, malware distribution, or unauthorized access. Do not manipulate offers, job stages, ratings, payments, or claims. Do not scrape private information or bypass access controls. Report misuse through support support@relydo.co.",
+    "es": "No cometa fraude, acoso, discriminación ilegal, suplantación, servicios ilícitos, robo de credenciales, distribución de malware ni acceso no autorizado. No manipule ofertas, etapas, calificaciones, pagos o reclamos. No extraiga información privada ni eluda controles de acceso. Informe de abusos a soporte support@relydo.co."
   },
   {
     "number": 32,
@@ -320,8 +320,8 @@
       "en": "Account deletion",
       "es": "Eliminación de cuenta"
     },
-    "en": "Use Delete Account where available or ask support (support@relydo.co) for assistance. Deletion can be blocked while active jobs or unresolved obligations require attention. Some transaction, claim, evidence, and legal records may remain after access and public profile removal. Deletion does not cancel an existing claim, erase a debt, or guarantee immediate deletion of third-party payment records. See the Privacy Policy.",
-    "es": "Use Eliminar cuenta cuando esté disponible o solicite ayuda a soporte (support@relydo.co). La eliminación puede bloquearse por trabajos activos u obligaciones pendientes. Algunos registros de transacciones, reclamos, evidencias y legales pueden permanecer tras retirar acceso y perfil público. Eliminar no cancela reclamos, borra deudas ni garantiza borrado inmediato de registros de pago externos. Consulte Privacidad."
+    "en": "Use Delete Account where available or ask support support@relydo.co for assistance. Deletion can be blocked while active jobs or unresolved obligations require attention. Some transaction, claim, evidence, and legal records may remain after access and public profile removal. Deletion does not cancel an existing claim, erase a debt, or guarantee immediate deletion of third-party payment records. See the Privacy Policy.",
+    "es": "Use Eliminar cuenta cuando esté disponible o solicite ayuda a soporte support@relydo.co. La eliminación puede bloquearse por trabajos activos u obligaciones pendientes. Algunos registros de transacciones, reclamos, evidencias y legales pueden permanecer tras retirar acceso y perfil público. Eliminar no cancela reclamos, borra deudas ni garantiza borrado inmediato de registros de pago externos. Consulte Privacidad."
   },
   {
     "number": 37,
@@ -329,8 +329,8 @@
       "en": "Restrictions and suspension",
       "es": "Restricciones y suspensión"
     },
-    "en": "RELYDO may restrict an account or feature for a material breach, security risk, fraud, payment inconsistency, or legal requirement. Where lawful and practical, it will explain the reason and permit a response through support (support@relydo.co). Restriction does not automatically forfeit earned amounts; funds remain subject to verified obligations, claims, and applicable law.",
-    "es": "RELYDO puede restringir cuentas o funciones por incumplimiento importante, riesgo de seguridad, fraude, inconsistencias de pago u obligación legal. Cuando sea legal y viable, explicará el motivo y permitirá responder por soporte (support@relydo.co). La restricción no confisca automáticamente importes ganados; los fondos siguen sujetos a obligaciones verificadas, reclamos y ley aplicable."
+    "en": "RELYDO may restrict an account or feature for a material breach, security risk, fraud, payment inconsistency, or legal requirement. Where lawful and practical, it will explain the reason and permit a response through support support@relydo.co. Restriction does not automatically forfeit earned amounts; funds remain subject to verified obligations, claims, and applicable law.",
+    "es": "RELYDO puede restringir cuentas o funciones por incumplimiento importante, riesgo de seguridad, fraude, inconsistencias de pago u obligación legal. Cuando sea legal y viable, explicará el motivo y permitirá responder por soporte support@relydo.co. La restricción no confisca automáticamente importes ganados; los fondos siguen sujetos a obligaciones verificadas, reclamos y ley aplicable."
   },
   {
     "number": 38,
@@ -338,8 +338,8 @@
       "en": "Availability and changes to features",
       "es": "Disponibilidad y cambios de funciones"
     },
-    "en": "The platform may experience maintenance, outages, and changes to available features. RELYDO does not guarantee uninterrupted access or a minimum number of jobs. Changes do not erase an accepted service obligation or mandatory remedy. Report a technical problem (support@relydo.co) affecting payment or a deadline so the records can be reviewed.",
-    "es": "La plataforma puede tener mantenimiento, interrupciones y cambios de funciones. RELYDO no garantiza acceso continuo ni un número mínimo de trabajos. Los cambios no eliminan obligaciones aceptadas ni soluciones legales obligatorias. Informe de problemas técnicos (support@relydo.co) que afecten pagos o plazos para revisar los registros."
+    "en": "The platform may experience maintenance, outages, and changes to available features. RELYDO does not guarantee uninterrupted access or a minimum number of jobs. Changes do not erase an accepted service obligation or mandatory remedy. Report a technical problem support@relydo.co affecting payment or a deadline so the records can be reviewed.",
+    "es": "La plataforma puede tener mantenimiento, interrupciones y cambios de funciones. RELYDO no garantiza acceso continuo ni un número mínimo de trabajos. Los cambios no eliminan obligaciones aceptadas ni soluciones legales obligatorias. Informe de problemas técnicos support@relydo.co que afecten pagos o plazos para revisar los registros."
   },
   {
     "number": 39,
@@ -365,8 +365,8 @@
       "en": "Complaints and legal remedies",
       "es": "Quejas y recursos legales"
     },
-    "en": "You may request review through Help and Support (support@relydo.co) and provide the relevant job or payment reference. Using support is not a mandatory waiver of court, regulator, or payment-issuer remedies. These Terms do not impose mandatory arbitration or waive class-action rights. Applicable law determines the competent forum and any required pre-action procedure.",
-    "es": "Puede solicitar revisión mediante Ayuda y soporte (support@relydo.co) con la referencia del trabajo o pago. Usar soporte no renuncia obligatoriamente a recursos judiciales, autoridades o emisores. Estos Términos no imponen arbitraje obligatorio ni renuncian a acciones colectivas. La ley aplicable determina el foro competente y procedimientos previos exigidos."
+    "en": "You may request review through Help and Support support@relydo.co and provide the relevant job or payment reference. Using support is not a mandatory waiver of court, regulator, or payment-issuer remedies. These Terms do not impose mandatory arbitration or waive class-action rights. Applicable law determines the competent forum and any required pre-action procedure.",
+    "es": "Puede solicitar revisión mediante Ayuda y soporte support@relydo.co con la referencia del trabajo o pago. Usar soporte no renuncia obligatoriamente a recursos judiciales, autoridades o emisores. Estos Términos no imponen arbitraje obligatorio ni renuncian a acciones colectivas. La ley aplicable determina el foro competente y procedimientos previos exigidos."
   },
   {
     "number": 42,
@@ -392,7 +392,7 @@
       "en": "Contact and legal notices",
       "es": "Contacto y notificaciones legales"
     },
-    "en": "For operational assistance, use Help and Support in RELYDO (support@relydo.co). Legal contact email: legal@relydo.co. Postal address for notices: [PENDIENTE]. Identify the account or transaction and the issue, without sending a password or full card number. Privacy requests are addressed through the channels described in the Privacy Policy.",
-    "es": "Para asistencia operativa, use Ayuda y soporte en RELYDO (support@relydo.co). Correo de contacto legal: legal@relydo.co. Dirección postal para notificaciones: [PENDIENTE]. Identifique cuenta o transacción y problema sin enviar contraseñas ni números completos de tarjeta. Las solicitudes de privacidad se atienden por los canales de la Política de Privacidad."
+    "en": "For operational assistance, use Help and Support in RELYDO support@relydo.co. Legal contact email: legal@relydo.co. Postal address for notices: [PENDIENTE]. Identify the account or transaction and the issue, without sending a password or full card number. Privacy requests are addressed through the channels described in the Privacy Policy.",
+    "es": "Para asistencia operativa, use Ayuda y soporte en RELYDO support@relydo.co. Correo de contacto legal: legal@relydo.co. Dirección postal para notificaciones: [PENDIENTE]. Identifique cuenta o transacción y problema sin enviar contraseñas ni números completos de tarjeta. Las solicitudes de privacidad se atienden por los canales de la Política de Privacidad."
   }
 ]

@@ -266,8 +266,8 @@
       "en": "Administrative access",
       "es": "Acceso administrativo"
     },
-    "en": "Authorized administrators and operational services access information relevant to verification, orders, claims, payments, security, or support according to their assigned responsibilities. Administrative and financial records are not intended as public profile content. No system can guarantee that every unauthorized-access attempt will be prevented; report suspected exposure to support (security@relydo.co).",
-    "es": "Administradores autorizados y servicios operativos acceden a datos pertinentes para verificación, órdenes, reclamos, pagos, seguridad o soporte según responsabilidades. Los registros administrativos y financieros no están destinados al perfil público. Ningún sistema garantiza impedir todos los accesos indebidos; informe de exposiciones sospechosas a soporte (security@relydo.co)."
+    "en": "Authorized administrators and operational services access information relevant to verification, orders, claims, payments, security, or support according to their assigned responsibilities. Administrative and financial records are not intended as public profile content. No system can guarantee that every unauthorized-access attempt will be prevented; report suspected exposure to support security@relydo.co.",
+    "es": "Administradores autorizados y servicios operativos acceden a datos pertinentes para verificación, órdenes, reclamos, pagos, seguridad o soporte según responsabilidades. Los registros administrativos y financieros no están destinados al perfil público. Ningún sistema garantiza impedir todos los accesos indebidos; informe de exposiciones sospechosas a soporte security@relydo.co."
   },
   {
     "number": 31,
@@ -293,8 +293,8 @@
       "en": "International processing",
       "es": "Tratamiento internacional"
     },
-    "en": "Connected infrastructure and providers may process information in countries different from your residence. Applicable legal safeguards are required where a transfer is regulated. This Policy does not certify a particular hosting region or transfer mechanism without verifying it. You may ask the privacy contact (privacy@relydo.co) about the locations and safeguards applicable to your information.",
-    "es": "Infraestructura y proveedores pueden tratar datos fuera de su país. Cuando la transferencia esté regulada, se requieren garantías legales aplicables. Esta Política no certifica región de alojamiento ni mecanismo sin verificarlo. Puede consultar al contacto de privacidad (privacy@relydo.co) sobre ubicaciones y garantías aplicables a sus datos."
+    "en": "Connected infrastructure and providers may process information in countries different from your residence. Applicable legal safeguards are required where a transfer is regulated. This Policy does not certify a particular hosting region or transfer mechanism without verifying it. You may ask the privacy contact privacy@relydo.co about the locations and safeguards applicable to your information.",
+    "es": "Infraestructura y proveedores pueden tratar datos fuera de su país. Cuando la transferencia esté regulada, se requieren garantías legales aplicables. Esta Política no certifica región de alojamiento ni mecanismo sin verificarlo. Puede consultar al contacto de privacidad privacy@relydo.co sobre ubicaciones y garantías aplicables a sus datos."
   },
   {
     "number": 34,
@@ -302,8 +302,8 @@
       "en": "Security",
       "es": "Seguridad"
     },
-    "en": "RELYDO uses account authentication, role-based access, server-side checks, and transaction controls to reduce unauthorized access and conflicting operations. You should protect your credentials and device. Internet services, uploaded files, and third-party systems are not risk-free. Notify support of suspected compromise (security@relydo.co); legally required incident notices remain applicable.",
-    "es": "RELYDO usa autenticación, acceso por roles, comprobaciones del servidor y controles de transacciones para reducir accesos indebidos y operaciones contradictorias. Proteja credenciales y dispositivo. Internet, archivos y sistemas externos no están libres de riesgo. Informe de accesos sospechosos (security@relydo.co); siguen aplicando avisos de incidentes exigidos por ley."
+    "en": "RELYDO uses account authentication, role-based access, server-side checks, and transaction controls to reduce unauthorized access and conflicting operations. You should protect your credentials and device. Internet services, uploaded files, and third-party systems are not risk-free. Notify support of suspected compromise security@relydo.co; legally required incident notices remain applicable.",
+    "es": "RELYDO usa autenticación, acceso por roles, comprobaciones del servidor y controles de transacciones para reducir accesos indebidos y operaciones contradictorias. Proteja credenciales y dispositivo. Internet, archivos y sistemas externos no están libres de riesgo. Informe de accesos sospechosos security@relydo.co; siguen aplicando avisos de incidentes exigidos por ley."
   },
   {
     "number": 35,
@@ -320,8 +320,8 @@
       "en": "Delete Account procedure",
       "es": "Procedimiento de Eliminar cuenta"
     },
-    "en": "Use Delete Account in the available account settings or request assistance through support (privacy@relydo.co). The workflow checks active jobs and unresolved obligations and can refuse deletion until they are addressed. When deletion proceeds, account access and ordinary profile data are removed or anonymized according to the supported process; retained case and payment information is handled separately.",
-    "es": "Use Eliminar cuenta en ajustes disponibles o solicite ayuda a soporte (privacy@relydo.co). El flujo comprueba trabajos activos y obligaciones pendientes y puede rechazar el borrado hasta resolverlos. Cuando procede, se retira acceso y se borran o anonimizan datos ordinarios según el proceso soportado; casos y pagos retenidos se tratan separadamente."
+    "en": "Use Delete Account in the available account settings or request assistance through support privacy@relydo.co. The workflow checks active jobs and unresolved obligations and can refuse deletion until they are addressed. When deletion proceeds, account access and ordinary profile data are removed or anonymized according to the supported process; retained case and payment information is handled separately.",
+    "es": "Use Eliminar cuenta en ajustes disponibles o solicite ayuda a soporte privacy@relydo.co. El flujo comprueba trabajos activos y obligaciones pendientes y puede rechazar el borrado hasta resolverlos. Cuando procede, se retira acceso y se borran o anonimizan datos ordinarios según el proceso soportado; casos y pagos retenidos se tratan separadamente."
   },
   {
     "number": 37,
@@ -338,8 +338,8 @@
       "en": "File cleanup and external copies",
       "es": "Limpieza de archivos y copias externas"
     },
-    "en": "Eligible uploaded files may require separate cleanup after account deletion. Failed cleanup can leave a file available until a safe retry succeeds; shared files, uncertain ownership, and case evidence can be retained for review. Other users’ copies, processor records, and backups are not necessarily erased at the same time. Ask support (privacy@relydo.co) about a file you believe remains improperly accessible.",
-    "es": "Los archivos elegibles pueden requerir limpieza separada tras borrar cuenta. Un fallo puede dejar archivos disponibles hasta reintento seguro; archivos compartidos, propiedad incierta y evidencia pueden conservarse para revisión. Copias de usuarios, procesadores y respaldos no se borran necesariamente a la vez. Consulte soporte (privacy@relydo.co) sobre archivos que considere indebidamente accesibles."
+    "en": "Eligible uploaded files may require separate cleanup after account deletion. Failed cleanup can leave a file available until a safe retry succeeds; shared files, uncertain ownership, and case evidence can be retained for review. Other users’ copies, processor records, and backups are not necessarily erased at the same time. Ask support privacy@relydo.co about a file you believe remains improperly accessible.",
+    "es": "Los archivos elegibles pueden requerir limpieza separada tras borrar cuenta. Un fallo puede dejar archivos disponibles hasta reintento seguro; archivos compartidos, propiedad incierta y evidencia pueden conservarse para revisión. Copias de usuarios, procesadores y respaldos no se borran necesariamente a la vez. Consulte soporte privacy@relydo.co sobre archivos que considere indebidamente accesibles."
   },
   {
     "number": 39,
@@ -347,8 +347,8 @@
       "en": "Access, correction, and copies",
       "es": "Acceso, corrección y copias"
     },
-    "en": "You can review and update supported profile fields in the account. Depending on applicable law, you may request access to personal information, correction of inaccurate data, or a portable copy of eligible data through support or the privacy contact (privacy@relydo.co). Transaction records may require an annotation instead of erasing accurate historical facts.",
-    "es": "Puede revisar y actualizar campos disponibles del perfil. Según la ley, puede solicitar acceso, corrección o copia portátil de datos elegibles mediante soporte o contacto de privacidad (privacy@relydo.co). Los registros de transacciones pueden requerir una anotación en vez de borrar hechos históricos exactos."
+    "en": "You can review and update supported profile fields in the account. Depending on applicable law, you may request access to personal information, correction of inaccurate data, or a portable copy of eligible data through support or the privacy contact privacy@relydo.co. Transaction records may require an annotation instead of erasing accurate historical facts.",
+    "es": "Puede revisar y actualizar campos disponibles del perfil. Según la ley, puede solicitar acceso, corrección o copia portátil de datos elegibles mediante soporte o contacto de privacidad privacy@relydo.co. Los registros de transacciones pueden requerir una anotación en vez de borrar hechos históricos exactos."
   },
   {
     "number": 40,
@@ -374,8 +374,8 @@
       "en": "Requests, verification, and appeals",
       "es": "Solicitudes, verificación y apelaciones"
     },
-    "en": "Submit a privacy request through Help and Support or the privacy contact (privacy@relydo.co), identifying the requested action. We may verify identity proportionately and request authority for an authorized agent, without asking for your password. Applicable statutory response periods and exceptions govern. If denied, you may seek review and complain to the competent authority where the law provides that right.",
-    "es": "Presente solicitudes mediante Ayuda y soporte o contacto de privacidad (privacy@relydo.co), indicando la acción. Podemos verificar identidad proporcionalmente y autorización de representantes sin pedir contraseña. Rigen plazos y excepciones legales aplicables. Ante rechazo, puede pedir revisión y reclamar a la autoridad competente cuando la ley lo permita."
+    "en": "Submit a privacy request through Help and Support or the privacy contact privacy@relydo.co, identifying the requested action. We may verify identity proportionately and request authority for an authorized agent, without asking for your password. Applicable statutory response periods and exceptions govern. If denied, you may seek review and complain to the competent authority where the law provides that right.",
+    "es": "Presente solicitudes mediante Ayuda y soporte o contacto de privacidad privacy@relydo.co, indicando la acción. Podemos verificar identidad proporcionalmente y autorización de representantes sin pedir contraseña. Rigen plazos y excepciones legales aplicables. Ante rechazo, puede pedir revisión y reclamar a la autoridad competente cuando la ley lo permita."
   },
   {
     "number": 43,
@@ -383,8 +383,8 @@
       "en": "Children and sensitive information",
       "es": "Menores e información sensible"
     },
-    "en": "RELYDO is intended for adults at least 18. Do not create accounts for children or knowingly upload unnecessary information about them. Contact support (privacy@relydo.co) if a minor’s account or data is identified. Payment, credential, precise location, and verification information can require heightened protection; submit it only through the relevant authorized workflow, not public profile fields.",
-    "es": "RELYDO está destinado a adultos de al menos 18 años. No cree cuentas de menores ni cargue deliberadamente datos innecesarios de ellos. Informe a soporte (privacy@relydo.co) de cuentas o datos de menores. Pagos, credenciales, ubicación precisa y verificación pueden requerir mayor protección; apórtelos solo en procesos autorizados, no campos públicos."
+    "en": "RELYDO is intended for adults at least 18. Do not create accounts for children or knowingly upload unnecessary information about them. Contact support privacy@relydo.co if a minor’s account or data is identified. Payment, credential, precise location, and verification information can require heightened protection; submit it only through the relevant authorized workflow, not public profile fields.",
+    "es": "RELYDO está destinado a adultos de al menos 18 años. No cree cuentas de menores ni cargue deliberadamente datos innecesarios de ellos. Informe a soporte privacy@relydo.co de cuentas o datos de menores. Pagos, credenciales, ubicación precisa y verificación pueden requerir mayor protección; apórtelos solo en procesos autorizados, no campos públicos."
   },
   {
     "number": 44,
