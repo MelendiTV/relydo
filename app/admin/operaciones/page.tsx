@@ -1621,6 +1621,50 @@ export default function AdminPage() {
     );
   }
 
+  function fechaDocumentoValidaYVigente(
+    fecha: string | null | undefined
+  ) {
+    const valor =
+      String(fecha || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      return false;
+    }
+
+    const [anio, mes, dia] =
+      valor.split("-").map(Number);
+
+    const fechaObj = new Date(0);
+    fechaObj.setFullYear(
+      anio,
+      mes - 1,
+      dia
+    );
+    fechaObj.setHours(
+      23,
+      59,
+      59,
+      999
+    );
+
+    if (
+      anio < 1 ||
+      Number.isNaN(
+        fechaObj.getTime()
+      ) ||
+      fechaObj.getFullYear() !== anio ||
+      fechaObj.getMonth() !== mes - 1 ||
+      fechaObj.getDate() !== dia
+    ) {
+      return false;
+    }
+
+    return (
+      fechaObj.getTime() >=
+      Date.now()
+    );
+  }
+
   function vencimientoDocumentoBase(
     doc: DocumentRow,
     provider?: Provider | null
@@ -1661,6 +1705,15 @@ export default function AdminPage() {
         doc,
         provider
       );
+
+    if (
+      doc.document_type === "license" ||
+      doc.document_type === "insurance"
+    ) {
+      return fechaDocumentoValidaYVigente(
+        vencimiento
+      );
+    }
 
     return !fechaDocumentoVencida(
       vencimiento
@@ -1802,6 +1855,59 @@ export default function AdminPage() {
 
     let motivo = "";
 
+    let fechaVencimiento: string | null = null;
+
+    if (
+      decision === "approved" &&
+      (
+        doc.document_type === "license" ||
+        doc.document_type === "insurance"
+      )
+    ) {
+      const respuestaFecha = window.prompt(
+        doc.document_type === "license"
+          ? "Escribe la fecha de vencimiento que aparece en la licencia (YYYY-MM-DD):"
+          : "Escribe la fecha de vencimiento que aparece en el comprobante de seguro (YYYY-MM-DD):",
+        doc.expiration_date || ""
+      );
+
+      if (respuestaFecha === null) {
+        return;
+      }
+
+      fechaVencimiento = respuestaFecha.trim();
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaVencimiento)) {
+        setError(
+          "Debes indicar una fecha de vencimiento válida en formato YYYY-MM-DD."
+        );
+        return;
+      }
+
+      const [anio, mes, dia] = fechaVencimiento.split("-").map(Number);
+      const fechaObj = new Date(0);
+      fechaObj.setFullYear(anio, mes - 1, dia);
+      fechaObj.setHours(23, 59, 59, 999);
+
+      if (
+        anio < 1 ||
+        Number.isNaN(fechaObj.getTime()) ||
+        fechaObj.getFullYear() !== anio ||
+        fechaObj.getMonth() !== mes - 1 ||
+        fechaObj.getDate() !== dia
+      ) {
+        setError("La fecha de vencimiento indicada no es válida.");
+        return;
+      }
+
+      if (fechaObj.getTime() < Date.now()) {
+        setError(
+          "El documento no puede aprobarse con una fecha de vencimiento vencida."
+        );
+        return;
+      }
+    }
+
     if (decision === "rejected") {
       const respuesta =
         window.prompt(
@@ -1876,6 +1982,9 @@ export default function AdminPage() {
             "provider_documents"
           )
           .update({
+            ...(fechaVencimiento !== null
+              ? { expiration_date: fechaVencimiento }
+              : {}),
             status:
               decision,
             rejection_reason:

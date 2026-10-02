@@ -69,6 +69,35 @@ function fechaDocumentoVencida(
   return fechaObj.getTime() < Date.now();
 }
 
+function fechaDocumentoValidaYVigente(
+  fecha: string | null | undefined
+) {
+  if (
+    typeof fecha !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(fecha)
+  ) {
+    return false;
+  }
+
+  const [anio, mes, dia] =
+    fecha.split("-").map(Number);
+  const fechaObj = new Date(0);
+
+  fechaObj.setFullYear(anio, mes - 1, dia);
+  fechaObj.setHours(23, 59, 59, 999);
+
+  if (
+    Number.isNaN(fechaObj.getTime()) ||
+    fechaObj.getFullYear() !== anio ||
+    fechaObj.getMonth() !== mes - 1 ||
+    fechaObj.getDate() !== dia
+  ) {
+    return false;
+  }
+
+  return fechaObj.getTime() >= Date.now();
+}
+
 function vencimientoDocumentoBase(
   doc: ProviderDocumentRow,
   provider: ProviderRow
@@ -98,6 +127,13 @@ function documentoAprobadoYVigente(
 
   const vencimiento =
     vencimientoDocumentoBase(doc, provider);
+
+  if (
+    doc.document_type === "license" ||
+    doc.document_type === "insurance"
+  ) {
+    return fechaDocumentoValidaYVigente(vencimiento);
+  }
 
   return !fechaDocumentoVencida(vencimiento);
 }
@@ -299,7 +335,7 @@ export async function POST(request: NextRequest) {
         supabaseAdmin
           .from("provider_document_requests")
           .select("id, status")
-          .eq("user_id", providerId),
+          .eq("provider_id", providerId),
       ]);
 
       if (documentosResult.error) {
