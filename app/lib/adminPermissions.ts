@@ -233,3 +233,12 @@ export function adminRoleLabel(
 
   return labels[role][language];
 }
+
+// Match the private SELECT guard; public-only roles keep directory names/counts.
+export function adminProviderProfileSource(role: AdminRole) {
+  return hasAdminPermission(role, "providers") ||
+    hasAdminPermission(role, "claims") ||
+    hasAdminPermission(role, "orders")
+    ? "provider_profiles"
+    : "public_provider_profiles";
+}

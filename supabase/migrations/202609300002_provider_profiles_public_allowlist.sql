@@ -1,9 +1,58 @@
--- Phase 1: create the safe public provider directory while preserving
--- temporary compatibility for older mobile clients that still read
--- public.provider_profiles directly.
+-- Public provider allowlist and immediate private-read lockdown.
+-- Legacy clients must use public_provider_profiles for public directory reads.
 BEGIN;
 
+
 ALTER TABLE public.provider_profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS
+  "Public can view verified providers"
+ON public.provider_profiles;
+
+DROP POLICY IF EXISTS
+  provider_profiles_private_read_guard
+ON public.provider_profiles;
+
+CREATE POLICY provider_profiles_private_read_guard
+ON public.provider_profiles
+AS RESTRICTIVE
+FOR SELECT
+TO PUBLIC
+USING (
+  user_id = auth.uid()
+  OR public.has_admin_permission('providers')
+  OR public.has_admin_permission('claims')
+  OR public.has_admin_permission('orders')
+);
+
+REVOKE SELECT
+ON public.provider_profiles
+FROM PUBLIC, anon;
+
+DO $$
+DECLARE
+  c record;
+BEGIN
+  FOR c IN
+    SELECT attname
+    FROM pg_attribute
+    WHERE
+      attrelid = 'public.provider_profiles'::regclass
+      AND attnum > 0
+      AND NOT attisdropped
+  LOOP
+    EXECUTE format(
+      'REVOKE SELECT (%I) ON public.provider_profiles FROM PUBLIC, anon',
+      c.attname
+    );
+  END LOOP;
+END
+$$;
+
+GRANT SELECT
+ON public.provider_profiles
+TO authenticated, service_role;
+
 
 CREATE OR REPLACE VIEW public.public_provider_profiles
 WITH (security_barrier=true) AS

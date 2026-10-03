@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { confirmScreeningPayment, invalidateScreeningPayment } from "../../../lib/providerScreening";
 import { confirmChangeOrderPayment } from "../../../lib/changeOrderPayments";
 
 export const runtime = "nodejs";
@@ -41,6 +42,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (event.type === "charge.refunded" || event.type === "charge.dispute.created" || event.type === "charge.dispute.updated" || event.type === "charge.dispute.closed") {
+    try {
+      const chargeId = event.type === "charge.refunded" ? (event.data.object as Stripe.Charge).id :
+        (() => { const charge = (event.data.object as Stripe.Dispute).charge; return typeof charge === "string" ? charge : charge.id; })();
+      await invalidateScreeningPayment(stripe, chargeId, event.type === "charge.refunded" ? "refunded" : "disputed");
+      return NextResponse.json({ received: true });
+    } catch {
+      return NextResponse.json({ error: "Screening payment invalidation requires retry" }, { status: 500 });
+    }
+  }
+
   // Mobile PaymentSheet does not emit checkout.session.completed.
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object as Stripe.PaymentIntent;
@@ -76,6 +88,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (session.metadata?.payment_type === "change_order") {
+    // Existing job payments retain their own confirmation path.
     try {
       const result = await confirmChangeOrderPayment({ sessionId: session.id });
       return NextResponse.json({ received: true, processed: true, ...result });
@@ -86,6 +99,14 @@ export async function POST(request: NextRequest) {
   }
 
   const endpoint = "/api/checkout/verify-payment";
+  if (session.metadata?.payment_type === "provider_verification") {
+    try {
+      await confirmScreeningPayment(stripe, session.id);
+      return NextResponse.json({ received: true, processed: true });
+    } catch {
+      return NextResponse.json({ error: "Verification payment requires reconciliation" }, { status: 500 });
+    }
+  }
 
   const configuredOrigin =
     process.env.RELYDO_BASE_URL ||

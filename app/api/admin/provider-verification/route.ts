@@ -6,6 +6,7 @@ import {
   isAdminRole,
 } from "../../../lib/adminPermissions";
 import { getProviderRequirements } from "../../../lib/providerRequirements";
+import { screeningApprovalReady } from "../../../lib/providerScreening";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
 
 export const dynamic = "force-dynamic";
@@ -296,6 +297,9 @@ export async function POST(request: NextRequest) {
       que usa Admin antes de permitir "verified".
     */
     if (status === "verified") {
+      if (!(await screeningApprovalReady(providerId))) {
+        return NextResponse.json({ error: "Pago confirmado, antecedentes clear e identidad verificada requeridos. consider requiere revisión humana; pending bloquea." }, { status: 409 });
+      }
       const requisitos =
         getProviderRequirements({
           trade: provider.trade,

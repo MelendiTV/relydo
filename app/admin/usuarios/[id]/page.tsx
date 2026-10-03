@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
+import ProviderScreening from "@/app/components/ProviderScreening";
 import {
   useParams,
   useRouter,
@@ -784,6 +785,7 @@ AdminUsuarioDetallePage() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 md:py-10">
+      <ProviderScreening providerId={userId} />
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <button

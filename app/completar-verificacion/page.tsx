@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ProviderScreening from "@/app/components/ProviderScreening";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -1008,6 +1009,7 @@ export default function CompletarVerificacion() {
   ) {
     return (
       <main className="min-h-screen bg-slate-100 px-4 py-10">
+        <ProviderScreening />
 
         <div className="mx-auto max-w-2xl">
 
@@ -1155,6 +1157,7 @@ export default function CompletarVerificacion() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10">
+      <ProviderScreening />
 
       <div className="mx-auto max-w-3xl">
 

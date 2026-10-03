@@ -19,6 +19,7 @@ import {
 import {
   AdminRole,
   adminRoleLabel,
+  adminProviderProfileSource,
   hasAdminPermission,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
@@ -296,7 +297,7 @@ export default function AdminHomePage() {
 
       setVerificandoAdmin(false);
 
-      await cargarResumen();
+      await cargarResumen(adminProfile.admin_role);
     } catch (err) {
       console.error(
         "Error verificando Admin:",
@@ -314,7 +315,7 @@ export default function AdminHomePage() {
     }
   }
 
-  async function cargarResumen() {
+  async function cargarResumen(role: AdminRole) {
     setLoading(true);
     setError("");
 
@@ -336,7 +337,7 @@ export default function AdminHomePage() {
 
         supabase
           .from(
-            "provider_profiles"
+            adminProviderProfileSource(role)
           )
           .select(`
             user_id,
@@ -616,7 +617,7 @@ export default function AdminHomePage() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={cargarResumen}
+                    onClick={() => cargarResumen(adminRole)}
                     disabled={loading}
                     className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15 disabled:opacity-50"
                   >

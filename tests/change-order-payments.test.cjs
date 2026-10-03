@@ -114,6 +114,7 @@ function fixture({ env = {}, fetch: fetchMock = () => { throw Error('Network for
     const testModule={exports:{}}; cache.set(filename,testModule.exports);
     const source=ts.transpileModule(fs.readFileSync(filename,'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
     const mockedRequire = name => {
+      if(name==='server-only')return {}; // Screening helper is imported by the shared Stripe webhook.
       if(name==='stripe')return function Stripe(){return stripe;};
       if(name==='@supabase/supabase-js')return {createClient:()=>db};
       if(name==='next/server')return {NextResponse:{json:(body,options)=>Response.json(body,options)}};

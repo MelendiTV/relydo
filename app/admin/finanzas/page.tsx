@@ -5,6 +5,7 @@ import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
 
 import {
+  adminProviderProfileSource,
   hasAdminPermission,
   isAdminRole,
 } from "@/app/lib/adminPermissions";
@@ -268,7 +269,7 @@ export default function AdminFinanzasPage() {
           .limit(5000),
 
         supabase
-          .from("provider_profiles")
+          .from(adminProviderProfileSource(adminProfile.admin_role))
           .select(`
             user_id,
             business_name

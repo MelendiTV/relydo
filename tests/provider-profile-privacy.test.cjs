@@ -20,7 +20,7 @@ async function role(pg,r,n){
   await pg.exec(`SET ROLE ${r}`);
 }
 
-test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',async t=>{
+test('real PostgreSQL ACL/RLS: immediate public allowlist and private lockdown',async t=>{
   const pg=new PGlite();
 
   try{
@@ -90,112 +90,18 @@ test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',asyn
       VALUES('${id(9)}','${id(1)}','${id(2)}',5);
     `);
 
-    /*
-     * PHASE 1
-     * Safe allowlisted view becomes available, but legacy direct reads
-     * remain temporarily compatible for older Cliente installations.
-     */
+    // Exercise revocation of inherited PUBLIC table and column grants as well.
+    await pg.exec('GRANT SELECT ON provider_profiles TO PUBLIC');
+    await pg.exec('GRANT SELECT (license_number) ON provider_profiles TO PUBLIC');
     await pg.exec(
       read('supabase/migrations/202609300002_provider_profiles_public_allowlist.sql')
     );
 
-    await t.test(
-      'phase 1 exposes safe public view while preserving temporary legacy reads',
-      async()=>{
-        await role(pg,'anon');
-
-        const publicRows=(
-          await pg.query('SELECT * FROM public_provider_profiles')
-        ).rows;
-
-        assert.equal(publicRows.length,1);
-
-        assert.deepEqual(
-          Object.keys(publicRows[0]).sort(),
-          [...publicColumns].sort()
-        );
-
-        assert.equal(publicRows[0].zip_code,'89101');
-        assert.equal(publicRows[0].has_license,true);
-
-        for(const c of [
-          'address',
-          'latitude',
-          'longitude',
-          'stripe_account_id',
-          'stripe_payouts_enabled',
-          'license_number',
-          'registration_source',
-          'insurance_company'
-        ]){
-          await assert.rejects(
-            pg.query(`SELECT ${c} FROM public_provider_profiles`),
-            /does not exist/
-          );
-        }
-
-        await assert.rejects(
-          pg.query("UPDATE public_provider_profiles SET bio='bad'"),
-          /permission denied/
-        );
-
-        /*
-         * Temporary backwards compatibility:
-         * verified legacy rows remain readable until Phase 2.
-         */
-        const anonLegacy=(
-          await pg.query(
-            'SELECT user_id,address,license_number FROM provider_profiles'
-          )
-        ).rows;
-
-        assert.equal(anonLegacy.length,1);
-        assert.equal(anonLegacy[0].user_id,id(2));
-        assert.equal(anonLegacy[0].address,'Private address');
-        assert.equal(anonLegacy[0].license_number,'LICENSE_SECRET');
-
-        await role(pg,'authenticated',1);
-
-        const customerLegacy=(
-          await pg.query(
-            'SELECT user_id,address FROM provider_profiles'
-          )
-        ).rows;
-
-        assert.equal(customerLegacy.length,1);
-        assert.equal(customerLegacy[0].user_id,id(2));
-
-        await role(pg,'authenticated',3);
-
-        const providerLegacy=(
-          await pg.query('SELECT * FROM provider_profiles')
-        ).rows;
-
-        assert.equal(providerLegacy.length,2);
-
-        await role(pg,'authenticated',5);
-
-        const financeLegacy=(
-          await pg.query('SELECT * FROM provider_profiles')
-        ).rows;
-
-        assert.equal(financeLegacy.length,1);
-        assert.equal(financeLegacy[0].user_id,id(2));
-      }
-    );
-
-    /*
-     * PHASE 2
-     * Deferred cutover removes legacy public access.
-     */
-    await role(pg,'postgres');
-
-    await pg.exec(
-      read('supabase/deferred/provider_profiles_private_read_cutover.sql')
-    );
+    await pg.exec(read('supabase/deferred/provider_profiles_private_read_cutover.sql'));
+    await pg.exec(read('supabase/migrations/202609300002_provider_profiles_public_allowlist.sql'));
 
     await t.test(
-      'phase 2 anon select star exposes exactly allowlisted columns and active verified rows',
+      'anon select star exposes exactly allowlisted columns and active verified rows',
       async()=>{
         await role(pg,'anon');
 
@@ -247,7 +153,7 @@ test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',asyn
     );
 
     await t.test(
-      'phase 2 authenticated customer cannot read another Pro through direct API or joins',
+      'authenticated customer cannot read another Pro through direct API or joins',
       async()=>{
         await role(pg,'authenticated',1);
 
@@ -283,7 +189,7 @@ test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',asyn
     );
 
     await t.test(
-      'phase 2 own Pro has all private columns even when not publicly verified',
+      'own Pro has all private columns even when not publicly verified',
       async()=>{
         await role(pg,'authenticated',3);
 
@@ -302,7 +208,7 @@ test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',asyn
     );
 
     await t.test(
-      'phase 2 providers claims orders admins keep full access while finance alone cannot',
+      'providers claims orders admins keep full access while finance alone cannot',
       async()=>{
         for(const n of [4,6,7]){
           await role(pg,'authenticated',n);
@@ -324,7 +230,20 @@ test('real PostgreSQL ACL/RLS: phased public allowlist and private cutover',asyn
           0
         );
 
+        assert.deepEqual(
+          (await pg.query('SELECT user_id,business_name FROM public_provider_profiles')).rows,
+          [{user_id:id(2),business_name:'Public Pro'}]
+        );
+        assert.equal(
+          (await pg.query('SELECT count(*)::int AS total FROM public_provider_profiles')).rows[0].total,
+          1
+        );
+
         await role(pg,'service_role');
+        assert.equal(
+          (await pg.query('SELECT relydo_provider_payments_ready($1) AS ready',[id(2)])).rows[0].ready,
+          false
+        );
 
         assert.equal(
           (await pg.query('SELECT * FROM provider_profiles')).rows.length,
@@ -517,3 +436,23 @@ test(
     }
   }
 );
+ test('Admin and Finance choose public directory only for roles without private permissions',async()=>{
+  const ts=await import('typescript');
+  const vm=await import('node:vm');
+  const compiledModule={exports:{}};
+  vm.runInNewContext(ts.transpileModule(read('app/lib/adminPermissions.ts'),{
+    compilerOptions:{module:ts.ModuleKind.CommonJS}
+  }).outputText,{exports:compiledModule.exports,module:compiledModule});
+  const {adminProviderProfileSource,ADMIN_ROLES}=compiledModule.exports;
+  for(const role of ADMIN_ROLES){
+    assert.equal(adminProviderProfileSource(role),
+      role==='finance_manager'?'public_provider_profiles':'provider_profiles',role);
+  }
+  const home=read('app/admin/page.tsx');
+  assert.match(home,/await cargarResumen\(adminProfile.admin_role\)/);
+  assert.match(home,/onClick=\{\(\) => cargarResumen\(adminRole\)\}/);
+  assert.match(home,/\.from\(\s*adminProviderProfileSource\(role\)\s*\)/);
+  const finance=read('app/admin/finanzas/page.tsx');
+  assert.match(finance,/\.from\(adminProviderProfileSource\(adminProfile.admin_role\)\)/);
+  assert.ok(!/\.from\(\s*"provider_profiles"\s*\)/.test(home+finance));
+});
