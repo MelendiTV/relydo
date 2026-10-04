@@ -848,6 +848,10 @@ function LoginProfesionalContenido() {
       if (
         profile.role === "provider"
       ) {
+        // Pending professionals also need the JWT session registered before
+        // document INSERTs and requested-document submissions can pass the guard.
+        await activarSesionProfesionalActual();
+
         const {
           data: providerProfile,
           error: providerError,
@@ -1004,17 +1008,6 @@ function LoginProfesionalContenido() {
           user.id,
           providerProfile.trade
         );
-
-        /*
-          SESIÓN PROFESIONAL ÚNICA
-
-          Este dispositivo pasa a ser la única
-          sesión PRO autorizada para esta cuenta.
-          Cualquier sesión profesional anterior
-          dejará de coincidir con el registro activo.
-        */
-
-        await activarSesionProfesionalActual();
 
         /*
           PANEL PROFESIONAL
