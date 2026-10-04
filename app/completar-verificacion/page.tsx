@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ProviderScreening from "@/app/components/ProviderScreening";
 import { supabase } from "@/app/lib/supabaseBrowser";
+import { hasProviderDocumentSession } from "@/app/lib/providerDocumentSession";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
@@ -442,6 +443,17 @@ export default function CompletarVerificacion() {
       return;
     }
 
+    try {
+      if (!(await hasProviderDocumentSession(supabase))) {
+        router.replace("/login-profesional?redirect=%2Fcompletar-verificacion");
+        return;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : text.usuarioNoAutenticado);
+      setLoading(false);
+      return;
+    }
+
     const [providerResult, documentsResult] = await Promise.all([
       supabase
         .from("provider_profiles")
@@ -593,6 +605,13 @@ export default function CompletarVerificacion() {
       file,
       documentType
     );
+
+    // Recheck before transferring bytes, including when another login has
+    // replaced this session since the form was opened. DB remains authoritative.
+    if (!(await hasProviderDocumentSession(supabase))) {
+      router.replace("/login-profesional?redirect=%2Fcompletar-verificacion");
+      throw new Error(text.usuarioNoAutenticado);
+    }
 
     const extension =
       file.name
