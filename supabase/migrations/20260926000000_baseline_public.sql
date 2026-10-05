@@ -1,0 +1,4 @@
+﻿-- RELYDO historical baseline marker.
+-- Version 20260926000000 already exists in the remote migration history.
+-- Intentionally contains no executable SQL.
+-- Added locally only to keep the repository migration history aligned.
