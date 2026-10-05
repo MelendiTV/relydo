@@ -16,8 +16,36 @@ import {
   isAdminRole,
 } from "@/app/lib/adminPermissions";
 
-type AnyRow =
-  Record<string, any>;
+type AnyRow = {
+  id: string;
+  created_at: string;
+  customer_id?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
+  reviewee_id?: string | null;
+  document_type?: string | null;
+  type?: string | null;
+  name?: string | null;
+  status?: string | null;
+  verification_status?: string | null;
+  title?: string | null;
+  message?: string | null;
+  paid_at?: string | null;
+  reason?: string | null;
+  description?: string | null;
+  details?: string | null;
+  relacion?: string | null;
+  comment?: string | null;
+  job_id?: string | null;
+  body?: string | null;
+  text?: string | null;
+  price?: string | number | null;
+  job_amount?: string | number | null;
+  provider_net_amount?: string | number | null;
+  provider_commission_amount?: string | number | null;
+  rating?: string | number | null;
+};
 
 type Profile = {
   id: string;
@@ -60,7 +88,7 @@ type ProviderProfile = {
 };
 
 function fecha(
-  value: any
+  value: string | number | Date | null | undefined
 ) {
   if (!value) return "—";
 
@@ -78,7 +106,7 @@ function fecha(
 }
 
 function dinero(
-  value: any
+  value: unknown
 ) {
   const n = Number(value);
 
@@ -96,7 +124,7 @@ function dinero(
 }
 
 function textoEstado(
-  value: any
+  value: unknown
 ) {
   if (value === null || value === undefined) {
     return "—";

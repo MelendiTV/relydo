@@ -400,65 +400,60 @@ export default function CompletarVerificacion() {
     useState(false);
 
   useEffect(() => {
-    cargarUsuario();
-  }, []);
+    async function cargarUsuario() {
+      // La carga inicial ya parte de estos valores en useState.
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-  async function cargarUsuario() {
-    setLoading(true);
-    setError("");
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      router.replace("/login-profesional");
-      return;
-    }
-
-    const {
-      data: baseProfile,
-      error: baseProfileError,
-    } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (
-      baseProfileError ||
-      !baseProfile
-    ) {
-      setError(
-        text.cuentaNoEncontrada
-      );
-
-      setLoading(false);
-      return;
-    }
-
-    if (baseProfile.role !== "provider") {
-      router.replace("/");
-      return;
-    }
-
-    try {
-      if (!(await hasProviderDocumentSession(supabase))) {
-        router.replace("/login-profesional?redirect=%2Fcompletar-verificacion");
+      if (userError || !user) {
+        router.replace("/login-profesional");
         return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : text.usuarioNoAutenticado);
-      setLoading(false);
-      return;
-    }
 
-    const [providerResult, documentsResult] = await Promise.all([
-      supabase
-        .from("provider_profiles")
-        .select(
-          `
+      const {
+        data: baseProfile,
+        error: baseProfileError,
+      } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (
+        baseProfileError ||
+        !baseProfile
+      ) {
+        setError(
+          text.cuentaNoEncontrada
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      if (baseProfile.role !== "provider") {
+        router.replace("/");
+        return;
+      }
+
+      try {
+        if (!(await hasProviderDocumentSession(supabase))) {
+          router.replace("/login-profesional?redirect=%2Fcompletar-verificacion");
+          return;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : text.usuarioNoAutenticado);
+        setLoading(false);
+        return;
+      }
+
+      const [providerResult, documentsResult] = await Promise.all([
+        supabase
+          .from("provider_profiles")
+          .select(
+            `
           user_id,
           business_name,
           license_required,
@@ -470,109 +465,112 @@ export default function CompletarVerificacion() {
           verified,
           active
         `
-        )
-        .eq("user_id", user.id)
-        .single(),
-      supabase
-        .from("provider_documents")
-        .select(
-          `
+          )
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("provider_documents")
+          .select(
+            `
           id,
           document_type,
           status
         `
-        )
-        .eq("user_id", user.id),
-    ]);
+          )
+          .eq("user_id", user.id),
+      ]);
 
-    const {
-      data: providerProfile,
-      error: providerError,
-    } = providerResult;
+      const {
+        data: providerProfile,
+        error: providerError,
+      } = providerResult;
 
-    const {
-      data: providerDocuments,
-      error: documentsError,
-    } = documentsResult;
+      const {
+        data: providerDocuments,
+        error: documentsError,
+      } = documentsResult;
 
-    if (
-      providerError ||
-      !providerProfile
-    ) {
-      setError(
-        text.perfilIncompleto
-      );
+      if (
+        providerError ||
+        !providerProfile
+      ) {
+        setError(
+          text.perfilIncompleto
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      /*
+        IMPORTANTE:
+
+        provider_documents usa user_id.
+        No usamos provider_id porque esa columna
+        no existe en esta tabla.
+      */
+
+
+
+      if (documentsError) {
+        console.error(
+          "Error cargando documentos:",
+          documentsError
+        );
+
+        setError(
+          documentsError.message
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      const docs =
+        (providerDocuments || []) as ProviderDocument[];
+
+      setUserId(user.id);
+      setEmail(user.email || "");
+      setProfile(providerProfile);
+      setDocuments(docs);
+
+      /*
+        Si ya tiene documentos registrados
+        y todavía no está verificado/activo,
+        NO debe volver a ver el formulario.
+
+        Se muestra directamente la pantalla
+        "Documentación enviada / En revisión".
+      */
+
+      if (
+        docs.length > 0 &&
+        providerProfile.verified !== true
+      ) {
+        setDocumentacionEnviada(true);
+      }
+
+      /*
+        Si por alguna razón llega aquí
+        estando completamente aprobado,
+        lo mandamos al panel profesional.
+      */
+
+      if (
+        providerProfile.verified === true &&
+        providerProfile.active === true &&
+        providerProfile.verification_status ===
+          "verified"
+      ) {
+        router.replace("/panel-profesional");
+        return;
+      }
 
       setLoading(false);
-      return;
     }
 
-    /*
-      IMPORTANTE:
-
-      provider_documents usa user_id.
-      No usamos provider_id porque esa columna
-      no existe en esta tabla.
-    */
-
-
-
-    if (documentsError) {
-      console.error(
-        "Error cargando documentos:",
-        documentsError
-      );
-
-      setError(
-        documentsError.message
-      );
-
-      setLoading(false);
-      return;
-    }
-
-    const docs =
-      (providerDocuments || []) as ProviderDocument[];
-
-    setUserId(user.id);
-    setEmail(user.email || "");
-    setProfile(providerProfile);
-    setDocuments(docs);
-
-    /*
-      Si ya tiene documentos registrados
-      y todavía no está verificado/activo,
-      NO debe volver a ver el formulario.
-
-      Se muestra directamente la pantalla
-      "Documentación enviada / En revisión".
-    */
-
-    if (
-      docs.length > 0 &&
-      providerProfile.verified !== true
-    ) {
-      setDocumentacionEnviada(true);
-    }
-
-    /*
-      Si por alguna razón llega aquí
-      estando completamente aprobado,
-      lo mandamos al panel profesional.
-    */
-
-    if (
-      providerProfile.verified === true &&
-      providerProfile.active === true &&
-      providerProfile.verification_status ===
-        "verified"
-    ) {
-      router.replace("/panel-profesional");
-      return;
-    }
-
-    setLoading(false);
-  }
+    cargarUsuario();
+  }, []);
 
   function validarArchivo(
     file: File,

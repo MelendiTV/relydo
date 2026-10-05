@@ -611,9 +611,7 @@ export default function AdminPage() {
     relojReclamos,
     setRelojReclamos,
   ] =
-    useState(
-      Date.now()
-    );
+    useState(() => Date.now());
 
   const [
     buscandoOrden,
@@ -797,6 +795,84 @@ export default function AdminPage() {
   */
 
   useEffect(() => {
+    async function verificarAdmin() {
+      // La carga inicial ya parte de estos valores en useState.
+      const {
+        data: {
+          user,
+        },
+        error:
+          authError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        authError ||
+        !user
+      ) {
+        router.replace(
+          "/login-admin"
+        );
+
+        return;
+      }
+
+      const {
+        data: adminProfile,
+        error: adminProfileError,
+      } = await supabase
+        .from("profiles")
+        .select(`
+        id,
+        role,
+        email,
+        admin_role
+      `)
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        adminProfileError ||
+        !adminProfile ||
+        adminProfile.role !== "admin" ||
+        !isAdminRole(adminProfile.admin_role)
+      ) {
+        await supabase.auth.signOut();
+
+        router.replace(
+          "/login-admin"
+        );
+
+        return;
+      }
+
+      if (
+        !hasAdminPermission(
+          adminProfile.admin_role,
+          "providers"
+        )
+      ) {
+        router.replace("/admin");
+        return;
+      }
+
+      setAdminEmail(
+        user.email ||
+        adminProfile.email ||
+        "Administrador"
+      );
+
+      setAdminRole(
+        adminProfile.admin_role
+      );
+
+      setVerificandoAdmin(
+        false
+      );
+
+      await cargarDatos();
+    }
+
     verificarAdmin();
   }, []);
 
@@ -821,89 +897,6 @@ export default function AdminPage() {
   /*
     VERIFICAR ADMIN
   */
-
-  async function verificarAdmin() {
-    setVerificandoAdmin(
-      true
-    );
-
-    setError("");
-
-    const {
-      data: {
-        user,
-      },
-      error:
-        authError,
-    } =
-      await supabase.auth.getUser();
-
-    if (
-      authError ||
-      !user
-    ) {
-      router.replace(
-        "/login-admin"
-      );
-
-      return;
-    }
-
-    const {
-      data: adminProfile,
-      error: adminProfileError,
-    } = await supabase
-      .from("profiles")
-      .select(`
-        id,
-        role,
-        email,
-        admin_role
-      `)
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (
-      adminProfileError ||
-      !adminProfile ||
-      adminProfile.role !== "admin" ||
-      !isAdminRole(adminProfile.admin_role)
-    ) {
-      await supabase.auth.signOut();
-
-      router.replace(
-        "/login-admin"
-      );
-
-      return;
-    }
-
-    if (
-      !hasAdminPermission(
-        adminProfile.admin_role,
-        "providers"
-      )
-    ) {
-      router.replace("/admin");
-      return;
-    }
-
-    setAdminEmail(
-      user.email ||
-      adminProfile.email ||
-      "Administrador"
-    );
-
-    setAdminRole(
-      adminProfile.admin_role
-    );
-
-    setVerificandoAdmin(
-      false
-    );
-
-    await cargarDatos();
-  }
 
   /*
     CARGAR DATOS
@@ -1591,7 +1584,8 @@ export default function AdminPage() {
   }
 
   function fechaDocumentoVencida(
-    fecha: string | null | undefined
+    fecha: string | null | undefined,
+    ahora: number = relojReclamos
   ) {
     const valor =
       String(fecha || "").trim();
@@ -1617,12 +1611,13 @@ export default function AdminPage() {
 
     return (
       fechaObj.getTime() <
-      Date.now()
+      ahora
     );
   }
 
   function fechaDocumentoValidaYVigente(
-    fecha: string | null | undefined
+    fecha: string | null | undefined,
+    ahora: number = relojReclamos
   ) {
     const valor =
       String(fecha || "").trim();
@@ -1661,7 +1656,7 @@ export default function AdminPage() {
 
     return (
       fechaObj.getTime() >=
-      Date.now()
+      ahora
     );
   }
 
@@ -1692,7 +1687,8 @@ export default function AdminPage() {
 
   function documentoAprobadoYVigente(
     doc: DocumentRow,
-    provider?: Provider | null
+    provider?: Provider | null,
+    ahora: number = relojReclamos
   ) {
     if (
       doc.status !== "approved"
@@ -1711,19 +1707,22 @@ export default function AdminPage() {
       doc.document_type === "insurance"
     ) {
       return fechaDocumentoValidaYVigente(
-        vencimiento
+        vencimiento,
+        ahora
       );
     }
 
     return !fechaDocumentoVencida(
-      vencimiento
+      vencimiento,
+      ahora
     );
   }
 
   function documentoVigente(
     userId: string,
     tipo: string,
-    provider?: Provider | null
+    provider?: Provider | null,
+    ahora: number = relojReclamos
   ) {
     return (
       documentosOrdenados(userId).find(
@@ -1731,7 +1730,8 @@ export default function AdminPage() {
           doc.document_type === tipo &&
           documentoAprobadoYVigente(
             doc,
-            provider
+            provider,
+            ahora
           )
       ) || null
     );
@@ -1783,14 +1783,16 @@ export default function AdminPage() {
   }
 
   function documentosRequeridosFaltantes(
-    provider: Provider
+    provider: Provider,
+    ahora: number = relojReclamos
   ) {
     return tiposDocumentosRequeridos(provider).filter(
       (tipo) =>
         !documentoVigente(
           provider.user_id,
           tipo,
-          provider
+          provider,
+          ahora
         )
     );
   }
@@ -1844,7 +1846,8 @@ export default function AdminPage() {
 
   async function revisarDocumento(
     doc: DocumentRow,
-    decision: "approved" | "rejected"
+    decision: "approved" | "rejected",
+    obtenerHoraActual: () => number
   ) {
     if (!doc.id) {
       setError(
@@ -1900,7 +1903,7 @@ export default function AdminPage() {
         return;
       }
 
-      if (fechaObj.getTime() < Date.now()) {
+      if (fechaObj.getTime() < obtenerHoraActual()) {
         setError(
           "El documento no puede aprobarse con una fecha de vencimiento vencida."
         );
@@ -2777,7 +2780,8 @@ export default function AdminPage() {
     const requeridosFaltantes =
       provider
         ? documentosRequeridosFaltantes(
-            provider
+            provider,
+            Date.now()
           )
         : [];
 
@@ -5142,8 +5146,8 @@ export default function AdminPage() {
                                           </div>
                                           <div className="flex flex-wrap gap-2">
                                             <button type="button" onClick={() => abrirDocumento(doc.file_path)} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-extrabold text-white">Ver</button>
-                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "approved")} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✓ Aprobar</button>
-                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "rejected")} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✕ Rechazar</button>
+                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "approved", Date.now)} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✓ Aprobar</button>
+                                            <button type="button" disabled={procesando === doc.id} onClick={() => revisarDocumento(doc, "rejected", Date.now)} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">✕ Rechazar</button>
                                           </div>
                                         </div>
                                       </div>

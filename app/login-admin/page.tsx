@@ -61,13 +61,8 @@ export default function LoginAdminPage() {
     setError,
   ] = useState("");
 
-  useEffect(() => {
-    revisarSesionExistente();
-  }, []);
-
   async function revisarSesionExistente() {
-    setCheckingSession(true);
-
+    // La carga inicial ya parte de estos valores en useState.
     try {
       const {
         data: {
@@ -122,6 +117,10 @@ export default function LoginAdminPage() {
       setCheckingSession(false);
     }
   }
+
+  useEffect(() => {
+    revisarSesionExistente();
+  }, []);
 
   async function iniciarSesion(
     event:

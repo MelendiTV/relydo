@@ -74,6 +74,119 @@ export default function PagosProfesionalPage() {
     useState<Record<string, RequestSummary>>({});
 
   useEffect(() => {
+    async function cargarDatos() {
+      // La carga inicial ya parte de estos valores en useState.
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } =
+          await supabase.auth.getUser();
+
+        if (
+          userError ||
+          !user
+        ) {
+          router.replace(
+            "/login-profesional"
+          );
+
+          return;
+        }
+
+        const {
+          data: baseProfile,
+          error: baseProfileError,
+        } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (
+          baseProfileError ||
+          !baseProfile
+        ) {
+          throw new Error(
+            T("No encontramos tu cuenta en RELYDO.", "We could not find your RELYDO account.")
+          );
+        }
+
+        if (
+          baseProfile.role !==
+          "provider"
+        ) {
+          throw new Error(
+            T("Esta cuenta no pertenece a un profesional.", "This account does not belong to a professional.")
+          );
+        }
+
+        const {
+          data: providerProfile,
+          error: providerError,
+        } = await supabase
+          .from(
+            "provider_profiles"
+          )
+          .select(`
+          user_id,
+          business_name,
+          verification_status,
+          verified,
+          active,
+          stripe_account_id,
+          stripe_onboarding_complete,
+          stripe_charges_enabled,
+          stripe_payouts_enabled
+        `)
+          .eq(
+            "user_id",
+            user.id
+          )
+          .maybeSingle();
+
+        if (
+          providerError
+        ) {
+          throw new Error(
+            `${T("No pudimos cargar tu información de pagos", "We could not load your payment information")}: ${providerError.message}`
+          );
+        }
+
+        if (
+          !providerProfile
+        ) {
+          throw new Error(
+            T("No encontramos tu perfil profesional.", "We could not find your professional profile.")
+          );
+        }
+
+        const perfilInicial =
+          providerProfile as ProviderProfile;
+
+        setProfile(
+          perfilInicial
+        );
+
+        await cargarPagos(
+          perfilInicial.user_id
+        );
+      } catch (err) {
+        console.error(
+          "Error cargando pagos:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : T("Ocurrió un error inesperado.", "An unexpected error occurred.")
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
     cargarDatos();
   }, []);
 
@@ -159,121 +272,6 @@ export default function PagosProfesionalPage() {
 
     setPayments(visiblePayments);
     setRequestsMap(nextMap);
-  }
-
-  async function cargarDatos() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-      if (
-        userError ||
-        !user
-      ) {
-        router.replace(
-          "/login-profesional"
-        );
-
-        return;
-      }
-
-      const {
-        data: baseProfile,
-        error: baseProfileError,
-      } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (
-        baseProfileError ||
-        !baseProfile
-      ) {
-        throw new Error(
-          T("No encontramos tu cuenta en RELYDO.", "We could not find your RELYDO account.")
-        );
-      }
-
-      if (
-        baseProfile.role !==
-        "provider"
-      ) {
-        throw new Error(
-          T("Esta cuenta no pertenece a un profesional.", "This account does not belong to a professional.")
-        );
-      }
-
-      const {
-        data: providerProfile,
-        error: providerError,
-      } = await supabase
-        .from(
-          "provider_profiles"
-        )
-        .select(`
-          user_id,
-          business_name,
-          verification_status,
-          verified,
-          active,
-          stripe_account_id,
-          stripe_onboarding_complete,
-          stripe_charges_enabled,
-          stripe_payouts_enabled
-        `)
-        .eq(
-          "user_id",
-          user.id
-        )
-        .maybeSingle();
-
-      if (
-        providerError
-      ) {
-        throw new Error(
-          `${T("No pudimos cargar tu información de pagos", "We could not load your payment information")}: ${providerError.message}`
-        );
-      }
-
-      if (
-        !providerProfile
-      ) {
-        throw new Error(
-          T("No encontramos tu perfil profesional.", "We could not find your professional profile.")
-        );
-      }
-
-      const perfilInicial =
-        providerProfile as ProviderProfile;
-
-      setProfile(
-        perfilInicial
-      );
-
-      await cargarPagos(
-        perfilInicial.user_id
-      );
-    } catch (err) {
-      console.error(
-        "Error cargando pagos:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : T("Ocurrió un error inesperado.", "An unexpected error occurred.")
-      );
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function actualizarEstado() {

@@ -78,56 +78,6 @@ export default function TrabajosPage() {
     recargar manualmente la página.
   */
 
-  useEffect(() => {
-    let mounted = true;
-
-    comprobarUsuarioYCargarTrabajos();
-
-    const channel = supabase
-      .channel(
-        "trabajos-disponibles-service-requests"
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "service_requests",
-        },
-        async () => {
-          if (mounted) {
-            await comprobarUsuarioYCargarTrabajos(
-              false
-            );
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "offers",
-        },
-        async () => {
-          if (mounted) {
-            await comprobarUsuarioYCargarTrabajos(
-              false
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-
-      supabase.removeChannel(
-        channel
-      );
-    };
-  }, []);
-
   async function comprobarUsuarioYCargarTrabajos(
     mostrarCarga = true
   ) {
@@ -644,6 +594,56 @@ export default function TrabajosPage() {
       }
     }
   }
+
+  useEffect(() => {
+    let mounted = true;
+
+    comprobarUsuarioYCargarTrabajos();
+
+    const channel = supabase
+      .channel(
+        "trabajos-disponibles-service-requests"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_requests",
+        },
+        async () => {
+          if (mounted) {
+            await comprobarUsuarioYCargarTrabajos(
+              false
+            );
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "offers",
+        },
+        async () => {
+          if (mounted) {
+            await comprobarUsuarioYCargarTrabajos(
+              false
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+
+      supabase.removeChannel(
+        channel
+      );
+    };
+  }, []);
 
   if (cargando) {
     return (

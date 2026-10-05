@@ -57,9 +57,9 @@ function RotatingAd({
     return () => window.clearInterval(timer);
   }, [activeAds.length]);
 
-  useEffect(() => {
-    if (index >= activeAds.length) setIndex(0);
-  }, [activeAds.length, index]);
+  if (index !== 0 && index >= activeAds.length) {
+    setIndex(0);
+  }
 
   if (activeAds.length === 0) return null;
 

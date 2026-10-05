@@ -344,15 +344,6 @@ export default function CheckoutPage() {
   const [mensaje, setMensaje] =
     useState("");
 
-  useEffect(() => {
-    if (paymentStatus === "success" && sessionId) {
-      verificarPagoExitoso();
-      return;
-    }
-
-    cargarCheckout();
-  }, [requestId, offerId, paymentStatus, sessionId]);
-
   async function verificarPagoExitoso() {
     setCargando(true);
     setError("");
@@ -596,6 +587,15 @@ export default function CheckoutPage() {
       setCargando(false);
     }
   }
+
+  useEffect(() => {
+    if (paymentStatus === "success" && sessionId) {
+      verificarPagoExitoso();
+      return;
+    }
+
+    cargarCheckout();
+  }, [requestId, offerId, paymentStatus, sessionId]);
 
   async function continuarAlPago() {
     if (

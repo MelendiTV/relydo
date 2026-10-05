@@ -181,6 +181,8 @@ function ProfesionalesContenido() {
     useState("");
   const [tradeSeleccionado, setTradeSeleccionado] =
     useState(normalizarTrade(requestedTrade));
+  const [previousRequestedTrade, setPreviousRequestedTrade] =
+    useState(requestedTrade);
   const [customerArea, setCustomerArea] =
     useState<{
       city: string;
@@ -299,74 +301,68 @@ function ProfesionalesContenido() {
             "Customer location unavailable",
         };
 
-  useEffect(() => {
-    setTradeSeleccionado(
-      normalizarTrade(requestedTrade)
-    );
-  }, [requestedTrade]);
+  if (previousRequestedTrade !== requestedTrade) {
+    setPreviousRequestedTrade(requestedTrade);
+    setTradeSeleccionado(normalizarTrade(requestedTrade));
+  }
 
   useEffect(() => {
-    cargarProfesionales();
-  }, []);
-
-  async function cargarProfesionales() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const {
-        data: authData,
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        console.error(
-          "Error verificando sesión:",
-          authError
-        );
-      }
-
-      let customerCity = "";
-      let customerState = "";
-      let customerZip = "";
-
-      if (authData.user) {
+    async function cargarProfesionales() {
+      // La carga inicial ya parte de estos valores en useState.
+      try {
         const {
-          data: customerProfile,
-          error: customerProfileError,
-        } = await supabase
-          .from("profiles")
-          .select("city, state, zip_code")
-          .eq("id", authData.user.id)
-          .maybeSingle();
+          data: authData,
+          error: authError,
+        } = await supabase.auth.getUser();
 
-        if (customerProfileError) {
+        if (authError) {
           console.error(
-            "Error cargando ubicación del cliente:",
-            customerProfileError
+            "Error verificando sesión:",
+            authError
           );
-        } else {
-          customerCity =
-            customerProfile?.city?.trim() || "";
-          customerState =
-            customerProfile?.state?.trim() || "";
-          customerZip =
-            customerProfile?.zip_code?.trim() || "";
         }
-      }
 
-      setCustomerArea({
-        city: customerCity,
-        state: customerState,
-        zip: customerZip,
-      });
+        let customerCity = "";
+        let customerState = "";
+        let customerZip = "";
 
-      const {
-        data,
-        error: profesionalesError,
-      } = await supabase
-        .from("public_provider_profiles")
-        .select(`
+        if (authData.user) {
+          const {
+            data: customerProfile,
+            error: customerProfileError,
+          } = await supabase
+            .from("profiles")
+            .select("city, state, zip_code")
+            .eq("id", authData.user.id)
+            .maybeSingle();
+
+          if (customerProfileError) {
+            console.error(
+              "Error cargando ubicación del cliente:",
+              customerProfileError
+            );
+          } else {
+            customerCity =
+              customerProfile?.city?.trim() || "";
+            customerState =
+              customerProfile?.state?.trim() || "";
+            customerZip =
+              customerProfile?.zip_code?.trim() || "";
+          }
+        }
+
+        setCustomerArea({
+          city: customerCity,
+          state: customerState,
+          zip: customerZip,
+        });
+
+        const {
+          data,
+          error: profesionalesError,
+        } = await supabase
+          .from("public_provider_profiles")
+          .select(`
           user_id,
           business_name,
           bio,
@@ -382,127 +378,142 @@ function ProfesionalesContenido() {
           state,
           zip_code
         `)
-        .eq(
-          "verification_status",
-          "verified"
-        )
-        .eq("verified", true)
-        .eq("active", true)
-        .order("average_rating", {
-          ascending: false,
-        });
+          .eq(
+            "verification_status",
+            "verified"
+          )
+          .eq("verified", true)
+          .eq("active", true)
+          .order("average_rating", {
+            ascending: false,
+          });
 
-      if (profesionalesError) {
-        throw profesionalesError;
-      }
+        if (profesionalesError) {
+          throw profesionalesError;
+        }
 
-      const ciudadCliente =
-        normalizar(customerCity);
-      const estadoCliente =
-        normalizar(customerState);
+        const ciudadCliente =
+          normalizar(customerCity);
+        const estadoCliente =
+          normalizar(customerState);
 
-      const candidatos =
-        (data || []) as Profesional[];
+        const candidatos =
+          (data || []) as Profesional[];
 
-      let enZona = candidatos;
+        let enZona = candidatos;
 
-      /*
-        Conservamos la lógica real del punto #106:
-        - Si existe ZIP del Cliente, calculamos la distancia entre ZIPs
-          mediante /api/location/zip-distance.
-        - Cada Pro solo aparece cuando la distancia está dentro de su
-          service_radius_miles.
-        - Si el cálculo falla, usamos un fallback conservador por
-          ciudad + estado.
-        - Para cuentas antiguas sin ZIP, usamos ciudad + estado.
-      */
-      if (customerZip) {
-        try {
-          const response = await fetch(
-            "/api/location/zip-distance",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify({
-                customerZip,
-                providerZips:
-                  candidatos.map(
-                    (profesional) => ({
-                      id:
-                        profesional.user_id,
-                      zip:
-                        profesional.zip_code,
-                    })
-                  ),
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(
-              "No se pudo calcular el radio de servicio."
-            );
-          }
-
-          const result =
-            await response.json();
-
-          const distancias = new Map<
-            string,
-            number | null
-          >(
-            Object.entries(
-              result?.distances || {}
-            ) as [
-              string,
-              number | null
-            ][]
-          );
-
-          enZona =
-            candidatos.filter(
-              (profesional) => {
-                const distancia =
-                  distancias.get(
-                    profesional.user_id
-                  );
-
-                const radio =
-                  Number(
-                    profesional.service_radius_miles ??
-                      0
-                  );
-
-                if (
-                  distancia === null ||
-                  distancia === undefined ||
-                  !Number.isFinite(
-                    radio
-                  ) ||
-                  radio <= 0
-                ) {
-                  return false;
-                }
-
-                return (
-                  distancia <= radio
-                );
+        /*
+          Conservamos la lógica real del punto #106:
+          - Si existe ZIP del Cliente, calculamos la distancia entre ZIPs
+            mediante /api/location/zip-distance.
+          - Cada Pro solo aparece cuando la distancia está dentro de su
+            service_radius_miles.
+          - Si el cálculo falla, usamos un fallback conservador por
+            ciudad + estado.
+          - Para cuentas antiguas sin ZIP, usamos ciudad + estado.
+        */
+        if (customerZip) {
+          try {
+            const response = await fetch(
+              "/api/location/zip-distance",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body: JSON.stringify({
+                  customerZip,
+                  providerZips:
+                    candidatos.map(
+                      (profesional) => ({
+                        id:
+                          profesional.user_id,
+                        zip:
+                          profesional.zip_code,
+                      })
+                    ),
+                }),
               }
             );
-        } catch (distanceError) {
-          console.error(
-            "Error calculando radio de servicio:",
-            distanceError
-          );
 
+            if (!response.ok) {
+              throw new Error(
+                "No se pudo calcular el radio de servicio."
+              );
+            }
+
+            const result =
+              await response.json();
+
+            const distancias = new Map<
+              string,
+              number | null
+            >(
+              Object.entries(
+                result?.distances || {}
+              ) as [
+                string,
+                number | null
+              ][]
+            );
+
+            enZona =
+              candidatos.filter(
+                (profesional) => {
+                  const distancia =
+                    distancias.get(
+                      profesional.user_id
+                    );
+
+                  const radio =
+                    Number(
+                      profesional.service_radius_miles ??
+                        0
+                    );
+
+                  if (
+                    distancia === null ||
+                    distancia === undefined ||
+                    !Number.isFinite(
+                      radio
+                    ) ||
+                    radio <= 0
+                  ) {
+                    return false;
+                  }
+
+                  return (
+                    distancia <= radio
+                  );
+                }
+              );
+          } catch (distanceError) {
+            console.error(
+              "Error calculando radio de servicio:",
+              distanceError
+            );
+
+            enZona =
+              candidatos.filter(
+                (profesional) =>
+                  ciudadCliente &&
+                  estadoCliente &&
+                  normalizar(
+                    profesional.city
+                  ) === ciudadCliente &&
+                  normalizar(
+                    profesional.state
+                  ) === estadoCliente
+              );
+          }
+        } else if (
+          ciudadCliente &&
+          estadoCliente
+        ) {
           enZona =
             candidatos.filter(
               (profesional) =>
-                ciudadCliente &&
-                estadoCliente &&
                 normalizar(
                   profesional.city
                 ) === ciudadCliente &&
@@ -511,90 +522,78 @@ function ProfesionalesContenido() {
                 ) === estadoCliente
             );
         }
-      } else if (
-        ciudadCliente &&
-        estadoCliente
-      ) {
-        enZona =
-          candidatos.filter(
+
+        const providerIds =
+          enZona.map(
             (profesional) =>
-              normalizar(
-                profesional.city
-              ) === ciudadCliente &&
-              normalizar(
-                profesional.state
-              ) === estadoCliente
+              profesional.user_id
           );
-      }
 
-      const providerIds =
-        enZona.map(
-          (profesional) =>
-            profesional.user_id
-        );
+        let nombres = new Map<
+          string,
+          string | null
+        >();
 
-      let nombres = new Map<
-        string,
-        string | null
-      >();
+        if (providerIds.length > 0) {
+          const {
+            data: profilesData,
+            error: profilesError,
+          } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", providerIds);
 
-      if (providerIds.length > 0) {
-        const {
-          data: profilesData,
-          error: profilesError,
-        } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", providerIds);
-
-        if (profilesError) {
-          console.warn(
-            "No se pudieron cargar nombres públicos de profesionales:",
-            profilesError
-          );
-        } else {
-          nombres = new Map(
-            (
-              (profilesData ||
-                []) as ProfileNameRow[]
-            ).map((profile) => [
-              profile.id,
-              profile.full_name,
-            ])
-          );
+          if (profilesError) {
+            console.warn(
+              "No se pudieron cargar nombres públicos de profesionales:",
+              profilesError
+            );
+          } else {
+            nombres = new Map(
+              (
+                (profilesData ||
+                  []) as ProfileNameRow[]
+              ).map((profile) => [
+                profile.id,
+                profile.full_name,
+              ])
+            );
+          }
         }
-      }
 
-      const completos =
-        enZona.map(
-          (profesional) => ({
-            ...profesional,
-            full_name:
-              nombres.get(
-                profesional.user_id
-              ) || null,
-          })
+        const completos =
+          enZona.map(
+            (profesional) => ({
+              ...profesional,
+              full_name:
+                nombres.get(
+                  profesional.user_id
+                ) || null,
+            })
+          );
+
+        setProfesionales(completos);
+      } catch (err) {
+        console.error(
+          "Error cargando profesionales:",
+          err
         );
 
-      setProfesionales(completos);
-    } catch (err) {
-      console.error(
-        "Error cargando profesionales:",
-        err
-      );
-
-      setError(
-        `${text.errorCarga}: ${
+        setError(
+          `${text.errorCarga}: ${
           err instanceof Error
             ? err.message
             : "Unknown error"
         }`
-      );
-      setProfesionales([]);
-    } finally {
-      setLoading(false);
+        );
+        setProfesionales([]);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+
+    cargarProfesionales();
+  }, []);
 
   const categorias = useMemo(() => {
     const conteo = new Map<string, number>();

@@ -86,47 +86,42 @@ export default function ConfiguracionPerfilProfesional() {
   const [bonded, setBonded] = useState(false);
 
   useEffect(() => {
-    cargarPerfil();
-  }, []);
+    async function cargarPerfil() {
+      // La carga inicial ya parte de estos valores en useState.
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-  async function cargarPerfil() {
-    setLoading(true);
-    setError("");
+        if (userError || !user) {
+          router.replace("/login-profesional");
+          return;
+        }
 
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        const { data: baseProfile, error: baseError } = await supabase
+          .from("profiles")
+          .select("role, phone, email, address")
+          .eq("id", user.id)
+          .maybeSingle();
 
-      if (userError || !user) {
-        router.replace("/login-profesional");
-        return;
-      }
+        if (baseError || !baseProfile) {
+          throw new Error(
+            baseError?.message ||
+              T("No encontramos tu cuenta en RELYDO.", "We could not find your RELYDO account.")
+          );
+        }
 
-      const { data: baseProfile, error: baseError } = await supabase
-        .from("profiles")
-        .select("role, phone, email, address")
-        .eq("id", user.id)
-        .maybeSingle();
+        const base = baseProfile as BaseProfile;
 
-      if (baseError || !baseProfile) {
-        throw new Error(
-          baseError?.message ||
-            T("No encontramos tu cuenta en RELYDO.", "We could not find your RELYDO account.")
-        );
-      }
+        if (base.role !== "provider") {
+          router.replace("/");
+          return;
+        }
 
-      const base = baseProfile as BaseProfile;
-
-      if (base.role !== "provider") {
-        router.replace("/");
-        return;
-      }
-
-      const { data: providerData, error: providerError } = await supabase
-        .from("provider_profiles")
-        .select(`
+        const { data: providerData, error: providerError } = await supabase
+          .from("provider_profiles")
+          .select(`
           user_id,
           business_name,
           bio,
@@ -148,59 +143,62 @@ export default function ConfiguracionPerfilProfesional() {
           verified,
           active
         `)
-        .eq("user_id", user.id)
-        .maybeSingle();
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (providerError || !providerData) {
-        router.replace("/completar-perfil-profesional");
-        return;
+        if (providerError || !providerData) {
+          router.replace("/completar-perfil-profesional");
+          return;
+        }
+
+        const { count: trabajosActivos, error: trabajosActivosError } = await supabase
+          .from("service_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("preferred_provider_id", user.id)
+          .eq("status", "in_progress");
+
+        if (trabajosActivosError) {
+          throw new Error(trabajosActivosError.message);
+        }
+
+        if ((trabajosActivos || 0) > 0) {
+          setPerfilBloqueadoPorTrabajo(true);
+        }
+
+        const profile = providerData as ProviderProfile;
+
+        setEmail(base.email || user.email || "");
+        setPhone(base.phone || "");
+        setAddress(base.address || "");
+        setBusinessName(profile.business_name || "");
+        setBio(profile.bio || "");
+        setTrade(profile.trade || "");
+        setYearsExperience(String(profile.years_experience ?? 0));
+        setServiceRadius(String(profile.service_radius_miles ?? 25));
+        setCity(profile.city || "");
+        setState(profile.state || "");
+        setZipCode(profile.zip_code || "");
+        setLicenseRequired(profile.license_required === true);
+        setLicenseNumber(profile.license_number || "");
+        setLicenseState(profile.license_state || "");
+        setLicenseExpiration(normalizarFecha(profile.license_expiration));
+        setInsured(profile.insured === true);
+        setInsuranceCompany(profile.insurance_company || "");
+        setInsuranceExpiration(normalizarFecha(profile.insurance_expiration));
+        setBonded(profile.bonded === true);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : T("No pudimos cargar tu perfil.", "We could not load your profile.")
+        );
+      } finally {
+        setLoading(false);
       }
-
-      const { count: trabajosActivos, error: trabajosActivosError } = await supabase
-        .from("service_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("preferred_provider_id", user.id)
-        .eq("status", "in_progress");
-
-      if (trabajosActivosError) {
-        throw new Error(trabajosActivosError.message);
-      }
-
-      if ((trabajosActivos || 0) > 0) {
-        setPerfilBloqueadoPorTrabajo(true);
-      }
-
-      const profile = providerData as ProviderProfile;
-
-      setEmail(base.email || user.email || "");
-      setPhone(base.phone || "");
-      setAddress(base.address || "");
-      setBusinessName(profile.business_name || "");
-      setBio(profile.bio || "");
-      setTrade(profile.trade || "");
-      setYearsExperience(String(profile.years_experience ?? 0));
-      setServiceRadius(String(profile.service_radius_miles ?? 25));
-      setCity(profile.city || "");
-      setState(profile.state || "");
-      setZipCode(profile.zip_code || "");
-      setLicenseRequired(profile.license_required === true);
-      setLicenseNumber(profile.license_number || "");
-      setLicenseState(profile.license_state || "");
-      setLicenseExpiration(normalizarFecha(profile.license_expiration));
-      setInsured(profile.insured === true);
-      setInsuranceCompany(profile.insurance_company || "");
-      setInsuranceExpiration(normalizarFecha(profile.insurance_expiration));
-      setBonded(profile.bonded === true);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : T("No pudimos cargar tu perfil.", "We could not load your profile.")
-      );
-    } finally {
-      setLoading(false);
     }
-  }
+
+    cargarPerfil();
+  }, []);
 
   async function guardarPerfil(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -77,65 +77,6 @@ export default function ConfiguracionFinancieraPage() {
     setMensaje,
   ] = useState("");
 
-  useEffect(() => {
-    verificarAdminYCargar();
-  }, []);
-
-  async function verificarAdminYCargar() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (
-        authError ||
-        !user
-      ) {
-        router.replace(
-          "/login-profesional"
-        );
-        return;
-      }
-
-      const {
-        data: adminProfile,
-        error: profileError,
-      } = await supabase
-        .from("profiles")
-        .select("role, admin_role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (
-        profileError ||
-        !adminProfile ||
-        adminProfile.role !== "admin" ||
-        !isAdminRole(adminProfile.admin_role) ||
-        !hasAdminPermission(
-          adminProfile.admin_role,
-          "financial_settings"
-        )
-      ) {
-        router.replace("/admin");
-        return;
-      }
-
-      await cargarConfiguracion();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No pudimos cargar la configuración financiera."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function cargarConfiguracion() {
     const {
       data,
@@ -207,6 +148,63 @@ export default function ConfiguracionFinancieraPage() {
       )
     );
   }
+
+  useEffect(() => {
+    async function verificarAdminYCargar() {
+      // La carga inicial ya parte de estos valores en useState.
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (
+          authError ||
+          !user
+        ) {
+          router.replace(
+            "/login-profesional"
+          );
+          return;
+        }
+
+        const {
+          data: adminProfile,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select("role, admin_role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (
+          profileError ||
+          !adminProfile ||
+          adminProfile.role !== "admin" ||
+          !isAdminRole(adminProfile.admin_role) ||
+          !hasAdminPermission(
+            adminProfile.admin_role,
+            "financial_settings"
+          )
+        ) {
+          router.replace("/admin");
+          return;
+        }
+
+        await cargarConfiguracion();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No pudimos cargar la configuración financiera."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    verificarAdminYCargar();
+  }, []);
 
   async function guardarConfiguracion() {
     setError("");

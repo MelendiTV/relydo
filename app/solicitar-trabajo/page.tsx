@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import Link from "next/link";
+
 import {
   Suspense,
   useEffect,
@@ -561,16 +563,6 @@ function SolicitarTrabajoContenido() {
           },
         };
 
-  useEffect(() => {
-    if (profesionalId) {
-      cargarProfesional(
-        profesionalId
-      );
-    } else {
-      setProfesional(null);
-    }
-  }, [profesionalId]);
-
   async function cargarProfesional(
     userId: string
   ) {
@@ -635,6 +627,16 @@ function SolicitarTrabajoContenido() {
     setProfesional(data);
     setCargandoProfesional(false);
   }
+
+  useEffect(() => {
+    if (profesionalId) {
+      cargarProfesional(
+        profesionalId
+      );
+    } else {
+      setProfesional(null);
+    }
+  }, [profesionalId]);
 
   /*
     VALIDAR UNA FOTO
@@ -1488,12 +1490,12 @@ function SolicitarTrabajoContenido() {
             </div>
           )}
 
-          <a
+          <Link
             href="/mis-solicitudes"
             className="mt-8 inline-block rounded-xl bg-blue-700 px-8 py-3 font-bold text-white hover:bg-blue-800"
           >
             {text.verSolicitudes}
-          </a>
+          </Link>
 
         </div>
 

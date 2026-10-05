@@ -85,30 +85,6 @@ export default function PerfilProfesional() {
   const [error, setError] =
     useState("");
 
-  useEffect(() => {
-    if (id) {
-      cargarProfesional();
-    }
-  }, [id]);
-
-  function destinoRegresoSeguro() {
-    if (
-      returnTo &&
-      returnTo.startsWith("/") &&
-      !returnTo.startsWith("//")
-    ) {
-      return returnTo;
-    }
-
-    return "/profesionales";
-  }
-
-  function volver() {
-    router.replace(
-      destinoRegresoSeguro()
-    );
-  }
-
   async function cargarProfesional() {
     setLoading(true);
     setError("");
@@ -196,6 +172,30 @@ export default function PerfilProfesional() {
     }
 
     setLoading(false);
+  }
+
+  useEffect(() => {
+    if (id) {
+      cargarProfesional();
+    }
+  }, [id]);
+
+  function destinoRegresoSeguro() {
+    if (
+      returnTo &&
+      returnTo.startsWith("/") &&
+      !returnTo.startsWith("//")
+    ) {
+      return returnTo;
+    }
+
+    return "/profesionales";
+  }
+
+  function volver() {
+    router.replace(
+      destinoRegresoSeguro()
+    );
   }
 
   if (loading) {
