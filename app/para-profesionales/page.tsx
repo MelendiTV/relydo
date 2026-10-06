@@ -445,10 +445,42 @@ export default function ProfesionalesHome() {
 
       <section
         id="como-funciona-profesional"
-        className="scroll-mt-20 bg-[#f6f8fc] px-5 py-12 lg:px-8 lg:py-16"
+        className="scroll-mt-28 bg-[#f6f8fc] px-5 py-12 lg:px-8 lg:py-16"
       >
         <div className="mx-auto max-w-[1440px]">
-          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-2 shadow-[0_25px_70px_rgba(15,23,42,0.12)]">
+          <div className="lg:hidden">
+            <p className="text-sm font-black tracking-[0.2em] text-blue-600">
+              {T.whyEyebrow}
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+              {T.why}
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">
+              {T.whyD}
+            </p>
+            <ol className="mt-8 grid gap-4 sm:grid-cols-2">
+              {items.map((item) => (
+                <li
+                  key={item.number}
+                  className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-900/5"
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-xl font-black text-white shadow-lg shadow-blue-600/20">
+                    {item.number}
+                  </span>
+                  <h3 className="mt-5 text-xl font-black">{item.title}</h3>
+                  <p className="mt-3 leading-7 text-slate-600">{item.description}</p>
+                </li>
+              ))}
+            </ol>
+            <button
+              type="button"
+              onClick={() => router.push("/registro-profesional")}
+              className="mt-8 rounded-2xl bg-blue-600 px-7 py-4 font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+            >
+              {T.primary}
+            </button>
+          </div>
+          <div className="hidden overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-2 lg:block shadow-[0_25px_70px_rgba(15,23,42,0.12)]">
             <div className="overflow-hidden rounded-[1.55rem]">
               <img
                 src={howItWorksImage}

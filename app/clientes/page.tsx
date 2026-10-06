@@ -813,7 +813,7 @@ export default function ClientesHome() {
 
       <section
         id="como-funciona"
-        className="bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24"
+        className="scroll-mt-28 bg-[#f6f8fc] px-5 py-16 lg:px-8 lg:py-24"
       >
 
         <div className="mx-auto max-w-[1440px]">

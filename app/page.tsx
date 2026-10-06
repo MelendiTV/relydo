@@ -110,6 +110,33 @@ export default function Home() {
   const router = useRouter();
   const { language } = useLanguage();
   const es = language === "es";
+  useEffect(() => {
+    let frame = 0;
+    let active = true;
+    const alignHash = () => {
+      if (!active || window.location.hash !== "#como-funciona") return;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        document.getElementById("como-funciona")?.scrollIntoView({ behavior: "instant" });
+      });
+    };
+
+    // Hydration changes the language, and lazy images above the anchor change its position.
+    const target = document.getElementById("como-funciona");
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>("main img"))
+      .filter((image) => target && Boolean(image.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING));
+    images.forEach((image) => image.addEventListener("load", alignHash));
+    window.addEventListener("hashchange", alignHash);
+    void document.fonts.ready.then(alignHash);
+    alignHash();
+
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(frame);
+      images.forEach((image) => image.removeEventListener("load", alignHash));
+      window.removeEventListener("hashchange", alignHash);
+    };
+  }, [language]);
 
   /*
     Si Supabase confirma el correo y, por cualquier motivo,
@@ -510,7 +537,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="como-funciona" className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-800 to-[#02102d] px-5 py-16 text-white lg:px-8 lg:py-24">
+      <section id="como-funciona" className="scroll-mt-28 relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-800 to-[#02102d] px-5 py-16 text-white lg:px-8 lg:py-24">
         <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="relative mx-auto max-w-[1440px]">
           <div className="mx-auto max-w-3xl text-center">
