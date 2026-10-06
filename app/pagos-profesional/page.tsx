@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/components/LanguageProvider";
+import { loadProviderChangeOrders, providerNetSummary, type ProviderChangeOrder } from "@/app/lib/providerNetSummary";
 import { supabase } from "@/app/lib/supabaseBrowser";
 
 type ProviderProfile = {
@@ -69,6 +70,8 @@ export default function PagosProfesionalPage() {
 
   const [payments, setPayments] =
     useState<PaymentRow[]>([]);
+
+  const [changeOrders, setChangeOrders] = useState<ProviderChangeOrder[]>([]);
 
   const [requestsMap, setRequestsMap] =
     useState<Record<string, RequestSummary>>({});
@@ -230,6 +233,7 @@ export default function PagosProfesionalPage() {
     ];
 
     if (requestIds.length === 0) {
+      setChangeOrders([]);
       setPayments([]);
       setRequestsMap({});
       return;
@@ -270,6 +274,9 @@ export default function PagosProfesionalPage() {
       return trabajoTerminado || dineroYaLiberado;
     });
 
+    const additions = await loadProviderChangeOrders(supabase, providerId);
+    for (const payment of visiblePayments) providerNetSummary(payment, additions);
+    setChangeOrders(additions);
     setPayments(visiblePayments);
     setRequestsMap(nextMap);
   }
@@ -309,16 +316,11 @@ export default function PagosProfesionalPage() {
         payment.status === "partially_refunded"
     );
 
-    const retenidoTotal = retenidos.reduce(
-      (total, payment) =>
-        total + dinero(payment.provider_net_amount),
-      0
+    const retenidoTotal = payments.reduce(
+      (total, payment) => total + providerNetSummary(payment, changeOrders).held, 0
     );
-
-    const pagadoTotal = pagados.reduce(
-      (total, payment) =>
-        total + dinero(payment.provider_net_amount),
-      0
+    const pagadoTotal = payments.reduce(
+      (total, payment) => total + providerNetSummary(payment, changeOrders).released, 0
     );
 
     return {
@@ -328,7 +330,7 @@ export default function PagosProfesionalPage() {
       retenidoTotal,
       pagadoTotal,
     };
-  }, [payments]);
+  }, [payments, changeOrders]);
 
   if (loading) {
     return (
@@ -484,7 +486,11 @@ export default function PagosProfesionalPage() {
                           {T("Ganaste", "You earned")}
                         </p>
                         <p className="mt-1 text-2xl font-black text-slate-950">
-                          {formatearDinero(dinero(payment.provider_net_amount))}
+                          {formatearDinero(providerNetSummary(payment, changeOrders).total)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {T("Base", "Base")}: {formatearDinero(providerNetSummary(payment, changeOrders).base)}
+                          {" · "}{T("Adicionales pagados", "Paid additions")}: {formatearDinero(providerNetSummary(payment, changeOrders).additional)}
                         </p>
                       </div>
                     </div>

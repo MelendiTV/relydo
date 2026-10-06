@@ -53,22 +53,30 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  let basePaymentIntentId: string | null = null;
+
   // Mobile PaymentSheet does not emit checkout.session.completed.
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object as Stripe.PaymentIntent;
-    if (intent.metadata?.payment_type !== "change_order") {
+    if (intent.metadata?.payment_type === "initial_job" &&
+        intent.metadata?.payment_flow === "payment_sheet") {
+      basePaymentIntentId = intent.id;
+    } else if (intent.metadata?.payment_type !== "change_order") {
       return NextResponse.json({ received: true, ignored: true });
     }
-    try {
-      const result = await confirmChangeOrderPayment({ paymentIntentId: intent.id });
-      return NextResponse.json({ received: true, processed: true, ...result });
-    } catch (error) {
-      console.error("Change Order webhook requires retry/reconciliation", intent.id, error);
-      return NextResponse.json({ error: "Additional payment confirmation failed; retry required." }, { status: 500 });
+    if (!basePaymentIntentId) {
+      try {
+        const result = await confirmChangeOrderPayment({ paymentIntentId: intent.id });
+        return NextResponse.json({ received: true, processed: true, ...result });
+      } catch (error) {
+        console.error("Change Order webhook requires retry/reconciliation", intent.id, error);
+        return NextResponse.json({ error: "Additional payment confirmation failed; retry required." }, { status: 500 });
+      }
     }
   }
 
   if (
+    !basePaymentIntentId &&
     event.type !== "checkout.session.completed" &&
     event.type !== "checkout.session.async_payment_succeeded"
   ) {
@@ -80,14 +88,14 @@ export async function POST(request: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
 
-  if (session.payment_status !== "paid") {
+  if (!basePaymentIntentId && session.payment_status !== "paid") {
     return NextResponse.json({
       received: true,
       pending: true,
     });
   }
 
-  if (session.metadata?.payment_type === "change_order") {
+  if (!basePaymentIntentId && session.metadata?.payment_type === "change_order") {
     // Existing job payments retain their own confirmation path.
     try {
       const result = await confirmChangeOrderPayment({ sessionId: session.id });
@@ -99,7 +107,7 @@ export async function POST(request: NextRequest) {
   }
 
   const endpoint = "/api/checkout/verify-payment";
-  if (session.metadata?.payment_type === "provider_verification") {
+  if (!basePaymentIntentId && session.metadata?.payment_type === "provider_verification") {
     try {
       await confirmScreeningPayment(stripe, session.id);
       return NextResponse.json({ received: true, processed: true });
@@ -134,17 +142,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-relydo-internal-stripe": webhookSecret,
-    },
-    body: JSON.stringify({
-      sessionId: session.id,
-    }),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-relydo-internal-stripe": webhookSecret,
+      },
+      // Reuse base confirmation, including its frozen snapshot validator and collision handling.
+      body: JSON.stringify(basePaymentIntentId
+        ? { paymentIntentId: basePaymentIntentId }
+        : { sessionId: session.id }),
+      cache: "no-store",
+    });
+  } catch {
+    return NextResponse.json({ error: "Payment finalization unavailable; Stripe should retry this webhook." }, { status: 500 });
+  }
 
   let result: Record<string, unknown> = {};
 

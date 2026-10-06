@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { loadProviderChangeOrders, providerNetSummary } from "@/app/lib/providerNetSummary";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
 import NotificationsBell from "@/app/components/NotificationsBell";
@@ -99,6 +100,8 @@ type HistorialProfesionalItem = {
 };
 
 type PagoProfesional = {
+  net_total: number;
+  net_additional: number;
   request_id: string;
   job_amount: number;
   provider_commission_percent: number;
@@ -1813,7 +1816,7 @@ export default function PanelProfesional() {
 
       // El RPC del historial y los pagos solo dependen de los resultados ya
       // obtenidos, pero son independientes entre ellos y pueden correr juntos.
-      const [trabajosOfertadosResult, pagosResult] = await Promise.all([
+      const [trabajosOfertadosResult, pagosResult, changeOrders] = await Promise.all([
         necesitaHistorialOfertas
           ? supabase.rpc("get_provider_offer_history_requests_safe")
           : Promise.resolve({ data: [], error: null }),
@@ -1833,6 +1836,9 @@ export default function PanelProfesional() {
               .eq("provider_id", user.id)
               .in("request_id", requestIds)
           : Promise.resolve({ data: [], error: null }),
+        requestIds.length > 0
+          ? loadProviderChangeOrders(supabase, user.id)
+          : Promise.resolve([]),
       ]);
 
       if (!todasOfertasResult.error) {
@@ -1866,7 +1872,10 @@ export default function PanelProfesional() {
 
       const pagos = (pagosResult.data || []) as PagoProfesional[];
       const pagosPorSolicitud = new Map(
-        pagos.map((pago) => [pago.request_id, pago])
+        pagos.map((pago) => {
+          const net = providerNetSummary(pago, changeOrders);
+          return [pago.request_id, { ...pago, net_total: net.total, net_additional: net.additional }];
+        })
       );
 
       const combinados = trabajosBase.map((trabajo) => ({
@@ -4466,12 +4475,16 @@ export default function PanelProfesional() {
                           </p>
 
                           <p className="mt-1 text-center text-3xl font-extrabold text-emerald-900">
-                            ${Number(trabajo.pago.provider_net_amount).toFixed(2)}
+                            ${Number(trabajo.pago.net_total).toFixed(2)}
                           </p>
 
                           <div className="mt-3 border-t border-slate-100 pt-3 text-xs">
+                            <p className="mb-2 text-slate-600">
+                              {T("Neto base", "Base net")}: ${Number(trabajo.pago.provider_net_amount).toFixed(2)}
+                              {" · "}{T("Adicionales pagados", "Paid additions")}: ${trabajo.pago.net_additional.toFixed(2)}
+                            </p>
                             <div className="flex items-center justify-between gap-4 text-slate-600">
-                              <span>{T("Valor del servicio", "Service value")}</span>
+                              <span>{T("Valor del servicio base", "Base service value")}</span>
                               <span className="font-bold text-slate-900">
                                 ${Number(trabajo.pago.job_amount).toFixed(2)}
                               </span>
@@ -4479,7 +4492,7 @@ export default function PanelProfesional() {
 
                             <div className="mt-1.5 flex items-center justify-between gap-4 text-slate-600">
                               <span>
-                                {T("Tarifa RELYDO", "RELYDO fee")} ({Number(
+                                {T("Tarifa RELYDO base", "Base RELYDO fee")} ({Number(
                                   trabajo.pago.provider_commission_percent
                                 ).toFixed(2)}%)
                               </span>
@@ -4621,11 +4634,13 @@ export default function PanelProfesional() {
                         </p>
 
                         <p className="mt-1 text-xl font-black text-emerald-800">
-                          ${Number(trabajo.pago.provider_net_amount).toFixed(2)}
+                          ${Number(trabajo.pago.net_total).toFixed(2)}
                         </p>
 
                         <p className="mt-1 text-xs text-slate-500">
-                          Valor ${Number(trabajo.pago.job_amount).toFixed(2)}
+                          {T("Base", "Base")} ${Number(trabajo.pago.provider_net_amount).toFixed(2)}
+                          {" · "}{T("Adicionales pagados", "Paid additions")} ${trabajo.pago.net_additional.toFixed(2)}
+                          {" · "}{T("Valor base", "Base value")} ${Number(trabajo.pago.job_amount).toFixed(2)}
                           {" · "}
                           Tarifa ${Number(
                             trabajo.pago.provider_commission_amount

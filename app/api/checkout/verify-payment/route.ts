@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
 import { getAuthenticatedUser } from "../../../lib/serverAuth";
 import { assertReassignmentSafe } from "../../../lib/jobFinancialGuard";
+import { validateBasePaymentSnapshot } from "../../../lib/basePaymentSnapshot";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -1408,132 +1409,21 @@ export async function POST(request: NextRequest) {
     // 6. IMPORTES CONGELADOS DEL CHECKOUT NORMAL
     // ============================================================
 
-    const jobAmount = money(
-      Number(
-        session.metadata
-          ?.professional_price || 0
-      )
-    );
-
-    const customerFeePercent =
-      money(
-        Number(
-          session.metadata
-            ?.customer_fee_percent || 0
-        )
+    let snapshot: ReturnType<typeof validateBasePaymentSnapshot>;
+    try {
+      snapshot = validateBasePaymentSnapshot(session.metadata, session.amount_total);
+    } catch {
+      return NextResponse.json(
+        { error: "La sesión de Stripe no contiene un snapshot financiero completo y coherente de RELYDO." },
+        { status: 400 }
       );
-
-    const customerFeeAmount =
-      money(
-        Number(
-          session.metadata
-            ?.customer_fee_amount ||
-            session.metadata
-              ?.service_fee ||
-            0
-        )
-      );
-
-    const customerTotalAmount =
-      money(
-        Number(
-          session.metadata
-            ?.customer_total || 0
-        )
-      );
-
-    const providerCommissionPercent =
-      money(
-        Number(
-          session.metadata
-            ?.provider_commission_percent ||
-            0
-        )
-      );
-
-    const providerCommissionAmount =
-      money(
-        Number(
-          session.metadata
-            ?.provider_commission_amount ||
-            0
-        )
-      );
-
-    const providerNetAmount =
-      money(
-        Number(
-          session.metadata
-            ?.provider_net_amount || 0
-        )
-      );
-
-    const platformRevenueAmount =
-      money(
-        Number(
-          session.metadata
-            ?.platform_revenue_amount ||
-            0
-        )
-      );
+    }
+    const { jobAmount, customerFeePercent, customerFeeAmount, customerTotalAmount,
+      providerCommissionPercent, providerCommissionAmount, providerNetAmount, platformRevenueAmount } = snapshot;
 
     const currency = String(
-      session.metadata?.currency ||
-        session.currency ||
-        "usd"
+      session.metadata?.currency || session.currency || "usd"
     ).toUpperCase();
-
-    const frozenValues = [
-      jobAmount,
-      customerFeePercent,
-      customerFeeAmount,
-      customerTotalAmount,
-      providerCommissionPercent,
-      providerCommissionAmount,
-      providerNetAmount,
-      platformRevenueAmount,
-    ];
-
-    if (
-      frozenValues.some(
-        (value) =>
-          !Number.isFinite(value)
-      ) ||
-      jobAmount <= 0 ||
-      customerTotalAmount <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "La sesión de Stripe no contiene montos válidos de RELYDO.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const stripeTotal =
-      typeof session.amount_total ===
-      "number"
-        ? money(
-            session.amount_total / 100
-          )
-        : null;
-
-    if (
-      stripeTotal === null ||
-      Math.abs(
-        stripeTotal -
-          customerTotalAmount
-      ) > 0.01
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "El importe confirmado por Stripe no coincide con el checkout original de RELYDO.",
-        },
-        { status: 400 }
-      );
-    }
 
     // ============================================================
     // 7. PAGO EXISTENTE
@@ -1762,10 +1652,7 @@ export async function POST(request: NextRequest) {
         status: "selected",
       })
       .eq("id", offerId)
-      .in("status", [
-        "pending",
-        "selected",
-      ]);
+      .eq("status", "pending");
 
     if (selectedOfferError) {
       return NextResponse.json(
@@ -1913,6 +1800,13 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        if (!concurrentPayment.provider_payment_id) {
+          return NextResponse.json(
+            { error: "El pago concurrente todavía no tiene un PaymentIntent confirmado; Stripe debe reintentar." },
+            { status: 500 }
+          );
+        }
+
         if (
           concurrentPayment
             .provider_payment_id &&
@@ -1951,6 +1845,7 @@ export async function POST(request: NextRequest) {
       !paymentAlreadyRecorded
     ) {
       const {
+        data: updatedPayment,
         error: updatePaymentError,
       } = await supabaseAdmin
         .from("payments")
@@ -1959,9 +1854,9 @@ export async function POST(request: NextRequest) {
           "id",
           existingPayment.id
         )
-        .or(
-          `provider_payment_id.is.null,provider_payment_id.eq.${paymentIntentId}`
-        );
+        .is("provider_payment_id", null)
+        .select("id")
+        .maybeSingle();
 
       if (updatePaymentError) {
         return NextResponse.json(
@@ -1969,6 +1864,14 @@ export async function POST(request: NextRequest) {
             error:
               "Stripe confirmó el pago, pero RELYDO no pudo completar el registro del pago.",
           },
+          { status: 500 }
+        );
+      }
+
+      if (!updatedPayment) {
+        // A concurrent confirmation won. Re-read on retry instead of overwriting its payment.
+        return NextResponse.json(
+          { error: "El registro del pago cambió durante la confirmación; Stripe debe reintentar." },
           { status: 500 }
         );
       }
