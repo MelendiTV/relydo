@@ -649,6 +649,18 @@ export default function PanelProfesional() {
         {
           event: "*",
           schema: "public",
+          table: "change_orders",
+          filter: `provider_id=eq.${userId}`,
+        },
+        async () => {
+          if (mounted) await cargarPanel(false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "service_requests",
           filter: `preferred_provider_id=eq.${userId}`,
         },
