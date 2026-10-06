@@ -24,6 +24,8 @@ function RegistroClienteContenido() {
   const redirectParam =
     searchParams.get("redirect");
 
+  const [referralCode, setReferralCode] = useState("");
+
   const [fullName, setFullName] =
     useState("");
 
@@ -87,6 +89,8 @@ function RegistroClienteContenido() {
           descripcion:
             "Crea tu cuenta para solicitar servicios y administrar tus trabajos.",
 
+          referralCode: "Código de referido (opcional)",
+          referralInvalid: "El código de referido no es válido. Revísalo o déjalo vacío.",
           nombreCompleto: "Nombre completo",
           nombrePlaceholder:
             "Tu nombre y apellido",
@@ -247,6 +251,8 @@ function RegistroClienteContenido() {
           descripcion:
             "Create your account to request services and manage your jobs.",
 
+          referralCode: "Referral code (optional)",
+          referralInvalid: "The referral code is invalid. Check it or leave it blank.",
           nombreCompleto: "Full name",
           nombrePlaceholder:
             "Your first and last name",
@@ -563,6 +569,17 @@ function RegistroClienteContenido() {
     setLoading(true);
 
     try {
+      if (referralCode.trim()) {
+        const { data: valid, error: validationError } = await supabase.rpc(
+          "validate_customer_referral_code", { p_code: referralCode }
+        );
+        if (validationError) throw validationError;
+        if (valid !== true) {
+          setError(text.referralInvalid);
+          setLoading(false);
+          return;
+        }
+      }
       /*
         CREAR USUARIO EN SUPABASE AUTH
 
@@ -592,6 +609,7 @@ function RegistroClienteContenido() {
               `${window.location.origin}/verificar-email`,
 
             data: {
+              referral_code: referralCode.trim() || null,
               legal_version: "2.0",
               legal_accepted_at: new Date().toISOString(),
               legal_language: language,
@@ -1130,6 +1148,16 @@ function RegistroClienteContenido() {
 
               {/* CONTRASEÑA */}
 
+              <div>
+                <label htmlFor="referral-code" className="mb-2 block font-bold text-slate-900">
+                  {text.referralCode}
+                </label>
+                <input id="referral-code" type="text" value={referralCode}
+                  onChange={(event) => setReferralCode(event.target.value)}
+                  autoCapitalize="characters" autoComplete="off" maxLength={64}
+                  disabled={loading || awaitingEmailConfirmation}
+                  className="w-full rounded-xl border border-slate-300 p-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100" />
+              </div>
               <div>
                 <label
                   htmlFor="password"
