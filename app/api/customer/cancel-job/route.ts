@@ -541,6 +541,7 @@ export async function POST(request: NextRequest) {
           customer_id,
           provider_id,
           customer_total_amount,
+          customer_charge_amount,
           refunded_amount,
           currency,
           status,
@@ -677,7 +678,7 @@ export async function POST(request: NextRequest) {
         }
 
         const paymentTotal = dinero(
-          originalPayment.customer_total_amount
+          (originalPayment.customer_charge_amount ?? originalPayment.customer_total_amount)
         );
         const alreadyRefunded = baselineRefunded(originalPayment.refunded_amount, originalPayment.id);
 
@@ -816,7 +817,7 @@ export async function POST(request: NextRequest) {
                     customerRefundAmount
                 ) >=
                 dinero(
-                  originalPayment.customer_total_amount
+                  (originalPayment.customer_charge_amount ?? originalPayment.customer_total_amount)
                 )
                   ? "refunded"
                   : "partially_refunded",
@@ -960,6 +961,7 @@ export async function POST(request: NextRequest) {
           job_amount,
           customer_fee_amount,
           customer_total_amount,
+          customer_charge_amount,
           refunded_amount,
           currency,
           status,
@@ -1090,7 +1092,7 @@ export async function POST(request: NextRequest) {
 
     const jobAmount = dinero(payment.job_amount);
     const customerTotal = dinero(
-      payment.customer_total_amount
+      payment.customer_charge_amount ?? payment.customer_total_amount
     );
 
     if (
@@ -1143,12 +1145,17 @@ export async function POST(request: NextRequest) {
       jobAmount * (relydoStagePercent / 100)
     );
 
+    // Promotional credit is not refundable cash. Keep the Pro compensation rule,
+    // and fund refunds/RELYDO retention solely from the actual charge snapshot.
+    if (providerAwardAmount > customerTotal) {
+      return NextResponse.json({ error: "La compensación de cancelación supera los fondos cobrados; requiere revisión sin mover dinero." }, { status: 409 });
+    }
     const relydoCancellationAmount = dinero(
-      serviceFeeAmount + relydoStageAmount
+      Math.min(serviceFeeAmount + relydoStageAmount, Math.max(0, customerTotal - providerAwardAmount))
     );
 
     const customerRefundAmount = dinero(
-      Math.max(0, jobAmount - penaltyAmount)
+      Math.min(Math.max(0, jobAmount - penaltyAmount), Math.max(0, customerTotal - providerAwardAmount - relydoCancellationAmount))
     );
 
     if (

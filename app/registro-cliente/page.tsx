@@ -3,6 +3,7 @@
 import {
   Suspense,
   useState,
+  useEffect,
 } from "react";
 
 import { supabase } from "@/app/lib/supabaseBrowser";
@@ -24,7 +25,7 @@ function RegistroClienteContenido() {
   const redirectParam =
     searchParams.get("redirect");
 
-  const [referralCode, setReferralCode] = useState("");
+  const [referralCode, setReferralCode] = useState(searchParams.get("ref")?.trim().toUpperCase() ?? "");
 
   const [fullName, setFullName] =
     useState("");

@@ -29,6 +29,12 @@ export async function financialPlan(stripe: Stripe, sources: {
     const intent = await stripe.paymentIntents.retrieve(source.paymentIntentId);
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
     if (!chargeId || intent.status !== "succeeded" || !intent.currency) throw new FinancialGuardError("La fuente del plan requiere conciliación.");
+    if (intent.metadata?.referral_credit_reservation_id) {
+      const planned = Number(source.transfer?.amount || 0) + Number(source.refund?.amount || 0);
+      if (!Number.isSafeInteger(intent.amount_received) || !Number.isSafeInteger(planned) || planned > intent.amount_received) {
+        throw new FinancialGuardError("El plan supera el cobro real tras aplicar crédito RELYDO; requiere revisión antes de mover dinero.");
+      }
+    }
     for (const kind of ["transfer", "refund"] as const) {
       const params = source[kind];
       if (!params) continue;

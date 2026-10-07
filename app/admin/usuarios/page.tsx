@@ -1,5 +1,6 @@
 "use client";
 
+import AdminCustomerReferralLookup from "@/app/components/AdminCustomerReferralLookup";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import { useRouter } from "next/navigation";
@@ -289,6 +290,7 @@ export default function AdminUsuariosPage() {
           búsqueda sin resultados no confirma que el usuario no exista.
         </div>
 
+        <AdminCustomerReferralLookup />
         <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Resumen titulo="Usuarios" valor={clientes + profesionales} />
           <Resumen titulo="Clientes" valor={clientes} />

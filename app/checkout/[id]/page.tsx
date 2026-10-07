@@ -321,6 +321,9 @@ export default function CheckoutPage() {
   const paymentStatus = searchParams.get("payment");
   const sessionId = searchParams.get("session_id");
 
+  const [creditEligible, setCreditEligible] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [useReferralCredit, setUseReferralCredit] = useState(false);
   const [solicitud, setSolicitud] = useState<Solicitud | null>(null);
   const [oferta, setOferta] = useState<Oferta | null>(null);
   const [profesional, setProfesional] =
@@ -555,6 +558,24 @@ export default function CheckoutPage() {
         );
       }
 
+      const { data: authSession } = await supabase.auth.getSession();
+      const token = authSession.session?.access_token;
+      if (token) {
+        if (paymentStatus === "cancelled") {
+          const cancelled = await fetch("/api/customer/referral-credit", {
+            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ requestId }),
+          });
+          if (!cancelled.ok) throw new Error(language === "es" ? "No pudimos cancelar el pago anterior. Intenta de nuevo." : "Could not cancel the previous payment. Please retry.");
+        }
+        const balanceResponse = await fetch(`/api/customer/referral-credit?requestId=${encodeURIComponent(requestId)}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        if (balanceResponse.ok) {
+          const balance = await balanceResponse.json();
+          setCreditBalance(Number(balance.availableCents) / 100);
+          setCreditEligible(balance.checkoutEligible === true);
+        }
+      }
+      setUseReferralCredit(false);
       setSolicitud(
         solicitudData as Solicitud
       );
@@ -637,6 +658,7 @@ export default function CheckoutPage() {
           body: JSON.stringify({
             requestId: solicitud.id,
             offerId: oferta.id,
+            useReferralCredit,
 
             serviceTitle:
               solicitud.title,
@@ -674,7 +696,7 @@ export default function CheckoutPage() {
        * reasignación y no existe una URL de Stripe.
        */
       if (
-        data?.reassignmentApplied === true &&
+        (data?.reassignmentApplied === true || data?.creditPaymentConfirmed === true) &&
         data?.stripeCheckoutRequired === false
       ) {
         router.replace(
@@ -766,6 +788,11 @@ export default function CheckoutPage() {
     oferta.price,
     settings
   );
+  const margin = redondearDinero(montos.customerFeeAmount + redondearDinero(montos.jobAmount * Number(settings.provider_commission_percent) / 100));
+  const applicableCredit = settings.currency.toUpperCase() === "USD" ? Math.min(creditBalance || 0, margin) : 0;
+  const previewCredit = useReferralCredit ? applicableCredit : 0;
+  const previewCharge = redondearDinero(montos.customerTotalAmount - previewCredit);
+
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 md:py-12">
@@ -944,6 +971,22 @@ export default function CheckoutPage() {
               {text.incluyeTarifa}
             </p>
 
+            {creditBalance !== null && settings.currency.toUpperCase() === "USD" && (
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                <p>{language === "es" ? "Crédito RELYDO disponible" : "Available RELYDO credit"}: ${creditBalance.toFixed(2)}</p>
+                {creditEligible && applicableCredit > 0 && <label className="mt-3 flex items-center gap-2">
+                  <input type="checkbox" checked={useReferralCredit} disabled={procesandoPago} onChange={event => setUseReferralCredit(event.target.checked)} />
+                  {language === "es" ? "Usar mi crédito RELYDO" : "Use my RELYDO credit"}
+                </label>}
+                {useReferralCredit && <div className="mt-2 space-y-1">
+                  <p>{language === "es" ? "Crédito aplicado" : "Credit applied"}: −${previewCredit.toFixed(2)}</p>
+                  <p>{language === "es" ? "A pagar" : "Amount to pay"}: ${previewCharge.toFixed(2)}</p>
+                  <p>{language === "es" ? "Saldo restante" : "Remaining credit"}: ${redondearDinero((creditBalance || 0) - previewCredit).toFixed(2)}</p>
+                </div>}
+                <p className="mt-2 text-xs text-slate-500">{language === "es" ? "El saldo restante queda disponible y no expira. El importe final se confirma al pagar." : "Remaining credit stays available and does not expire. The final amount is confirmed at payment."}</p>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() =>
@@ -1038,7 +1081,7 @@ export default function CheckoutPage() {
             >
               {procesandoPago
                 ? text.abriendoPago
-                : `${text.continuarPago} · $${montos.customerTotalAmount.toFixed(
+                : `${text.continuarPago} · $${previewCharge.toFixed(
                     2
                   )}`}
             </button>

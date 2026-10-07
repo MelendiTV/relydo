@@ -158,6 +158,7 @@ test('Stripe webhook dispatches refunds/disputes and retries failed persistence'
     if(name==='stripe')return function(){return {webhooks:{constructEvent:()=>event}};};
     if(name.endsWith('providerScreening'))return {invalidateScreeningPayment:async(stripe,id,status)=>{calls.push([id,status]);if(fail)throw Error('fixture');}};
     if(name.endsWith('changeOrderPayments'))return {};
+    if(name==='@supabase/supabase-js' || name.endsWith('referralCheckout') || name.endsWith('basePaymentSnapshot'))return {};
     throw Error(name);
   },Response});
   const request={text:async()=>'',headers:new Headers({'stripe-signature':'fixture'})};

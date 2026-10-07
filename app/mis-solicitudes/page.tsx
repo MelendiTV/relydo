@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabaseBrowser";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import CustomerReferralCard from "@/app/components/CustomerReferralCard";
 import NotificationsBell from "@/app/components/NotificationsBell";
 import { AccountModeSwitcher } from "@/app/components/AccountModeSwitcher";
 import { useAccountMode } from "@/app/components/AccountModeProvider";
@@ -1898,6 +1899,7 @@ export default function MisSolicitudesPage() {
 
         {/* ACCIONES */}
 
+        <CustomerReferralCard />
         <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"

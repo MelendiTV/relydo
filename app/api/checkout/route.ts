@@ -4,6 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getAuthenticatedUser } from "../../lib/serverAuth";
 import { sendRelydoNotification } from "../../lib/serverNotifications";
 
+import { reserveReferralCheckout, attachReferralCheckout, reconcileReferralCheckouts, createReferralStripeObject } from "../../lib/referralCheckout";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const supabaseAdmin = createClient(
@@ -485,6 +487,7 @@ export async function POST(request: NextRequest) {
     // ============================================================
 
     if (activeReassignment) {
+      if (body?.useReferralCredit === true) return NextResponse.json({ error: "Este pago usa fondos de una reasignación. Desactiva el crédito promocional para continuar. / This payment uses reassignment funds. Turn off promotional credit to continue." }, { status: 409 });
       /*
        * Reservamos atómicamente el crédito para ESTA oferta.
        */
@@ -611,6 +614,7 @@ export async function POST(request: NextRequest) {
           request_id,
           provider_id,
           customer_total_amount,
+          customer_charge_amount,
           refunded_amount,
           status,
           payment_provider,
@@ -862,7 +866,7 @@ export async function POST(request: NextRequest) {
       } else {
         const originalCustomerTotal = money(
           Number(
-            originalPayment.customer_total_amount ||
+            (originalPayment.customer_charge_amount ?? originalPayment.customer_total_amount) ||
               0
           )
         );
@@ -1617,10 +1621,35 @@ export async function POST(request: NextRequest) {
     // normal de RELYDO.
     // ============================================================
 
-    const amountInCents =
-      Math.round(
-        customerTotalAmount * 100
-      );
+    const useReferralCredit = body?.useReferralCredit === true;
+    const metadata: Record<string, string> = {
+      payment_type: "initial_job", payment_flow: paymentFlow === "payment_sheet" ? "payment_sheet" : "web",
+      request_id: requestId, offer_id: offerId, customer_id: auth.user.id,
+      professional_id: String(offer.professional_id), payment_settings_id: String(paymentSettings.id),
+      professional_price: professionalPrice.toFixed(2), customer_fee_percent: customerFeePercent.toFixed(2),
+      customer_fee_amount: customerFeeAmount.toFixed(2), customer_total: customerTotalAmount.toFixed(2),
+      provider_commission_percent: providerCommissionPercent.toFixed(2), provider_commission_amount: providerCommissionAmount.toFixed(2),
+      provider_net_amount: providerNetAmount.toFixed(2), platform_revenue_amount: platformRevenueAmount.toFixed(2), currency,
+    };
+    if (useReferralCredit && currency !== "USD") throw new Error("RELYDO credit is denominated in USD");
+    if (currency === "USD") await reconcileReferralCheckouts(supabaseAdmin, stripe, auth.user.id, {
+      requestId, offerId, useCredit: useReferralCredit, paymentFlow: metadata.payment_flow,
+    });
+    const reservation = currency === "USD" ? await reserveReferralCheckout(supabaseAdmin, metadata, useReferralCredit) : null;
+    const frozenMetadata = reservation?.snapshot || metadata;
+    const amountInCents = reservation ? Number(reservation.charge_cents) : Math.round(customerTotalAmount * 100);
+    const creditApplied = reservation ? Number(reservation.amount_cents) / 100 : 0;
+    if (reservation && !reservation.stripe_session_id && !reservation.stripe_payment_intent_id &&
+        Date.now() - Date.parse(reservation.created_at) > 23 * 60 * 60 * 1000) {
+      throw new Error("Unlinked Stripe checkout requires reconciliation before another charge");
+    }
+
+    if (reservation && amountInCents === 0) {
+      const { error } = await supabaseAdmin.rpc("confirm_zero_referral_checkout", { p_id: reservation.id, p_customer_id: auth.user.id });
+      if (error) throw new Error(error.message);
+      await notifyProviderHired({ providerId: String(offer.professional_id), requestId, title: serviceRequest.title });
+      return NextResponse.json({ success: true, creditPaymentConfirmed: true, stripeCheckoutRequired: false, referralCreditApplied: creditApplied, customerChargeAmount: 0 });
+    }
 
     if (paymentFlow === "payment_sheet") {
       if (amountInCents <= 0) {
@@ -1639,8 +1668,9 @@ export async function POST(request: NextRequest) {
           email: auth.user.email,
         });
 
-      const paymentIntent =
-        await stripe.paymentIntents.create(
+      const paymentIntent = reservation?.stripe_payment_intent_id
+        ? await stripe.paymentIntents.retrieve(reservation.stripe_payment_intent_id)
+        : await createReferralStripeObject(supabaseAdmin, reservation, () => stripe.paymentIntents.create(
           {
             amount: amountInCents,
             currency: currency.toLowerCase(),
@@ -1649,42 +1679,15 @@ export async function POST(request: NextRequest) {
             setup_future_usage: "off_session",
             transfer_group:
               `relydo_request_${requestId}`,
-            metadata: {
-              payment_type: "initial_job",
-              payment_flow: "payment_sheet",
-              request_id: requestId,
-              offer_id: offerId,
-              customer_id: auth.user.id,
-              professional_id: String(
-                offer.professional_id
-              ),
-              payment_settings_id: String(
-                paymentSettings.id
-              ),
-              professional_price:
-                professionalPrice.toFixed(2),
-              customer_fee_percent:
-                customerFeePercent.toFixed(2),
-              customer_fee_amount:
-                customerFeeAmount.toFixed(2),
-              customer_total:
-                customerTotalAmount.toFixed(2),
-              provider_commission_percent:
-                providerCommissionPercent.toFixed(2),
-              provider_commission_amount:
-                providerCommissionAmount.toFixed(2),
-              provider_net_amount:
-                providerNetAmount.toFixed(2),
-              platform_revenue_amount:
-                platformRevenueAmount.toFixed(2),
-              currency,
-            },
+            metadata: frozenMetadata,
           },
           {
             idempotencyKey:
-              `relydo-payment-sheet-${requestId}-${offerId}`,
+              reservation ? `referral-checkout:${reservation.id}:intent` : `relydo-payment-sheet-${requestId}-${offerId}`,
           }
-        );
+        ));
+
+      if (reservation) await attachReferralCheckout(supabaseAdmin, reservation, null, paymentIntent.id);
 
       if (!paymentIntent.client_secret) {
         return NextResponse.json(
@@ -1726,6 +1729,8 @@ export async function POST(request: NextRequest) {
         stripeCustomerId,
         customerSessionClientSecret:
           customerSession.client_secret,
+        referralCreditApplied: creditApplied,
+        customerChargeAmount: amountInCents / 100,
         amounts: {
           professionalPrice,
           customerFeePercent,
@@ -1741,16 +1746,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const session =
-      await stripe.checkout.sessions.create(
+    const session = reservation?.stripe_session_id
+      ? await stripe.checkout.sessions.retrieve(reservation.stripe_session_id)
+      : await createReferralStripeObject(supabaseAdmin, reservation, () => stripe.checkout.sessions.create(
         {
           mode: "payment",
           payment_method_types: [
             "card",
           ],
 
-          client_reference_id:
-            requestId,
+          client_reference_id: requestId,
+          payment_intent_data: { metadata: frozenMetadata },
 
           line_items: [
             {
@@ -1777,71 +1783,7 @@ export async function POST(request: NextRequest) {
             },
           ],
 
-          metadata: {
-            payment_type:
-              "initial_job",
-
-            request_id:
-              requestId,
-
-            offer_id:
-              offerId,
-
-            customer_id:
-              auth.user.id,
-
-            professional_id:
-              String(
-                offer.professional_id
-              ),
-
-            payment_settings_id:
-              String(
-                paymentSettings.id
-              ),
-
-            professional_price:
-              professionalPrice.toFixed(
-                2
-              ),
-
-            customer_fee_percent:
-              customerFeePercent.toFixed(
-                2
-              ),
-
-            customer_fee_amount:
-              customerFeeAmount.toFixed(
-                2
-              ),
-
-            customer_total:
-              customerTotalAmount.toFixed(
-                2
-              ),
-
-            provider_commission_percent:
-              providerCommissionPercent.toFixed(
-                2
-              ),
-
-            provider_commission_amount:
-              providerCommissionAmount.toFixed(
-                2
-              ),
-
-            provider_net_amount:
-              providerNetAmount.toFixed(
-                2
-              ),
-
-            platform_revenue_amount:
-              platformRevenueAmount.toFixed(
-                2
-              ),
-
-            currency,
-          },
+          metadata: frozenMetadata,
 
           success_url:
             validMobileReturnUrl
@@ -1855,11 +1797,16 @@ export async function POST(request: NextRequest) {
         },
         {
           idempotencyKey:
-            `relydo-checkout-${requestId}-${offerId}-${
+            reservation ? `referral-checkout:${reservation.id}:session` : `relydo-checkout-${requestId}-${offerId}-${
               validMobileReturnUrl ? "mobile" : "web"
             }`,
         }
-      );
+      ));
+
+    if (reservation) {
+      const intentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id || null;
+      await attachReferralCheckout(supabaseAdmin, reservation, session.id, intentId);
+    }
 
     if (!session.url) {
       return NextResponse.json(
@@ -1876,6 +1823,8 @@ export async function POST(request: NextRequest) {
       url: session.url,
       stripeCheckoutRequired: true,
 
+      referralCreditApplied: creditApplied,
+      customerChargeAmount: amountInCents / 100,
       amounts: {
         professionalPrice,
         customerFeePercent,

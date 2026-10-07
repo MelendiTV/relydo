@@ -11,14 +11,14 @@ function fixture() {
   const job={id:'job1',customer_id:'customer1',status:'open',preferred_provider_id:null};
   const intent={id:'pi1',metadata,status:'succeeded',amount:11000,amount_received:11000,customer:'cus1',currency:'usd'};
   const session={id:'cs1',metadata:{...metadata,payment_flow:'web'},payment_status:'paid',payment_intent:intent,customer:'cus1',amount_total:11000,currency:'usd'};
-  const db={from(table) {
+  const db={rpc:async(name,args)=>{assert.equal(name,'attach_referral_checkout');if(state.reservationError)return {error:{message:'offline'}};state.reservation.stripe_payment_intent_id=args.p_intent_id;return {error:null};},from(table) {
     assert.notEqual(table,'payment_settings');
     let action=null, values=null;const filters=[];
     const q={select:()=>q,limit:()=>q,eq:(k,v)=>{filters.push(row=>row[k]===v);return q;},is:(k,v)=>{filters.push(row=>row[k]===v);return q;},neq:(k,v)=>{filters.push(row=>row[k]!==v);return q;},in:(k,v)=>{filters.push(row=>v.includes(row[k]));return q;},or:()=>q,
       update(data){action='update';values=data;return q;},insert(data){action='insert';values=data;return q;},
       maybeSingle:async()=>execute(),then(resolve,reject){return Promise.resolve(execute()).then(resolve,reject);}};
     function execute(){
-      const row=table==='payments'?state.payment:table==='offers'?offer:job;
+      const row=table==='referral_credit_checkouts'?state.reservation:table==='payments'?state.payment:table==='offers'?offer:job;
       if(!action)return {data:row && filters.every(f=>f(row))?{...row}:null,error:null};
       if(table==='payments' && state.saveError)return {error:{code:'offline'},data:null};
       if(table==='payments' && action==='insert' && state.collision){state.payment={id:'payment1',offer_id:'offer1',provider_payment_id:state.collision==='null'?null:state.collision};state.collision=null;return {error:{code:'23505'},data:null};}
@@ -37,6 +37,7 @@ function fixture() {
       if(name==='next/server')return {NextResponse:{json:(body,opts)=>Response.json(body,opts)}};
       if(name==='stripe')return {default:class Stripe{constructor(){return stripe;}}};
       if(name==='@supabase/supabase-js')return {createClient:()=>db};
+      if(name.endsWith('referralCheckout'))return load('app/lib/referralCheckout.ts');
       if(name.endsWith('basePaymentSnapshot'))return load('app/lib/basePaymentSnapshot.ts');
       if(name.endsWith('serverAuth'))return {getAuthenticatedUser:async()=>{throw Error('Webhook must not need customer authentication');}};
       if(name.endsWith('serverNotifications'))return {sendRelydoNotification:async()=>{state.notifications++;}};
@@ -55,7 +56,7 @@ function fixture() {
     cache.set(file,exports);return exports;
   }
   const webhook=()=>load('app/api/stripe/webhook/route.ts').POST({headers:new Headers({'stripe-signature':'signed'}),text:async()=>''});
-  return {state,metadata,intent,offer,job,webhook};
+  return {state,metadata,intent,session,offer,job,webhook};
 }
 test('base mobile webhook confirms without client and freezes original snapshot',async()=>{
   const f=fixture();const r=await f.webhook();assert.equal(r.status,200);assert.equal((await r.json()).processed,true);
@@ -80,3 +81,28 @@ test('missing trusted origin cannot forward mobile confirmation',async()=>{const
 
 test('pending local payment is filled once and repeated webhook preserves it',async()=>{const f=fixture();f.state.payment={id:'payment1',offer_id:'offer1',provider_payment_id:null};assert.equal((await f.webhook()).status,200);const writes=f.state.writes.length;assert.equal((await f.webhook()).status,200);assert.equal(f.state.writes.length,writes);assert.equal(f.state.notifications,1);});
 test('concurrent update cannot overwrite another confirmed intent',async()=>{const f=fixture();f.state.payment={id:'payment1',offer_id:'offer1',provider_payment_id:null};f.state.updateWinner='pi_other';assert.equal((await f.webhook()).status,500);assert.equal(f.state.payment.provider_payment_id,'pi_other');assert.equal(f.state.notifications,0);assert.equal((await f.webhook()).status,200);assert.equal(f.state.refunds.length,1);});
+
+function creditFixture(web = false) {
+  const f = fixture();
+  const metadata = { ...f.metadata, payment_flow: web ? 'web' : 'payment_sheet', use_referral_credit: 'true', referral_credit_reservation_id: 'credit1', referral_credit_applied: '15.00', customer_charge_amount: '95.00' };
+  Object.assign(f.metadata, metadata); f.session.metadata = { ...metadata };
+  f.intent.amount = f.intent.amount_received = f.session.amount_total = 9500;
+  f.state.reservation = { id: 'credit1', customer_id: 'customer1', request_id: 'job1', offer_id: 'offer1', amount_cents: 1500, charge_cents: 9500,
+    state: 'reserved', stripe_payment_intent_id: web ? null : 'pi1', stripe_session_id: web ? 'cs1' : null, snapshot: { ...metadata } };
+  if (web) f.state.eventType = 'checkout.session.completed';
+  return f;
+}
+for (const web of [false, true]) test(`actual ${web ? 'web' : 'mobile'} webhook accepts corroborated reduced charge and persists both snapshots`, async () => {
+  const f = creditFixture(web); assert.equal((await f.webhook()).status, 200);
+  assert.equal(f.state.payment.customer_total_amount, 110); assert.equal(f.state.payment.customer_charge_amount, 95);
+  assert.equal(f.state.payment.referral_credit_applied, 15); assert.equal(f.state.payment.provider_net_amount, 80);
+  assert.equal(f.state.payment.provider_commission_amount, 20); assert.equal(f.state.payment.customer_fee_amount, 10);
+  assert.equal((await f.webhook()).status, 200); assert.equal(f.state.notifications, 1);
+});
+for (const mutate of [f => {f.state.reservation = null;}, f => {f.state.reservation.state = 'released';}, f => {f.state.reservation.customer_id = 'other';}, f => {f.metadata.referral_credit_applied = '16.00';}, f => {f.intent.amount_received = 9400;}, f => {f.intent.currency = 'eur';}, f => {f.state.reservation.stripe_payment_intent_id = 'pi_other';}]) test('webhook rejects reduced charge without matching live persisted snapshot', async () => {
+  const f = creditFixture(); mutate(f); assert.equal((await f.webhook()).status, 500); assert.equal(f.state.payment, null); assert.equal(f.state.writes.length, 0);
+});
+test('reservation attach outage is retryable without any job/payment mutation', async () => {
+  const f = creditFixture(); f.state.reservationError = true; assert.equal((await f.webhook()).status, 500); assert.equal(f.state.writes.length, 0);
+  f.state.reservationError = false; assert.equal((await f.webhook()).status, 200);
+});

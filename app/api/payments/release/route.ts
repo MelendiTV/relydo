@@ -238,6 +238,7 @@ async function procesarLiberacion({
         status,
         payment_provider,
         provider_payment_id,
+        referral_credit_reservation_id, customer_charge_amount,
         completed_at,
         release_due_at,
         released_at,
@@ -419,7 +420,7 @@ async function procesarLiberacion({
     };
   }
 
-  if (!esPagoReasignado && !payment.provider_payment_id) {
+  if (!esPagoReasignado && !payment.provider_payment_id && !(payment.referral_credit_reservation_id && Number(payment.customer_charge_amount) === 0 && Number(payment.provider_net_amount) === 0)) {
     return {
       success: false,
       status: 400,

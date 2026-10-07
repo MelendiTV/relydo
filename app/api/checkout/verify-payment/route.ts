@@ -39,6 +39,10 @@ async function refundUnexpectedPayment(
       }
     );
 
+    if (intent.metadata?.referral_credit_reservation_id) {
+      const { error } = await supabaseAdmin.rpc("return_referral_checkout", { p_id: intent.metadata.referral_credit_reservation_id });
+      if (error) throw new Error("Refund succeeded; credit return requires retry");
+    }
     return {
       ok: true as const,
       refundId: refund.id,
@@ -843,6 +847,7 @@ export async function POST(request: NextRequest) {
           request_id,
           provider_id,
           customer_total_amount,
+          customer_charge_amount,
           refunded_amount,
           status,
           payment_provider,
@@ -1035,7 +1040,7 @@ export async function POST(request: NextRequest) {
       } else {
         const originalCustomerTotal = money(
           Number(
-            originalPayment.customer_total_amount || 0
+            (originalPayment.customer_charge_amount ?? originalPayment.customer_total_amount) || 0
           )
         );
 
@@ -1411,7 +1416,23 @@ export async function POST(request: NextRequest) {
 
     let snapshot: ReturnType<typeof validateBasePaymentSnapshot>;
     try {
-      snapshot = validateBasePaymentSnapshot(session.metadata, session.amount_total);
+      let reservation = null;
+      const reservationId = session.metadata?.referral_credit_reservation_id;
+      if (reservationId) {
+        const { data, error } = await supabaseAdmin.from("referral_credit_checkouts").select("*").eq("id", reservationId).maybeSingle();
+        if (error) return NextResponse.json({ error: "Credit reservation lookup requires retry" }, { status: 500 });
+        if (!data || data.state === "released" || data.customer_id !== metadataCustomerId || data.request_id !== requestId ||
+            data.offer_id !== offerId || (data.stripe_session_id && data.stripe_session_id !== session.id) ||
+            (data.stripe_payment_intent_id && data.stripe_payment_intent_id !== paymentIntentId) ||
+            String(session.currency).toUpperCase() !== "USD") throw new Error("Credit reservation mismatch");
+        snapshot = validateBasePaymentSnapshot(session.metadata, session.amount_total, data);
+        const { error: attachError } = await supabaseAdmin.rpc("attach_referral_checkout", {
+          p_id: reservationId, p_session_id: data.stripe_session_id, p_intent_id: paymentIntentId,
+        });
+        if (attachError && data.state !== "consumed") return NextResponse.json({ error: "Credit reference requires retry" }, { status: 500 });
+        reservation = data;
+      }
+      snapshot = validateBasePaymentSnapshot(session.metadata, session.amount_total, reservation);
     } catch {
       return NextResponse.json(
         { error: "La sesión de Stripe no contiene un snapshot financiero completo y coherente de RELYDO." },
@@ -1723,7 +1744,11 @@ export async function POST(request: NextRequest) {
 
       platform_revenue_amount:
         platformRevenueAmount,
-
+      ...(session.metadata?.referral_credit_reservation_id ? {
+        referral_credit_reservation_id: session.metadata.referral_credit_reservation_id,
+        referral_credit_applied: snapshot.referralCreditApplied,
+        customer_charge_amount: snapshot.customerChargeAmount,
+      } : {}),
       currency,
 
       status:

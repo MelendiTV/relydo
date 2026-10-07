@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { confirmScreeningPayment, invalidateScreeningPayment } from "../../../lib/providerScreening";
 import { confirmChangeOrderPayment } from "../../../lib/changeOrderPayments";
+import { createClient } from "@supabase/supabase-js";
+import { returnReferralCheckout, attachReferralCheckout, type ReferralCheckout } from "../../../lib/referralCheckout";
+import { validateBasePaymentSnapshot } from "../../../lib/basePaymentSnapshot";
 
 export const runtime = "nodejs";
 
@@ -50,6 +53,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     } catch {
       return NextResponse.json({ error: "Screening payment invalidation requires retry" }, { status: 500 });
+    }
+  }
+
+  if (["checkout.session.expired", "checkout.session.async_payment_failed", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
+    const object = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
+    const reservationId = object.metadata?.referral_credit_reservation_id;
+    if (!reservationId) return NextResponse.json({ received: true, ignored: true });
+    try {
+      const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
+      const { data, error } = await db.from("referral_credit_checkouts").select("*").eq("id", reservationId).maybeSingle();
+      if (error || !data) throw new Error("Reservation unavailable");
+      const r = data as ReferralCheckout;
+      const isSession = event.type.startsWith("checkout.");
+      const reference = isSession ? r.stripe_session_id : r.stripe_payment_intent_id;
+      if (reference && reference !== object.id) throw new Error("Reference mismatch");
+      if (!reference && r.state === "reserved") {
+        const cents = isSession ? (object as Stripe.Checkout.Session).amount_total : (object as Stripe.PaymentIntent).amount;
+        validateBasePaymentSnapshot(object.metadata, cents, r);
+        await attachReferralCheckout(db, r, isSession ? object.id : null, isSession ? null : object.id);
+        if (isSession) r.stripe_session_id = object.id;
+        else r.stripe_payment_intent_id = object.id;
+      }
+      // Payment failure is retryable in Stripe. Cancel it before returning the reserve.
+      await returnReferralCheckout(db, stripe, r, true);
+      return NextResponse.json({ received: true });
+    } catch {
+      return NextResponse.json({ error: "Credit return requires retry" }, { status: 500 });
     }
   }
 
