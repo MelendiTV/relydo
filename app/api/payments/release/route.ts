@@ -1,5 +1,6 @@
 import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError, assertChangeOrderChargeReleasable } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
+import { awardCustomerReferral, retryCustomerReferralAwards } from "../../../lib/customerReferralAwards";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendRelydoNotification } from "../../../lib/serverNotifications";
@@ -707,6 +708,9 @@ async function procesarLiberacion({
     }).eq("id", payment.id);
     if (releaseSaveError) throw new Error("Stripe procesó la liberación, pero falta actualizar el pago.");
 
+    // After durable Pro release, including retries: never duplicate promotional awards.
+    await awardCustomerReferral(supabaseAdmin, stripe, requestId);
+
     // ==========================================================
     // 13. RESPUESTA FINAL
     // ==========================================================
@@ -955,6 +959,8 @@ export async function GET(
     ) {
       return unauthorized();
     }
+
+    await retryCustomerReferralAwards(supabaseAdmin, stripe);
 
     const ahora =
       new Date().toISOString();
