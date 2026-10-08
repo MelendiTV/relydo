@@ -1899,7 +1899,6 @@ export default function MisSolicitudesPage() {
 
         {/* ACCIONES */}
 
-        <CustomerReferralCard />
         <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
@@ -2023,6 +2022,23 @@ export default function MisSolicitudesPage() {
               </div>
             </div>
 
+            <div className="border-b px-6 py-5 md:px-7" style={{ borderColor: bordeTarjeta, color: textoPrincipal }}>
+              <h3 className="text-xl font-black">{cliente?.full_name || t.clienteNombre}</h3>
+              <p className="mt-1 break-all text-sm" style={{ color: textoSecundario }}>{email}</p>
+            </div>
+
+            <div className="border-b p-6 md:p-7" style={{ borderColor: bordeTarjeta, color: textoPrincipal }}>
+              <details id="creditos-referidos" className="scroll-mt-6 rounded-2xl border" style={{ borderColor: bordeTarjeta, backgroundColor: temaOscuro ? "#111827" : "#f8fafc" }}>
+                <summary className="group flex min-h-16 cursor-pointer list-none items-center gap-3 rounded-2xl p-5 [&::-webkit-details-marker]:hidden">
+                  <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl text-blue-600">🎁</span>
+                  <span className="flex-1 font-black">{language === "es" ? "Créditos y referidos" : "Credits and referrals"}</span>
+                  <span aria-hidden="true" className="text-xl transition-transform group-open:rotate-90">›</span>
+                </summary>
+                <div className="border-t p-5" style={{ borderColor: bordeTarjeta }}>
+                  <CustomerReferralCard />
+                </div>
+              </details>
+            </div>
             <div className="grid gap-5 p-6 md:grid-cols-2 md:p-7 xl:grid-cols-4">
               {/* APARIENCIA */}
               <div
