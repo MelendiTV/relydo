@@ -1,5 +1,6 @@
 import { financialPlan, financialStripe, reserveJobResolution, readJobResolution, FinancialGuardError, assertChangeOrderChargeReleasable } from "../../../lib/jobFinancialGuard";
 import { NextRequest, NextResponse } from "next/server";
+import { processProviderReferral, retryProviderReferrals } from "../../../lib/providerReferralBonuses";
 import { awardCustomerReferral, retryCustomerReferralAwards } from "../../../lib/customerReferralAwards";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -710,6 +711,9 @@ async function procesarLiberacion({
     if (releaseSaveError) throw new Error("Stripe procesó la liberación, pero falta actualizar el pago.");
 
     // After durable Pro release, including retries: never duplicate promotional awards.
+    // Independent retry queues: a promotional failure never repeats the normal release.
+    try { await processProviderReferral(supabaseAdmin, stripe, requestId); }
+    catch (error) { console.error("Bono Pro pendiente tras release", requestId, error); }
     await awardCustomerReferral(supabaseAdmin, stripe, requestId);
 
     // ==========================================================
@@ -961,6 +965,7 @@ export async function GET(
       return unauthorized();
     }
 
+    await retryProviderReferrals(supabaseAdmin, stripe);
     await retryCustomerReferralAwards(supabaseAdmin, stripe);
 
     const ahora =

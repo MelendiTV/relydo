@@ -132,6 +132,7 @@ function endpoint(kind='release') {
    if(name.endsWith('/jobFinancialGuard'))return helperModule.exports;
    // These legacy payout fixtures have no customer referral. Referral-aware
    // SQL/Stripe behavior is exercised in customer-referral-awards*.test.cjs.
+   if(name.endsWith('/providerReferralBonuses'))return {processProviderReferral:async()=>({outcome:'no_credit'}),retryProviderReferrals:async()=>{}};
    if(name.endsWith('/customerReferralAwards'))return {awardCustomerReferral:async()=>({outcome:'not_referred'}),retryCustomerReferralAwards:async()=>{}};
    if(name.endsWith('/serverNotifications'))return {sendRelydoNotification:async()=>{}};
    throw Error('Unexpected dependency '+name);

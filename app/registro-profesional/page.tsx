@@ -31,6 +31,7 @@ export default function RegistroProfesional() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
+    const providerReferralCode = String(formData.get("provider_referral_code") || "").trim().toUpperCase();
     const legalName = String(
       formData.get("legal_name") || ""
     ).trim();
@@ -221,6 +222,14 @@ export default function RegistroProfesional() {
     }
 
     try {
+      if (providerReferralCode) {
+        const { data: valid, error: referralError } = await supabase.rpc("validate_provider_referral_code", { p_code: providerReferralCode });
+        if (referralError || valid !== true) {
+          setError(T("El código de referido Pro no es válido.", "The Pro referral code is invalid."));
+          setEnviando(false);
+          return;
+        }
+      }
       /*
         CREAR USUARIO EN AUTH
 
@@ -263,6 +272,7 @@ export default function RegistroProfesional() {
             legal_accepted_at: new Date().toISOString(),
             legal_language: language,
             signup_type: "provider",
+            provider_referral_code: providerReferralCode || undefined,
             registration_source: "web",
            
             legal_name: legalName,
@@ -600,6 +610,17 @@ export default function RegistroProfesional() {
                           className={inputClass}
                         />
 
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label htmlFor="provider-referral-code" className={labelClass}>
+                          {T("Código de referido Pro (opcional)", "Pro referral code (optional)")}
+                        </label>
+                        <input id="provider-referral-code" name="provider_referral_code" maxLength={14} placeholder="PRO-XXXXXXXXXX"
+                          className={inputClass} />
+                        <p className="mt-1 text-xs text-slate-500">
+                          {T("Se fija al registrarte y no se puede cambiar después.", "Fixed at signup and cannot be changed later.")}
+                        </p>
                       </div>
 
                       <div>
